@@ -2,93 +2,103 @@
 
 > **What this file is:** the single snapshot of what is true *right now*. Present tense only.
 > **Read this first** in every session. For *why* a thing is the way it is, see [DECISIONS.md](DECISIONS.md).
-> **Last synced:** 2026-07-05
+> **Last synced:** 2026-07-11
 
 ---
 
 ## What we're making
 
-A **casual mobile roguelike autobattler** where the core fun is **watching unpredictable, destructive combat outcomes** that emerge from a few simple player decisions.
+A **casual mobile roguelike autobattler**, **single-player PvE**, where the core fun is **watching a readable fight, learning why it went the way it did, and applying the lesson to your next setup.**
 
 - **Team:** 2 people + AI, experiment stage.
 - **Platform:** mobile, casual audience.
 - **Current focus:** does this feel fun to us? Monetization and UA come later.
-- **Core insight:** fun = the tension between **mastery** (decisions visibly shape outcomes) and **chaos** (surprise, spectacle, replayability). A great outcome is both *surprising AND attributable* — the player can look at the result and feel "that happened because of what I decided."
+- **Core insight:** fun = the tension between **mastery** (decisions visibly shape outcomes) and **chaos** (visual spectacle + roguelike variety). A great outcome is both *surprising AND attributable* — and here **attributable is primary**: the player watches to understand the cause, then adapts. Learning is the hook, not the coin-flip.
 
 ## The design spine
 
-> 5 individual heroes → a 9 Kings-style draft builds them up over the run → build-up charges ultimates → a **timed ultimate** is the mid-fight call → chain reactions + morale/stress breaks supply the chaos.
+> 5 individual heroes (+ a bench) → a 9 Kings-style draft builds up fielded *and* benched heroes over the run → two squads meet on contained terrain → the player watches a **readable, watch-only fight** → if it fails, **diagnose, adjust the squad, and retry within a limited attempt budget** → the lesson feeds the next setup. (A mid-fight tactical call is a *parked secondary experiment*, not part of the core loop.)
 
 ## Settled — do not re-litigate
 
-- **Fun = balanced mastery + chaos.** Chaos without agency is a slot machine; agency without chaos is a solved puzzle.
+- **Education-primary, single-player PvE.** The reason to watch is to learn and improve the next setup. Suspense ("will I win?") is a secondary, early-run/execution effect, not the core hook.
+- **Fun = balanced mastery + chaos.** Chaos here means *visual liveliness + roguelike offer-variance*, not outcome-uncertainty. Chaos without agency is a slot machine; agency without chaos is a solved puzzle.
 - **Depth comes from impactful *few* actions, not more actions.** Inputs stay simple (few taps); the decision *behind* an input must out-complex the input.
-- **The 5 are individual characters**, not anonymous groups/archetypes — the ultimate charger belongs to a character, and individuals keep Darkest Dungeon-style personal morale drama available.
-- **Mid-fight form = the Timed Ultimate.** Ultimates charge as heroes fight; the player decides *when to fire*. It must carry a trade-off so "fire the instant it's ready" is *sometimes wrong* (else it becomes auto-castable decoration — the Heroes Charge trap).
-- **Mastery is distributed** across run-long draft + pre-fight setup + mid-fight timing. The ultimate is one lever among several.
-- **Synergy between characters/items is wanted** — a core roguelike variance engine, simple to trigger, deep in outcome. It should be *watch-legible* (you see it fire), not menu-deep. (This is NOT TFT; only the TFT *framing* was dropped.)
-- **9 Kings' simple-input / deep-output draft rhythm IS the design, not a violation of it.** Take the draft loop; the grid-placement layer and defensive-throne structure are separable and not automatically adopted.
-- **The "5-second to understand" rule is ad-creative-only** — it is not a gameplay-loop constraint.
-- **Combat should look chaotic and destructive** — watching the fight is half the fun; the mid-fight call is the other half.
+- **The 5 are individual characters**, not anonymous groups/archetypes — personal build-up and Darkest Dungeon-style morale drama both attach to individuals.
+- **Combat is watch-only in the primary loop.** The player does not act *during* the fight; player agency lives in **draft + pre-fight setup + between-attempt tuning**. Because there is no in-fight input, readable, watchable combat is now *make-or-break*.
+- **The learn loop.** Set up a squad → watch a readable fight resolve → on failure, **diagnose, adjust the squad, and retry.** Retries are rationed by a **limited number of attempts**, tuned so **each retry is the same difficulty** (clean attribution: the player's change is the only variable). **Unit attrition is a deferred, separate mechanic**, not in the first prototype.
+- **Opponent squads are readable puzzles with multiple valid solutions.** Full information — no fog-of-war. The skill is reading and countering a *visible* board and building a counter creatively, not guessing a hidden one. (Into the Breach model.)
+- **A bench exists, and the roster is roguelike, not a collection.** Every run starts from a **fixed default starter squad**; all power is **built in-run** via the draft. The unlocked hero **pool is unlimited** and grows via run-completion rewards and buying, but unlocking/buying only **widens variety** — it never hands over pre-leveled power. Before a run, the player **brings a limited subset** of the pool as this run's draftable heroes.
+- **Per-hero persistence (within a run).** Build-up welds to the *individual* hero, not the fielded slot; a benched hero keeps everything they earned and returns fully built. Everything resets to the default starter each new run.
+- **Field framing = squad vs. squad on contained terrain.** Two squads meet in the middle of a terrain (no long march). Medieval-war roles: frontline tanks, backline ranged, mobile flankers. Not a defended point holding off waves.
+- **Mid-fight tactical decision is demoted to a parked secondary experiment.** Not a hard constraint. Revisited only if the retry-and-tune loop proves too thin; substitution is dropped as its committed form.
+- **Mastery is distributed** across the run-long draft + pre-fight setup + between-attempt tuning. No single lever carries it.
+- **Combat must be readable.** Education requires the player to trace what happened. "Chaotic/destructive" = *visual* liveliness only (free movement, varied terrain, varied skills/units). Light RNG is wanted but capped so it never makes the fight unreadable.
+- **Synergy between characters/items is wanted** — a core roguelike variance engine, simple to trigger, deep in outcome, *watch-legible* (you see it fire). (This is NOT TFT; only the TFT *framing* was dropped.)
+- **9 Kings' simple-input / deep-output draft rhythm IS the design.** Take the draft loop; the grid-placement layer and defensive-throne structure are separable and not automatically adopted.
+- **The "5-second to understand" rule is ad-creative-only** — not a gameplay-loop constraint.
 
 ## Game loop
 
 ```
 A SINGLE RUN
-  BUILD Squad(5) ──▶ FIGHT (watch!) ──▶ UPGRADE / Shop ──┐
-        ▲                                                │
-        └────────────────────────────────────────────────┘
-  Run ends when: squad wipes OR final boss beaten.
+  BUILD Squad(5 from bench) ──▶ WATCH FIGHT (readable, no input) ──▶ WIN? ──yes──▶ DRAFT / Upgrade ──┐
+        ▲                                                            │                                │
+        │                                                            no                               │
+        │                                                            ▼                                │
+        └──── DIAGNOSE + ADJUST squad + RETRY (spend an attempt) ◀───┘                                │
+        ▲                                                                                             │
+        └───────────────────────────────────────────────────────────────────────────────────────────┘
+  Run ends when: attempts run out on a round OR the final boss is beaten.
 ```
 
-- **BUILD:** start with a squad of 5. Simple decisions — pick who, pick where (formation/positioning), maybe a tactical stance (aggressive/defensive).
-- **FIGHT (the spectacle):** control exists at two moments —
-  - *Pre-fight:* setup — squad picks, positioning, stance. (Exact depth still open.)
-  - *Mid-fight:* the Timed Ultimate — one tap, "when to fire."
-  - Combat is chaotic, destructive, visually exciting. Variance injectors on top of the player's call: environmental hazards, outsized crits/dodges, fuzzy character AI, chain reactions, morale/stress breaks.
-- **UPGRADE:** between rounds, upgrade characters or buy from a shop. Options are *highly* random — you adapt to what's offered, not execute a pre-planned build. Modeled on **9 Kings' draft-and-build loop**: one simple choice per round, deep outcomes. What you build up over the run **feeds the ultimate** (build-up → charge → the timed call).
+- **BUILD:** field 5 from your bench. Simple decisions — pick who, pick where (formation/positioning: front/back/flank), maybe a stance.
+- **WATCH FIGHT (watch to learn):** two squads meet on contained terrain and fight autonomously — **the player does not act during the fight.** Combat is readable and visually lively. Light variance injectors add texture without deciding the fight: environmental hazards, morale/stress breaks, fuzzy AI, chain reactions.
+- **DIAGNOSE + RETRY (on loss):** read why it failed, adjust the squad/setup, and retry the same round. Retries cost from a **limited attempt budget** and stay the same difficulty each try.
+- **DRAFT / UPGRADE (on win):** one simple 9 Kings-style choice per round, deep outcomes — highly random offers you adapt to. Builds up **both** fielded and benched heroes (recruit / upgrade).
 
 ## Design pillars
 
-1. **Simple inputs, complex outputs, traceable outcomes** — few decisions, wildly different results, and the player can always trace the outcome back to a choice. Never feels arbitrary.
-2. **The spectacle IS the game** — watching your squad fight is as fun as setting it up; acting mid-fight steers the spectacle. This is the ad moment, the share moment, the "one more game" moment.
-3. **Balanced tension — mastery AND chaos** — the player is a coach who also makes the occasional in-match call: not a spectator, not a quarterback calling every play.
-4. **Roguelike freshness** — random shops/events/environment mean no two runs feel the same, while player setup and mid-fight choices still steer the story.
+1. **Simple inputs, complex outputs, traceable outcomes** — few decisions, wildly different results, always traceable back to a choice. Never feels arbitrary.
+2. **You watch to learn** — the fight is readable so the player sees *why* it went the way it did, then adjusts and retries. This is the education loop, and it is the core hook.
+3. **Balanced tension — mastery AND chaos** — the player is a coach who **tunes between attempts**, not a spectator and not a quarterback calling every play. Mastery lives in setup, draft, and diagnosing-then-adjusting between tries.
+4. **Roguelike freshness** — random shops/events/environment and combinatorial synergy depth mean no two runs feel the same; setup and between-attempt tuning still steer the story.
 5. **Casual-mobile-first** — inputs simple, the decision behind them deep.
 
 ## Reference games (by relevance)
 
 | Priority | Game | What to study |
 |---|---|---|
-| 🥇 | Football Manager / 9King | "Set up and watch" loop; variance from simulation; in-match calls (subs, tactical shifts) that visibly affect outcome |
-| 🥇 | Darkest Dungeon | Risk/reward; stress/morale as variance generator; character attachment; stories from failure |
-| 🥈 | PES (bot games) | Proof that watching high-variance AI-vs-AI is genuinely entertaining |
+| 🥇 | Into the Breach | Fully-readable PvE roguelike that stays unsolvable *without* an opponent — combinatorial depth as the refill; **full-information, multi-solution puzzle encounters** |
+| 🥇 | Slay the Spire | Offer-variance + difficulty tiers (Ascension) refilling the learn-loop; education-primary PvE roguelike |
+| 🥇 | Balatro | Deep education made *casual* — simple inputs, huge outputs; one-dev proof it ships |
+| 🥈 | Darkest Dungeon | Risk/reward; stress/morale as a variance generator; character attachment; stories from failure; **model for the deferred unit-attrition economy** |
+| 🥈 | PES / bot games | Proof that watching high-variance AI-vs-AI is entertaining |
 | 🥈 | Kingdom Rush | How a single controllable hero creates unpredictable outcomes |
-| 🥈 | Heroes Charge / Dota Legends | The charged manual-cast ultimate is casual-viable — AND a cautionary tale: shallow timing made it auto-castable, pushing mastery into the meta. Ours must avoid that. |
+| 🥉 | Super Auto Pets / Mechabellum | The set-up-and-watch autobattler shape — but both **async-PvP**; studied for form, set aside as PvP-dependent |
 | 🥉 | Archero / Habby catalog | Casual roguelike mobile packaging; monetization; low-CPI creative (later) |
 
 ## Open questions
 
-- **OQ-1 — Defense or offense? 🔴 FOUNDATIONAL, resolve first.** Are the 5 a *defended point* that enemy waves attack (9 Kings "hold the throne"), or an *attacking squad* that pushes out and brawls? Choosing "individuals" did not answer this. Determines spatial layout and whether 9 Kings' structure applies at all. Gates everything downstream.
-- **OQ-2 — What does the run-long build-up actually BUILD, given 5 fixed individuals? 🔴 (resolve with OQ-1.)** Upgrade the 5 (levels/gear/ultimate ranks)? Add non-hero elements (buildings/traps/summons)? Recruit from a bench? Tension: too little = not enough roguelike variety; adding stuff *around* the heroes sneaks the kingdom/board back in and reopens OQ-1.
-- **OQ-3 — How many ultimates are LIVE at once? ⚠️ TOP PRIORITY next.** One shared meter (a single decisive tap — cleanest, most casual) or 5 independent buttons (richer, 5 "when" decisions, but risks overload)? Sets how heavy the mid-fight moment is. A shared resource pool may resolve this *and* supply the fire-trade-off in one move.
-- **OQ-4 — The fire-on-cooldown trade-off. 🔴** What concrete mechanic makes casting-on-cooldown suboptimal? Candidates: overcharge (hold for more, risk the hero dies first); shared ultimate resource pool (can't fire all 5); reaction window (interrupt an enemy ult / catch a morale break); placement (cast now hits 2, wait hits 5 but they scatter).
-- **OQ-5 — FM-style spectacle vs. 9 Kings-style solver? 🟡 (never debated).** FM = watchable spectacle (the match you bet on); 9 Kings = tactical optimization (solve the board). Our pillars lean spectacle; the mechanics we're assembling (draft, synergy, ultimate timing) lean optimization. Does the design deliver the *watch-it-unfold* half, or is it a solver with a light show?
-- **OQ-6 — What is the specific FORM of the PRE-fight decision?** Squad picks + positioning + stance — how deep? Must stay simple to grasp but feel decisive.
-- **OQ-7 — How do we make outcomes feel attributable amid the chaos?** What UI/feedback/framing lets the player credit their own decision (highlight the moment their choice mattered, post-fight recap)?
-- **OQ-8 — What are the specific variance injectors?** We want environmental randomness on top of decisions but haven't designed concretes (weather? terrain? morale? equipment breakage?). Morale/stress is the leading candidate — needs individuals ✓.
-- **OQ-9 — What's the meta-progression?** Between runs, what carries over — new characters? base/hamlet upgrades?
-- **OQ-10 — What does "destructive" look like?** Visual language of chaos: explosions, ragdolls, arena destruction, screen shake. What makes a fight satisfying to watch?
+- **OQ-6 — What is the specific FORM of the PRE-fight decision?** Squad picks + positioning (front/back/flank) + stance — how deep? Must stay simple to grasp but feel decisive. It's the player's main setup lever.
+- **OQ-7 — How do we make outcomes feel attributable?** Readability is settled; the specific UI/feedback/framing that lets the player credit their own decision (highlight the moment a choice mattered, post-fight recap) is still open. Sharper now that the retry loop lives or dies on clean attribution.
+- **OQ-8 — What are the specific variance injectors?** Readable, light, never fight-deciding. Candidates: terrain/environment hazards, morale/stress breaks (leading), fuzzy AI, chain reactions. Constraint: keep fight variance low enough that a retry cleanly tests the player's change.
+- **OQ-9 — What's the meta-progression?** Partially set: heroes *unlock* across runs (widening the pool), but power resets each run. What else carries over between runs, if anything?
+- **OQ-10 — What does the combat look like? 🔴 (elevated to make-or-break.)** With combat watch-only, the fight must carry entertainment *and* be legible enough to diagnose, on its own. Visual language of *readable* liveliness: movement, terrain, skills, chain reactions, hit feedback.
+- **OQ-13 — What is the retry loop's shape? 🔴** Is the attempt budget **per-round or per-run**? How many attempts? What exactly happens when attempts run out (round loss = run over)? How is "same difficulty each retry" enforced?
+- **OQ-14 — How tight is the pre-run roster curation?** The dial between "adapt to what's offered" and "pre-plan a build": how big/constrained is the draftable subset you bring into a run?
+
+**Parked experiment (not open, deliberately shelved):** the **mid-fight tactical call** — revisit only if the retry-and-tune loop proves too thin. The real test is whether combat *develops* emergently enough (full information) to make any in-fight reaction worthwhile.
 
 ## Next up
 
 Immediate priority: make something that **feels fun to us**. No CPI/UA yet.
 
-1. **Resolve OQ-1 + OQ-2 together (field framing).** Defense vs. offense, and what the draft builds given 5 fixed individuals. Gate everything downstream.
-2. **Resolve OQ-5 (the thrill question).** Make sure the "watch it unfold" half is real, not a solver with a light show.
-3. **Resolve OQ-3 (one shared meter vs. 5 buttons)** — a shared pool may resolve this and OQ-4 at once.
-4. **Resolve OQ-4 (the fire-on-cooldown trade-off).**
-5. Then: define variance injectors, build a minimal chaotic-destructive combat prototype with one real mid-fight decision, and play it — can we point at an outcome and say why it happened (chaos, our choice, or both)?
+1. **Build the minimal prototype of the core loop:** squad setup → readable watch-only fight → on loss, diagnose + adjust + retry within a limited attempt budget → one draft choice on win. Play it: can we watch a fight, *learn* something, adjust, and clear the round — and does clearing feel *earned*, not brute-forced?
+2. **Resolve OQ-13 (retry-loop shape)** through prototype feel — attempts count, per-round vs per-run, fail condition.
+3. **Resolve OQ-6 (pre-fight setup depth) + OQ-14 (curation tightness).**
+4. **Define OQ-8 (variance injectors) + OQ-10 (combat readability)** — now make-or-break since combat is watch-only.
+5. **If the retry loop proves thin, run the parked mid-fight experiment.**
 
 ## Related files
 
