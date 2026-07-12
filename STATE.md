@@ -2,7 +2,7 @@
 
 > **What this file is:** the single snapshot of what is true *right now*. Present tense only.
 > **Read this first** in every session. For *why* a thing is the way it is, see [DECISIONS.md](DECISIONS.md).
-> **Last synced:** 2026-07-11
+> **Last synced:** 2026-07-12
 
 ---
 
@@ -80,7 +80,18 @@ A SINGLE RUN
 
 ## Open questions
 
-- **OQ-6 — What is the specific FORM of the PRE-fight decision?** Squad picks + positioning (front/back/flank) + stance — how deep? Must stay simple to grasp but feel decisive. It's the player's main setup lever.
+### 🔨 Prototype spec — active work (resolve ~one per session, in order)
+
+These four **gate building the prototype**. Nail them down before writing game code. Order matters: some gate the others.
+
+1. **OQ-15 — What is a fight's WIN CONDITION?** Never actually decided. In play: *rout the commander* (kill a key unit) / *breakthrough* (reach the enemy edge) / *hold-or-survive* / *annihilate*. This decides whether positioning + terrain are load-bearing or whether stats dominate. (OQ-1 fixed the spatial framing "squad vs squad on contained terrain" but left the *goal* of the fight open.) **← do FIRST; it gates OQ-16/17/19.**
+2. **OQ-16 — How are MAPS and TERRAIN designed?** Do fights happen on authored maps with real geometry — walls, chokepoints, cover, high ground, impassable terrain, edges? Is terrain-as-*structure* (what gives positioning consequence) in the prototype, and hand-authored per encounter or procedural? *Distinct from OQ-8*, which is terrain-as-*variance* (random hazards). **← resolve together with OQ-17.**
+3. **OQ-17 — Spatial resolution: grid vs. continuous vs. zones?** Reconsiders the lean toward continuous 2D. The authored-multi-solution-puzzle goal (Into the Breach, the #1 ref, is a **grid**) pressures toward discrete tiles/zones for readability + clean attribution; "lively" pressures toward continuous. Which wins, at what granularity? Sharpens OQ-10. **← resolve together with OQ-16.**
+4. **OQ-19 — How is an encounter AUTHORED as a puzzle, not a stat-check?** The method that guarantees "the naive deathball fails and there are multiple valid solves." What structural ingredients (protected target + terrain constraint + role counters + synergy) make a fight a readable puzzle. **← do LAST; it's the synthesis and needs OQ-15/16/17 settled.**
+
+### Longer-horizon (not blocking the first build)
+
+- **OQ-6 — What is the specific FORM of the PRE-fight decision?** Squad picks + positioning (front/back/flank) — how deep? Must stay simple to grasp but feel decisive. It's the player's main setup lever, and (given watch-only) it carries the whole solve.
 - **OQ-7 — How do we make outcomes feel attributable?** Readability is settled; the specific UI/feedback/framing that lets the player credit their own decision (highlight the moment a choice mattered, post-fight recap) is still open. Sharper now that the retry loop lives or dies on clean attribution.
 - **OQ-8 — What are the specific variance injectors?** Readable, light, never fight-deciding. Candidates: terrain/environment hazards, morale/stress breaks (leading), fuzzy AI, chain reactions. Constraint: keep fight variance low enough that a retry cleanly tests the player's change.
 - **OQ-9 — What's the meta-progression?** Partially set: heroes *unlock* across runs (widening the pool), but power resets each run. What else carries over between runs, if anything?
@@ -88,15 +99,15 @@ A SINGLE RUN
 - **OQ-13 — What is the retry loop's shape? 🔴** Is the attempt budget **per-round or per-run**? How many attempts? What exactly happens when attempts run out (round loss = run over)? How is "same difficulty each retry" enforced?
 - **OQ-14 — How tight is the pre-run roster curation?** The dial between "adapt to what's offered" and "pre-plan a build": how big/constrained is the draftable subset you bring into a run?
 
-**Parked experiment (not open, deliberately shelved):** the **mid-fight tactical call** — revisit only if the retry-and-tune loop proves too thin. The real test is whether combat *develops* emergently enough (full information) to make any in-fight reaction worthwhile.
+**Parked experiment (not open, deliberately shelved):** the **mid-fight tactical call** — revisit only if the retry-and-tune loop proves too thin. Watch-only is a deliberate bet the prototype exists to test: *how far pre-fight setup alone can carry the puzzle.* The real test is whether combat *develops* emergently enough (full information) to make any in-fight reaction worthwhile.
 
 ## Next up
 
-Immediate priority: make something that **feels fun to us**. No CPI/UA yet.
+Immediate priority: make something that **feels fun to us**. No CPI/UA yet. **But the prototype detail isn't settled enough to build — lock the spec first.**
 
-1. **Build the minimal prototype of the core loop:** squad setup → readable watch-only fight → on loss, diagnose + adjust + retry within a limited attempt budget → one draft choice on win. Play it: can we watch a fight, *learn* something, adjust, and clear the round — and does clearing feel *earned*, not brute-forced?
-2. **Resolve OQ-13 (retry-loop shape)** through prototype feel — attempts count, per-round vs per-run, fail condition.
-3. **Resolve OQ-6 (pre-fight setup depth) + OQ-14 (curation tightness).**
+1. **Lock the prototype spec** by resolving the 🔨 cluster above, ~one per session, in order: **OQ-15 (win condition) → {OQ-16 map/terrain, OQ-17 spatial resolution} → OQ-19 (puzzle authoring).** Only then write game code.
+2. **Then build the minimal prototype of the core loop:** squad setup → readable watch-only fight → on loss, diagnose + adjust + retry within a limited attempt budget → one draft choice on win. Play it: can we watch a fight, *learn* something, adjust, and clear the round — and does clearing feel *earned*, not brute-forced?
+3. **Resolve through prototype feel:** OQ-13 (retry-loop shape — attempts count, per-round vs per-run, fail condition) and OQ-6 (pre-fight setup depth) + OQ-14 (curation tightness).
 4. **Define OQ-8 (variance injectors) + OQ-10 (combat readability)** — now make-or-break since combat is watch-only.
 5. **If the retry loop proves thin, run the parked mid-fight experiment.**
 
