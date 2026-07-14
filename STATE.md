@@ -2,7 +2,7 @@
 
 > **What this file is:** the single snapshot of what is true *right now*. Present tense only.
 > **Read this first** in every session. For *why* a thing is the way it is, see [DECISIONS.md](DECISIONS.md).
-> **Last synced:** 2026-07-12
+> **Last synced:** 2026-07-13
 
 ---
 
@@ -31,6 +31,7 @@ A **casual mobile roguelike autobattler**, **single-player PvE**, where the core
 - **A bench exists, and the roster is roguelike, not a collection.** Every run starts from a **fixed default starter squad**; all power is **built in-run** via the draft. The unlocked hero **pool is unlimited** and grows via run-completion rewards and buying, but unlocking/buying only **widens variety** — it never hands over pre-leveled power. Before a run, the player **brings a limited subset** of the pool as this run's draftable heroes.
 - **Per-hero persistence (within a run).** Build-up welds to the *individual* hero, not the fielded slot; a benched hero keeps everything they earned and returns fully built. Everything resets to the default starter each new run.
 - **Field framing = squad vs. squad on contained terrain.** Two squads meet in the middle of a terrain (no long march). Medieval-war roles: frontline tanks, backline ranged, mobile flankers. Not a defended point holding off waves.
+- **Win condition = annihilate (prototype baseline).** A fight is won by wiping the enemy squad. The other objectives (rout-the-commander, breakthrough-to-the-edge, hold-or-survive) are a **deferred per-encounter variety lever**, not in the first prototype. Consequence: annihilate adds no spatial pressure of its own, so **terrain and encounter authoring carry the entire positioning burden** — they are what must make the naive deathball fail.
 - **Mid-fight tactical decision is demoted to a parked secondary experiment.** Not a hard constraint. Revisited only if the retry-and-tune loop proves too thin; substitution is dropped as its committed form.
 - **Mastery is distributed** across the run-long draft + pre-fight setup + between-attempt tuning. No single lever carries it.
 - **Combat must be readable.** Education requires the player to trace what happened. "Chaotic/destructive" = *visual* liveliness only (free movement, varied terrain, varied skills/units). Light RNG is wanted but capped so it never makes the fight unreadable.
@@ -53,7 +54,7 @@ A SINGLE RUN
 ```
 
 - **BUILD:** field 5 from your bench. Simple decisions — pick who, pick where (formation/positioning: front/back/flank), maybe a stance.
-- **WATCH FIGHT (watch to learn):** two squads meet on contained terrain and fight autonomously — **the player does not act during the fight.** Combat is readable and visually lively. Light variance injectors add texture without deciding the fight: environmental hazards, morale/stress breaks, fuzzy AI, chain reactions.
+- **WATCH FIGHT (watch to learn):** two squads meet on contained terrain and fight autonomously — **the player does not act during the fight.** Win by wiping the enemy squad. Combat is readable and visually lively. Light variance injectors add texture without deciding the fight: environmental hazards, morale/stress breaks, fuzzy AI, chain reactions.
 - **DIAGNOSE + RETRY (on loss):** read why it failed, adjust the squad/setup, and retry the same round. Retries cost from a **limited attempt budget** and stay the same difficulty each try.
 - **DRAFT / UPGRADE (on win):** one simple 9 Kings-style choice per round, deep outcomes — highly random offers you adapt to. Builds up **both** fielded and benched heroes (recruit / upgrade).
 
@@ -70,7 +71,7 @@ A SINGLE RUN
 | Priority | Game | What to study |
 |---|---|---|
 | 🥇 | Into the Breach | Fully-readable PvE roguelike that stays unsolvable *without* an opponent — combinatorial depth as the refill; **full-information, multi-solution puzzle encounters** |
-| 🥇 | Slay the Spire | Offer-variance + difficulty tiers (Ascension) refilling the learn-loop; education-primary PvE roguelike |
+| 🥇 | Slay the Spire | Offer-variance + difficulty tiers (Ascension) refilling the learn-loop; education-primary PvE roguelike; **pure-annihilate win condition, still deeply strategic** |
 | 🥇 | Balatro | Deep education made *casual* — simple inputs, huge outputs; one-dev proof it ships |
 | 🥈 | Darkest Dungeon | Risk/reward; stress/morale as a variance generator; character attachment; stories from failure; **model for the deferred unit-attrition economy** |
 | 🥈 | PES / bot games | Proof that watching high-variance AI-vs-AI is entertaining |
@@ -82,12 +83,11 @@ A SINGLE RUN
 
 ### 🔨 Prototype spec — active work (resolve ~one per session, in order)
 
-These four **gate building the prototype**. Nail them down before writing game code. Order matters: some gate the others.
+These three **gate building the prototype**. Nail them down before writing game code. Order matters: some gate the others.
 
-1. **OQ-15 — What is a fight's WIN CONDITION?** Never actually decided. In play: *rout the commander* (kill a key unit) / *breakthrough* (reach the enemy edge) / *hold-or-survive* / *annihilate*. This decides whether positioning + terrain are load-bearing or whether stats dominate. (OQ-1 fixed the spatial framing "squad vs squad on contained terrain" but left the *goal* of the fight open.) **← do FIRST; it gates OQ-16/17/19.**
-2. **OQ-16 — How are MAPS and TERRAIN designed?** Do fights happen on authored maps with real geometry — walls, chokepoints, cover, high ground, impassable terrain, edges? Is terrain-as-*structure* (what gives positioning consequence) in the prototype, and hand-authored per encounter or procedural? *Distinct from OQ-8*, which is terrain-as-*variance* (random hazards). **← resolve together with OQ-17.**
-3. **OQ-17 — Spatial resolution: grid vs. continuous vs. zones?** Reconsiders the lean toward continuous 2D. The authored-multi-solution-puzzle goal (Into the Breach, the #1 ref, is a **grid**) pressures toward discrete tiles/zones for readability + clean attribution; "lively" pressures toward continuous. Which wins, at what granularity? Sharpens OQ-10. **← resolve together with OQ-16.**
-4. **OQ-19 — How is an encounter AUTHORED as a puzzle, not a stat-check?** The method that guarantees "the naive deathball fails and there are multiple valid solves." What structural ingredients (protected target + terrain constraint + role counters + synergy) make a fight a readable puzzle. **← do LAST; it's the synthesis and needs OQ-15/16/17 settled.**
+1. **OQ-16 — How are MAPS and TERRAIN designed?** Do fights happen on authored maps with real geometry — walls, chokepoints, cover, high ground, impassable terrain, edges? Is terrain-as-*structure* (what gives positioning consequence) in the prototype, and hand-authored per encounter or procedural? *Distinct from OQ-8*, which is terrain-as-*variance* (random hazards). **← do FIRST now that OQ-15 is settled; resolve together with OQ-17. Carries a hard constraint from OQ-15: since the win condition (annihilate) adds no spatial pressure, terrain must supply it.**
+2. **OQ-17 — Spatial resolution: grid vs. continuous vs. zones?** Reconsiders the lean toward continuous 2D. The authored-multi-solution-puzzle goal (Into the Breach, the #1 ref, is a **grid**) pressures toward discrete tiles/zones for readability + clean attribution; "lively" pressures toward continuous. Which wins, at what granularity? Sharpens OQ-10. **← resolve together with OQ-16.**
+3. **OQ-19 — How is an encounter AUTHORED as a puzzle, not a stat-check?** The method that guarantees "the naive deathball fails and there are multiple valid solves." What structural ingredients (protected target + terrain constraint + role counters + synergy) make a fight a readable puzzle. **← do LAST; it's the synthesis and needs OQ-16/17 settled. Carries the same OQ-15 constraint: with annihilate as the goal, encounter authoring owns the positioning burden.**
 
 ### Longer-horizon (not blocking the first build)
 
@@ -98,6 +98,7 @@ These four **gate building the prototype**. Nail them down before writing game c
 - **OQ-10 — What does the combat look like? 🔴 (elevated to make-or-break.)** With combat watch-only, the fight must carry entertainment *and* be legible enough to diagnose, on its own. Visual language of *readable* liveliness: movement, terrain, skills, chain reactions, hit feedback.
 - **OQ-13 — What is the retry loop's shape? 🔴** Is the attempt budget **per-round or per-run**? How many attempts? What exactly happens when attempts run out (round loss = run over)? How is "same difficulty each retry" enforced?
 - **OQ-14 — How tight is the pre-run roster curation?** The dial between "adapt to what's offered" and "pre-plan a build": how big/constrained is the draftable subset you bring into a run?
+- **OQ-15 follow-on — alternate win conditions as encounter variety.** Rout-the-commander / breakthrough / hold-or-survive return later as per-encounter objective types. Not scoped yet; revisit after the annihilate baseline proves the loop.
 
 **Parked experiment (not open, deliberately shelved):** the **mid-fight tactical call** — revisit only if the retry-and-tune loop proves too thin. Watch-only is a deliberate bet the prototype exists to test: *how far pre-fight setup alone can carry the puzzle.* The real test is whether combat *develops* emergently enough (full information) to make any in-fight reaction worthwhile.
 
@@ -105,7 +106,7 @@ These four **gate building the prototype**. Nail them down before writing game c
 
 Immediate priority: make something that **feels fun to us**. No CPI/UA yet. **But the prototype detail isn't settled enough to build — lock the spec first.**
 
-1. **Lock the prototype spec** by resolving the 🔨 cluster above, ~one per session, in order: **OQ-15 (win condition) → {OQ-16 map/terrain, OQ-17 spatial resolution} → OQ-19 (puzzle authoring).** Only then write game code.
+1. **Lock the prototype spec** by resolving the remaining 🔨 cluster above, ~one per session, in order: **{OQ-16 map/terrain, OQ-17 spatial resolution} → OQ-19 (puzzle authoring).** (OQ-15 win condition = annihilate is done.) Only then write game code.
 2. **Then build the minimal prototype of the core loop:** squad setup → readable watch-only fight → on loss, diagnose + adjust + retry within a limited attempt budget → one draft choice on win. Play it: can we watch a fight, *learn* something, adjust, and clear the round — and does clearing feel *earned*, not brute-forced?
 3. **Resolve through prototype feel:** OQ-13 (retry-loop shape — attempts count, per-round vs per-run, fail condition) and OQ-6 (pre-fight setup depth) + OQ-14 (curation tightness).
 4. **Define OQ-8 (variance injectors) + OQ-10 (combat readability)** — now make-or-break since combat is watch-only.
