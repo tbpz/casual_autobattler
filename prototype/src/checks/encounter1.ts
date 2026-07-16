@@ -1,5 +1,6 @@
 import { runSim } from "../sim/engine";
-import { loadMap } from "../sim/map";
+import { loadMap, offsetToAxial } from "../sim/map";
+import type { Hex } from "../sim/hex";
 import type { UnitDef } from "../sim/types";
 import { ROUNDS } from "../game/rounds";
 import { toHeroInstance, effectiveUnitDef, type HeroInstance } from "../game/hero";
@@ -11,10 +12,11 @@ import { summarizeAttribution } from "../game/attribution";
  * first authored encounter. Runs the real sim against the real round definition, the same
  * way the game itself would, so this is a check on the shipped encounter, not a model of it.
  *
- * Round 1's whole roster is exactly 5 starter heroes (2 tanks, 3 archers) into 5 fixed
- * slots (2 in the flank lane, 3 in the center lane — see game/rounds.ts). Because every
- * slot must be filled, the only real lever is *which* hero goes in which lane, which
- * collapses to 3 structurally distinct role splits:
+ * Round 1's whole roster is exactly 5 starter heroes (2 tanks, 3 archers), placed as hexes
+ * inside the round's authored deploy zone (DECISIONS 2026-07-15 — free placement, not fixed
+ * slots). The named positions below are specific deploy-zone hexes carried over from the
+ * old row x lane slots (still valid under the new bounded zone) so this test keeps exercising
+ * the same structural choice — flank lane vs. center lane — just expressed as placements:
  *   - both tanks flank, all 3 archers center      (the naive "obvious" split — tanks up front)
  *   - both archers-pair flank, tanks+1 archer center
  *   - one tank + one archer flank, one tank + two archers center
@@ -38,16 +40,25 @@ const osric = hero("osric");
 const lyra = hero("lyra");
 const sable = hero("sable");
 const wren = hero("wren");
+const HEROES: Readonly<Record<string, HeroInstance>> = { garrick, osric, lyra, sable, wren };
 
-type Assignment = Readonly<Record<string, HeroInstance>>;
+// Named deploy-zone hexes matching the old row x lane slots (flank lane = row 0, center
+// lane = rows 3-4), still legal under the new bounded free-placement zone.
+const FRONT_TOP = offsetToAxial(2, 0);
+const FRONT_MID = offsetToAxial(2, 3);
+const FRONT_BOTTOM = offsetToAxial(2, 4);
+const BACK_TOP = offsetToAxial(1, 0);
+const BACK_BOTTOM = offsetToAxial(1, 4);
 
-function buildUnits(assignment: Assignment): UnitDef[] {
-  const player = round.playerSlots.map((slot) => effectiveUnitDef(assignment[slot.id], "player", slot.hex));
+type Placement = Readonly<Record<string, Hex>>;
+
+function buildUnits(placement: Placement): UnitDef[] {
+  const player = Object.entries(placement).map(([heroId, hex]) => effectiveUnitDef(HEROES[heroId], "player", hex));
   return [...player, ...round.enemyRoster];
 }
 
-function fight(assignment: Assignment) {
-  const units = buildUnits(assignment);
+function fight(placement: Placement) {
+  const units = buildUnits(placement);
   const result = runSim(map, units, round.seed);
   return { result, units, summary: summarizeAttribution(result, units) };
 }
@@ -56,11 +67,11 @@ function fight(assignment: Assignment) {
 // 3 fragile archers to march down the exposed center lane in full view of the enemy's
 // highground archers for most of the approach.
 const deathball = fight({
-  "front-top": garrick,
-  "back-top": osric,
-  "front-mid": lyra,
-  "front-bottom": sable,
-  "back-bottom": wren,
+  garrick: FRONT_TOP,
+  osric: BACK_TOP,
+  lyra: FRONT_MID,
+  sable: FRONT_BOTTOM,
+  wren: BACK_BOTTOM,
 });
 
 // (3) Two distinct winning setups — different levers, not flavors of one:
@@ -70,19 +81,19 @@ const deathball = fight({
 //   a tank at the chokepoint while still sending most of the ranged squad through center —
 //   a hedge rather than a full commitment to the flank.
 const setupA_bothArchersFlank = fight({
-  "front-top": lyra,
-  "back-top": sable,
-  "front-mid": garrick,
-  "front-bottom": osric,
-  "back-bottom": wren,
+  lyra: FRONT_TOP,
+  sable: BACK_TOP,
+  garrick: FRONT_MID,
+  osric: FRONT_BOTTOM,
+  wren: BACK_BOTTOM,
 });
 
 const setupB_oneTankEscort = fight({
-  "front-top": garrick,
-  "back-top": lyra,
-  "front-mid": osric,
-  "front-bottom": sable,
-  "back-bottom": wren,
+  garrick: FRONT_TOP,
+  lyra: BACK_TOP,
+  osric: FRONT_MID,
+  sable: FRONT_BOTTOM,
+  wren: BACK_BOTTOM,
 });
 
 const failures: string[] = [];

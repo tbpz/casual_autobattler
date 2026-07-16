@@ -2,34 +2,16 @@ import { Application, Container, Graphics, Text } from "pixi.js";
 import type { GameMap } from "../sim/map";
 import type { SimEvent, TickSnapshot, UnitSnapshot } from "../sim/events";
 import type { Role } from "../sim/types";
-import { axialToPixel, hexCorners, lerpPoint, HEX_SIZE } from "./hexLayout";
-import { TILE_PALETTE } from "./palette";
+import { axialToPixel, lerpPoint, HEX_SIZE } from "./hexLayout";
+import { centerCameraOnMap, drawMapTiles } from "./mapView";
+import { TEAM_COLORS } from "./palette";
+import { ARCHER_RADIUS, drawUnitBody, shortLabel, UNIT_RADIUS } from "./unitShapes";
 
-const TEAM_COLORS = {
-  player: 0x4ea8ff,
-  enemy: 0xff5a5a,
-} as const;
-
-const UNIT_RADIUS = HEX_SIZE * 0.4;
-const TANK_RADIUS = UNIT_RADIUS * 1.25;
-const ARCHER_RADIUS = UNIT_RADIUS * 0.8;
 const HP_BAR_WIDTH = HEX_SIZE * 1.1;
 const HP_BAR_HEIGHT = 5;
 const DEATH_FADE_TICKS = 6;
 const FLASH_TICKS = 4;
 const TRACER_FADE_TICKS = 10;
-
-/**
- * Short, stable on-body label derived only from the unit id (no game-layer name lookup —
- * the render layer stays ignorant of hero identity, per the sim/skin boundary). Ids look
- * like "e1_tank" or "garrick"; this keeps whatever prefix distinguishes sibling units
- * (the digit in "e1"/"e2") and drops the role suffix, since role is already shown by shape.
- */
-function shortLabel(id: string): string {
-  const underscoreIdx = id.indexOf("_");
-  const prefix = underscoreIdx === -1 ? id : id.slice(0, underscoreIdx);
-  return prefix.slice(0, 3).toUpperCase();
-}
 
 interface UnitVisual {
   readonly container: Container;
@@ -86,35 +68,9 @@ export class ArenaRenderer {
     );
     app.stage.addChild(renderer.world);
 
-    renderer.drawMap(map);
-    renderer.centerCamera(map, container);
+    drawMapTiles(renderer.mapLayer, map);
+    centerCameraOnMap(renderer.world, map, container);
     return renderer;
-  }
-
-  private drawMap(map: GameMap): void {
-    for (const tile of map.allTiles()) {
-      const center = axialToPixel(tile.hex);
-      const corners = hexCorners(center);
-      const g = new Graphics();
-      g.poly(corners).fill(TILE_PALETTE[tile.type].color);
-      if (tile.type !== "open") {
-        g.poly(corners).stroke({ width: 2, color: 0xffffff, alpha: 0.25 });
-      }
-      this.mapLayer.addChild(g);
-    }
-  }
-
-  private centerCamera(map: GameMap, container: HTMLElement): void {
-    const points = map.allTiles().map((t) => axialToPixel(t.hex));
-    const minX = Math.min(...points.map((p) => p.x)) - HEX_SIZE;
-    const maxX = Math.max(...points.map((p) => p.x)) + HEX_SIZE;
-    const minY = Math.min(...points.map((p) => p.y)) - HEX_SIZE;
-    const maxY = Math.max(...points.map((p) => p.y)) + HEX_SIZE;
-    const contentW = maxX - minX;
-    const contentH = maxY - minY;
-    const w = container.clientWidth || contentW;
-    const h = container.clientHeight || contentH;
-    this.world.position.set((w - contentW) / 2 - minX, (h - contentH) / 2 - minY);
   }
 
   private getOrCreateUnit(snapshot: UnitSnapshot): UnitVisual {
@@ -150,21 +106,8 @@ export class ArenaRenderer {
     return visual;
   }
 
-  /** Draws the role-distinguishing body shape: tanks as a larger hex slab, archers as a smaller ringed dot. */
   private drawBody(visual: UnitVisual, fillColor: number): void {
-    visual.body.clear();
-    if (visual.role === "melee_tank") {
-      const corners = hexCorners({ x: 0, y: 0 }).map((p) => ({
-        x: (p.x / HEX_SIZE) * TANK_RADIUS,
-        y: (p.y / HEX_SIZE) * TANK_RADIUS,
-      }));
-      visual.body.poly(corners).fill(fillColor);
-      visual.body.poly(corners).stroke({ width: 2.5, color: 0x000000, alpha: 0.5 });
-    } else {
-      visual.body.circle(0, 0, ARCHER_RADIUS).fill(fillColor);
-      visual.body.circle(0, 0, ARCHER_RADIUS).stroke({ width: 2, color: 0x000000, alpha: 0.4 });
-      visual.body.circle(0, 0, ARCHER_RADIUS * 0.4).fill({ color: 0x000000, alpha: 0.35 });
-    }
+    drawUnitBody(visual.body, visual.role, fillColor);
   }
 
   private spawnAttackTracer(attacker: UnitSnapshot, target: UnitSnapshot, damage: number): void {

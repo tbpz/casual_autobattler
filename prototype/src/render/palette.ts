@@ -17,6 +17,12 @@ export const TILE_PALETTE: Record<TileType, TilePaletteEntry> = {
   cover: { color: 0x7a5aa8, label: "Cover" },
 };
 
+/** Shared by the fight renderer and the setup stage so a team reads the same color on both screens. */
+export const TEAM_COLORS = {
+  player: 0x4ea8ff,
+  enemy: 0xff5a5a,
+} as const;
+
 export function cssColor(color: number): string {
   return `#${color.toString(16).padStart(6, "0")}`;
 }

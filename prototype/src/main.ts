@@ -1,6 +1,5 @@
 import "./style.css";
 import { ATTEMPTS_PER_ROUND, RunController } from "./game/runController";
-import { effectiveDamage, effectiveMaxHp, type HeroInstance } from "./game/hero";
 import type { DraftOffer } from "./game/draft";
 import { summarizeAttribution } from "./game/attribution";
 import { loadMap } from "./sim/map";
@@ -10,6 +9,7 @@ import { ArenaRenderer } from "./render/arenaRenderer";
 import { Playback } from "./render/playback";
 import { mountPlaybackControls } from "./render/mountPlaybackControls";
 import { TILE_PALETTE, cssColor } from "./render/palette";
+import { SetupStage } from "./render/setupStage";
 
 const appEl = document.querySelector<HTMLDivElement>("#app")!;
 const controller = new RunController();
@@ -17,13 +17,10 @@ const controller = new RunController();
 type UiScreen = "build" | "watching" | "result";
 let uiScreen: UiScreen = "build";
 let pendingResult: SimResult | null = null;
+let activeSetupStage: SetupStage | null = null;
 
 function roleLabel(role: Role): string {
   return role === "melee_tank" ? "Tank" : "Archer";
-}
-
-function heroSummary(h: HeroInstance): string {
-  return `${h.name} (${roleLabel(h.role)}, ${effectiveMaxHp(h)}hp / ${effectiveDamage(h)}dmg)`;
 }
 
 function legendMarkup(): string {
@@ -37,54 +34,68 @@ function legendMarkup(): string {
 }
 
 function render(): void {
-  if (uiScreen === "build") renderBuildScreen();
+  if (uiScreen === "build") void renderBuildScreen();
   else if (uiScreen === "watching" && pendingResult !== null) void renderWatchScreen(pendingResult);
   else renderResultScreen();
 }
 
-function renderBuildScreen(): void {
+/**
+ * Setup lives on the battle map itself (DECISIONS 2026-07-15) — the player drags heroes
+ * from a bench tray onto any legal hex inside the round's authored deploy zone, reading
+ * the terrain (and the enemy squad, previewed in place) while placing, instead of picking
+ * blind from a dropdown. The stage is created once per screen-entry and kept alive across
+ * individual placements (`refreshSetupStage`) so dragging isn't interrupted by a full
+ * screen rebuild on every drop.
+ */
+async function renderBuildScreen(): Promise<void> {
+  activeSetupStage?.destroy();
+  activeSetupStage = null;
+
   const state = controller.state;
   const round = controller.currentRound;
-
-  // Picking a hero already in another slot moves them here (see RunController.assign) —
-  // every slot's dropdown lists the full bench, not just heroes not yet placed.
-  const slotRows = round.playerSlots.map((slot) => {
-    const selectedId = state.assignment[slot.id] ?? "";
-    const options = ['<option value="">-- empty --</option>'].concat(
-      state.bench.map((h) => `<option value="${h.id}" ${h.id === selectedId ? "selected" : ""}>${heroSummary(h)}</option>`),
-    );
-    return `
-      <div class="slot-row">
-        <label>${slot.label}</label>
-        <select data-slot="${slot.id}">${options.join("")}</select>
-      </div>
-    `;
-  }).join("");
 
   appEl.innerHTML = `
     <div id="root">
       <h1>${round.name}${round.isFinal ? " (Final)" : ""}</h1>
       <p class="briefing">${round.briefing}</p>
       <p class="meta">Attempts left this round: ${state.attemptsLeft} / ${ATTEMPTS_PER_ROUND}</p>
-      <div id="build-slots">${slotRows}</div>
-      <button id="btn-fight" ${controller.canStartFight() ? "" : "disabled"}>Fight!</button>
-      ${controller.canStartFight() ? "" : '<p class="hint">Assign a hero to every slot to fight.</p>'}
+      <p class="hint">Drag a hero from the tray onto the highlighted zone. Drag a placed hero back off the map to bench them.</p>
+      <div id="setup-container"></div>
+      <button id="btn-fight" disabled>Fight!</button>
+      <p class="hint" id="fight-hint">Field ${round.fieldSize} heroes to fight.</p>
     </div>
   `;
 
-  appEl.querySelectorAll<HTMLSelectElement>("select[data-slot]").forEach((sel) => {
-    sel.addEventListener("change", () => {
-      const slotId = sel.dataset.slot!;
-      controller.assign(slotId, sel.value === "" ? null : sel.value);
-      renderBuildScreen();
-    });
+  const setupContainer = appEl.querySelector<HTMLDivElement>("#setup-container")!;
+  const map = loadMap(round.mapRaw);
+  activeSetupStage = await SetupStage.create(setupContainer, map, round, {
+    onDrop: (heroId, hex) => {
+      controller.placeHero(heroId, hex);
+      refreshSetupStage();
+    },
+    onUnplace: (heroId) => {
+      controller.unplaceHero(heroId);
+      refreshSetupStage();
+    },
   });
+  refreshSetupStage();
 
   appEl.querySelector<HTMLButtonElement>("#btn-fight")!.addEventListener("click", () => {
     pendingResult = controller.runFight();
     uiScreen = "watching";
     render();
   });
+}
+
+function refreshSetupStage(): void {
+  if (activeSetupStage === null) return;
+  activeSetupStage.render(controller.state.bench, controller.state.placements);
+
+  const ready = controller.canStartFight();
+  const fightBtn = appEl.querySelector<HTMLButtonElement>("#btn-fight");
+  if (fightBtn !== null) fightBtn.disabled = !ready;
+  const hint = appEl.querySelector<HTMLParagraphElement>("#fight-hint");
+  if (hint !== null) hint.style.display = ready ? "none" : "";
 }
 
 async function renderWatchScreen(result: SimResult): Promise<void> {

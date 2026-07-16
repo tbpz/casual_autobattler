@@ -74,8 +74,12 @@ export function hexSpiral(center: Hex, radius: number): Hex[] {
   return results;
 }
 
-/** Linear interpolation between two hexes in cube space, then rounded to the nearest hex. */
-function hexRound(qf: number, rf: number): Hex {
+/**
+ * Rounds fractional cube/axial coordinates to the nearest hex. Exported so the render
+ * layer can invert pixel-space drag/drop back to a hex (`hexLayout.ts`'s `pixelToAxial`)
+ * using the same rounding rule the sim already relies on for `hexLine`.
+ */
+export function hexRound(qf: number, rf: number): Hex {
   const sf = -qf - rf;
   let q = Math.round(qf);
   let r = Math.round(rf);

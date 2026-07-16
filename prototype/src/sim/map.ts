@@ -29,11 +29,16 @@ export function offsetToAxial(col: number, row: number): Hex {
   return hex(q, row);
 }
 
-export function parseMapDef(raw: RawMapDef): MapDef {
+function buildOverrideMap(raw: RawMapDef): Map<string, TileType> {
   const overrideByPos = new Map<string, TileType>();
   for (const o of raw.overrides) {
     overrideByPos.set(`${o.col},${o.row}`, toTileType(o.type, o.col, o.row));
   }
+  return overrideByPos;
+}
+
+export function parseMapDef(raw: RawMapDef): MapDef {
+  const overrideByPos = buildOverrideMap(raw);
 
   const tiles: Tile[] = [];
   for (let row = 0; row < raw.height; row++) {
@@ -45,6 +50,33 @@ export function parseMapDef(raw: RawMapDef): MapDef {
   }
 
   return { id: raw.id, name: raw.name, tiles };
+}
+
+/**
+ * Authors a deploy zone (DECISIONS 2026-07-15) as a column range on the raw map — the
+ * per-encounter balancing knob for pre-fight placement. Free placement within the zone,
+ * excluding walls and, by default, highground (elevation is something you contest during
+ * the fight, per the elevation risk/reward decision, not a free pre-fight start).
+ */
+export function deployZoneFromCols(
+  raw: RawMapDef,
+  minCol: number,
+  maxCol: number,
+  opts: { readonly excludeHighground?: boolean } = {},
+): Hex[] {
+  const excludeHighground = opts.excludeHighground ?? true;
+  const overrideByPos = buildOverrideMap(raw);
+
+  const hexes: Hex[] = [];
+  for (let row = 0; row < raw.height; row++) {
+    for (let col = Math.max(0, minCol); col <= Math.min(raw.width - 1, maxCol); col++) {
+      const type = overrideByPos.get(`${col},${row}`) ?? "open";
+      if (isBlocking(type)) continue;
+      if (excludeHighground && type === "highground") continue;
+      hexes.push(offsetToAxial(col, row));
+    }
+  }
+  return hexes;
 }
 
 /** Queryable view over a MapDef: bounds, passability, and line-of-sight checks. */

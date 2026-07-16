@@ -1,5 +1,6 @@
 import { runSim } from "../sim/engine";
 import type { SimResult } from "../sim/events";
+import { hexEquals, type Hex } from "../sim/hex";
 import { loadMap } from "../sim/map";
 import type { UnitDef } from "../sim/types";
 import { applyDraftOffer, generateDraftOffers, type DraftOffer } from "./draft";
@@ -15,7 +16,8 @@ export interface RunState {
   readonly bench: readonly HeroInstance[];
   readonly roundIndex: number;
   readonly attemptsLeft: number;
-  readonly assignment: Readonly<Record<string, string | null>>;
+  /** Fielded heroes and where they stand — hex placement within the round's authored deploy zone (DECISIONS 2026-07-15). */
+  readonly placements: Readonly<Record<string, Hex>>;
   readonly status: RunStatus;
   readonly lastResult: SimResult | null;
   /** The exact unit list (player + enemy) that produced `lastResult` — attribution needs role/team context the result alone doesn't carry once units die out of the snapshots. */
@@ -28,7 +30,7 @@ function freshRunState(): RunState {
     bench: createDefaultBench(),
     roundIndex: 0,
     attemptsLeft: ATTEMPTS_PER_ROUND,
-    assignment: {},
+    placements: {},
     status: "build",
     lastResult: null,
     lastUnits: null,
@@ -54,33 +56,58 @@ export class RunController {
     return ROUNDS[this.state.roundIndex];
   }
 
-  /** Assigns a hero to a slot, auto-vacating any other slot that already held them (swap semantics) — retries deliberately keep the previous placement so the player can move a hero, not re-pick all five. */
-  assign(slotId: string, heroId: string | null): void {
-    const assignment: Record<string, string | null> = { ...this.state.assignment };
-    if (heroId !== null) {
-      for (const sid of Object.keys(assignment)) {
-        if (sid !== slotId && assignment[sid] === heroId) assignment[sid] = null;
-      }
+  private isLegalHex(target: Hex): boolean {
+    return this.currentRound.deployZone.some((h) => hexEquals(h, target));
+  }
+
+  /**
+   * Places (or moves) a fielded hero onto a legal deploy-zone hex. Dropping onto a hex that's
+   * already occupied swaps — the occupant takes the mover's old hex if it had one, otherwise
+   * (the mover came straight from the bench tray) the occupant is bumped back to the tray.
+   * Retries deliberately keep the previous placement (see `retry`) so the player can move a
+   * hero between attempts, not re-place all five.
+   */
+  placeHero(heroId: string, targetHex: Hex): void {
+    const round = this.currentRound;
+    if (!this.isLegalHex(targetHex)) return;
+
+    const placements: Record<string, Hex> = { ...this.state.placements };
+    const previousHex = placements[heroId];
+    const alreadyPlaced = previousHex !== undefined;
+    if (!alreadyPlaced && Object.keys(placements).length >= round.fieldSize) return;
+
+    const occupantId = Object.keys(placements).find(
+      (id) => id !== heroId && hexEquals(placements[id], targetHex),
+    );
+    if (occupantId !== undefined) {
+      if (previousHex !== undefined) placements[occupantId] = previousHex;
+      else delete placements[occupantId];
     }
-    assignment[slotId] = heroId;
-    this.state = { ...this.state, assignment };
+
+    placements[heroId] = targetHex;
+    this.state = { ...this.state, placements };
+  }
+
+  /** Returns a fielded hero to the bench tray. */
+  unplaceHero(heroId: string): void {
+    const placements = { ...this.state.placements };
+    delete placements[heroId];
+    this.state = { ...this.state, placements };
   }
 
   private get fieldedHeroIds(): string[] {
-    return Object.values(this.state.assignment).filter((id): id is string => id !== null);
+    return Object.keys(this.state.placements);
   }
 
   canStartFight(): boolean {
-    const ids = this.fieldedHeroIds;
-    return ids.length === this.currentRound.playerSlots.length && new Set(ids).size === ids.length;
+    return this.fieldedHeroIds.length === this.currentRound.fieldSize;
   }
 
   private buildPlayerRoster(): UnitDef[] {
-    return this.currentRound.playerSlots.map((slot) => {
-      const heroId = this.state.assignment[slot.id];
+    return Object.entries(this.state.placements).map(([heroId, hex]) => {
       const hero = this.state.bench.find((h) => h.id === heroId);
-      if (hero === undefined) throw new Error(`Slot ${slot.id} has no hero assigned`);
-      return effectiveUnitDef(hero, "player", slot.hex);
+      if (hero === undefined) throw new Error(`Placement references unknown hero ${heroId}`);
+      return effectiveUnitDef(hero, "player", hex);
     });
   }
 
@@ -130,7 +157,7 @@ export class RunController {
       bench,
       roundIndex: nextRoundIndex,
       attemptsLeft: ATTEMPTS_PER_ROUND,
-      assignment: {},
+      placements: {},
       status: "build",
     };
   }

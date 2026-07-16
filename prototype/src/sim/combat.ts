@@ -26,11 +26,26 @@ export function findNearestEnemy<T extends UnitState>(unit: T, units: readonly T
  */
 const HIGHGROUND_RANGE_BONUS = 1;
 
+/**
+ * Elevation is a bet, not a free upside (DECISIONS 2026-07-15): the same tile that grants
+ * reach also makes its occupant a more exposed target. Applied to whoever is STANDING on
+ * highground when hit, regardless of role or who's attacking — this is what keeps the tile
+ * self-balancing on every map without per-encounter authoring. Value is a tuning dial.
+ */
+const HIGHGROUND_EXPOSURE = 0.25;
+
 export function effectiveRange(unit: UnitState, map: GameMap): number {
   if (unit.range <= 1) return unit.range;
   const tile = map.tileAt(unit.hex);
   const onHighground = tile !== undefined && tile.type === "highground";
   return unit.range + (onHighground ? HIGHGROUND_RANGE_BONUS : 0);
+}
+
+/** Damage multiplier for a unit standing on highground when it takes a hit. */
+export function incomingDamageMultiplier(target: UnitState, map: GameMap): number {
+  const tile = map.tileAt(target.hex);
+  const onHighground = tile !== undefined && tile.type === "highground";
+  return onHighground ? 1 + HIGHGROUND_EXPOSURE : 1;
 }
 
 /** In range (elevation-adjusted) and, for ranged units, unobstructed. Melee (range 1) does not require LOS through walls, since adjacency implies it. */

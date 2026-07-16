@@ -1,4 +1,4 @@
-import type { Hex } from "../sim/hex";
+import { hexRound, type Hex } from "../sim/hex";
 
 /**
  * Pointy-top axial-to-pixel conversion (matches the neighbor ordering in sim/hex.ts).
@@ -15,6 +15,13 @@ export function axialToPixel(h: Hex): Point {
   const x = HEX_SIZE * (Math.sqrt(3) * h.q + (Math.sqrt(3) / 2) * h.r);
   const y = HEX_SIZE * (1.5 * h.r);
   return { x, y };
+}
+
+/** Inverse of `axialToPixel`, rounded to the nearest hex — drives setup-screen drag/drop. */
+export function pixelToAxial(p: Point): Hex {
+  const r = p.y / (HEX_SIZE * 1.5);
+  const q = p.x / (HEX_SIZE * Math.sqrt(3)) - r / 2;
+  return hexRound(q, r);
 }
 
 /** The 6 corner points of a pointy-top hex centered at `center`. */

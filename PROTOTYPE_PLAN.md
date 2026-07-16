@@ -16,7 +16,7 @@
 ## Provisional answers to open questions (dials to tune while playing, not decisions yet)
 
 - **OQ-13 (retry loop):** 3 attempts **per round**; map + enemy setup fixed across retries; run ends when a round's attempts are spent.
-- **OQ-6 (pre-fight depth):** pick 5 from bench, assign each to a **row (front/mid/back) × lane (left/center/right)** — coarse placement, not free hex-drop, for readability. Maybe one stance toggle later.
+- **OQ-6 (pre-fight depth):** ~~pick 5 from bench, assign each to a row (front/mid/back) × lane (left/center/right) — coarse placement, not free hex-drop, for readability~~ **superseded 2026-07-15**: setup happens on the battle map itself — drag-place each fielded hero onto any legal hex inside an authored, bounded deploy zone (free placement within the zone, TFT-style). See DECISIONS 2026-07-15 and STATE.md. Maybe one stance toggle later.
 - **OQ-14 (curation):** hardcode a fixed bench of ~6–8 heroes for the prototype; roster-curation dial comes later.
 
 ## Phase 0 — Scaffold + the deterministic sim spine *(headless, no graphics)*
@@ -45,7 +45,7 @@ De-risk the make-or-break early.
 
 Plain HTML/CSS screens around the fight — the actual game loop from STATE.
 
-- **BUILD screen:** field 5 from the bench onto the row×lane grid → produces the sim's initial setup.
+- **BUILD screen:** ~~field 5 from the bench onto the row×lane grid~~ **superseded 2026-07-15**: field 5 from the bench by drag-placing them on the battle map, into an authored bounded deploy zone → produces the sim's initial setup.
 - **WATCH:** hand off to Phase-1 render.
 - **Resolve:** on win → one **9 Kings-style draft** choice (recruit/upgrade, 3 random offers) → next round. On loss → **DIAGNOSE + RETRY**: back to BUILD with an attempt consumed; map/enemy fixed.
 - **Attempt budget + run state** (per OQ-13 provisional values).

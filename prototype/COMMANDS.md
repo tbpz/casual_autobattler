@@ -3,7 +3,10 @@
 ## Run the prototype locally
 
 ```
-cd prototype && npm run dev
+cd prototype
+npm run dev
 ```
 
 Starts the local dev server. Open the printed URL (e.g. `http://localhost:5173`) in a browser. Ctrl+C to stop.
+
+Note: on Windows PowerShell (5.1), `&&` is not a valid statement separator — run the two lines separately (or use `;`), not `cd prototype && npm run dev`.

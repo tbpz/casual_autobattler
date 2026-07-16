@@ -1,4 +1,4 @@
-import { canAttack, effectiveRange, findNearestEnemy } from "./combat";
+import { canAttack, effectiveRange, findNearestEnemy, incomingDamageMultiplier } from "./combat";
 import type { SimEvent, SimResult, TickSnapshot, UnitSnapshot } from "./events";
 import { hexKey, type Hex } from "./hex";
 import type { GameMap } from "./map";
@@ -106,7 +106,11 @@ export function runSim(map: GameMap, unitDefs: readonly UnitDef[], seed: number)
         if (target !== null) {
           if (canAttack(unit, target, map)) {
             if (unit.attackCooldown <= 0) {
-              const damage = unit.damage;
+              // Elevation-adjusted (DECISIONS 2026-07-15): a unit standing on highground
+              // takes more damage, not just deals more — the reported `damage` is the
+              // dealt amount so the on-body tracer shows the real (bigger) hit, not the
+              // attacker's base stat, keeping the exposure legible.
+              const damage = Math.round(unit.damage * incomingDamageMultiplier(target, map));
               target.hp = Math.max(0, target.hp - damage);
               unit.attackCooldown = 1 / unit.attackSpeed;
               events.push({
