@@ -9,6 +9,14 @@ import { unitStateFromDef } from "./types";
 export const TICK_RATE = 20; // ticks per second
 const DT = 1 / TICK_RATE;
 const MAX_TICKS = TICK_RATE * 60; // 60s stalemate cap -> declare a draw
+/**
+ * Frozen frames appended after the fight is decided, so the renderer's death-fade
+ * animation (DEATH_FADE_TICKS in arenaRenderer.ts) and telegraph clearing get frames to
+ * play out on — without this tail the last recorded snapshot IS the decisive-kill tick,
+ * and the corpse/aggro-line state at that instant is stuck on screen forever. Must stay
+ * >= arenaRenderer.ts's DEATH_FADE_TICKS.
+ */
+const RESOLUTION_TICKS = 12;
 
 /**
  * A unit is either at rest (`destHex === null`, free to re-target/attack/start a new
@@ -29,6 +37,29 @@ function toMovingUnit(u: UnitState): MovingUnit {
 
 function teamAlive(units: readonly UnitState[], team: Team): boolean {
   return units.some((u) => u.alive && u.team === team);
+}
+
+/** A single frame with no motion, no targets, no cooldown ticking — used for the
+ * post-resolution tail so the renderer's death-fade and telegraph-clear logic has
+ * frames to play out on after the fight is already decided. */
+function buildFrozenSnapshot(map: GameMap, units: readonly MovingUnit[], tick: number): TickSnapshot {
+  return {
+    tick,
+    timeSeconds: tick * DT,
+    units: units.map((u) => ({
+      id: u.id,
+      team: u.team,
+      role: u.role,
+      hp: u.hp,
+      maxHp: u.maxHp,
+      alive: u.alive,
+      fromHex: u.hex,
+      toHex: u.hex,
+      moveT: 0,
+      targetId: null,
+      range: effectiveRange(u, map),
+    })),
+  };
 }
 
 /**
@@ -71,7 +102,26 @@ export function runSim(map: GameMap, unitDefs: readonly UnitDef[], seed: number)
     const frameSnapshots: UnitSnapshot[] = [];
 
     for (const unit of units) {
-      if (!unit.alive) continue;
+      if (!unit.alive) {
+        // Keep reporting a frozen snapshot at the death hex every tick, not just the
+        // tick it died on — otherwise the unit vanishes from the stream entirely and
+        // the renderer's death animation (fade/grey/grave) never gets a frame to run,
+        // leaving the last-alive pose stuck on the field forever.
+        frameSnapshots.push({
+          id: unit.id,
+          team: unit.team,
+          role: unit.role,
+          hp: unit.hp,
+          maxHp: unit.maxHp,
+          alive: false,
+          fromHex: unit.hex,
+          toHex: unit.hex,
+          moveT: 0,
+          targetId: null,
+          range: effectiveRange(unit, map),
+        });
+        continue;
+      }
 
       unit.attackCooldown = Math.max(0, unit.attackCooldown - DT);
 
@@ -178,7 +228,15 @@ export function runSim(map: GameMap, unitDefs: readonly UnitDef[], seed: number)
     snapshots.push({ tick, timeSeconds: tick * DT, units: frameSnapshots });
   }
 
-  events.push({ type: "end", tick, winner });
+  // Resolution tail: keep recording frozen frames after the fight is decided (whether by
+  // annihilation or by hitting the stalemate cap) so playback has somewhere to run the
+  // corpse-fade/grave and telegraph-clearing animation instead of freezing mid-death.
+  const decisiveTick = tick;
+  for (let i = 1; i <= RESOLUTION_TICKS; i++) {
+    snapshots.push(buildFrozenSnapshot(map, units, decisiveTick + i));
+  }
 
-  return { seed, mapId: map.id, winner, ticks: tick, snapshots, events };
+  events.push({ type: "end", tick: decisiveTick, winner });
+
+  return { seed, mapId: map.id, winner, ticks: decisiveTick + RESOLUTION_TICKS, snapshots, events };
 }

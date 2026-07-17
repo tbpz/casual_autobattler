@@ -18,12 +18,22 @@ export function mountPlaybackControls(root: ParentNode, renderer: ArenaRenderer,
   const rangeToggle = root.querySelector<HTMLInputElement>("#toggle-range")!;
   const aggroToggle = root.querySelector<HTMLInputElement>("#toggle-aggro")!;
   const winnerBanner = root.querySelector<HTMLDivElement>("#winner-banner")!;
+  const fightOverlay = root.querySelector<HTMLDivElement>("#fight-overlay")!;
+  const overlayHeadline = fightOverlay.querySelector<HTMLSpanElement>(".headline")!;
+  const overlaySubtitle = fightOverlay.querySelector<HTMLSpanElement>(".subtitle")!;
 
   scrubber.max = String(playback.totalTicks - 1);
+
+  function hideOverlay(): void {
+    fightOverlay.className = "hidden";
+  }
 
   playback.onTickChange = (index, total) => {
     scrubber.value = String(index);
     tickLabel.textContent = `tick ${index} / ${total - 1}`;
+    // Scrubbing/stepping away from the final frame un-resolves the fight visually —
+    // the banner should only be up while the player is actually looking at the end.
+    if (index < total - 1) hideOverlay();
   };
   // Playback renders its initial tick during construction, before this callback existed —
   // reflect that first frame in the UI now instead of waiting for the next tick change.
@@ -33,17 +43,28 @@ export function mountPlaybackControls(root: ParentNode, renderer: ArenaRenderer,
     playPauseBtn.textContent = "▶ Play";
     winnerBanner.textContent = winner === "draw" ? "Draw — stalemate." : `${winner === "player" ? "Victory" : "Defeat"} — winner: ${winner}`;
     winnerBanner.className = winner === "player" ? "win" : winner === "enemy" ? "loss" : "draw";
+
+    const headline = winner === "draw" ? "DRAW" : winner === "player" ? "VICTORY" : "DEFEAT";
+    const subtitle =
+      winner === "draw" ? "stalemate — time ran out" : winner === "player" ? "enemy squad wiped" : "your squad was wiped";
+    overlayHeadline.textContent = headline;
+    overlaySubtitle.textContent = subtitle;
+    fightOverlay.className = winner === "player" ? "win" : winner === "enemy" ? "loss" : "draw";
   };
 
   playPauseBtn.addEventListener("click", () => {
     playback.toggle();
     playPauseBtn.textContent = playback.isPlaying ? "⏸ Pause" : "▶ Play";
-    if (playback.isPlaying) winnerBanner.textContent = "";
+    if (playback.isPlaying) {
+      winnerBanner.textContent = "";
+      hideOverlay();
+    }
   });
   restartBtn.addEventListener("click", () => {
     playback.restart();
     playPauseBtn.textContent = "▶ Play";
     winnerBanner.textContent = "";
+    hideOverlay();
   });
   stepBackBtn.addEventListener("click", () => {
     playback.step(-1);

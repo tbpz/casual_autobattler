@@ -1,4 +1,5 @@
 import { toHeroInstance, type HeroInstance } from "./hero";
+import { roleLabel } from "./roleInfo";
 import { findHeroDef, recruitablePool } from "./roster";
 
 const UPGRADE_PCT = 0.25;
@@ -27,8 +28,11 @@ export function generateDraftOffers(bench: readonly HeroInstance[]): DraftOffer[
 
   const recruitCandidate = pick(recruitablePool(bench));
   if (recruitCandidate !== undefined) {
-    const roleLabel = recruitCandidate.role === "melee_tank" ? "Tank" : "Archer";
-    offers.push({ kind: "recruit", heroId: recruitCandidate.id, label: `Recruit ${recruitCandidate.name} (${roleLabel})` });
+    offers.push({
+      kind: "recruit",
+      heroId: recruitCandidate.id,
+      label: `Recruit ${recruitCandidate.name} (${roleLabel(recruitCandidate.role)})`,
+    });
   }
 
   for (const hero of shuffled(bench)) {

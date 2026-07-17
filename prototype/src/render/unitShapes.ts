@@ -12,6 +12,9 @@ export const UNIT_RADIUS = HEX_SIZE * 0.4;
 export const TANK_RADIUS = UNIT_RADIUS * 1.25;
 export const ARCHER_RADIUS = UNIT_RADIUS * 0.8;
 
+/** Grey used for the dying-shrink phase and the persistent grave marker — never used for a living unit. */
+export const DEATH_GREY = 0x5a5a66;
+
 /** Draws the role-distinguishing body shape into `g`: tanks as a larger hex slab, archers as a smaller ringed dot. */
 export function drawUnitBody(g: Graphics, role: Role, fillColor: number): void {
   g.clear();
@@ -27,6 +30,18 @@ export function drawUnitBody(g: Graphics, role: Role, fillColor: number): void {
     g.circle(0, 0, ARCHER_RADIUS).stroke({ width: 2, color: 0x000000, alpha: 0.4 });
     g.circle(0, 0, ARCHER_RADIUS * 0.4).fill({ color: 0x000000, alpha: 0.35 });
   }
+}
+
+/**
+ * Draws the persistent post-fade grave marker (a small X) at a dead unit's death hex —
+ * distinct from the living body shapes so "dead and gone" never reads as "low HP" (a
+ * thin-red-bar unit and a corpse used to look almost identical).
+ */
+export function drawGraveMarker(g: Graphics, alpha: number): void {
+  g.clear();
+  const s = UNIT_RADIUS * 0.5;
+  g.moveTo(-s, -s).lineTo(s, s).stroke({ width: 3, color: DEATH_GREY, alpha });
+  g.moveTo(-s, s).lineTo(s, -s).stroke({ width: 3, color: DEATH_GREY, alpha });
 }
 
 /**

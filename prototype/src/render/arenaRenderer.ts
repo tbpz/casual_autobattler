@@ -5,13 +5,17 @@ import type { Role } from "../sim/types";
 import { axialToPixel, lerpPoint, HEX_SIZE } from "./hexLayout";
 import { centerCameraOnMap, drawMapTiles } from "./mapView";
 import { TEAM_COLORS } from "./palette";
-import { ARCHER_RADIUS, drawUnitBody, shortLabel, UNIT_RADIUS } from "./unitShapes";
+import { ARCHER_RADIUS, DEATH_GREY, drawGraveMarker, drawUnitBody, shortLabel, UNIT_RADIUS } from "./unitShapes";
 
 const HP_BAR_WIDTH = HEX_SIZE * 1.1;
 const HP_BAR_HEIGHT = 5;
 const DEATH_FADE_TICKS = 6;
 const FLASH_TICKS = 4;
 const TRACER_FADE_TICKS = 10;
+/** Floor alpha for the persistent grave marker — dim but never fully invisible. */
+const GRAVE_ALPHA = 0.45;
+/** Body scale a dying unit shrinks to over DEATH_FADE_TICKS, and holds at once it's a grave. */
+const GRAVE_SCALE = 0.5;
 
 interface UnitVisual {
   readonly container: Container;
@@ -41,6 +45,9 @@ export class ArenaRenderer {
   private readonly world = new Container();
   private readonly mapLayer = new Container();
   private readonly telegraphLayer = new Container();
+  /** Dead units live here, always beneath unitLayer, so a living unit that paths onto a
+   * freed hex renders on top of the corpse instead of the two visuals stacking flush. */
+  private readonly corpseLayer = new Container();
   private readonly unitLayer = new Container();
   private readonly effectsLayer = new Container();
   private readonly units = new Map<string, UnitVisual>();
@@ -63,6 +70,7 @@ export class ArenaRenderer {
     renderer.world.addChild(
       renderer.mapLayer,
       renderer.telegraphLayer,
+      renderer.corpseLayer,
       renderer.unitLayer,
       renderer.effectsLayer,
     );
@@ -192,30 +200,55 @@ export class ArenaRenderer {
       const pos = lerpPoint(axialToPixel(u.fromHex), axialToPixel(u.toHex), u.moveT);
       visual.container.position.set(pos.x, pos.y);
 
-      let fillColor: number = TEAM_COLORS[u.team];
-      if (visual.attackFlashTicks > 0) {
-        fillColor = 0xffffff;
-        visual.attackFlashTicks--;
-      } else if (visual.hitFlashTicks > 0) {
-        fillColor = 0xffcc44;
-        visual.hitFlashTicks--;
-      }
-
-      this.drawBody(visual, fillColor);
-
-      visual.hpBarFill.clear();
-      const hpPct = u.maxHp > 0 ? Math.max(0, u.hp / u.maxHp) : 0;
-      visual.hpBarFill
-        .rect(-HP_BAR_WIDTH / 2, -UNIT_RADIUS - 14, HP_BAR_WIDTH * hpPct, HP_BAR_HEIGHT)
-        .fill(hpPct > 0.3 ? 0x5fd35f : 0xd35f5f);
-
-      if (!u.alive) {
-        const ticksSinceDeath = visual.deathTick !== null ? snapshot.tick - visual.deathTick : DEATH_FADE_TICKS;
-        visual.container.alpha = Math.max(0, 1 - ticksSinceDeath / DEATH_FADE_TICKS);
-        visual.container.visible = visual.container.alpha > 0.02;
-      } else {
+      if (u.alive) {
+        if (visual.container.parent !== this.unitLayer) this.unitLayer.addChild(visual.container);
+        visual.container.scale.set(1);
         visual.container.alpha = 1;
         visual.container.visible = true;
+        visual.label.visible = true;
+        visual.hpBarBg.visible = true;
+        visual.hpBarFill.visible = true;
+
+        let fillColor: number = TEAM_COLORS[u.team];
+        if (visual.attackFlashTicks > 0) {
+          fillColor = 0xffffff;
+          visual.attackFlashTicks--;
+        } else if (visual.hitFlashTicks > 0) {
+          fillColor = 0xffcc44;
+          visual.hitFlashTicks--;
+        }
+        this.drawBody(visual, fillColor);
+
+        visual.hpBarFill.clear();
+        const hpPct = u.maxHp > 0 ? Math.max(0, u.hp / u.maxHp) : 0;
+        visual.hpBarFill
+          .rect(-HP_BAR_WIDTH / 2, -UNIT_RADIUS - 14, HP_BAR_WIDTH * hpPct, HP_BAR_HEIGHT)
+          .fill(hpPct > 0.3 ? 0x5fd35f : 0xd35f5f);
+      } else {
+        // Dead: reparent under corpseLayer so a living unit that paths onto this hex
+        // always renders on top, never flush-overlapping. HP bar/label disappear
+        // immediately — absence of a bar is itself the first "this one is gone" signal.
+        if (visual.container.parent !== this.corpseLayer) this.corpseLayer.addChild(visual.container);
+        visual.label.visible = false;
+        visual.hpBarBg.visible = false;
+        visual.hpBarFill.visible = false;
+        visual.container.visible = true;
+
+        const ticksSinceDeath = visual.deathTick !== null ? snapshot.tick - visual.deathTick : DEATH_FADE_TICKS;
+        if (ticksSinceDeath < DEATH_FADE_TICKS) {
+          // Dying: grey silhouette shrinks and dims down toward the grave state.
+          const p = ticksSinceDeath / DEATH_FADE_TICKS;
+          visual.container.scale.set(1 - (1 - GRAVE_SCALE) * p);
+          visual.container.alpha = 1 - (1 - GRAVE_ALPHA) * p;
+          this.drawBody(visual, DEATH_GREY);
+        } else {
+          // Grave: a small persistent marker at the death hex, distinct from any living
+          // body shape so it never reads as "low HP" instead of "dead" (OQ-7 attribution —
+          // the player can see where a hero fell after the fight ends).
+          visual.container.scale.set(GRAVE_SCALE);
+          visual.container.alpha = GRAVE_ALPHA;
+          drawGraveMarker(visual.body, 1);
+        }
       }
     }
 

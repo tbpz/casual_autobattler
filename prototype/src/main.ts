@@ -2,13 +2,14 @@ import "./style.css";
 import { ATTEMPTS_PER_ROUND, RunController } from "./game/runController";
 import type { DraftOffer } from "./game/draft";
 import { summarizeAttribution } from "./game/attribution";
+import { roleLabel } from "./game/roleInfo";
 import { loadMap } from "./sim/map";
 import type { SimResult } from "./sim/events";
-import type { Role } from "./sim/types";
 import { ArenaRenderer } from "./render/arenaRenderer";
 import { Playback } from "./render/playback";
 import { mountPlaybackControls } from "./render/mountPlaybackControls";
 import { TILE_PALETTE, cssColor } from "./render/palette";
+import { rosterPanelMarkup } from "./render/rosterPanel";
 import { SetupStage } from "./render/setupStage";
 
 const appEl = document.querySelector<HTMLDivElement>("#app")!;
@@ -18,10 +19,6 @@ type UiScreen = "build" | "watching" | "result";
 let uiScreen: UiScreen = "build";
 let pendingResult: SimResult | null = null;
 let activeSetupStage: SetupStage | null = null;
-
-function roleLabel(role: Role): string {
-  return role === "melee_tank" ? "Tank" : "Archer";
-}
 
 function legendMarkup(): string {
   const swatches = Object.values(TILE_PALETTE)
@@ -59,8 +56,9 @@ async function renderBuildScreen(): Promise<void> {
       <h1>${round.name}${round.isFinal ? " (Final)" : ""}</h1>
       <p class="briefing">${round.briefing}</p>
       <p class="meta">Attempts left this round: ${state.attemptsLeft} / ${ATTEMPTS_PER_ROUND}</p>
-      <p class="hint">Drag a hero from the tray onto the highlighted zone. Drag a placed hero back off the map to bench them.</p>
+      <p class="hint">Drag a hero from the tray onto the highlighted zone. Drag a placed hero back off the map to bench them. Tap a hero to see its stats below.</p>
       <div id="setup-container"></div>
+      ${rosterPanelMarkup(state.bench, round.enemyRoster)}
       <button id="btn-fight" disabled>Fight!</button>
       <p class="hint" id="fight-hint">Field ${round.fieldSize} heroes to fight.</p>
     </div>
@@ -77,13 +75,29 @@ async function renderBuildScreen(): Promise<void> {
       controller.unplaceHero(heroId);
       refreshSetupStage();
     },
+    onInspect: (id) => focusHeroCard(id),
   });
   refreshSetupStage();
+
+  appEl.querySelectorAll<HTMLElement>(".hero-card").forEach((card) => {
+    const id = card.dataset.heroId;
+    if (id === undefined) return;
+    card.addEventListener("pointerenter", () => activeSetupStage?.highlightToken(id));
+    card.addEventListener("pointerleave", () => activeSetupStage?.highlightToken(null));
+    card.addEventListener("click", () => activeSetupStage?.highlightToken(id));
+  });
 
   appEl.querySelector<HTMLButtonElement>("#btn-fight")!.addEventListener("click", () => {
     pendingResult = controller.runFight();
     uiScreen = "watching";
     render();
+  });
+}
+
+/** Token -> card link (the setup stage reports hover/tap; this focuses the matching card). */
+function focusHeroCard(id: string | null): void {
+  appEl.querySelectorAll<HTMLElement>(".hero-card").forEach((card) => {
+    card.classList.toggle("focused", id !== null && card.dataset.heroId === id);
   });
 }
 
@@ -103,7 +117,12 @@ async function renderWatchScreen(result: SimResult): Promise<void> {
   appEl.innerHTML = `
     <div id="root">
       <h1>${round.name} — Watch</h1>
-      <div id="canvas-container"></div>
+      <div id="canvas-container">
+        <div id="fight-overlay" class="hidden">
+          <span class="headline"></span>
+          <span class="subtitle"></span>
+        </div>
+      </div>
       ${legendMarkup()}
       <div id="controls">
         <button id="btn-restart" title="Restart">⏮</button>

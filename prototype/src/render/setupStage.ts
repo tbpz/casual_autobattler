@@ -7,7 +7,7 @@ import type { RoundDef } from "../game/rounds";
 import { axialToPixel, hexCorners, pixelToAxial } from "./hexLayout";
 import { centerCameraOnMap, drawMapTiles } from "./mapView";
 import { TEAM_COLORS } from "./palette";
-import { drawUnitBody, shortLabel } from "./unitShapes";
+import { drawUnitBody, shortLabel, TANK_RADIUS } from "./unitShapes";
 
 /**
  * The pre-fight setup screen (DECISIONS 2026-07-15): setup happens ON the battle map, not
@@ -27,6 +27,12 @@ export interface SetupStageCallbacks {
   readonly onDrop: (heroId: string, hex: Hex) => void;
   /** The player dragged a placed hero off the board (dropped outside the map bounds). */
   readonly onUnplace: (heroId: string) => void;
+  /**
+   * The player hovered/tapped a hero or enemy token (player and enemy ids are both passed
+   * through unchanged; the caller's roster panel owns the id -> card lookup). `null` clears
+   * focus, e.g. on pointer-out.
+   */
+  readonly onInspect: (id: string | null) => void;
 }
 
 interface HeroToken {
@@ -48,12 +54,17 @@ export class SetupStage {
   private readonly zoneLayer = new Container();
   private readonly enemyLayer = new Container();
   private readonly tokenLayer = new Container();
+  private readonly highlightLayer = new Container();
+  private readonly highlightRing = new Graphics();
   private readonly tokens = new Map<string, HeroToken>();
+  private readonly enemyTokens = new Map<string, Container>();
   private readonly callbacks: SetupStageCallbacks;
   private readonly deployZone: readonly Hex[];
 
   private dragging: HeroToken | null = null;
+  private dragMoved = false;
   private hoverValid = true;
+  private highlightedId: string | null = null;
 
   private constructor(app: Application, deployZone: readonly Hex[], callbacks: SetupStageCallbacks) {
     this.app = app;
@@ -72,7 +83,8 @@ export class SetupStage {
     container.appendChild(app.canvas);
 
     const stage = new SetupStage(app, round.deployZone, callbacks);
-    stage.world.addChild(stage.mapLayer, stage.zoneLayer, stage.enemyLayer, stage.tokenLayer);
+    stage.world.addChild(stage.mapLayer, stage.zoneLayer, stage.enemyLayer, stage.tokenLayer, stage.highlightLayer);
+    stage.highlightLayer.addChild(stage.highlightRing);
     app.stage.addChild(stage.world);
     app.stage.eventMode = "static";
     app.stage.hitArea = app.screen;
@@ -103,6 +115,7 @@ export class SetupStage {
 
   private drawEnemyPreview(enemyRoster: readonly UnitDef[]): void {
     this.enemyLayer.removeChildren();
+    this.enemyTokens.clear();
     for (const unit of enemyRoster) {
       const container = new Container();
       const body = new Graphics();
@@ -115,7 +128,13 @@ export class SetupStage {
       container.addChild(body, label);
       const pos = axialToPixel(unit.startHex);
       container.position.set(pos.x, pos.y);
+      container.eventMode = "static";
+      container.cursor = "pointer";
+      container.on("pointerover", () => this.callbacks.onInspect(unit.id));
+      container.on("pointerdown", () => this.callbacks.onInspect(unit.id));
+      container.on("pointerout", () => this.callbacks.onInspect(null));
       this.enemyLayer.addChild(container);
+      this.enemyTokens.set(unit.id, container);
     }
   }
 
@@ -152,6 +171,27 @@ export class SetupStage {
         this.tokens.delete(heroId);
       }
     }
+
+    // Player tokens can move every render() (tray <-> placed); keep the highlight ring
+    // (if any) glued to its target instead of only updating on highlightToken() calls.
+    this.drawHighlightRing();
+  }
+
+  /** Reverse link for rosterPanel: hovering/clicking a card rings the matching token. */
+  highlightToken(id: string | null): void {
+    this.highlightedId = id;
+    this.drawHighlightRing();
+  }
+
+  private drawHighlightRing(): void {
+    this.highlightRing.clear();
+    const id = this.highlightedId;
+    if (id === null) return;
+    const target = this.tokens.get(id)?.container ?? this.enemyTokens.get(id);
+    if (target === undefined) return;
+    this.highlightRing
+      .circle(target.position.x, target.position.y, TANK_RADIUS + 6)
+      .stroke({ width: 3, color: 0xffffff, alpha: 0.9 });
   }
 
   private trayPixelPosition(index: number): { x: number; y: number } {
@@ -179,6 +219,8 @@ export class SetupStage {
 
     const token: HeroToken = { heroId: hero.id, container, body };
     container.on("pointerdown", () => this.startDrag(token));
+    container.on("pointerover", () => this.callbacks.onInspect(hero.id));
+    container.on("pointerout", () => this.callbacks.onInspect(null));
     this.tokenLayer.addChild(container);
     this.tokens.set(hero.id, token);
     return token;
@@ -186,12 +228,16 @@ export class SetupStage {
 
   private startDrag(token: HeroToken): void {
     this.dragging = token;
+    this.dragMoved = false;
     token.container.alpha = 0.85;
     this.tokenLayer.setChildIndex(token.container, this.tokenLayer.children.length - 1);
+    // Touch has no hover, so a press must inspect too, not just a mouse pointerover.
+    this.callbacks.onInspect(token.heroId);
   }
 
   private onPointerMove(event: FederatedPointerEvent): void {
     if (this.dragging === null) return;
+    this.dragMoved = true;
     const local = this.world.toLocal(event.global);
     this.dragging.container.position.set(local.x, local.y);
 
@@ -208,6 +254,10 @@ export class SetupStage {
     this.dragging = null;
     token.container.alpha = 1;
     token.body.tint = 0xffffff;
+
+    // A tap/click with no drag distance is inspect-only (already fired by startDrag) —
+    // moving it now would bench a placed hero the player only meant to look at.
+    if (!this.dragMoved) return;
 
     const local = this.world.toLocal(this.app.renderer.events.pointer.global);
     const hex = pixelToAxial(local);
