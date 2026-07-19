@@ -2,49 +2,75 @@
 
 > **What this file is:** the single snapshot of what is true *right now*. Present tense only.
 > **Read this first** in every session. For *why* a thing is the way it is, see [DECISIONS.md](DECISIONS.md).
-> **Last synced:** 2026-07-15
+> **Last synced:** 2026-07-19
 
 ---
 
 ## What we're making
 
-A **casual mobile roguelike autobattler**, **single-player PvE**, where the core fun is **watching a readable fight, learning why it went the way it did, and applying the lesson to your next setup.**
+A **casual mobile roguelike autobattler**, **single-player PvE** (PvE itself is a working hypothesis, not settled — see below), currently in a **discovery phase**: the core fun has not yet been identified.
 
-- **Team:** 2 people + AI, experiment stage.
+- **Team:** 2 people (+ a friend contributing inspiration/direction) + AI, experiment stage.
 - **Platform:** mobile, casual audience.
-- **Current focus:** does this feel fun to us? Monetization and UA come later.
-- **Core insight:** fun = the tension between **mastery** (decisions visibly shape outcomes) and **chaos** (visual spectacle + roguelike variety). A great outcome is both *surprising AND attributable* — and here **attributable is primary**: the player watches to understand the cause, then adapts. Learning is the hook, not the coin-flip.
+- **Current focus:** find and verify what is actually fun, by play — not by more design reasoning. Monetization and UA come later.
+- **Core insight (open question, not a finding):** an earlier version of this file asserted "fun = mastery + chaos, learning is the hook" as settled. It was never verified by play — the resulting prototype bored its own makers. That assertion is retracted to a hypothesis. See **OQ-0** below.
 
-## The design spine
+## Why the prototype felt flat (working diagnosis)
+
+Fun lives in **spikes** — a beat you lean *toward* (anticipation → payoff) or *away from* (dread → relief). The prototype has no spike anywhere, so the boredom has no single location: it reads as flat everywhere. The cause is that the design optimized hard for one pole (**mastery**, operationalized as *attributability* — being able to trace exactly why you won or lost) and every step toward that pole cut the other pole (**chaos** / surprise / stakes):
+
+- losing costs nothing (free same-difficulty retry) → winning means nothing;
+- nothing surprising happens on screen (variance off, minimal juice);
+- nothing you draft ever visibly pays off (thin draft).
+
+The intended goal was the *tension* between mastery and chaos; in practice the tension collapsed to the mastery pole, one locally-reasonable decision at a time. **Picking a pole ("mastery") or a mechanic is not a usable design objective** — neither can reject a proposed feature, so neither constrains the drift. The usable objective is a **moment** (see Next up).
+
+## The alignment lens: engines as a sorting label
+
+A set-up-and-watch autobattler can draw fun from three engines — **Watching** (spectacle/vicarious thrill), **Building** (synergy/combo assembly), **Gambling** (stakes/tension of a result that could go wrong) — plus a **Character-drama** flavor of stakes (Darkest Dungeon-style attachment/loss). Games in this genre tend to pick one engine as the lead and use the others as support. **This lens is a sorting label, not the thing to choose:** name the *moment* you want first, then tag it with an engine afterward to check whether the two makers' moments match or conflict. Which engine leads *this* game is undecided and falls out of the chosen moment.
+
+## How we decide right now (discovery process)
+
+1. **Co-founder alignment on one lead *moment*** — both makers, independently, recall the concrete *felt beats* they want players to have, reveal, and rank to one shared lead moment or name an explicit divergence. A moment is one game's remembered spike, not a mechanic and not an engine. (In progress — see Next up.)
+2. **Fun probes** (planned, not yet started) — small, disposable, ugly toys that each isolate one candidate moment/engine, played and judged only by "do I not want to stop?" Picked up after alignment.
+3. **Cast the lead** — whichever probe produces a lean-in (for both makers) becomes the lead; the others become support or get cut. Mechanics are derived *after*, judged by "does this serve the moment?"
+4. **Only then re-Settle** — re-promote validated hypotheses to binding decisions and resync this file around the proven fun.
+
+**Standing rule during discovery:** no new "do-not-re-litigate" decisions are minted until a probe (step 2) earns one. See [DECISIONS.md 2026-07-18](DECISIONS.md).
+
+## The design spine (hypothesis, not settled)
 
 > 5 individual heroes (+ a bench) → a 9 Kings-style draft builds up fielded *and* benched heroes over the run → two squads meet on contained terrain → the player watches a **readable, watch-only fight** → if it fails, **diagnose, adjust the squad, and retry within a limited attempt budget** → the lesson feeds the next setup. (A mid-fight tactical call is a *parked secondary experiment*, not part of the core loop.)
 
-## Settled — do not re-litigate
+This is the shape the prototype currently implements. It is retained here as a *reference hypothesis* — the concrete thing that was built and found boring — not as a locked target.
 
-- **Education-primary, single-player PvE.** The reason to watch is to learn and improve the next setup. Suspense ("will I win?") is a secondary, early-run/execution effect, not the core hook.
-- **Fun = balanced mastery + chaos.** Chaos here means *visual liveliness + roguelike offer-variance*, not outcome-uncertainty. Chaos without agency is a slot machine; agency without chaos is a solved puzzle.
-- **Depth comes from impactful *few* actions, not more actions.** Inputs stay simple (few taps); the decision *behind* an input must out-complex the input.
-- **The 5 are individual characters**, not anonymous groups/archetypes — personal build-up and Darkest Dungeon-style morale drama both attach to individuals.
-- **Combat is watch-only in the primary loop.** The player does not act *during* the fight; player agency lives in **draft + pre-fight setup + between-attempt tuning**. Because there is no in-fight input, readable, watchable combat is now *make-or-break*.
-- **The learn loop.** Set up a squad → watch a readable fight resolve → on failure, **diagnose, adjust the squad, and retry.** Retries are rationed by a **limited number of attempts**, tuned so **each retry is the same difficulty** (clean attribution: the player's change is the only variable). **Unit attrition is a deferred, separate mechanic**, not in the first prototype.
-- **Opponent squads are readable puzzles with multiple valid solutions.** Full information — no fog-of-war. The skill is reading and countering a *visible* board and building a counter creatively, not guessing a hidden one. (Into the Breach model.)
-- **A bench exists, and the roster is roguelike, not a collection.** Every run starts from a **fixed default starter squad**; all power is **built in-run** via the draft. The unlocked hero **pool is unlimited** and grows via run-completion rewards and buying, but unlocking/buying only **widens variety** — it never hands over pre-leveled power. Before a run, the player **brings a limited subset** of the pool as this run's draftable heroes.
-- **Per-hero persistence (within a run).** Build-up welds to the *individual* hero, not the fielded slot; a benched hero keeps everything they earned and returns fully built. Everything resets to the default starter each new run.
-- **Field framing = squad vs. squad on contained terrain.** Two squads meet in the middle of a terrain (no long march). Medieval-war roles: frontline tanks, backline ranged, mobile flankers. Not a defended point holding off waves.
-- **Win condition = annihilate (prototype baseline).** A fight is won by wiping the enemy squad. The other objectives (rout-the-commander, breakthrough-to-the-edge, hold-or-survive) are a **deferred per-encounter variety lever**, not in the first prototype. Consequence: annihilate adds no spatial pressure of its own, so **terrain and encounter authoring carry the entire positioning burden** — they are what must make the naive deathball fail.
-- **Spatial model = hex-grid sim, MOBA-style render (sim/skin split).** The simulation reasons in a **fine hex grid** (range, AoE, pathing, adjacency, chokepoints); the player sees **smooth, continuous, real-time MOBA-style motion** over an arena skin, with the grid hidden except on telegraph (range rings, AoE footprints, aggro lines). Hex, not square (uniform distance, roughly circular ranges/AoE). Continuous *simulation* is rejected; the continuous feel survives only as a presentation layer.
-- **Pre-fight setup happens *on* the battle map, as free placement inside a bounded zone.** Setup and battlefield are **one screen** — the player **drag-places** each fielded hero onto any legal hex within an **authored deployment zone** (free within the zone, TFT-style; *not* a separate dropdown screen, *not* coarse row×lane, *not* free-place-anywhere). Legal hexes exclude walls, the enemy side, and (by default) enemy-held high ground. The **deploy zone is the per-encounter balancing knob** — it governs elevation access, dominant-option avoidance, and how much placement carries versus the draft. Zone size/expressiveness is a prototype dial.
-- **Terrain = authored structure, in the prototype.** Real hand-authored geometry (chokepoints, corridors, high ground, impassable walls) gives positioning consequence and carries the burden annihilate can't. Drawn from a **small hand-authored map library**, not procedural. **"Variance" = a different authored map per round** (a fresh puzzle each round); the map is fixed across retries so retries stay same-difficulty. **In-fight random hazards stay deferred** (that's OQ-8's terrain-as-variance, kept separate to protect attribution). Standing test: a terrain feature must **raise a question with several answers, never announce its own answer.**
-- **Elevation is risk/reward, not pure upside.** High ground grants a ranged/sight advantage *and* a matching exposure (more incoming / more targetable), so occupying it is a **bet, never a free pick** — the tile is self-balancing on every map, no global "can't-stand-here" rule needed. (Exact parameter values are a prototype dial.)
-- **Encounter authoring = anti-solutions, not solutions.** An encounter = **one primary threat + a terrain feature the enemy exploits + a different terrain feature that lets the player counter** (terrain in counter-pairs). Threats are composed from a small reusable library of **threat primitives** (AoE artillery / backline assassin / tank wall / high-ground archers / kite-skirmisher), each punishing a specific naive habit. **Difficulty scales by the number of interacting threats, never by bigger stats.** Every encounter must pass the **4-point authoring test**: (1) name the lesson in one sentence; (2) the deathball loses *to that lesson*, loudly; (3) ≥2 *distinct* setups win (different levers, not flavors of one); (4) a wrong setup loses *readably* (one dominant cause of death). Deterministic sim makes this test runnable.
-- **Mid-fight tactical decision is demoted to a parked secondary experiment.** Not a hard constraint. Revisited only if the retry-and-tune loop proves too thin; substitution is dropped as its committed form.
-- **Mastery is distributed** across the run-long draft + pre-fight setup + between-attempt tuning. No single lever carries it.
-- **Combat must be readable.** Education requires the player to trace what happened. "Chaotic/destructive" = *visual* liveliness only (free movement, varied terrain, varied skills/units). Light RNG is wanted but capped so it never makes the fight unreadable.
-- **Synergy between characters/items is wanted** — a core roguelike variance engine, simple to trigger, deep in outcome, *watch-legible* (you see it fire). (This is NOT TFT; only the TFT *framing* was dropped.)
-- **9 Kings' simple-input / deep-output draft rhythm IS the design.** Take the draft loop; the grid-placement layer and defensive-throne structure are separable and not automatically adopted.
-- **The "5-second to understand" rule is ad-creative-only** — not a gameplay-loop constraint.
+## Working hypotheses (pending validation — not binding)
 
-## Game loop
+> Formerly "Settled — do not re-litigate." Demoted 2026-07-18: none of these were verified by play before being declared settled, and the prototype built from them bored its own makers. Each line below is still checkable true/false on its own — it is the *bindingness* that changed, not the content. Any of these may be reopened by a probe; do not treat absence of a probe as confirmation.
+
+- **Education-primary, single-player PvE.** Hypothesis: the reason to watch is to learn and improve the next setup, with suspense as secondary.
+- **Fun = balanced mastery + chaos.** Hypothesis: chaos means visual liveliness + roguelike offer-variance, not outcome-uncertainty.
+- **Depth comes from impactful *few* actions, not more actions.**
+- **The 5 are individual characters**, not anonymous groups/archetypes.
+- **Combat is watch-only in the primary loop.** The single biggest untested bet — the whole design stakes readability-during-watching as make-or-break, and this has not been probed as a bare toy.
+- **The learn loop:** set up → watch → on failure diagnose, adjust, retry within a limited, same-difficulty attempt budget. Two of the project's own top reference games (Slay the Spire, Balatro) do **not** use free same-difficulty retries — this tension is unresolved.
+- **Opponent squads are readable, full-information puzzles with multiple valid solutions** (no fog-of-war).
+- **A bench exists; the roster is roguelike, not a collection** — fixed starter squad each run, unlimited unlockable pool, power built in-run only.
+- **Per-hero persistence within a run** — build-up welds to the individual hero, not the fielded slot.
+- **Field framing = squad vs. squad on contained terrain**, medieval-war roles (tank/ranged/flanker), win by annihilate.
+- **Spatial model = hex-grid sim, MOBA-style render (sim/skin split).**
+- **Pre-fight setup = on-map drag-placement into an authored bounded deploy zone.**
+- **Terrain = authored structure**, drawn from a small hand-authored map library, fixed across retries.
+- **Elevation is risk/reward**, not pure upside.
+- **Encounter authoring = anti-solutions** (one primary threat + a terrain feature the enemy exploits + a different terrain feature the player can use to counter), validated by a 4-point test.
+- **Mid-fight tactical decision is a parked secondary experiment**, not in the core loop.
+- **Mastery is distributed** across draft + pre-fight setup + between-attempt tuning.
+- **Combat must be readable** — chaos is visual-only, capped RNG.
+- **Synergy between characters/items is wanted** as a watch-legible variance engine.
+- **9 Kings' simple-input/deep-output draft rhythm is the design**; the grid-placement/throne-defense layer is not automatically adopted. (Note: the current draft implementation, `prototype/src/game/draft.ts`, is a thin recruit-one / +25%-stat offer — much shallower than "9 Kings-style" implies; this gap is itself a suspect for the boredom.)
+- **The "5-second to understand" rule is ad-creative-only**, not a gameplay-loop constraint.
+
+## Game loop (as currently implemented — reference, not a locked target)
 
 ```
 A SINGLE RUN
@@ -58,68 +84,75 @@ A SINGLE RUN
   Run ends when: attempts run out on a round OR the final boss is beaten.
 ```
 
-- **BUILD:** on the battle map itself, **drag-place** your 5 fielded heroes onto legal hexes inside an authored **deployment zone** (free placement within the zone). Setup and battlefield share one screen, so you place while reading the terrain you're countering.
-- **WATCH FIGHT (watch to learn):** two squads meet on an authored hex map and fight autonomously — **the player does not act during the fight.** Win by wiping the enemy squad. Combat renders as continuous MOBA-style motion, readable and visually lively. Light variance injectors add texture without deciding the fight: morale/stress breaks, fuzzy AI, chain reactions. (Random hazards deferred.)
-- **DIAGNOSE + RETRY (on loss):** read why it failed, adjust the squad/setup, and retry the same round on the same map. Retries cost from a **limited attempt budget** and stay the same difficulty each try.
-- **DRAFT / UPGRADE (on win):** one simple 9 Kings-style choice per round, deep outcomes — highly random offers you adapt to. Builds up **both** fielded and benched heroes (recruit / upgrade).
+- **BUILD:** on-map drag-placement of 5 fielded heroes into a bounded deployment zone.
+- **WATCH FIGHT:** autonomous, watch-only, hex-sim/MOBA-render, variance injectors currently **off**.
+- **DIAGNOSE + RETRY (on loss):** adjust, retry same round/map/difficulty, rationed by an attempt budget.
+- **DRAFT / UPGRADE (on win):** one 9 Kings-style choice per round (currently: recruit-one or +25%-stat upgrade).
 
-## Design pillars
+## Design pillars (hypothesis, inherited from the retracted core insight)
 
-1. **Simple inputs, complex outputs, traceable outcomes** — few decisions, wildly different results, always traceable back to a choice. Never feels arbitrary.
-2. **You watch to learn** — the fight is readable so the player sees *why* it went the way it did, then adjusts and retries. This is the education loop, and it is the core hook.
-3. **Balanced tension — mastery AND chaos** — the player is a coach who **tunes between attempts**, not a spectator and not a quarterback calling every play. Mastery lives in setup, draft, and diagnosing-then-adjusting between tries.
-4. **Roguelike freshness** — random shops/events/environment and combinatorial synergy depth mean no two runs feel the same; setup and between-attempt tuning still steer the story.
-5. **Casual-mobile-first** — inputs simple, the decision behind them deep.
+1. Simple inputs, complex outputs, traceable outcomes.
+2. You watch to learn.
+3. Balanced tension — mastery and chaos.
+4. Roguelike freshness.
+5. Casual-mobile-first.
+
+These are carried forward as *candidate* pillars, not confirmed ones — they fall out of the same unverified core insight as everything in "Working hypotheses" above.
 
 ## Reference games (by relevance)
 
 | Priority | Game | What to study |
 |---|---|---|
-| 🥇 | Into the Breach | Fully-readable PvE roguelike that stays unsolvable *without* an opponent — combinatorial depth as the refill; **full-information, multi-solution puzzle encounters** |
-| 🥇 | Slay the Spire | Offer-variance + difficulty tiers (Ascension) refilling the learn-loop; education-primary PvE roguelike; **pure-annihilate win condition, still deeply strategic** |
-| 🥇 | Balatro | Deep education made *casual* — simple inputs, huge outputs; one-dev proof it ships |
-| 🥈 | Darkest Dungeon | Risk/reward; stress/morale as a variance generator; character attachment; stories from failure; **model for the deferred unit-attrition economy** |
-| 🥈 | Heroes 3 | Hex/turn combat logic under an arena skin — visual anchor for the hex-sim layer |
-| 🥈 | TFT | On-board placement (free within your half) as a conscious, attributable, casual-mobile input — **model for the on-map deploy-zone setup**; plus hex outlines fading in combat + smooth hex-to-hex motion for the MOBA-render skin |
-| 🥈 | PES / bot games | Proof that watching high-variance AI-vs-AI is entertaining |
-| 🥈 | Kingdom Rush | How a single controllable hero creates unpredictable outcomes |
-| 🥉 | Super Auto Pets / Mechabellum | The set-up-and-watch autobattler shape — but both **async-PvP**; studied for form, set aside as PvP-dependent |
-| 🥉 | Archero / Habby catalog | Casual roguelike mobile packaging; monetization; low-CPI creative (later) |
+| 🥇 | Into the Breach | Fully-readable PvE roguelike that stays unsolvable *without* an opponent — combinatorial depth as the refill; **full-information, multi-solution puzzle encounters**. Signature moment: **the solve clicks** — you see the one placement that breaks the enemy's whole turn. Note: no free same-difficulty retry — losing costs the run. |
+| 🥇 | Slay the Spire | Offer-variance + difficulty tiers refilling the learn-loop; education-primary PvE roguelike; **pure-annihilate win condition, still deeply strategic**. Note: heavy RNG, permadeath run structure — tension in genuine friction with this project's determinism + free-retry hypotheses. |
+| 🥇 | Balatro | Deep education made *casual* — simple inputs, huge outputs; one-dev proof it ships. Primary engine = **building**; signature moment: **the build pops** — the combo runs away past what you needed. |
+| 🥈 | Darkest Dungeon | Risk/reward; stress/morale as a variance generator; character attachment; stories from failure. A friend's stated inspiration — pulls toward **stakes/character-drama**; signature moment: **it could all be lost** — a hero one bad beat from gone for good. In tension with "casual mobile." |
+| 🥈 | Heroes 3 | Hex/turn combat logic under an arena skin — visual anchor for the hex-sim layer. |
+| 🥈 | TFT | On-board placement as a conscious, attributable, casual-mobile input; hex-to-hex motion for the MOBA-render skin. A friend's stated inspiration — pulls toward **building** (synergy/trait economy). |
+| 🥈 | PES / bot games | Proof that watching high-variance AI-vs-AI is entertaining — the **watching** engine; signature moment: **the chaos goes off** — an absurd unpredicted blowout you want to run again. Unverified in this project. |
+| 🥈 | Kingdom Rush | How a single controllable hero creates unpredictable outcomes. |
+| 🥉 | Super Auto Pets / Mechabellum | The set-up-and-watch autobattler shape — but both **async-PvP**, studied for form, set aside as PvP-dependent. |
+| 🥉 | Archero / Habby catalog | Casual roguelike mobile packaging; monetization; low-CPI creative (later). |
+| — | **Draft Showdown** (App Store, id6743368869) | The trigger for this discovery phase. Real-time PvP draft-autobattler; the maker found it "much more fun" than this prototype. Runs on **building + gambling** as co-leads (fast draft, real stakes via lives, no free retry, chain-synergy combos), watching as payoff. Deterministic, full-information puzzle-solving is **absent** from it. |
 
 ## Open questions
 
-The 🔨 prototype-spec gate is **cleared** — OQ-15 (win condition), OQ-16 (map/terrain), OQ-17 (spatial resolution), and OQ-19 (puzzle authoring) are all resolved and live in Settled above. **Nothing blocks building/iterating the prototype.** The remaining questions are resolved *through* the prototype, not before it.
+### OQ-0 — What is the fun? Which lead *moment*? 🔴 (top priority — everything below is downstream of this)
 
-### Resolved through prototype feel (build first, then answer)
+Unresolved. Diagnosis so far (2026-07-19): the prototype has **no spike** — it throttles all three candidate engines at once (watching: variance off / minimal juice; building: anemic draft; gambling: free same-difficulty retry), so the boredom cannot be attributed to any one of them from play. The objective is not a pole or a mechanic (neither can reject a feature) but a **concrete moment** the game exists to deliver. Two sub-parts, both open:
+- **Co-founder alignment:** do the two makers (and the friend supplying inspiration) actually want the same lead *moment*? Not yet checked — the friend's inspirations (Darkest Dungeon, TFT, chaos-fight clips) span three different moments/engines.
+- **Personal/probe validation:** once alignment exists (or an explicit divergence is named), which moment has real torque, tested by disposable probes rather than reasoning. Not yet started.
 
-- **OQ-13 — What is the retry loop's shape? 🔴** Is the attempt budget **per-round or per-run**? How many attempts? What exactly happens when attempts run out (round loss = run over)? How is "same difficulty each retry" enforced?
-- **OQ-6 — form decided; size/balance open.** The *form* of the pre-fight decision is settled: on-map free placement inside a bounded deploy zone (see Settled). What remains for prototype feel: **how large/expressive the deploy zone is** (the attribution↔expression tradeoff), and **does rich placement swallow the draft?** — if a clever opening position solves most encounters, positioning becomes the only lever and the roguelike draft turns cosmetic. Mastery must stay distributed.
-- **OQ-14 — How tight is the pre-run roster curation?** The dial between "adapt to what's offered" and "pre-plan a build": how big/constrained is the draftable subset you bring into a run?
+Note on who can judge what: a maker who **designed** the deterministic full-information puzzle already knows the answer, so their own boredom is **unreliable evidence for the building/puzzle moment** — that one needs a fresh player. Stakes and spectacle moments can be felt by self-play even knowing the solve.
 
-### Longer-horizon (not blocking the first build)
+Nothing below this line should be treated as blocking or unblocking work — OQ-0 is what's currently blocking everything.
 
-- **OQ-7 — How do we make outcomes feel attributable?** Readability is settled; the specific UI/feedback/framing that lets the player credit their own decision (highlight the moment a choice mattered, telegraph threats pre-fight, post-fight recap, a between-retry placement diff/ghost) is still open. Sharper now that the retry loop lives or dies on clean attribution.
-- **OQ-8 — What are the specific variance injectors?** Readable, light, never fight-deciding. Candidates: morale/stress breaks (leading), fuzzy AI, chain reactions, and *later* in-fight terrain hazards. Constraint: keep fight variance low enough that a retry cleanly tests the player's change.
-- **OQ-9 — What's the meta-progression?** Partially set: heroes *unlock* across runs (widening the pool), but power resets each run. What else carries over between runs, if anything?
-- **OQ-10 — What does the combat look like? 🔴 (elevated to make-or-break.)** Now bounded by the sim/skin split: continuous MOBA-style motion over a hidden hex grid. Still open: the concrete visual language of *readable* liveliness — movement, terrain, skills, chain reactions, hit feedback.
-- **OQ-15 follow-on — alternate win conditions as encounter variety.** Rout-the-commander / breakthrough / hold-or-survive return later as per-encounter objective types. Not scoped yet; revisit after the annihilate baseline proves the loop.
+### Previously "resolved through prototype feel" — now reopened pending OQ-0
 
-**Parked experiment (not open, deliberately shelved):** the **mid-fight tactical call** — revisit only if the retry-and-tune loop proves too thin. Watch-only is a deliberate bet the prototype exists to test: *how far pre-fight setup alone can carry the puzzle.* The real test is whether combat *develops* emergently enough (full information) to make any in-fight reaction worthwhile.
+- **OQ-13 — retry loop shape** (per-round vs per-run attempts, count, same-difficulty enforcement) — reopened; in direct tension with the gambling/stakes moment.
+- **OQ-6 residual — deploy-zone size/expressiveness**, whether placement swallows the draft — reopened.
+- **OQ-14 — pre-run roster curation tightness** — reopened.
+
+### Longer-horizon (unchanged, still not blocking, now also downstream of OQ-0)
+
+- **OQ-7 — attributability UI** (recap, telegraphs, retry diff/ghost).
+- **OQ-8 — variance injectors** (morale/stress, fuzzy AI, chain reactions, later terrain hazards) — directly relevant to the watching/spectacle moment.
+- **OQ-9 — meta-progression** across runs.
+- **OQ-10 — combat's concrete visual language** — directly relevant to the watching/spectacle moment.
+- **OQ-15 follow-on — alternate win conditions** as encounter variety.
+
+**Parked experiment (unchanged):** the mid-fight tactical call — revisit only if a probe suggests the loop needs it.
 
 ## Next up
 
-Immediate priority: make something that **feels fun to us**. No CPI/UA yet. The core-loop prototype exists (headless deterministic sim → watchable fight → BUILD/WATCH/RETRY/DRAFT loop → authored Encounter 1).
+Immediate priority: **discovery, not construction.** Do not resume building the loop until OQ-0 has a real answer.
 
-1. **Rebuild pre-fight setup to the decided form:** replace the current separate-screen dropdown with **on-map placement into a bounded deploy zone** (drag heroes onto legal hexes on the battle map). Add the **elevation exposure downside** to the sim so high ground is risk/reward, not pure `+range`.
-2. **Resolve through prototype feel:** OQ-6 residual (deploy-zone size/expressiveness + whether placement over-dominates the draft), OQ-13 (retry-loop shape), OQ-14 (curation tightness).
-3. **Define OQ-8 (variance injectors) + OQ-10 (combat readability)** — make-or-break since combat is watch-only.
-4. **If the retry loop proves thin, run the parked mid-fight experiment.**
-5. **Judge:** can we watch → *learn* → adjust → clear a round, and does clearing feel *earned*, not brute-forced?
+1. **Run the co-founder alignment session — on one lead *moment*.** Both makers, **independently**, each recall **3–5 moments** — *only beats they have actually felt* in a game they played (recall, not research; if a game has to be studied to name its moment, it gave none). Reveal, tag each with an engine (watching / building / gambling / character-drama) to sort, then **rank to one shared lead moment or name an explicit divergence.** A moment is one game's remembered spike with a shape (anticipation→payoff or dread→relief), not a mechanic and not an engine.
+2. **(Planned, not yet started) Fun probes** — once alignment exists, build small disposable toys that each isolate one candidate moment (watch-only combat with juice/variance restored; a stripped combo-building draft loop; one-shot-no-retry stakes) and judge by lean-in, not argument.
+3. **Cast the lead moment**, derive mechanics from it (each mechanic judged by "does this serve the moment?"), then re-Settle validated hypotheses and resync this file around the proven fun.
 
 ## Related files
 
 - [DECISIONS.md](DECISIONS.md) — why things are the way they are (append-only history).
-- `PROTOTYPE_PLAN.md` — build doc, expected to go stale. **Note:** its OQ-6 provisional ("row × lane, not free hex-drop") is now **overturned** by the 2026-07-15 on-map-placement decision.
+- `PROTOTYPE_PLAN.md` — build doc for the now-reopened design; expected to go stale, describes the prototype-as-built, not a current target.
 - `STRATEGY.md` — **deprecated**, pending a future rewrite. Not current; do not rely on it.
-</content>
-</invoke>
