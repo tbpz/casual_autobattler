@@ -2,7 +2,7 @@
 
 > **What this file is:** the single snapshot of what is true *right now*. Present tense only.
 > **Read this first** in every session. For *why* a thing is the way it is, see [DECISIONS.md](DECISIONS.md).
-> **Last synced:** 2026-07-20 (RNG/emergence knob reframed as division of labor, not a fork)
+> **Last synced:** 2026-07-22 (emergence-only probe arm closed — lean-in and structural ceiling both confirmed; RNG-only arm is next)
 
 ---
 
@@ -32,7 +32,10 @@ A set-up-and-watch autobattler can draw fun from three engines — **Watching** 
 ## How we decide right now (discovery process)
 
 1. ~~**Co-founder alignment on one lead *moment***~~ — **done, 2026-07-19.** Both makers independently recalled felt beats and converged on one shared lead moment (see below). See [DECISIONS.md 2026-07-19](DECISIONS.md).
-2. **Fun probes** (not yet started — current step) — small, disposable, ugly toys that test the RNG-triggers-legible-chains bridge hypothesis (RNG decides *when/whether* a cascade fires; emergent combination decides *what it becomes*) via a three-arm comparison — RNG-only, emergence-only, both-wired-together — played and judged only by "do I not want to stop?", for both makers.
+2. **Fun probes — in progress.** Small, disposable, ugly toys testing the RNG-triggers-legible-chains bridge hypothesis (RNG decides *when/whether* a cascade fires; emergent combination decides *what it becomes*) via a three-arm comparison — RNG-only, emergence-only, both-wired-together — played and judged only by "do I not want to stop?", for both makers.
+   - ~~**Emergence-only arm**~~ — **done, 2026-07-22.** Tu played `probe/emergence/toy.mjs` / `play.html`. Result: genuine lean-in (the target signal), plus the arm's predicted structural ceiling — a solved deterministic build stays solved forever, no rebalance fixes that. See [DECISIONS.md 2026-07-22](DECISIONS.md).
+   - **RNG-only arm** — not yet built. Next active work.
+   - **Wired-together arm** — after that.
 3. **Cast the lead** — whichever probe produces a lean-in (for both makers) becomes the lead mechanic; others become support or get cut. Further mechanics are derived *after*, judged by "does this serve the moment?"
 4. **Only then re-Settle** — re-promote validated hypotheses to binding decisions and resync this file around the proven fun.
 
@@ -51,7 +54,9 @@ Load-bearing clauses (each is a test a mechanic must pass — see [DECISIONS.md 
 
 **Mastery is a ceiling, never a gate:** variance/RNG supplies a *floor* (a highlight is reachable even playing badly); synergy-depth supplies a *ceiling* (rewards playing better). Both makers want attribution/credit when a payoff lands; only one (Tu) cares about playing-better as an end in itself, and that instinct is scoped to competitive/PvP contexts (Dota), not this game.
 
-**RNG vs. emergence is not a fork — it's a division of labor (decided 2026-07-20):** **RNG triggers** (friend's stated favorite — bash/crit/non-targeted-skill procs — decides *when/whether* a cascade fires) and **emergent combination amplifies** (Tu's stated favorite — deterministic systems colliding into unplanned behavior — decides *what the cascade becomes*). This is the same shape as the floor/ceiling resolution above, and the same shape every 🥇 reference game already uses (Balatro, Slay the Spire, Into the Breach all run RNG + emergent systems together, never one alone). **What's still open is execution, not which one to pick:** does the wired-together bridge hypothesis actually satisfy both makers better than either half alone? The probe (see "Next up") runs a three-arm comparison — RNG-only, emergence-only, both-together — to test this without losing attribution.
+**RNG vs. emergence is not a fork — it's a division of labor (decided 2026-07-20):** **RNG triggers** (friend's stated favorite — bash/crit/non-targeted-skill procs — decides *when/whether* a cascade fires) and **emergent combination amplifies** (Tu's stated favorite — deterministic systems colliding into unplanned behavior — decides *what the cascade becomes*). This is the same shape as the floor/ceiling resolution above, and the same shape every 🥇 reference game already uses (Balatro, Slay the Spire, Into the Breach all run RNG + emergent systems together, never one alone).
+
+**The emergence-only arm has now run once, on Tu (2026-07-22):** it produced the target lean-in ("wanting to find the best combo") *and* its own predicted failure mode — once a deterministic build is solved, it stays solved forever, so replay value collapses no matter how the tokens are rebalanced (confirmed: `probe/emergence/rules.mjs` v2 already clears its own diversity bar — top-decile runaway 6.0x, obvious build only 43% of best — yet solving it once still killed Tu's desire to keep playing). This is treated as the arm succeeding at what it was built to test, not a rejection of emergence: it is exactly the gap the RNG-triggers-emergence bridge hypothesis exists to close. See [DECISIONS.md 2026-07-22](DECISIONS.md). What's still open is whether the **RNG-only** and **wired-together** arms clear the same bar, and whether the friend leans in too — a guided, staged walkthrough (`probe/emergence/guided.html`) exists to hand him the emergence-only arm one token at a time, without the raw 15-token rules table as a confound. **Undecided:** whether to test the friend on emergence-only now, or wait for the wired-together build so he isn't judging his least-favorite half (RNG) in isolation.
 
 ## The design spine (hypothesis, not settled)
 
@@ -135,10 +140,13 @@ These are carried forward as *candidate* pillars, not confirmed ones — they fa
 ### OQ-0 — What is the fun? Which lead *moment*? 🔴 (top priority — everything below is downstream of this)
 
 **Partially resolved.** Diagnosis (2026-07-19): the prototype has **no spike** — it throttles all three candidate engines at once (watching: variance off / minimal juice; building: anemic draft; gambling: free same-difficulty retry), so the boredom cannot be attributed to any one of them from play. Two sub-parts:
-- **Co-founder alignment — done, 2026-07-19.** Both makers independently recalled felt moments and converged on one shared lead moment (see "The shared lead moment" above). No divergence found; one open knob remains (RNG vs. emergent combination as the surprise source).
-- **Personal/probe validation — open, now the active work.** The shared moment has real torque only once tested by disposable probes rather than reasoning — not yet started. See "Next up."
+- **Co-founder alignment — done, 2026-07-19.** Both makers independently recalled felt moments and converged on one shared lead moment (see "The shared lead moment" above). No divergence found; one open knob remains (RNG vs. emergent combination as the surprise source), reframed 2026-07-20 as division of labor rather than a fork.
+- **Personal/probe validation — active, in progress.** The three-arm comparison is running arm by arm:
+  - **Emergence-only — done, 2026-07-22.** Lean-in confirmed; structural ceiling (a solved deterministic build stays solved forever) also confirmed — a pass for the arm, not a rejection. See [DECISIONS.md 2026-07-22](DECISIONS.md).
+  - **RNG-only, wired-together — not yet run.** Next active work.
+  - **Friend validation — not yet run.** `probe/emergence/guided.html` (a staged, one-token-at-a-time walkthrough) exists to test him without the raw rules table as a confound. Open call: test him on emergence-only now, or wait for the wired-together arm.
 
-Note on who can judge what: a maker who **designed** the deterministic full-information puzzle already knows the answer, so their own boredom is **unreliable evidence for the building/puzzle moment** — that one needs a fresh player. Stakes and spectacle moments can be felt by self-play even knowing the solve.
+Note on who can judge what: a maker who **designed** the deterministic full-information puzzle already knows the answer, so their own boredom is **unreliable evidence for the building/puzzle moment** — that one needs a fresh player. Stakes and spectacle moments can be felt by self-play even knowing the solve. (This is why the emergence-only arm's *lean-in* was weighed as trustworthy self-report, while its *burnout* was checked against the arm's structural properties before being treated as a verdict — see DECISIONS 2026-07-22.)
 
 Nothing below this line should be treated as blocking or unblocking work — OQ-0's remaining half (probe validation) is what's currently blocking everything.
 
@@ -163,7 +171,11 @@ Nothing below this line should be treated as blocking or unblocking work — OQ-
 Immediate priority: **discovery, not construction.** Do not resume building the loop until OQ-0's probe-validation half has a real answer.
 
 1. ~~Run the co-founder alignment session~~ — **done, 2026-07-19.** See "The shared lead moment" above.
-2. **Fun probes (current step, not yet started).** Build small disposable toys that restore what the flat prototype throttled: watch-only combat with juice/variance restored, real stakes (no free same-difficulty retry), and a synergy system deep enough to test "run away past what I planned." Run a **three-arm comparison** — RNG-only, emergence-only, RNG-triggers-emergence-together — to test whether the wired-together bridge hypothesis (dice decides *when*, setup decides *what*) beats either half alone, for both makers. Judge each probe by lean-in ("do I not want to stop?"), not argument.
+2. **Fun probes — in progress.**
+   - ~~Emergence-only arm~~ — **done, 2026-07-22.** Produced the target lean-in and its own predicted structural ceiling (solved-forever). See [DECISIONS.md 2026-07-22](DECISIONS.md).
+   - **Build the RNG-only arm next** — same judging bar: lean-in ("do I not want to stop?"), for both makers.
+   - **Then the wired-together arm** (RNG triggers, emergence amplifies) — the bridge hypothesis itself.
+   - **Friend validation** — `probe/emergence/guided.html` is ready to hand him a staged, one-token-at-a-time version of the emergence-only arm; still undecided whether to run that now or wait for the wired-together build.
 3. **Cast the lead**, derive further mechanics from it (each judged by "does this serve the moment?"), then re-Settle validated hypotheses and resync this file around the proven fun.
 
 ## Related files

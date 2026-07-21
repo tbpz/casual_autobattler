@@ -117,10 +117,12 @@
 </head>
 <body>
 
-<h1>Emergence Probe — click soldiers, press play, watch the chain</h1>
+<h1>Emergence Probe v2 — click soldiers, press play, watch the chain</h1>
 <div class="sub">
-  Build a row of up to 8 tokens below. Some tokens act on their own turn; some only <b>react</b> when another
-  token triggers an event (hit / crit / kill). A reaction can trigger another reaction — a <b>chain</b>.
+  Pick <b>5 of the 15</b> soldiers below — you can't take them all, so which 5 (and what order) is a real
+  decision. Some tokens act on their own turn; some only <b>react</b> when another token triggers an event
+  (hit / crit / kill). A reaction can trigger another reaction — a <b>chain</b>. A few tokens have real
+  <b>cost</b> or only work in one slot — they can make a build worse, not just add to it.
   <br><b>The test:</b> before you hit Play, guess the score out loud. Then watch. The gap between your guess
   and the real number is the whole thing we're testing.
 </div>
@@ -133,12 +135,12 @@
     <span><span class="dot" style="background:var(--event-hit)"></span>HIT</span>
     <span><span class="dot" style="background:var(--event-crit)"></span>CRIT</span>
     <span><span class="dot" style="background:var(--event-kill)"></span>KILL</span>
-    <span>— one event can wake several tokens at once → a chain.</span>
+    <span>— one event can wake several tokens at once → a chain. Some tokens <b>consume</b> the event they react to, so later reactors miss it.</span>
   </div>
 </div>
 
 <div class="panel">
-  <h2>Your row (click a token below to add it, one of each max — click it in the row to remove)</h2>
+  <h2>Your row (5 slots max — click a token below to add it, one of each max — click it in the row to remove)</h2>
   <div id="row"></div>
 </div>
 
@@ -183,7 +185,9 @@
 </div>
 
 <script>
-// ── same rules as probe/emergence/toy.mjs, reimplemented for the browser ──
+// ── same rules as probe/emergence/rules.mjs, reimplemented for the browser ──
+// (file:// ES module imports are unreliable, so this is a hand-kept mirror —
+// if you change probe/emergence/rules.mjs, port the change here too.)
 const LIB = {
   F: { name: "Footman",        short: "TURN: +5 chips.",
        sweep: (s) => add(s, "chips", 5) },
@@ -201,8 +205,8 @@ const LIB = {
        on: { crit: (s) => add(s, "mult", 1) } },
   S: { name: "StandardBearer", short: "ON kill: +2 mult.",
        on: { kill: (s) => add(s, "mult", 2) } },
-  X: { name: "Executioner",    short: "ON crit, if chips ≥ its threshold (starts 30, +20 each time it fires): shouts KILL.",
-       on: { crit: (s, t) => { if (s.chips >= t.threshold) { t.threshold += 20; emit(s, "kill", t); } } } },
+  X: { name: "Executioner",    short: "ON crit: shouts KILL. Only has 2 charges — then it's spent.",
+       on: { crit: (s, t) => { if (t.charges > 0) { t.charges--; emit(s, "kill", t); } } } },
   Z: { name: "Zealot",         short: "ON kill: shouts CRIT.",
        on: { kill: (s, t) => emit(s, "crit", t) } },
   Q: { name: "Quartermaster",  short: "TURN: +2 chips per token already gone before it.",
@@ -210,24 +214,39 @@ const LIB = {
   O: { name: "Oracle",         short: "Counts hits heard. TURN: +mult per 3 heard.",
        on: { hit: (s, t) => { t.count++; } },
        sweep: (s, t) => add(s, "mult", Math.floor(t.count / 3)) },
+  A: { name: "Alchemist",      short: "TURN: burns ALL current chips → +1 mult per 10 burned.",
+       sweep: (s) => { const bonus = Math.floor(s.chips / 10); s.chips = 0; add(s, "mult", bonus); } },
+  I: { name: "Interceptor",    short: "ON crit: +8 chips AND consumes the crit — later reactors miss it.",
+       on: { crit: (s) => { add(s, "chips", 8); return true; } } },
+  T: { name: "Tyrant",         short: "TURN: +30 chips, but caps mult at 3 for the rest of the run (retroactively).",
+       sweep: (s) => { s.multCap = Math.min(s.multCap ?? Infinity, 3); if (s.mult > s.multCap) s.mult = s.multCap; add(s, "chips", 30); } },
+  V: { name: "Vanguard",       short: "TURN: only if in slot 1 — then shouts CRIT twice (no chips). Dead card anywhere else.",
+       sweep: (s, t) => { if (t.idx === 0) { emit(s, "crit", t); emit(s, "crit", t); } } },
 };
-const ORDER = ["F","B","D","M","U","W","S","X","Z","Q","O"];
+const ORDER = ["F","B","D","M","U","W","S","X","Z","Q","O","A","I","T","V"];
+const SLOTS = 5;
 const BUDGET = 2000;
 
-function add(s, key, n) { if (n) s[key] += n; }
+function add(s, key, n) {
+  if (!n) return;
+  if (key === "mult" && s.multCap != null) {
+    s.mult = Math.min(s.mult + n, s.multCap);
+  } else {
+    s[key] += n;
+  }
+}
 function emit(s, type, source) { s.queue.push({ type, source }); }
 
 // Build a full step-by-step trace (for animation), not just a final number.
 function resolveWithSteps(ids) {
-  const row = ids.map((id, i) => ({ id, def: LIB[id], count: 0, leftFired: 0, idx: i, threshold: 30 }));
-  const s = { chips: 0, mult: 1, events: 0, queue: [] };
+  const row = ids.map((id, i) => ({ id, def: LIB[id], count: 0, leftFired: 0, idx: i, charges: 2 }));
+  const s = { chips: 0, mult: 1, events: 0, queue: [], multCap: null };
   const steps = [];
   let firedSoFar = 0;
   for (const t of row) {
     t.leftFired = firedSoFar;
     if (t.def.sweep) {
       const before = { chips: s.chips, mult: s.mult };
-      s.def_active = t;
       steps.push({ kind: "sweep", idx: t.idx, id: t.id });
       t.def.sweep(s, t);
       pushGainIfAny(steps, before, s);
@@ -249,8 +268,12 @@ function resolveWithSteps(ids) {
         if (h) {
           const before = { chips: s.chips, mult: s.mult };
           steps.push({ kind: "react", idx: t.idx, id: t.id, type: ev.type });
-          h(s, t, ev);
+          const consumed = h(s, t, ev);
           pushGainIfAny(steps, before, s);
+          if (consumed) {
+            steps.push({ kind: "consume", idx: t.idx, id: t.id, type: ev.type });
+            break;
+          }
         }
       }
     }
@@ -306,7 +329,7 @@ function renderPalette() {
     const card = tokenCard(id, { disabled: used });
     if (!used) {
       card.addEventListener("click", () => {
-        if (rowIds.length >= 8 || rowIds.includes(id)) return;
+        if (rowIds.length >= SLOTS || rowIds.includes(id)) return;
         rowIds.push(id);
         renderRow();
       });
@@ -325,7 +348,7 @@ function renderRow() {
     });
     rowEl.appendChild(card);
   });
-  const remaining = 8 - rowIds.length;
+  const remaining = SLOTS - rowIds.length;
   for (let i = 0; i < remaining; i++) {
     const empty = document.createElement("div");
     empty.className = "slot-empty";
@@ -394,6 +417,9 @@ async function play() {
         el.classList.add("active-react");
         logLine(`<span style="color:${EVENT_COLOR[st.type]}">    ↳ ${st.id} (${LIB[st.id].name}) reacts to ${st.type.toUpperCase()}</span>`);
         await sleep(speed * 0.8);
+      } else if (st.kind === "consume") {
+        logLine(`<span style="color:var(--dim)">      ↳ ${st.id} consumed the ${st.type.toUpperCase()} — later reactors miss it</span>`);
+        await sleep(speed * 0.5);
       } else if (st.kind === "gain") {
         const parts = [];
         if (st.dChips) parts.push(`chips ${st.dChips > 0 ? "+" : ""}${st.dChips}`);
@@ -430,10 +456,9 @@ async function play() {
 
 document.getElementById("clearBtn").addEventListener("click", () => { rowIds = []; renderRow(); });
 document.getElementById("randomBtn").addEventListener("click", () => {
-  const n = 5 + Math.floor(Math.random() * 4);
   const pool = ORDER.slice();
   rowIds = [];
-  for (let i = 0; i < n && pool.length; i++) {
+  for (let i = 0; i < SLOTS && pool.length; i++) {
     rowIds.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
   }
   renderRow();

@@ -9,79 +9,24 @@
 // This is the EMERGENCE-ONLY arm: zero randomness. Every run of the same setup
 // gives the same number. Surprise, if any, comes purely from tokens interacting.
 //
+// v2 (2026-07-21): v1 had 8 slots and 11 free/additive tokens — "add every
+// token that fits" was always correct, so informed play converged to ~flat
+// scores (runaway factor ~2.3x among full builds). Rules now live in
+// rules.mjs: 5 slots out of a 15-token pool (real scarcity), plus tokens with
+// cost/anti-synergy (Alchemist, Interceptor, Tyrant, Vanguard) so dumping the
+// whole "obvious" engine is no longer the dominant strategy. See rules.mjs
+// header for the full changelog.
+//
 // Run it:
 //   node probe/emergence/toy.mjs                 # demo setups + cascade logs
-//   node probe/emergence/toy.mjs play F B Q U W X Z S   # watch one cascade
-//   node probe/emergence/toy.mjs explore 6 200000       # does anything run away?
+//   node probe/emergence/toy.mjs play F B U W X   # watch one cascade
+//   node probe/emergence/toy.mjs explore 5 200000 # does the obvious build win?
 //
 // The "moment" test (do this by hand): pick a setup, PREDICT the score out loud,
 // then run `play` and see how wrong you were. If you're always right, it's flat.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const BUDGET = 2000; // event cap; hitting it = an ignited, self-sustaining cascade
-
-// Each token: sweep(s,t) runs once when reached left-to-right; on[event](s,t) reacts.
-// Effects mutate shared state (chips, mult) and/or emit events that other tokens
-// react to → cascades. Score = chips * mult (order & composition matter a lot).
-const LIB = {
-  F: { name: "Footman",       sweep: (s) => add(s, "chips", 5) },
-  B: { name: "Berserker",     sweep: (s, t) => emit(s, "hit", t),
-                               on: { hit: (s) => add(s, "chips", 3) } },
-  D: { name: "Drummer",       on: { hit: (s, t) => { if (t.count < 3) { t.count++; emit(s, "hit", t); } } } },
-  M: { name: "Marksman",      on: { hit: (s, t) => { t.count++; if (t.count >= 2) { t.count = 0; emit(s, "crit", t); } } } }, // 2nd path to crit, no Duelist needed
-  U: { name: "Duelist",       sweep: (s, t) => emit(s, "crit", t),
-                               on: { crit: (s) => add(s, "chips", 12) } },
-  W: { name: "Warlord",       on: { crit: (s) => add(s, "mult", 1) } },
-  S: { name: "StandardBearer",on: { kill: (s) => add(s, "mult", 2) } },
-  // Threshold starts LOW (reachable) but ESCALATES every kill it causes, so the
-  // crit->kill->crit loop always converges to a finite, build-dependent number
-  // instead of running to the event BUDGET. This is what gives "better combos"
-  // room to exist above "any combo that ignites."
-  X: { name: "Executioner",   on: { crit: (s, t) => { if (s.chips >= t.threshold) { t.threshold += 20; emit(s, "kill", t); } } } },
-  Z: { name: "Zealot",        on: { kill: (s, t) => emit(s, "crit", t) } },
-  Q: { name: "Quartermaster", sweep: (s, t) => add(s, "chips", 2 * t.leftFired) }, // positional
-  O: { name: "Oracle",        on: { hit: (s, t) => { t.count++; } },
-                               sweep: (s, t) => add(s, "mult", Math.floor(t.count / 3)) }, // rewards late placement
-};
-const ALPHABET = Object.keys(LIB);
-
-// ── engine ───────────────────────────────────────────────────────────────────
-function add(s, key, n) {
-  if (n === 0) return;
-  s[key] += n;
-  if (s.trace) s.log.push(`      ${key} += ${n}  → chips=${s.chips} mult=${s.mult}`);
-}
-function emit(s, type, source) {
-  s.queue.push({ type, source });
-}
-function pump(s, row) {
-  while (s.queue.length && s.events < BUDGET) {
-    const ev = s.queue.shift();
-    s.events++;
-    if (s.trace) s.log.push(`  • event '${ev.type}' (from ${ev.source.def.name})`);
-    for (const t of row) {
-      const h = t.def.on && t.def.on[ev.type];
-      if (h) h(s, t, ev);
-    }
-  }
-}
-function resolve(ids, { trace = false } = {}) {
-  const row = ids.map((id) => ({ id, def: LIB[id], count: 0, leftFired: 0, threshold: 30 }));
-  const s = { chips: 0, mult: 1, events: 0, queue: [], log: [], trace };
-  let firedSoFar = 0;
-  for (const t of row) {
-    t.leftFired = firedSoFar; // Quartermaster reads this at sweep time
-    if (t.def.sweep) {
-      if (s.trace) s.log.push(`SWEEP ${t.id} (${t.def.name})`);
-      t.def.sweep(s, t);
-    }
-    firedSoFar++;
-    pump(s, row);
-  }
-  pump(s, row); // final drain
-  const ignited = s.events >= BUDGET;
-  return { score: s.chips * s.mult, chips: s.chips, mult: s.mult, ignited, log: s.log };
-}
+import { LIB, ALPHABET, SLOTS, resolve } from "./rules.mjs";
 
 // ── commands ─────────────────────────────────────────────────────────────────
 function play(ids) {
@@ -91,10 +36,14 @@ function play(ids) {
     console.log(`tokens: ${ALPHABET.map((k) => `${k}=${LIB[k].name}`).join("  ")}`);
     return;
   }
+  if (ids.length > SLOTS) {
+    console.log(`too many tokens: row is capped at ${SLOTS} slots (you gave ${ids.length})`);
+    return;
+  }
   console.log(`\nSETUP: ${ids.map((id) => `${id}(${LIB[id].name})`).join("  ")}\n`);
   const r = resolve(ids, { trace: true });
   console.log(r.log.join("\n"));
-  console.log(`\n  chips=${r.chips}  mult=${r.mult}  events=${r.events ?? ""}`);
+  console.log(`\n  chips=${r.chips}  mult=${r.mult}  events=${r.events}`);
   console.log(`  SCORE = ${r.score}${r.ignited ? "   *** IGNITED (event budget capped) ***" : ""}\n`);
 }
 
@@ -108,31 +57,76 @@ function samplePermutation(arr, n) {
   return out;
 }
 
+// Canonical "everyone knows this is the engine" pick — the crit/kill loop
+// without any of the cost/anti-synergy tokens. If this is still near the top
+// of the distribution, the redesign failed: the obvious build is still best.
+const OBVIOUS = ["B", "U", "W", "X", "Z"];
+
 function explore(rowLen, samples) {
-  // Random setups, NO DUPLICATE tokens (each of the 5-11 individuals used at most
-  // once) — matches how the row will actually be played and avoids the
-  // stack-the-same-card degenerate strategy. Baseline = sum of solo scores.
   const solo = {};
   for (const id of ALPHABET) solo[id] = resolve([id]).score;
-  const scores = [];
-  let best = null;
+
+  const results = [];
   for (let i = 0; i < samples; i++) {
     const ids = samplePermutation(ALPHABET, rowLen);
     const r = resolve(ids);
-    const naive = ids.reduce((a, id) => a + solo[id], 0);
-    scores.push(r.score);
-    if (!best || r.score > best.score) best = { ids, score: r.score, naive, ignited: r.ignited };
+    results.push({ ids, score: r.score, ignited: r.ignited });
   }
-  scores.sort((a, b) => a - b);
-  const pct = (p) => scores[Math.min(scores.length - 1, (p * scores.length) | 0)];
+  const scores = results.map((r) => r.score).sort((a, b) => a - b);
+  results.sort((a, b) => b.score - a.score); // best first
+
+  const pct = (p) => scores[Math.min(scores.length - 1, Math.floor(p * scores.length))];
   const median = pct(0.5);
-  console.log(`\nEXPLORE  rowLen=${rowLen}  samples=${samples}`);
+  const p90 = pct(0.9);
+
+  // top-decile stats — the regime a player who already knows the tokens
+  // actually operates in. This is the number that matters, not the random one.
+  const topDecile = results.filter((r) => r.score >= p90).map((r) => r.score).sort((a, b) => a - b);
+  const tdMin = topDecile[0];
+  const tdMed = topDecile[Math.floor(topDecile.length / 2)];
+  const tdMax = topDecile[topDecile.length - 1];
+  const topDecileRunaway = tdMed ? tdMax / tdMed : Infinity;
+
+  // where does the "obvious" build rank — not against random noise (almost
+  // anything half-sane beats most random picks), but against OTHER GOOD
+  // builds (top-decile). If obvious is near the top of that population, an
+  // informed player has no reason to look further: bad. If most top-decile
+  // builds beat it, real discovery room exists above the obvious answer.
+  const obviousIds = OBVIOUS.slice(0, rowLen);
+  const obvious = resolve(obviousIds);
+  const beatenByTopDecile = topDecile.filter((v) => v > obvious.score).length;
+  const obviousVsGoodPercentile = 100 * (1 - beatenByTopDecile / topDecile.length);
+  const obviousVsMax = tdMax ? (100 * obvious.score) / tdMax : 0;
+
+  // build-family count among the top 50 — cluster by shared-token-set overlap.
+  // >=1 family means one dominant attractor; we want several.
+  const top50 = results.slice(0, 50);
+  const families = [];
+  for (const r of top50) {
+    const set = new Set(r.ids);
+    const fam = families.find((f) => [...f.rep].filter((id) => set.has(id)).length >= rowLen - 1);
+    if (fam) fam.members.push(r);
+    else families.push({ rep: set, members: [r] });
+  }
+
+  console.log(`\nEXPLORE  rowLen=${rowLen}  samples=${samples}  pool=${ALPHABET.length}`);
   console.log(`  solo scores (naive per-token): ${ALPHABET.map((k) => `${k}=${solo[k]}`).join(" ")}`);
-  console.log(`  distribution:  min=${scores[0]}  median=${median}  p90=${pct(0.9)}  p99=${pct(0.99)}  max=${scores[scores.length - 1]}`);
-  console.log(`  RUNAWAY FACTOR (max / median): ${median ? (scores[scores.length - 1] / median).toFixed(1) : "∞"}x`);
-  console.log(`\n  best found: ${best.ids.join(" ")}`);
-  console.log(`    score=${best.score}   naive-sum-of-parts=${best.naive}   emergence multiple=${best.naive ? (best.score / best.naive).toFixed(1) : "∞"}x${best.ignited ? "  (ignited)" : ""}`);
-  console.log(`  → if 'emergence multiple' >> 1 and 'runaway factor' is large, the engine surprises its author.\n`);
+  console.log(`  distribution:  min=${scores[0]}  median=${median}  p90=${p90}  p99=${pct(0.99)}  max=${scores[scores.length - 1]}`);
+  console.log(`  runaway factor, all builds (max/median): ${median ? (scores[scores.length - 1] / median).toFixed(1) : "∞"}x`);
+  console.log(`  runaway factor, TOP-DECILE (max/median of the best 10%): ${topDecileRunaway === Infinity ? "∞" : topDecileRunaway.toFixed(1)}x  ← the number that matters for informed play`);
+  console.log(`\n  "obvious" build [${obviousIds.join(" ")}]: score=${obvious.score}`);
+  console.log(`  vs. the top-decile (good-build) population: beats only ${obviousVsGoodPercentile.toFixed(1)}% of them, and is ${obviousVsMax.toFixed(0)}% of the best score found`);
+  console.log(`  → near 100%/100% = obvious build IS the best build (bad, no discovery left). Lower is better.`);
+  console.log(`\n  best found: [${top50[0].ids.join(" ")}]  score=${top50[0].score}`);
+  console.log(`  distinct build families in top 50 (grouped by ${rowLen - 1}+ shared tokens): ${families.length}`);
+  families.slice(0, 6).forEach((fam, i) =>
+    console.log(`    family ${i + 1}: best=[${fam.members[0].ids.join(" ")}] score=${fam.members[0].score}  (${fam.members.length}/50)`)
+  );
+  console.log(
+    `\n  PASS/FAIL: top-decile runaway ${topDecileRunaway > 5 ? "> 5x ✓" : "≤ 5x ✗"}, ` +
+    `obvious build ${obviousVsMax < 60 ? "< 60% of best ✓" : "≥ 60% of best ✗"}, ` +
+    `${families.length} build families (want ≥2) ${families.length >= 2 ? "✓" : "✗"}\n`
+  );
 }
 
 // ── cli ──────────────────────────────────────────────────────────────────────
@@ -140,12 +134,15 @@ const [cmd, ...rest] = process.argv.slice(2);
 if (cmd === "play") {
   play(rest.map((x) => x.toUpperCase()));
 } else if (cmd === "explore") {
-  explore(Number(rest[0]) || 6, Number(rest[1]) || 200000);
+  explore(Number(rest[0]) || SLOTS, Number(rest[1]) || 200000);
 } else {
-  console.log("EMERGENCE PROBE (deterministic, emergence-only arm)\n");
-  console.log(`tokens: ${ALPHABET.map((k) => `${k}=${LIB[k].name}`).join("  ")}`);
-  // A tame build and an explosive one, to eyeball the gap:
-  play(["F", "F", "B", "Q", "O"]);            // no crit engine → predictable
-  play(["F", "F", "B", "Q", "U", "W", "X", "Z", "S"]); // crit engine present → can ignite
-  console.log("Now try: node probe/emergence/toy.mjs explore 6 200000");
+  console.log("EMERGENCE PROBE v2 (deterministic, emergence-only arm)\n");
+  console.log(`tokens (${ALPHABET.length}, pick ${SLOTS}): ${ALPHABET.map((k) => `${k}=${LIB[k].name}`).join("  ")}`);
+  console.log("\nSAME TOKENS, DIFFERENT ORDER — does order actually matter?");
+  play(["A", "B", "U", "W", "X"]);
+  play(["B", "U", "W", "X", "A"]);
+  console.log("Interceptor position flips who benefits from the crit loop:");
+  play(["B", "I", "U", "W", "X"]);
+  play(["B", "U", "W", "X", "I"]);
+  console.log("Now try: node probe/emergence/toy.mjs explore 5 200000");
 }
