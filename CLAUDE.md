@@ -41,4 +41,6 @@ When asked to sync:
 
 - Keep `STATE.md` small enough to read in ~3 minutes. If it's growing, it's carrying history that belongs in DECISIONS.
 - Never repeat the same fact in two places in STATE — redundancy is where contradictions breed.
+- **Live status lives in exactly one place.** If a fact has an evolving status (e.g. a probe's result, an arm's outcome), give it one home — a dedicated table or section — and have every other mention *point* there instead of restating it. A second copy is how sync drift starts: one gets updated, the other doesn't, and STATE ends up contradicting itself.
+- A resync regenerates STATE.md into this section skeleton (stable headers, so the reader's eye always knows where to look): What we're making → Where we are right now → The shared lead moment (or its successor north-star) → Probe status (or its successor live-status table) → Next up → The design spine → Working assumptions → Reference games → Open questions → Related files. Sections may be renamed as the project's phase changes, but the shape — one current-direction paragraph, one live-status table, one hypotheses list, one open-questions list — should persist.
 - `STRATEGY.md` is deprecated pending a rewrite; do not treat it as current.

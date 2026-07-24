@@ -111,6 +111,7 @@
   #log .miss { color: var(--miss); }
 
   #sandboxNote { display: none; }
+  #palette { display: flex; gap: 10px; flex-wrap: wrap; width: 100%; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
   #footer-note { color: var(--dim); font-size: 12px; margin-top: 6px; }
   #copyLogBtn { margin-top: 4px; }
 </style>
@@ -134,6 +135,7 @@
   <div id="choiceRow" style="display:none;"></div>
 
   <div id="row"></div>
+  <div id="palette"></div>
 </div>
 
 <div class="panel">
@@ -193,6 +195,7 @@
   <button id="copyLogBtn">Copy session log</button>
 </div>
 
+<script src="../shared/row-editor.js"></script>
 <script>
 // ── same rules as probe/rng/rules.mjs, reimplemented for the browser ──
 // (file:// ES module imports are unreliable, so this is a hand-kept mirror —
@@ -332,6 +335,7 @@ const attemptsValEl = document.getElementById("attemptsVal");
 const bestValEl = document.getElementById("bestVal");
 const historyBarsEl = document.getElementById("historyBars");
 const sandboxNote = document.getElementById("sandboxNote");
+const paletteEl = document.getElementById("palette");
 
 function tokenCard(id, { removable = false, index = null, disabled = false, staticCard = false } = {}) {
   const def = LIB[id];
@@ -434,42 +438,21 @@ function loadStage() {
   resetChase();
 }
 
-// ── sandbox interactive row (mirrors play.html) ──
+// ── sandbox interactive row (drag-and-drop replace/reorder/insert lives in
+// probe/shared/row-editor.js; #palette used to be rebuilt as a child of
+// #row each render, now it's a persistent sibling element so the editor can
+// own each container independently — same visual placement, same border). ──
+const sandboxEditor = createRowEditor({
+  rowEl, paletteEl,
+  order: ORDER, slots: SLOTS,
+  getRow: () => currentRow,
+  setRow: (ids) => { currentRow = ids; },
+  makeCard: tokenCard,
+  onChange: resetChase,
+});
 function renderSandboxRow() {
-  rowEl.innerHTML = "";
-  currentRow.forEach((id, i) => {
-    const card = tokenCard(id, { removable: true, index: i });
-    card.addEventListener("click", () => {
-      currentRow.splice(i, 1);
-      renderSandboxRow();
-      resetChase();
-    });
-    rowEl.appendChild(card);
-  });
-  const remaining = SLOTS - currentRow.length;
-  for (let i = 0; i < remaining; i++) {
-    const empty = document.createElement("div");
-    empty.className = "slot-empty";
-    empty.textContent = "empty";
-    rowEl.appendChild(empty);
-  }
-  // palette lives inside the row panel for the sandbox
-  const pal = document.createElement("div");
-  pal.style.cssText = "display:flex;gap:10px;flex-wrap:wrap;width:100%;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);";
-  for (const id of ORDER) {
-    const used = currentRow.includes(id);
-    const card = tokenCard(id, { disabled: used, staticCard: used });
-    if (!used) {
-      card.addEventListener("click", () => {
-        if (currentRow.length >= SLOTS || currentRow.includes(id)) return;
-        currentRow.push(id);
-        renderSandboxRow();
-        resetChase();
-      });
-    }
-    pal.appendChild(card);
-  }
-  rowEl.appendChild(pal);
+  sandboxEditor.renderRow();
+  sandboxEditor.renderPalette();
   playBtn.disabled = currentRow.length === 0;
 }
 

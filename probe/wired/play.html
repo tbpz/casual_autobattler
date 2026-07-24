@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wired Probe — click and watch it catch</title>
+<style>
+  :root {
+    --bg: #14151c;
+    --panel: #1d1f2b;
+    --panel2: #262838;
+    --line: #35374a;
+    --text: #e8e8f0;
+    --dim: #8e8fa8;
+    --chip: #4fc3f7;
+    --mult: #ffb74d;
+    --score: #ffee58;
+    --spark: #66bb6a;
+    --surge: #d500f9;
+    --trigger: #4fc3f7;
+    --amp: #ff9100;
+    --good: #66bb6a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--dim); font-size: 14px; margin-bottom: 20px; max-width: 760px; line-height: 1.5; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px; margin-bottom: 18px;
+  }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin: 0 0 12px; }
+
+  /* the row you build */
+  #row { display: flex; gap: 10px; min-height: 108px; align-items: center; flex-wrap: wrap; }
+  .slot-empty {
+    width: 90px; height: 98px; border: 2px dashed var(--line); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 12px;
+  }
+  .token {
+    width: 90px; height: 98px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--panel2); display: flex; flex-direction: column; align-items: center;
+    justify-content: center; cursor: pointer; user-select: none; position: relative;
+    transition: transform .12s, box-shadow .12s, border-color .12s;
+    padding: 6px;
+  }
+  .token:hover { transform: translateY(-2px); }
+  .token .role-badge {
+    position: absolute; top: 4px; left: 4px; font-size: 8px; font-weight: 700;
+    letter-spacing: .04em; padding: 1px 4px; border-radius: 3px;
+  }
+  .token.role-trigger .role-badge { background: rgba(79,195,247,.18); color: var(--trigger); }
+  .token.role-amplifier .role-badge { background: rgba(255,145,0,.18); color: var(--amp); }
+  .token .letter { font-size: 22px; font-weight: 700; margin-top: 6px; }
+  .token .name { font-size: 10px; color: var(--dim); text-align: center; margin-top: 4px; line-height: 1.2; }
+  .token .desc { font-size: 9px; color: var(--dim); text-align: center; margin-top: 3px; line-height: 1.2; }
+  .token.active-fire { border-color: var(--trigger); box-shadow: 0 0 0 3px rgba(79,195,247,.35), 0 0 18px rgba(79,195,247,.5); transform: scale(1.08); }
+  .token.active-react { border-color: var(--amp); box-shadow: 0 0 0 3px rgba(255,145,0,.35), 0 0 18px rgba(255,145,0,.5); transform: scale(1.08); }
+  .row-token { position: relative; }
+  .row-token .remove {
+    position: absolute; top: -7px; right: -7px; width: 18px; height: 18px; border-radius: 50%;
+    background: #40424f; color: #ccc; font-size: 11px; line-height: 18px; text-align: center;
+    cursor: pointer; display: none;
+  }
+  .row-token:hover .remove { display: block; }
+
+  /* palette */
+  #palette { display: flex; gap: 10px; flex-wrap: wrap; }
+  .token-disabled { opacity: .28; cursor: default; }
+  .token-disabled:hover { transform: none; }
+
+  .legend { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--dim); }
+  .legend b { color: var(--text); }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+
+  /* controls */
+  .controls { display: flex; gap: 10px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
+  button {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;
+  }
+  button:hover:not(:disabled) { border-color: var(--trigger); }
+  button#playBtn { background: linear-gradient(180deg,#4fc3f7,#29a0dd); color: #05202b; border: none; }
+  button#playBtn.again { background: linear-gradient(180deg,#d500f9,#8e00b0); color: #fff; }
+  button:disabled { opacity: .4; cursor: default; }
+  #speed { color: var(--dim); font-size: 13px; margin-left: auto; }
+  #speed select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+
+  /* scoreboard */
+  #scoreboard { display: flex; gap: 28px; align-items: baseline; flex-wrap: wrap; }
+  .stat .label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; }
+  .stat .value { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  #chipsVal { color: var(--chip); }
+  #multVal { color: var(--mult); }
+  #scoreVal { color: var(--score); font-size: 40px; }
+  #scoreVal.pop { animation: pop .35s ease; }
+  @keyframes pop { 0%{transform:scale(1)} 40%{transform:scale(1.25)} 100%{transform:scale(1)} }
+  #ignited { color: var(--surge); font-weight: 700; font-size: 13px; margin-top: 6px; display: none; }
+
+  /* the chase — same tracker as arm 2, since re-rolling is the property being tested */
+  #chase { display: flex; gap: 28px; align-items: baseline; flex-wrap: wrap; }
+  #bestVal { color: var(--surge); }
+  #historyWrap { display: flex; flex-direction: column; }
+  #historyWrap .label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  #historyBars { display: flex; gap: 5px; align-items: flex-end; height: 60px; }
+  .h-bar { width: 14px; border-radius: 3px 3px 0 0; background: var(--chip); align-self: flex-end; transition: height .2s; }
+  .h-bar.best { background: var(--surge); }
+
+  /* log */
+  #log { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; color: var(--dim); line-height: 1.7; max-height: 260px; overflow-y: auto; }
+  #log .fire { color: var(--text); font-weight: 600; }
+  #log .spark { color: var(--spark); }
+  #log .surge { color: var(--surge); font-weight: 700; }
+  #log .gain { color: var(--good); }
+
+  #footer-note { color: var(--dim); font-size: 12px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>Wired Probe — click soldiers, press play, watch the dice pick a fight</h1>
+<div class="sub">
+  Pick <b>5 of the 12</b> soldiers below. <span style="color:var(--trigger); font-weight:600;">TRIGGER</span>
+  soldiers roll their own dice on their turn and <i>maybe</i> shout SPARK or SURGE — that's the part you
+  can't predict. <span style="color:var(--amp); font-weight:600;">AMPLIFIER</span> soldiers never roll —
+  they react deterministically whenever they hear a shout, and can chain into each other. One dice roll
+  can wake up a whole reactor chain.
+  <br><b>The test:</b> build a chain, press Play a few times. Does a cold roll (nothing catches) followed
+  by one that goes nuclear feel like <i>you</i> built that — or like the dice did it despite you? Both need
+  to be true for this to be the moment.
+</div>
+
+<div class="panel">
+  <div class="legend">
+    <b>How to read a token:</b>
+    <span><b style="color:var(--trigger)">TRIGGER</b> = rolls dice on its turn, maybe shouts.</span>
+    <span><b style="color:var(--amp)">AMPLIFIER</b> = reacts whenever that shout happens, no roll.</span>
+    <span><span class="dot" style="background:var(--spark)"></span>SPARK</span>
+    <span><span class="dot" style="background:var(--surge)"></span>SURGE (the big one)</span>
+    <span>— score = chips &times; mult, so a mult gain re-scales everything already banked.</span>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Your row (5 slots max — click a token below to add it, click it in the row to remove)</h2>
+  <div id="row"></div>
+</div>
+
+<div class="panel">
+  <div class="controls">
+    <button id="playBtn">▶ Play</button>
+    <button id="clearBtn">Clear row</button>
+    <button id="randomBtn">🎲 Random row</button>
+    <div id="speed">speed:
+      <select id="speedSel">
+        <option value="600">slow</option>
+        <option value="320" selected>normal</option>
+        <option value="100">fast</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Result</h2>
+  <div id="scoreboard">
+    <div class="stat"><div class="label">chips</div><div class="value" id="chipsVal">0</div></div>
+    <div class="stat"><div class="label">mult</div><div class="value" id="multVal">×1</div></div>
+    <div class="stat"><div class="label">score</div><div class="value" id="scoreVal">0</div></div>
+  </div>
+  <div id="ignited">⚡ IGNITED — the chain hit the safety cap and kept going. This build "went nuclear."</div>
+</div>
+
+<div class="panel">
+  <h2>The chase</h2>
+  <div id="chase">
+    <div class="stat"><div class="label">plays this build</div><div class="value" id="attemptsVal">0</div></div>
+    <div class="stat"><div class="label">best so far</div><div class="value" id="bestVal">—</div></div>
+    <div id="historyWrap">
+      <div class="label">last 20 rolls</div>
+      <div id="historyBars"></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>What just happened</h2>
+  <div id="log"><span style="color:var(--dim)">Build a row and press Play to watch the cascade.</span></div>
+</div>
+
+<div class="panel">
+  <h2>The soldiers</h2>
+  <div id="palette"></div>
+  <div id="footer-note">
+    Click <b>Copy session log</b> when you're done — it's just for the record, doesn't get sent anywhere.
+  </div>
+  <button id="copyLogBtn" style="margin-top:8px;">Copy session log</button>
+</div>
+
+<script src="../shared/row-editor.js"></script>
+<script src="../shared/wired-engine.js"></script>
+<script>
+// Engine (token rules, RNG, resolveWithSteps) now lives in
+// ../shared/wired-engine.js — the single browser-side mirror of
+// probe/wired/rules.mjs (the ESM/CLI source of truth). If you change a
+// token's rule in rules.mjs, port the change into wired-engine.js; it's
+// shared by this file and probe/wired/layers.html. guided.html still keeps
+// its own separate inline copy — port there too if you touch it.
+const { LIB, ORDER, SLOTS, resolveWithSteps } = window.WIRED;
+
+// ── UI state ──
+let rowIds = [];
+let attempts = 0;
+let best = null;
+let history = [];
+const sessionLog = { runs: [] };
+const rowEl = document.getElementById("row");
+const paletteEl = document.getElementById("palette");
+const logEl = document.getElementById("log");
+const chipsValEl = document.getElementById("chipsVal");
+const multValEl = document.getElementById("multVal");
+const scoreValEl = document.getElementById("scoreVal");
+const ignitedEl = document.getElementById("ignited");
+const playBtn = document.getElementById("playBtn");
+const attemptsValEl = document.getElementById("attemptsVal");
+const bestValEl = document.getElementById("bestVal");
+const historyBarsEl = document.getElementById("historyBars");
+
+function tokenCard(id, { removable = false, index = null, disabled = false } = {}) {
+  const def = LIB[id];
+  const div = document.createElement("div");
+  div.className = "token role-" + def.role + (removable ? " row-token" : " palette-token") + (disabled ? " token-disabled" : "");
+  div.dataset.id = id;
+  if (index !== null) div.dataset.idx = index;
+  div.innerHTML = `
+    <div class="role-badge">${def.role === "trigger" ? "TRG" : "AMP"}</div>
+    <div class="letter">${id}</div>
+    <div class="name">${def.name}</div>
+    ${removable ? "" : `<div class="desc">${def.short}</div>`}
+    ${removable ? `<div class="remove">✕</div>` : ""}
+  `;
+  return div;
+}
+
+// Drag-and-drop replace/reorder/insert lives in probe/shared/row-editor.js.
+// It owns the DOM building for #row and #palette; this file only supplies
+// token visuals (tokenCard), the rules-facing id list (rowIds), and what to
+// do after an edit (onChange below) — the same as it always did after any
+// renderRow() call.
+const rowEditor = createRowEditor({
+  rowEl, paletteEl,
+  order: ORDER, slots: SLOTS,
+  getRow: () => rowIds,
+  setRow: (ids) => { rowIds = ids; },
+  makeCard: tokenCard,
+  onChange: () => {
+    playBtn.disabled = rowIds.length === 0;
+    playBtn.textContent = "▶ Play";
+    playBtn.classList.remove("again");
+    resetChaseTracker();
+  },
+});
+
+function renderPalette() {
+  rowEditor.renderPalette();
+}
+
+function renderRow() {
+  rowEditor.renderRow();
+  rowEditor.renderPalette();
+  playBtn.disabled = rowIds.length === 0;
+  playBtn.textContent = "▶ Play";
+  playBtn.classList.remove("again");
+  resetChaseTracker();
+}
+
+function resetChaseTracker() {
+  attempts = 0; best = null; history = [];
+  attemptsValEl.textContent = "0";
+  bestValEl.textContent = "—";
+  historyBarsEl.innerHTML = "";
+  chipsValEl.textContent = "0"; multValEl.textContent = "×1"; scoreValEl.textContent = "0";
+  ignitedEl.style.display = "none";
+  logEl.innerHTML = '<span style="color:var(--dim)">Press Play to run this row.</span>';
+}
+
+function logLine(html) {
+  const line = document.createElement("div");
+  line.innerHTML = html;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function updateHistoryBars() {
+  historyBarsEl.innerHTML = "";
+  const shown = history.slice(-20);
+  const max = Math.max(...shown, 1);
+  for (const score of shown) {
+    const bar = document.createElement("div");
+    bar.className = "h-bar" + (score === best ? " best" : "");
+    bar.style.height = Math.max(4, (score / max) * 56) + "px";
+    bar.title = score;
+    historyBarsEl.appendChild(bar);
+  }
+}
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+const EVENT_COLOR = { spark: "var(--spark)", surge: "var(--surge)" };
+
+async function play() {
+  if (rowIds.length === 0) return;
+  playBtn.disabled = true;
+  document.querySelectorAll(".row-token").forEach((el) => el.classList.remove("active-fire", "active-react"));
+  chipsValEl.textContent = "0"; multValEl.textContent = "×1"; scoreValEl.textContent = "0";
+  ignitedEl.style.display = "none";
+  logEl.innerHTML = "";
+
+  const speed = Number(document.getElementById("speedSel").value);
+  const seed = (Math.random() * 2 ** 31) | 0;
+  const result = resolveWithSteps(rowIds, seed);
+
+  const MAX_ANIMATED = 140;
+  const steps = result.steps;
+  const animate = steps.length <= MAX_ANIMATED;
+  if (!animate) {
+    logLine(`<span style="color:var(--dim)">(${steps.length} events fired — too many to animate, showing final result)</span>`);
+  }
+
+  for (const st of (animate ? steps : [])) {
+    document.querySelectorAll(".row-token").forEach((el) => el.classList.remove("active-fire", "active-react"));
+    if (st.kind === "sweep") {
+      const el = rowEl.children[st.idx];
+      el.classList.add("active-fire");
+      logLine(`<span class="fire">▶ ${st.id} (${LIB[st.id].name}) rolls</span>`);
+      await sleep(speed);
+    } else if (st.kind === "event") {
+      logLine(`<span class="${st.type}">  ⚡ ${st.type.toUpperCase()} — shouted by ${st.fromId}</span>`);
+      await sleep(speed * 0.6);
+    } else if (st.kind === "react") {
+      const el = rowEl.children[st.idx];
+      el.classList.add("active-react");
+      logLine(`<span style="color:${EVENT_COLOR[st.type]}">    ↳ ${st.id} (${LIB[st.id].name}) reacts to ${st.type.toUpperCase()}</span>`);
+      await sleep(speed * 0.8);
+    } else if (st.kind === "consume") {
+      logLine(`<span style="color:var(--dim)">      ↳ ${st.id} consumed the ${st.type.toUpperCase()} — later reactors miss it</span>`);
+      await sleep(speed * 0.5);
+    } else if (st.kind === "gain") {
+      const parts = [];
+      if (st.dChips) parts.push(`chips ${st.dChips > 0 ? "+" : ""}${st.dChips}`);
+      if (st.dMult) parts.push(`mult ${st.dMult > 0 ? "+" : ""}${st.dMult}`);
+      logLine(`<span class="gain">      ${parts.join(", ")}  →  chips=${st.chips}, mult=${st.mult}</span>`);
+      chipsValEl.textContent = st.chips;
+      multValEl.textContent = "×" + st.mult;
+      await sleep(speed * 0.4);
+    }
+  }
+
+  document.querySelectorAll(".row-token").forEach((el) => el.classList.remove("active-fire", "active-react"));
+  chipsValEl.textContent = result.chips;
+  multValEl.textContent = "×" + result.mult;
+  scoreValEl.textContent = result.score.toLocaleString();
+  scoreValEl.classList.remove("pop"); void scoreValEl.offsetWidth; scoreValEl.classList.add("pop");
+  if (result.ignited) ignitedEl.style.display = "block";
+
+  logLine(`<br><span style="color:var(--score); font-weight:700;">FINAL: chips=${result.chips} × mult=${result.mult} = ${result.score.toLocaleString()}${result.ignited ? "  ⚡ IGNITED" : ""}</span>`);
+
+  attempts++;
+  history.push(result.score);
+  const isNewBest = best === null || result.score > best;
+  if (isNewBest) best = result.score;
+  attemptsValEl.textContent = attempts;
+  bestValEl.textContent = best.toLocaleString();
+  updateHistoryBars();
+
+  sessionLog.runs.push({
+    ids: rowIds.slice(), seed, score: result.score, chips: result.chips, mult: result.mult,
+    surges: result.surges, attempt: attempts, best, t: new Date().toISOString(),
+  });
+
+  playBtn.textContent = "▶ Play again";
+  playBtn.classList.add("again");
+  playBtn.disabled = false;
+}
+
+document.getElementById("clearBtn").addEventListener("click", () => { rowIds = []; renderRow(); });
+document.getElementById("randomBtn").addEventListener("click", () => {
+  const pool = ORDER.slice();
+  rowIds = [];
+  for (let i = 0; i < SLOTS && pool.length; i++) {
+    rowIds.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  }
+  renderRow();
+});
+playBtn.addEventListener("click", play);
+document.getElementById("copyLogBtn").addEventListener("click", () => {
+  const text = JSON.stringify(sessionLog, null, 2);
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById("copyLogBtn");
+    const orig = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
+});
+
+renderPalette();
+renderRow();
+</script>
+
+</body>
+</html>

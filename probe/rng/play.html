@@ -188,6 +188,7 @@
   <div id="palette"></div>
 </div>
 
+<script src="../shared/row-editor.js"></script>
 <script>
 // ── same rules as probe/rng/rules.mjs, reimplemented for the browser ──
 // (file:// ES module imports are unreliable, so this is a hand-kept mirror —
@@ -289,43 +290,35 @@ function tokenCard(id, { removable = false, index = null, disabled = false } = {
   return div;
 }
 
+// Drag-and-drop replace/reorder/insert lives in probe/shared/row-editor.js.
+// It owns the DOM building for #row and #palette; this file only supplies
+// token visuals (tokenCard), the rules-facing id list (rowIds), and what to
+// do after an edit (onChange below) — the same as it always did after any
+// renderRow() call.
+const rowEditor = createRowEditor({
+  rowEl, paletteEl,
+  order: ORDER, slots: SLOTS,
+  getRow: () => rowIds,
+  setRow: (ids) => { rowIds = ids; },
+  makeCard: tokenCard,
+  onChange: () => {
+    playBtn.disabled = rowIds.length === 0;
+    playBtn.textContent = "▶ Play";
+    playBtn.classList.remove("again");
+    resetChaseTracker();
+  },
+});
+
 function renderPalette() {
-  paletteEl.innerHTML = "";
-  for (const id of ORDER) {
-    const used = rowIds.includes(id);
-    const card = tokenCard(id, { disabled: used });
-    if (!used) {
-      card.addEventListener("click", () => {
-        if (rowIds.length >= SLOTS || rowIds.includes(id)) return;
-        rowIds.push(id);
-        renderRow();
-      });
-    }
-    paletteEl.appendChild(card);
-  }
+  rowEditor.renderPalette();
 }
 
 function renderRow(resetChase = true) {
-  rowEl.innerHTML = "";
-  rowIds.forEach((id, i) => {
-    const card = tokenCard(id, { removable: true, index: i });
-    card.addEventListener("click", () => {
-      rowIds.splice(i, 1);
-      renderRow();
-    });
-    rowEl.appendChild(card);
-  });
-  const remaining = SLOTS - rowIds.length;
-  for (let i = 0; i < remaining; i++) {
-    const empty = document.createElement("div");
-    empty.className = "slot-empty";
-    empty.textContent = "empty";
-    rowEl.appendChild(empty);
-  }
+  rowEditor.renderRow();
+  rowEditor.renderPalette();
   playBtn.disabled = rowIds.length === 0;
   playBtn.textContent = "▶ Play";
   playBtn.classList.remove("again");
-  renderPalette();
   if (resetChase) resetChaseTracker();
 }
 
