@@ -518,33 +518,39 @@ async function play() {
   const speed = Number(document.getElementById("speedSel").value);
   const result = resolveWithSteps(ids);
 
+  // Always animate — even a huge ignited cascade — but compress the
+  // per-step delay so it fast-forwards instead of dumping straight to a
+  // final number. A silent number-jump was hiding exactly the runaway
+  // moment this probe exists to show.
   const MAX_ANIMATED = 140;
+  const FAST_BUDGET_MS = 2500;
   const steps = result.steps;
-  const animate = steps.length <= MAX_ANIMATED;
-  if (!animate) {
-    logLine(`<span style="color:var(--dim)">(${steps.length} events fired &mdash; too many to animate, showing final result)</span>`);
+  const overCap = steps.length > MAX_ANIMATED;
+  const effSpeed = overCap ? Math.max(2, FAST_BUDGET_MS / steps.length) : speed;
+  if (overCap) {
+    logLine(`<span style="color:var(--dim)">(${steps.length} events fired &mdash; fast-forwarding through the cascade)</span>`);
   }
 
   const rowChildren = () => document.getElementById("row").children;
 
-  for (const st of (animate ? steps : [])) {
+  for (const st of steps) {
     Array.from(rowChildren()).forEach((el) => el.classList.remove("active-fire", "active-react"));
     if (st.kind === "sweep") {
       const el = rowChildren()[st.idx];
       if (el) el.classList.add("active-fire");
       logLine(`<span class="fire">&#9654; ${st.id} (${LIB[st.id].name}) acts</span>`);
-      await sleep(speed);
+      await sleep(effSpeed);
     } else if (st.kind === "event") {
       logLine(`<span class="ev">&nbsp; &#9889; ${st.type.toUpperCase()} fired by ${st.fromId}</span>`);
-      await sleep(speed * 0.6);
+      await sleep(effSpeed * 0.6);
     } else if (st.kind === "react") {
       const el = rowChildren()[st.idx];
       if (el) el.classList.add("active-react");
       logLine(`<span style="color:${EVENT_COLOR[st.type]}">&nbsp;&nbsp; &#8618; ${st.id} (${LIB[st.id].name}) reacts to ${st.type.toUpperCase()}</span>`);
-      await sleep(speed * 0.8);
+      await sleep(effSpeed * 0.8);
     } else if (st.kind === "consume") {
       logLine(`<span style="color:var(--dim)">&nbsp;&nbsp;&nbsp; &#8618; ${st.id} consumed the ${st.type.toUpperCase()} &mdash; later reactors miss it</span>`);
-      await sleep(speed * 0.5);
+      await sleep(effSpeed * 0.5);
     } else if (st.kind === "gain") {
       const parts = [];
       if (st.dChips) parts.push(`chips ${st.dChips > 0 ? "+" : ""}${st.dChips}`);
@@ -552,7 +558,7 @@ async function play() {
       logLine(`<span class="gain">&nbsp;&nbsp;&nbsp; ${parts.join(", ")} &nbsp;&rarr;&nbsp; chips=${st.chips}, mult=${st.mult}</span>`);
       chipsValEl.textContent = st.chips;
       multValEl.textContent = "×" + st.mult;
-      await sleep(speed * 0.4);
+      await sleep(effSpeed * 0.4);
     }
   }
 

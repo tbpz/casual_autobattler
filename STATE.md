@@ -2,7 +2,7 @@
 
 > **What this file is:** the single snapshot of what is true *right now*. Present tense only.
 > **Read this first** in every session. For *why* a thing is the way it is, see [DECISIONS.md](DECISIONS.md).
-> **Last synced:** 2026-07-24 (restructured to remove redundancy — probe status, floor/ceiling, and division-of-labor facts were each stated 3–4× across sections; each now lives exactly once. No content/decisions changed by this sync.)
+> **Last synced:** 2026-07-26 (pulled in the two 2026-07-24 DECISIONS entries that hadn't reached STATE yet — wired-together arm was built and played and is no longer "not built"; Tu's sustaining pleasure was sharpened from "comprehension of an open problem" to "decision-density." Also reflects the friend-test protocol now being ready to run.)
 
 ---
 
@@ -29,7 +29,7 @@ Step 1 is done (see below). Step 2 is active now — see **Probe status**. **Sta
 Load-bearing clauses (each is a test a mechanic must pass — full recall/synthesis in [DECISIONS 2026-07-19](DECISIONS.md)):
 - **Watch-native** — assemble, press play, watch; not a compromise around watch-only combat.
 - **"Pay off far bigger than expected"** — rejects mere stat-scaling; demands genuine over-delivery.
-- **"Couldn't fully predict"** — resolved as **RNG triggers, emergent combination amplifies** — a division of labor, not a fork ([DECISIONS 2026-07-20](DECISIONS.md)). RNG decides *when/whether* a cascade fires (friend's favorite, supplies the **floor** — a highlight reachable even playing badly); emergent combination decides *what it becomes* (Tu's favorite, supplies the **ceiling** — rewards playing better). **Mastery is a ceiling, never a gate.**
+- **"Couldn't fully predict"** — resolved as **RNG triggers, emergent combination amplifies** — a division of labor, not a fork ([DECISIONS 2026-07-20](DECISIONS.md)). RNG decides *when/whether* a cascade fires (friend's favorite, supplies the **floor** — a highlight reachable even playing badly); emergent combination decides *what it becomes* (Tu's favorite, supplies the **ceiling** — rewards playing better). **Mastery is a ceiling, never a gate.** Sharpened by the wired-together arm's first play ([DECISIONS 2026-07-24](DECISIONS.md)): Tu's own sustaining pleasure is more specifically **decision-density** — an *open, recurring* space of strategic choice — not chance or comprehension-of-a-solved-system per se. Dread/boredom sets in once that space is fully mapped, regardless of whether RNG or a deterministic build was what closed it.
 - **"Looked like it might fail first"** — real stakes required; a free same-difficulty retry that costs nothing undercuts this directly.
 - **"Claim as mine"** — attributable; rejects illegible chaos and pure coin-flips.
 
@@ -42,9 +42,10 @@ Three-arm comparison testing the RNG-triggers-emergence bridge hypothesis. Judgi
 | Arm | Status | Result |
 |---|---|---|
 | Emergence-only | done — Tu, 2026-07-22 | Genuine lean-in (target signal) *and* its predicted ceiling: a solved deterministic build stays solved forever. Read as the arm succeeding at what it tests, not a rejection — evidence for *why* emergence needs RNG paired with it. [Detail →](DECISIONS.md) |
-| RNG-only | done — Tu, 2026-07-24 | Real jackpot-chase fun, but non-renewing — collapses (~30-40 rows) once the optimal piece-sequence is found and only chance remains. Provisional signal RNG is a weaker *primary* surprise source for Tu than emergence; likelier role is seasoning inputs to an emergent puzzle. **Tu-only read — not yet checked against the friend**, whose stated floor need may be satisfied by the exact feeling Tu found boring. [Detail →](DECISIONS.md) |
-| Wired-together | not built | **Next active work.** |
-| Friend validation | not run | `probe/emergence/guided.html` (staged, one-token-at-a-time) is ready. Open call: run him on the arms built so far, or wait for the wired-together build so he isn't judging either favorite mechanic in isolation. |
+| RNG-only | done — Tu, 2026-07-24 | Real jackpot-chase fun, but non-renewing — collapses (~30-40 rows) once the optimal piece-sequence is found and only chance remains. **Tu-only read — not yet checked against the friend**, whose stated floor need may be satisfied by the exact feeling Tu found boring. [Detail →](DECISIONS.md) |
+| Wired-together (base) | built and played — Tu, 2026-07-24 | Flat for Tu: "spam spark and hope for surge," dread sets in once the dominant strategy (default Berserker, re-roll) is found. Diagnosed as **one decision, never revisited** — the roll is terminal (nothing sits between dice and outcome) and the space is non-renewing. Sharpens, doesn't overturn, the floor/ceiling split above. **Tu-only, unverified against the friend** — his floor need could want exactly this low-agency feeling. [Detail →](DECISIONS.md) |
+| Wired-together, decision-layer iteration | in progress, not yet played | `probe/wired/layers.html` sketches three candidate recurring-decision layers on top of the *same, untouched* base dice — **draft** (swap a token into the row each round), **routing** (aim every spark/surge as it fires), and a third spend-after-you-see mode. All three excited Tu as *ideas*; none has been played yet, so this is a taste signal, not a validated result. Picking which shape to build/play first is open. |
+| Friend validation | ready to run, not yet run | Session runbook is `probe/FRIEND_TEST_PROTOCOL.md` — fixed order RNG → Emergence → Wired-base, confound catalog, live reaction buckets, per-arm decisive attribution question. Tests all three arms above (not the decision-layer iteration, which postdates this protocol). |
 
 Note on judging: a maker who *designed* a deterministic puzzle already knows the solve, so their own boredom with it is unreliable evidence against the building/puzzle moment — burnout must be checked against the arm's structural properties (not taken as a verdict) before it counts; lean-in is trustworthy self-report either way ([DECISIONS 2026-07-22](DECISIONS.md)).
 
@@ -52,9 +53,9 @@ Note on judging: a maker who *designed* a deterministic puzzle already knows the
 
 Immediate priority: **discovery, not construction** — do not resume building the loop until probe-validation has a real answer.
 
-1. **Build the wired-together arm** (RNG triggers, emergence amplifies) — the bridge hypothesis itself.
-2. **Decide friend-validation timing** — now on the arms already built, or after the wired-together arm.
-3. Once an arm earns lean-in from both makers: **cast the lead**, derive further mechanics judged by "does this serve the moment?", then re-Settle and resync this file.
+1. **Run the friend-validation session** — protocol is ready (`probe/FRIEND_TEST_PROTOCOL.md`), covers RNG, emergence, and wired-base.
+2. **Pick and build one decision-layer shape** (draft / routing / spend-after, in `probe/wired/layers.html`) and play it — the excitement at the *idea* is weaker evidence than play, per this project's own standing rule.
+3. Once an arm/iteration earns lean-in from both makers: **cast the lead**, derive further mechanics judged by "does this serve the moment?", then re-Settle and resync this file.
 
 ## The design spine (reference hypothesis, not a locked target)
 
@@ -126,5 +127,6 @@ Longer-horizon (not blocking):
 ## Related files
 
 - [DECISIONS.md](DECISIONS.md) — why things are the way they are (append-only history).
+- `probe/FRIEND_TEST_PROTOCOL.md` — live runbook for the friend-validation session.
 - `PROTOTYPE_PLAN.md` — build doc for the now-reopened design; expected to go stale.
 - `STRATEGY.md` — **deprecated**, pending a future rewrite. Not current.
