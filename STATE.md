@@ -2,7 +2,7 @@
 
 > **What this file is:** the single snapshot of what is true *right now*. Present tense only.
 > **Read this first** in every session. For *why* a thing is the way it is, see [DECISIONS.md](DECISIONS.md).
-> **Last synced:** 2026-07-26 (pulled in the two 2026-07-24 DECISIONS entries that hadn't reached STATE yet — wired-together arm was built and played and is no longer "not built"; Tu's sustaining pleasure was sharpened from "comprehension of an open problem" to "decision-density." Also reflects the friend-test protocol now being ready to run.)
+> **Last synced:** 2026-07-26 (pulled in the same-day DECISIONS entry: the decision-layer iteration arm — draft/routing/spend, `probe/wired/layers.html` — is now played, not just sketched, and all three were rejected. The rejections sharpened into a reusable filter for what makes a "recurring decision" real vs. fake, which now gates the next iteration.)
 
 ---
 
@@ -29,7 +29,7 @@ Step 1 is done (see below). Step 2 is active now — see **Probe status**. **Sta
 Load-bearing clauses (each is a test a mechanic must pass — full recall/synthesis in [DECISIONS 2026-07-19](DECISIONS.md)):
 - **Watch-native** — assemble, press play, watch; not a compromise around watch-only combat.
 - **"Pay off far bigger than expected"** — rejects mere stat-scaling; demands genuine over-delivery.
-- **"Couldn't fully predict"** — resolved as **RNG triggers, emergent combination amplifies** — a division of labor, not a fork ([DECISIONS 2026-07-20](DECISIONS.md)). RNG decides *when/whether* a cascade fires (friend's favorite, supplies the **floor** — a highlight reachable even playing badly); emergent combination decides *what it becomes* (Tu's favorite, supplies the **ceiling** — rewards playing better). **Mastery is a ceiling, never a gate.** Sharpened by the wired-together arm's first play ([DECISIONS 2026-07-24](DECISIONS.md)): Tu's own sustaining pleasure is more specifically **decision-density** — an *open, recurring* space of strategic choice — not chance or comprehension-of-a-solved-system per se. Dread/boredom sets in once that space is fully mapped, regardless of whether RNG or a deterministic build was what closed it.
+- **"Couldn't fully predict"** — resolved as **RNG triggers, emergent combination amplifies** — a division of labor, not a fork ([DECISIONS 2026-07-20](DECISIONS.md)). RNG decides *when/whether* a cascade fires (friend's favorite, supplies the **floor** — a highlight reachable even playing badly); emergent combination decides *what it becomes* (Tu's favorite, supplies the **ceiling** — rewards playing better). **Mastery is a ceiling, never a gate.** Sharpened by the wired-together arm's first play ([DECISIONS 2026-07-24](DECISIONS.md)): Tu's own sustaining pleasure is more specifically **decision-density** — an *open, recurring* space of strategic choice — not chance or comprehension-of-a-solved-system per se. Dread/boredom sets in once that space is fully mapped, regardless of whether RNG or a deterministic build was what closed it. Sharpened again by the decision-layer sketches' play ([DECISIONS 2026-07-26](DECISIONS.md)): a recurring decision only counts as real decision-density if it (a) draws on genuinely new information/options, not ones already inferable from the current state, (b) never leaves the passive/default outcome better than engaging, and (c) resists converging to one repeatable optimal move. All three failure shapes now have names — see Probe status.
 - **"Looked like it might fail first"** — real stakes required; a free same-difficulty retry that costs nothing undercuts this directly.
 - **"Claim as mine"** — attributable; rejects illegible chaos and pure coin-flips.
 
@@ -37,15 +37,15 @@ This engines lens (Watching / Building / Gambling / Character-drama) is a **sort
 
 ## Probe status
 
-Three-arm comparison testing the RNG-triggers-emergence bridge hypothesis. Judging bar throughout: **lean-in** ("do I not want to stop?"), required for both makers before an arm counts as validated.
+Three-arm comparison testing the RNG-triggers-emergence bridge hypothesis, plus a follow-on decision-layer iteration on the wired-together arm. Judging bar throughout: **lean-in** ("do I not want to stop?"), required for both makers before an arm counts as validated.
 
 | Arm | Status | Result |
 |---|---|---|
 | Emergence-only | done — Tu, 2026-07-22 | Genuine lean-in (target signal) *and* its predicted ceiling: a solved deterministic build stays solved forever. Read as the arm succeeding at what it tests, not a rejection — evidence for *why* emergence needs RNG paired with it. [Detail →](DECISIONS.md) |
 | RNG-only | done — Tu, 2026-07-24 | Real jackpot-chase fun, but non-renewing — collapses (~30-40 rows) once the optimal piece-sequence is found and only chance remains. **Tu-only read — not yet checked against the friend**, whose stated floor need may be satisfied by the exact feeling Tu found boring. [Detail →](DECISIONS.md) |
 | Wired-together (base) | built and played — Tu, 2026-07-24 | Flat for Tu: "spam spark and hope for surge," dread sets in once the dominant strategy (default Berserker, re-roll) is found. Diagnosed as **one decision, never revisited** — the roll is terminal (nothing sits between dice and outcome) and the space is non-renewing. Sharpens, doesn't overturn, the floor/ceiling split above. **Tu-only, unverified against the friend** — his floor need could want exactly this low-agency feeling. [Detail →](DECISIONS.md) |
-| Wired-together, decision-layer iteration | in progress, not yet played | `probe/wired/layers.html` sketches three candidate recurring-decision layers on top of the *same, untouched* base dice — **draft** (swap a token into the row each round), **routing** (aim every spark/surge as it fires), and a third spend-after-you-see mode. All three excited Tu as *ideas*; none has been played yet, so this is a taste signal, not a validated result. Picking which shape to build/play first is open. |
-| Friend validation | ready to run, not yet run | Session runbook is `probe/FRIEND_TEST_PROTOCOL.md` — fixed order RNG → Emergence → Wired-base, confound catalog, live reaction buckets, per-arm decisive attribution question. Tests all three arms above (not the decision-layer iteration, which postdates this protocol). |
+| Wired-together, decision-layer iteration | played and rejected — Tu, 2026-07-26 | All three candidate layers in `probe/wired/layers.html` (same untouched base dice) were played and rejected, but each names a distinct, reusable failure shape: **draft** (swap a token in each round) = *recombination-without-novelty* — offered tokens come from the same pool the reroll already ranges over, so nothing new enters the space; **routing** (aim every spark/surge as it fires) = *choice-as-tax* — the no-choice default (fire all events at once) is strictly stronger than any routed outcome, so choosing only costs power; **spend** (rescue a roll with scarce charges) = *spammable-to-a-solve* — find the single highest-EV piece, dump every charge into it, dominant every round despite nominal scarcity. Together these sharpen decision-density into a checkable filter: a real recurring decision must add genuinely new info, never make the passive default better than engaging, and resist collapsing to one repeatable optimal move. [Detail →](DECISIONS.md) |
+| Friend validation | ready to run, not yet run | Session runbook is `probe/FRIEND_TEST_PROTOCOL.md` — fixed order RNG → Emergence → Wired-base, confound catalog, live reaction buckets, per-arm decisive attribution question. Tests the three original arms above (not the decision-layer iteration, which postdates this protocol). |
 
 Note on judging: a maker who *designed* a deterministic puzzle already knows the solve, so their own boredom with it is unreliable evidence against the building/puzzle moment — burnout must be checked against the arm's structural properties (not taken as a verdict) before it counts; lean-in is trustworthy self-report either way ([DECISIONS 2026-07-22](DECISIONS.md)).
 
@@ -54,7 +54,7 @@ Note on judging: a maker who *designed* a deterministic puzzle already knows the
 Immediate priority: **discovery, not construction** — do not resume building the loop until probe-validation has a real answer.
 
 1. **Run the friend-validation session** — protocol is ready (`probe/FRIEND_TEST_PROTOCOL.md`), covers RNG, emergence, and wired-base.
-2. **Pick and build one decision-layer shape** (draft / routing / spend-after, in `probe/wired/layers.html`) and play it — the excitement at the *idea* is weaker evidence than play, per this project's own standing rule.
+2. **Design a new decision-layer shape against the sharpened filter** (must add genuinely new info, never tax the passive default, resist a dominant repeatable move) and play it — draft/routing/spend as built are each rejected, not just untested.
 3. Once an arm/iteration earns lean-in from both makers: **cast the lead**, derive further mechanics judged by "does this serve the moment?", then re-Settle and resync this file.
 
 ## The design spine (reference hypothesis, not a locked target)
@@ -95,7 +95,7 @@ Demoted 2026-07-18 from "Settled — do not re-litigate": none were verified by 
 |---|---|---|
 | 🥇 | Into the Breach | Full-info, multi-solution puzzle that stays unsolvable without an opponent; signature moment: the solve clicks. No free same-difficulty retry. |
 | 🥇 | Slay the Spire | Offer-variance + difficulty tiers refill the learn-loop; pure-annihilate yet deeply strategic. Heavy RNG + permadeath — in friction with this project's determinism/free-retry hypotheses. |
-| 🥇 | Balatro | Deep education made casual; building-lead; signature moment: the build pops (runaway combo). |
+| 🥇 | Balatro | Deep education made casual; building-lead; signature moment: the build pops (runaway combo). Its expanding-joker-pool pattern is the concrete fix the draft decision-layer sketch is missing ([DECISIONS 2026-07-26](DECISIONS.md)). |
 | 🥈 | Darkest Dungeon | Risk/reward, stress/morale, character attachment; stakes/character-drama lead; friend's inspiration; in tension with "casual mobile." |
 | 🥈 | Heroes 3 | Hex/turn combat under an arena skin — visual anchor for the hex-sim layer. |
 | 🥈 | TFT | On-board placement, hex-to-hex motion for the MOBA-render skin; friend's inspiration (building/synergy). |
