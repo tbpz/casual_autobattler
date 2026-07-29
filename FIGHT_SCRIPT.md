@@ -1,79 +1,130 @@
 # Fight Script — a concrete draft of the core loop's 30 seconds
 
-> **What this file is:** a scratch draft, not part of the STATE/DECISIONS discipline (like `PROTOTYPE_PLAN.md`). Its job is to turn the core loop from relationships ("RNG triggers, emergence amplifies") into a picturable scene: a clock, a named number, and a screen. Everything below is a **strawman** — react to it (agree / change the number / reject the mechanic) rather than treating it as settled. Nothing here is a decision until you say so; if something below does firm up, it gets logged to DECISIONS and folded into STATE the normal way.
+> **What this file is:** a scratch draft, not part of the STATE/DECISIONS discipline (like `PROTOTYPE_PLAN.md`). Its job is to turn the core loop from relationships ("RNG triggers, emergence amplifies") into a picturable scene: a clock, a named number, and a screen.
 >
-> Written in response to "which detail design am I lacking to visualize the core loop." The four gaps identified were: (1) a beat sheet / clock, (2) a named number, (3) what a cascade concretely is, (4) how jeopardy is guaranteed without being fake. This draft proposes an answer to all four so you have something to react to instead of a blank page.
+> **Status (2026-07-29):** the reaction pass is done. Five things are settled — fight length, the scoreboard, the cascade mechanic, the PRD ignition gate, and cascade-as-big-win-not-only-win — and are **logged in [DECISIONS.md](DECISIONS.md) (2026-07-29)** and folded into [STATE.md](STATE.md) (synced 2026-07-29). This file remains the home of the **strawman tuning constants** — STATE deliberately doesn't carry them, since they're meant to change every time the build is played. Remaining open items are collected in §6; the squad-pick step (§5) is deliberately deferred.
 
 ---
 
 ## 1. The beat sheet (the clock)
+
+**Settled: ~30s per fight** (pending DECISIONS log).
 
 A single fight, scripted second-by-second. Placeholder squad: **3v3**, one screen, no camera cuts.
 
 | t | Beat | What's on screen |
 |---|---|---|
 | 0:00 | **Press play.** | Squads snap into position. No animation yet — this is the "I chose this" freeze-frame. |
-| 0:00–0:08 | **Opening exchange.** | Both squads trade normal attacks. The named number (see §2) moves in small, boring increments. Nothing surprising happens — this is establishing footage, not filler to be skipped. |
-| 0:08–0:16 | **The dip.** | The player's squad visibly loses the exchange — HP bars trend red, a hero goes down, the number stalls or reverses. **This must read as "losing" to someone glancing at the screen with no rules knowledge.** This is jeopardy (§4), and it is mandatory every fight, not just when the dice cooperate. |
-| 0:16–0:20 | **The trigger.** | Somewhere inside (or right at the end of) the dip, the RNG check fires. Visually: a distinct tell — screen-shake, a flash, a name-callout — so "something just happened" reads even to a player who wasn't watching closely. |
-| 0:20–0:27 | **The cascade.** | The named number breaks its previous pace — not a nudge, a runaway. Numbers should look qualitatively different in this window than in the opening exchange (bigger font pop, faster tick, a distinct sound). This is the "far bigger than expected" clause and it needs to be *visually* distinguishable from the 0:00–0:16 window or it won't read as a spike. |
+| 0:00–0:08 | **Opening exchange.** | Both squads trade normal attacks. The two meters (§2) move in small, boring, roughly symmetric increments. Nothing surprising happens — this is establishing footage, not filler to be skipped. |
+| 0:08–0:16 | **The dip.** | The player's squad visibly loses the exchange — the player's meter drops faster, a hero falls over. **This must read as "losing" to someone glancing at the screen with no rules knowledge.** This is jeopardy (§4), and it is mandatory every fight, not just when the dice cooperate. |
+| 0:16–0:20 | **Ignition.** | Somewhere inside (or right at the end of) the dip, the PRD roll fires and one hero goes **hot**. Visually: a distinct tell — screen-shake, a flash, a name-callout — so "something just happened" reads even to a player who wasn't watching closely. |
+| 0:20–0:27 | **The chain.** | The hot hero's hits start chaining (§3). The enemy meter breaks its previous pace — not a nudge, a collapse. Numbers should look qualitatively different in this window than in the opening exchange (bigger font pop, faster tick, a distinct sound). **This window is where the fight is won or lost**, because a short chain fizzles and the dip stands. |
 | 0:27–0:30 | **Resolve.** | Win/loss lands, run-scoped stakes settle (something is banked or lost — see STATE's stakes-shape decision), retry button appears. |
 
-**Open for you to react to:** is ~30s the right length, or does a mobile casual session want ~10–15s fights (more retries per sitting) or ~45–60s (more room for the dip to feel earned)? This single number resets a lot of the rest of the pacing math.
+Note the rename: the old "trigger / cascade" beats are now **ignition / chain**, because §3+§4 split those into two mechanically distinct things.
 
 ---
 
 ## 2. The named number (the scoreboard)
 
-Balatro is picturable because one number (chips × mult vs. the blind) carries the whole screen. This loop needs its equivalent. Strawman candidate: **Squad Power Remaining**, shown as a single bar or meter per side, not raw HP-per-hero (too many numbers to track at a glance).
+**Settled: HP-remaining, two aggregate meters — one per side** (pending DECISIONS log). Not Balatro-style accumulating-score-vs-target; this is a defense-flavored comeback, not an offense-flavored jackpot.
 
-- Normal exchange: moves in small steps, roughly symmetric between both sides.
+- Normal exchange: both meters move in small steps, roughly symmetric.
 - The dip: player's meter drops faster than the enemy's — this is what makes the loss *visible*, not just implied by unit deaths.
-- The cascade: player's meter either rockets back up or the enemy's collapses — the number itself does something it wasn't doing a second ago.
+- The chain: the enemy's meter collapses. The number itself does something it wasn't doing a second ago.
 
-**Open for you to react to:**
-- Is the number **squad power / HP-remaining** (a defense-flavored comeback), or is it closer to Balatro's **accumulating score vs. a target** (an offense-flavored jackpot)? These read very differently on screen and imply different cascade mechanics (§3).
-- Is there one number, or two (player meter + enemy meter, read against each other)?
+**Why one meter per side and not six per-hero bars** (answering the question raised on this section): six bars have no shared scale, so a glancing player can't tell who's winning — they'd have to read and compare. Two aggregates give a single tug-of-war read, which is what a zero-reading core loop needs. Per-hero state is still visible, but **as bodies, not as numbers**: a hero at zero falls over on screen. That's what carries the 0:08–0:16 "a hero goes down" jeopardy beat without adding a second thing to track.
+
+Consequence to watch during the build: aggregating HP means a squad at 40% could be three wounded heroes or one healthy one — very different fight states, same meter. If that ambiguity turns out to matter, the fix is a segmented bar (one segment per hero) rather than six separate bars, which keeps the single-glance read.
 
 ---
 
-## 3. What the cascade concretely *is* (squad-fight terms, not token-row terms)
+## 3. What the cascade concretely *is*
 
-The probes tested cascades as abstract token rows. A squad fight needs the cascade to be something specific units do. Candidates, pick one (or name your own) rather than leaving it abstract:
+**Settled: option C — escalating crit/proc chain** (pending DECISIONS log). Rejected: A (chain-kill snowball), B (revive/rally wave).
 
-- **A. Chain-kill snowball** — one kill grants the killer a stacking buff (attack speed / damage) that makes the next kill faster, which stacks again. Reads as a single hero "popping off." Easiest to make legible (camera/highlight can follow one unit).
-- **B. Revive/rally wave** — one or more "dead" heroes on the player's side comes back or gets a burst heal simultaneously, flipping the meter in one beat. Reads as "the team turns it around together," which may match "a cascade I set in motion" better than a solo carry does.
-- **C. Escalating crit/proc chain** — each hit has a small chance to trigger a bonus hit, and bonus hits raise the chance further, so a proc either fizzles harmlessly or runs away exponentially. Closest to the friend's originally-cited Dota/crit reference and to the RNG-only probe's shape — you already know this one is fun for him, but it's the design that scored weakest on Tu's own "decision-density" read since it isn't a decision, it's a trigger.
+Concretely, and split into the two independently-tunable halves that §4 needs:
 
-**Magnitude:** whichever mechanic, name the size of the spike relative to a normal exchange — e.g. "the cascade should do in 5 seconds what would otherwise take 20," or "a cascade swing should be enough to flip a 70%-lost fight into a win, but not enough to win from a 95%-lost fight" (i.e., it amplifies, it doesn't guarantee).
+**Ignition** — the gated event. When the fight reaches jeopardy (§4) and the PRD roll lands, **one hero goes hot**. Camera/highlight follows that hero.
 
-**Open for you to react to:** which of A/B/C (or a fourth option) feels closest to the shared lead moment when you picture it? This is probably the single highest-leverage answer in this whole doc, since the render, the sound design, and the "what does the optional layer's synergy actually modify" question all key off it.
+**The chain** — what "hot" means. Each of the hot hero's hits rolls for a **bonus hit**; each bonus hit that lands raises the chance for the next one; a failed roll ends the chain and the hero cools off. Strawman numbers, to be tuned by feel:
+
+| Bonus hits so far | Chance the next one lands |
+|---|---|
+| 0 (first roll after ignition) | 35% |
+| 1 | 50% |
+| 2 | 65% |
+| 3 | 80% |
+| 4+ | 90% (cap) |
+
+So a chain either fizzles at length 0–1 (~65% of ignitions, most of the time nothing much happens) or, once it gets past two, tends to run away. That shape — usually a damp squib, occasionally exponential — is what supplies "far bigger than I expected," because the *expected* outcome genuinely is small.
+
+**Magnitude target:** a long chain should do in ~5 seconds what a normal exchange does in ~20. Sized so that a runaway chain flips a fight that looked ~70% lost, but cannot win one that's ~95% lost. It amplifies; it does not guarantee.
+
+**Why this split matters** (this is the load-bearing part): ignition and chain-length are *two separate dice*. That means **a cascade can fire and the fight can still be lost** — the chain fizzled. Without this, mandatory jeopardy plus a single cascade roll would make cascade-fire-rate and win-rate the exact same number, leaving the design one dial and no way to lose a fight the dice "rescued." With it, the two come apart and the jeopardy stays real.
+
+Known cost, accepted going in: C is a trigger, not a decision — it scored weakest on Tu's own decision-density read. That's consistent with the layered structure, since the core loop is explicitly the friend/casual half and decision-density is the optional layer's job. **The open follow-on is what the optional layer gets to modify here** — the base chance, the escalation step, the cap, which hero can go hot, or what a bonus hit does. See §6.
 
 ---
 
 ## 4. How jeopardy is guaranteed without being fake (the trigger rule)
 
-STATE commits to two things that need one mechanism to both be true: **the dice decide when the cascade fires**, and **the fight must always look lost first**. Left unspecified, these two rules can contradict each other (a roll could fire at t=2, before anything looks at risk).
+**Settled: the cascade does not fire every fight, and its chance uses Dota-style pseudo-random distribution — rising each time it fails to proc, never reaching 100%** (pending DECISIONS log). This answers the §4 fork: the dice decide **whether**, not just **when**. A 100%-once-eligible comeback is scripted, and scripted kills the moment.
 
-Strawman resolution — a **two-stage gate**, not a single roll:
+The mechanism is a **two-stage gate**:
 
-- **Stage 1 — eligibility gate (deterministic, not random):** the cascade cannot become *possible* until the sim detects a jeopardy condition — e.g. player squad power has dropped below some threshold (40%? 30%?) relative to the enemy's. Before that threshold, the RNG check isn't even being rolled. This is what guarantees "looks lost first" without it being staged/fake — it's a real state the sim reaches through normal combat resolution, not a scripted animation.
-- **Stage 2 — trigger roll (random, per tick, once eligible):** once eligible, each tick rolls a chance for the cascade to fire. This is what supplies "couldn't fully predict when."
+- **Stage 1 — eligibility (deterministic):** the cascade cannot become possible until the sim detects jeopardy — player squad HP below a threshold relative to the enemy's. Before that, nothing is rolled. This guarantees "looks lost first" without staging it: it's a real state reached through normal combat resolution, not an animation. **Threshold still open — see §6.**
+- **Stage 2 — ignition roll (PRD):** once eligible, roll for ignition. The chance is *not* fixed — it climbs with each fight that ended without an ignition, and is capped below 100%.
 
-**What happens on the fights where it never fires** is the other open half of this: does the player just lose (jeopardy without rescue, some fraction of the time), and if so what fraction feels fair for a casual audience? A cascade that fires 100% of the time once eligible isn't a cascade, it's a scripted comeback — but 100% *of eligible fights ending in a win* may be exactly what a floor-for-the-friend needs. This trade needs a number, not just a shape.
+### How the PRD is being read
 
-**Open for you to react to:**
-- What's the eligibility threshold (how bad does it need to look before the cascade becomes possible)?
-- Once eligible, does the cascade fire in 100% of fights (guaranteed-once-eligible, dice only decide *when* inside a fixed window) or can a fight be eligible and still lose (dice decide *whether*, not just *when* — true jeopardy, at the cost of the floor's reliability)? This is a real, felt tradeoff, not a technicality.
+Dota's crit PRD counts consecutive non-procs *within* combat. Here it's read as counting **across fights** — the counter persists between fights and resets on ignition. That's the only reading consistent with "should not fire on every fight": if the counter reset each fight and rolled per tick, a fight has enough ticks that ignition would become near-certain every time, which is the scripted-comeback outcome this answer rejects. Flag if that's not what was meant.
+
+Strawman constants, one fight = one roll:
+
+| Fights since last ignition | Ignition chance |
+|---|---|
+| 0 | 55% |
+| 1 | 80% |
+| 2+ | 92% (cap) |
+
+Long-run: ignition in **~65%** of fights. Three consecutive fights with no ignition happens ~1.6% of the time — rare enough to not feel abandoned, possible enough that the floor isn't a guarantee.
+
+Layered with §3's chain (~65% of ignitions fizzle), the rough shape is: most fights ignite, most ignitions fizzle, and the runaway chain — the actual lead moment — lands somewhere around **1 fight in 4**. That frequency is a guess and is exactly the kind of number that should be set by playing, not by arithmetic.
+
+### The cascade is the big win, not the only win
+
+**Settled** (pending DECISIONS log). Jeopardy is escapable by ordinary combat — the dip is real but survivable, and a player can grind back out of a close fight with no cascade at all. The cascade is the *big* version of winning, not the only version.
+
+Rejected alternative: cascade-as-only-exit, which would have made every fizzled chain a loss and forced cascade-fire-rate and win-rate to be the same number by construction (~35–45% loss rate on the constants above — too punishing for casual mobile).
+
+**The cost, accepted going in:** if you can sometimes just play out of the dip, the dip is no longer reliably *scary*. "Looked like it might fail first" is a load-bearing clause of the lead moment, so it now depends on tuning the dip to still **read** as losing even when it's in fact escapable. Watch this during the build — if that tuning proves impossible, this is the piece to revisit first.
 
 ---
 
-## Squad-pick step (the one interaction in an otherwise zero-decision loop)
+## 5. Squad-pick step
 
-Not one of the four core gaps, but needed to make the beat sheet's t=0 concrete: pick from how many heroes, in how many taps, with what default? Strawman: a bench of ~6–8 (per `PROTOTYPE_PLAN.md`'s OQ-14 provisional value), auto-filled with a sane default squad, one tap to accept or swap a slot. Comes from the optional layer per STATE's layering — the core loop only needs the *accept-default* path to work end to end.
+**Not yet decided** — deferred, not answered.
+
+The strawman on the table: a bench of ~6–8 (per `PROTOTYPE_PLAN.md`'s OQ-14 provisional value), auto-filled with a sane default squad, one tap to accept or swap a slot. Comes from the optional layer per STATE's layering — the core loop only needs the *accept-default* path to work end to end.
+
+Not a blocker for building §1–§4: the core loop can be built with a hardcoded 3v3 and a Play button, and the pick step slotted in later.
+
+---
+
+## 6. What's still open
+
+Carried forward from the sections above, roughly in order of how much they block the build:
+
+1. **The eligibility threshold** — how far below the enemy the player's meter has to fall before ignition is even possible. 40%? 30%? Can be looser now that the dip is escapable without a cascade.
+2. **Whether the across-fights PRD reading in §4 is what was meant.**
+3. **What the optional layer modifies in §3** — base chance, escalation step, cap, which hero can go hot, or what a bonus hit does. Doesn't block the core loop, but it's the hinge the whole optional layer hangs off, so worth an early answer.
+4. **The squad-pick step** (§5).
+
+All the numbers in §3 and §4 are strawmen for tuning by feel, not open questions in the same sense — they're meant to be changed by playing the build, which is the standing "learn by building" rule.
 
 ---
 
 ## How to use this doc
 
-Read top to bottom, react section by section — agreeing, rejecting, or replacing each strawman is enough; you don't need to write essays back. Whatever survives becomes the input to the build (and, for anything you'd call a real decision rather than a working assumption, gets proposed to DECISIONS.md the normal way before STATE.md is touched).
+React section by section — agreeing, rejecting, or replacing each strawman is enough. Whatever survives becomes the input to the build. Anything that's a real decision rather than a working assumption gets proposed to DECISIONS.md before STATE.md is touched.
