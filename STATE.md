@@ -151,6 +151,6 @@ The current state of each piece — the single source of truth for it.
 - [FIGHT_SCRIPT.md](FIGHT_SCRIPT.md) — the working draft of one fight's 30 seconds, including the fight-level tuning constants (HP, damage rates, chain table, PRD table, gate threshold) deliberately kept out of this file since they're meant to change every time the build is played.
 - [PROTOTYPE_PLAN.md](PROTOTYPE_PLAN.md) — the build doc for prototype #1: scope, stack, run-level constants, and build phases. Rewritten 2026-07-31 against the current layered/run design; the pre-2026-07-15 hex-grid version is fully superseded.
 - [DESIGN_QUESTIONS.md](DESIGN_QUESTIONS.md) — the question set that turned the single fight into a full run; 12 of 30 answered as of 2026-07-31, the rest triaged by whether they block code, hang off an answered question, or should be stubbed and settled by playing.
-- `probe/FRIEND_TEST_PROTOCOL.md` — runbook used for the 2026-07-26 friend-validation session; historical reference now that probing is closed.
-- `probe/` — the disposable RNG/emergence/wired toys built during discovery; historical reference, not the target for further building.
 - `STRATEGY.md` — **deprecated**, pending a future rewrite. Not current.
+
+> `probe/` (the disposable RNG/emergence/wired toys and `FRIEND_TEST_PROTOCOL.md`) and `ONMAP_SETUP_PLAN.md` were deleted 2026-07-31 as stale — the old prototype build they supported is gone. DECISIONS.md's 2026-07-26 entry still names `probe/FRIEND_TEST_PROTOCOL.md` as the session runbook; that reference is now historical only, not a live path.
