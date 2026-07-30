@@ -1,0 +1,24 @@
+{
+  "name": "casual-autobattler-prototype",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "fight": "tsx src/batch/cli.ts fight",
+    "run": "tsx src/batch/cli.ts run",
+    "batch": "tsx src/batch/cli.ts batch",
+    "check": "npm run check:determinism && npm run check:beatsheet && npm run check:chaindist",
+    "check:determinism": "tsx src/checks/determinism.ts",
+    "check:beatsheet": "tsx src/checks/beatsheet.ts",
+    "check:chaindist": "tsx src/checks/chaindist.ts"
+  },
+  "devDependencies": {
+    "vite": "^8.2.0",
+    "typescript": "~7.0.2",
+    "tsx": "^4.23.1",
+    "@types/node": "^26.1.2"
+  }
+}
