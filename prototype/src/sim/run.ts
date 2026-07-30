@@ -9,8 +9,8 @@ export type SpendChoice = "heal" | "upgrade" | "skip";
 
 /** Decides the run's one coin-spend decision point. The batch harness passes
  * a fixed policy; the UI passes the player's tap. Costs are checked by the
- * caller (run.ts) — a policy that asks for something unaffordable falls back
- * to "skip", so every policy has a working accept-default. */
+ * caller — a policy that asks for something unaffordable falls back to
+ * "skip", so every policy has a working accept-default. */
 export type RunPolicy = (state: { coin: number; player: SideState }) => SpendChoice;
 
 export function makePolicy(
@@ -49,7 +49,18 @@ export interface RunResult {
   finalCoin: number;
 }
 
-function makeEnemySide(n: number, totalHp: number): SideState {
+/**
+ * The per-fight step logic, factored out so both the headless batch runner
+ * (runRun, below — a fixed policy decides synchronously) and an interactive
+ * UI (render/runSession.ts — waits for a real player tap) drive the exact
+ * same rules rather than two copies that could drift apart.
+ */
+
+export function enemyHpForFight(cfg: RunConfig, fightIndex: number): number {
+  return cfg.enemyHpFight1 * Math.pow(cfg.difficultyRampFactor, fightIndex);
+}
+
+export function makeEnemySide(n: number, totalHp: number): SideState {
   const per = totalHp / n;
   const heroes: HeroState[] = [];
   for (let i = 0; i < n; i++) {
@@ -62,7 +73,7 @@ function makeEnemySide(n: number, totalHp: number): SideState {
  * flags come from the fight, then deathPolicy decides whether a downed hero
  * stays down (only called after a WIN — a loss ends the run before this runs,
  * so "downAtFightEnd" and "onlyOnLoss" only differ in what a win leaves behind). */
-function applyFightResultToPlayer(
+export function applyFightResultToPlayer(
   player: SideState,
   result: FightResult,
   deathPolicy: DeathPolicy,
@@ -80,8 +91,67 @@ function applyFightResultToPlayer(
   return { heroes, dpsBonus: player.dpsBonus };
 }
 
-function healFlat(side: SideState, amount: number): SideState {
+export function healFlat(side: SideState, amount: number): SideState {
   return { ...side, heroes: side.heroes.map((h) => ({ ...h, hp: Math.min(h.maxHp, h.hp + amount) })) };
+}
+
+export function coinAwardFor(cfg: RunConfig, result: FightResult): number {
+  return cfg.coinPerWin + (result.ignited ? cfg.coinBonusOnIgnition : 0);
+}
+
+/** Applies a chosen spend (falling back to "skip" if unaffordable — the
+ * working accept-default every policy and every UI tap gets for free). */
+export function applySpend(
+  cfg: RunConfig,
+  player: SideState,
+  coin: number,
+  choice: SpendChoice,
+): { player: SideState; coin: number; spend: SpendChoice } {
+  if (choice === "heal" && coin >= cfg.healCoinCost) {
+    return { player: healFlat(player, cfg.healHpAmount), coin: coin - cfg.healCoinCost, spend: "heal" };
+  }
+  if (choice === "upgrade" && coin >= cfg.upgradeCoinCost) {
+    return {
+      player: { ...player, dpsBonus: player.dpsBonus + cfg.upgradeDpsBonus },
+      coin: coin - cfg.upgradeCoinCost,
+      spend: "upgrade",
+    };
+  }
+  return { player, coin, spend: "skip" };
+}
+
+export function summarizeLoss(fightIndex: number, result: FightResult, playerMaxHp: number): FightSummary {
+  return {
+    fightIndex,
+    outcome: "loss",
+    ignited: result.ignited,
+    chainLength: result.chainLength,
+    coinAwarded: 0,
+    spend: "skip",
+    livingHeroesAfter: 0,
+    playerHpAfter: 0,
+    playerMaxHpAfter: playerMaxHp,
+  };
+}
+
+export function summarizeWin(
+  fightIndex: number,
+  result: FightResult,
+  coinAwarded: number,
+  spend: SpendChoice,
+  player: SideState,
+): FightSummary {
+  return {
+    fightIndex,
+    outcome: "win",
+    ignited: result.ignited,
+    chainLength: result.chainLength,
+    coinAwarded,
+    spend,
+    livingHeroesAfter: player.heroes.filter((h) => h.alive).length,
+    playerHpAfter: sideHp(player),
+    playerMaxHpAfter: sideMaxHp(player),
+  };
 }
 
 /** Runs one full 5-fight run to completion. Pure given (cfg, rng, policy). */
@@ -94,59 +164,31 @@ export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number
   const fightResults: FightResult[] = [];
 
   for (let i = 0; i < cfg.fightsPerRun; i++) {
-    const enemyTotalHp = cfg.enemyHpFight1 * Math.pow(cfg.difficultyRampFactor, i);
-    const enemy = makeEnemySide(cfg.enemyN, enemyTotalHp);
+    const enemy = makeEnemySide(cfg.enemyN, enemyHpForFight(cfg, i));
 
     const setup: FightSetup = { player, enemy, fightsSinceIgnition };
     const result = runFight(setup, cfg.fight, rng, seed);
     fightResults.push(result);
 
     if (result.outcome === "loss") {
-      fights.push({
-        fightIndex: i,
-        outcome: "loss",
-        ignited: result.ignited,
-        chainLength: result.chainLength,
-        coinAwarded: 0,
-        spend: "skip",
-        livingHeroesAfter: 0,
-        playerHpAfter: 0,
-        playerMaxHpAfter: sideMaxHp(player),
-      });
+      fights.push(summarizeLoss(i, result, sideMaxHp(player)));
       return { seed, fights, fightResults, outcome: "over", fightsWon: i, finalCoin: 0 };
     }
 
     fightsSinceIgnition = result.ignited ? 0 : fightsSinceIgnition + 1;
 
-    const coinAwarded = cfg.coinPerWin + (result.ignited ? cfg.coinBonusOnIgnition : 0);
+    const coinAwarded = coinAwardFor(cfg, result);
     coin += coinAwarded;
 
     player = applyFightResultToPlayer(player, result, cfg.deathPolicy);
     player = healFlat(player, cfg.autoRecoverHp);
 
     const choice = policy({ coin, player });
-    let spend: SpendChoice = "skip";
-    if (choice === "heal" && coin >= cfg.healCoinCost) {
-      coin -= cfg.healCoinCost;
-      player = healFlat(player, cfg.healHpAmount);
-      spend = "heal";
-    } else if (choice === "upgrade" && coin >= cfg.upgradeCoinCost) {
-      coin -= cfg.upgradeCoinCost;
-      player = { ...player, dpsBonus: player.dpsBonus + cfg.upgradeDpsBonus };
-      spend = "upgrade";
-    }
+    const applied = applySpend(cfg, player, coin, choice);
+    player = applied.player;
+    coin = applied.coin;
 
-    fights.push({
-      fightIndex: i,
-      outcome: "win",
-      ignited: result.ignited,
-      chainLength: result.chainLength,
-      coinAwarded,
-      spend,
-      livingHeroesAfter: player.heroes.filter((h) => h.alive).length,
-      playerHpAfter: sideHp(player),
-      playerMaxHpAfter: sideMaxHp(player),
-    });
+    fights.push(summarizeWin(i, result, coinAwarded, applied.spend, player));
   }
 
   return { seed, fights, fightResults, outcome: "complete", fightsWon: cfg.fightsPerRun, finalCoin: coin };
