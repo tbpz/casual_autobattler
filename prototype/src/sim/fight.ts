@@ -3,22 +3,23 @@ import type { FightConfig } from "./config.js";
 import { prdLookup } from "./config.js";
 import type { FightSetup, HeroState, SideState } from "./types.js";
 import { sideHp, sideMaxHp } from "./types.js";
-import type { FightEvent, FightResult, HeroSnapshot, TickSnapshot } from "./events.js";
+import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "./events.js";
 
 /**
- * Applies `amount` damage to a side, concentrated on the front-most living
- * hero, overflowing to the next when one drops to 0. Used only for the
- * chain's single-target bonus hits — FIGHT_SCRIPT.md §3 explicitly wants a
- * bonus hit to be concentrated, "fired by the same hero throughout" and
- * "retargeting when its target dies," which only makes sense as a focused
- * hit, not splash. Returns the ids of heroes that died, in order.
+ * Applies `amount` damage starting at the hero with id `startId`, overflowing
+ * to the next living hero in list order if the hit is a killing blow with
+ * damage to spare. Used for every normal attack (single-target) and for the
+ * chain's bonus hits — both are concentrated hits, never splash. Returns the
+ * ids of heroes that died, in order.
  */
-function applyConcentratedDamage(side: SideState, amount: number): string[] {
+function applyDamageFrom(side: SideState, startId: string, amount: number): string[] {
+  const startIdx = side.heroes.findIndex((h) => h.id === startId);
+  if (startIdx < 0) return [];
   let remaining = amount;
   const died: string[] = [];
-  for (const hero of side.heroes) {
-    if (remaining <= 0) break;
-    if (!hero.alive || hero.hp <= 0) continue;
+  for (let i = startIdx; i < side.heroes.length && remaining > 0; i++) {
+    const hero = side.heroes[i];
+    if (!hero || !hero.alive || hero.hp <= 0) continue;
     const taken = Math.min(hero.hp, remaining);
     hero.hp -= taken;
     remaining -= taken;
@@ -31,42 +32,39 @@ function applyConcentratedDamage(side: SideState, amount: number): string[] {
   return died;
 }
 
-/**
- * Applies `amount` damage to a side, split proportionally across living
- * heroes by their current HP. Used for the continuous side-level DPS (both
- * sides' baseline combat).
- *
- * This replaced a front-most-concentrated model for baseline damage during
- * the Phase 2 batch harness pass: concentrating baseline damage killed the
- * front hero within the first ~7s of *every* fight (100 HP gone long before
- * the ~180 HP the aggregate pool takes to reach the eligibility gate),
- * contradicting DECISIONS.md's 2026-07-31 point 8 ("a hero falls only in the
- * bad-case dip, not every dip") and producing a 0% run-completion rate.
- *
- * Known cost, worth flagging rather than hiding: with autoRecoverHp fully
- * topping every living hero up before each fight (config.ts), and all heroes
- * therefore always entering a fight at equal HP, this proportional split
- * means no player hero can die mid-fight without the whole side wiping at
- * the same instant — so under the current model, a *won* fight never costs a
- * hero, and `deathPolicy` only bites on a run-ending loss. Mechanizing a
- * distinct "bad-case dip" that can cost one hero on an otherwise-won fight is
- * real, undecided design (FIGHT_SCRIPT.md defers it) — not invented here.
- */
-function applyDistributedDamage(side: SideState, amount: number): string[] {
+/** The front-most living hero — a normal attack's deterministic target when
+ * the attacker is the player, so the player can always find and kill the
+ * visible threat (the enemy bruiser) on purpose. */
+function frontMostAliveId(side: SideState): string | undefined {
+  return side.heroes.find((h) => h.alive && h.hp > 0)?.id;
+}
+
+/** Weighted-random target among living heroes — the enemy's targeting rule.
+ * A tank draws more incoming attacks than a squishy ally (weight
+ * cfg.tankTargetWeight vs. 1), but not every attack, every fight,
+ * deterministically. This is what keeps an individual body's death
+ * contingent rather than baked into the arithmetic, while the AGGREGATE pool
+ * still drains at a fixed, tunable rate (see config.ts's docstring). */
+function pickWeightedTargetId(side: SideState, rng: Rng, tankWeight: number): string | undefined {
   const alive = side.heroes.filter((h) => h.alive && h.hp > 0);
-  const totalHp = alive.reduce((sum, h) => sum + h.hp, 0);
-  if (alive.length === 0 || amount <= 0 || totalHp <= 0) return [];
-  const died: string[] = [];
-  for (const hero of alive) {
-    const share = amount * (hero.hp / totalHp);
-    hero.hp -= share;
-    if (hero.hp <= 1e-9) {
-      hero.hp = 0;
-      hero.alive = false;
-      died.push(hero.id);
-    }
+  if (alive.length === 0) return undefined;
+  const weights = alive.map((h) => (h.role === "tank" ? tankWeight : 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let roll = rng.next() * total;
+  for (let i = 0; i < alive.length; i++) {
+    roll -= weights[i] ?? 0;
+    if (roll <= 0) return alive[i]?.id;
   }
-  return died;
+  return alive[alive.length - 1]?.id;
+}
+
+function lowestHpAliveHero(side: SideState): HeroState | undefined {
+  let best: HeroState | undefined;
+  for (const h of side.heroes) {
+    if (!h.alive || h.hp <= 0) continue;
+    if (!best || h.hp < best.hp) best = h;
+  }
+  return best;
 }
 
 function isWiped(side: SideState): boolean {
@@ -74,11 +72,48 @@ function isWiped(side: SideState): boolean {
 }
 
 function snapshotHeroes(side: SideState): HeroSnapshot[] {
-  return side.heroes.map((h) => ({ id: h.id, hp: h.hp, maxHp: h.maxHp, alive: h.alive }));
+  return side.heroes.map((h) => ({ id: h.id, name: h.name, role: h.role, hp: h.hp, maxHp: h.maxHp, alive: h.alive }));
 }
 
 function cloneHeroes(heroes: HeroState[]): HeroState[] {
   return heroes.map((h) => ({ ...h }));
+}
+
+/** One hero's beat: support heroes heal their lowest-HP living ally instead
+ * of attacking. Everyone else deals damage to a target picked by `targeting`
+ * — "front" (deterministic, player attackers) or "weighted" (enemy
+ * attackers). Pushes the attack/heal event and any resulting heroDown events. */
+function performHeroAction(
+  events: FightEvent[],
+  t: number,
+  rng: Rng,
+  cfg: FightConfig,
+  attackerSide: SideState,
+  attackerSideLabel: Side,
+  defenderSide: SideState,
+  defenderSideLabel: Side,
+  hero: HeroState,
+  isPlayerAttacker: boolean,
+  targeting: "front" | "weighted",
+): void {
+  if (hero.healPerBeat) {
+    const target = lowestHpAliveHero(attackerSide);
+    if (target) {
+      const amount = Math.min(hero.healPerBeat, target.maxHp - target.hp);
+      if (amount > 0) {
+        target.hp += amount;
+        events.push({ type: "heal", t, side: attackerSideLabel, healerId: hero.id, targetId: target.id, amount });
+      }
+    }
+    return;
+  }
+  const targetId =
+    targeting === "front" ? frontMostAliveId(defenderSide) : pickWeightedTargetId(defenderSide, rng, cfg.tankTargetWeight);
+  if (!targetId) return;
+  const damage = hero.damage + (isPlayerAttacker ? attackerSide.dpsBonus : 0);
+  const died = applyDamageFrom(defenderSide, targetId, damage);
+  events.push({ type: "attack", t, side: attackerSideLabel, attackerId: hero.id, targetId, damage });
+  for (const id of died) events.push({ type: "heroDown", t, side: defenderSideLabel, heroId: id });
 }
 
 /**
@@ -91,67 +126,73 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   const enemy: SideState = { heroes: cloneHeroes(setup.enemy.heroes), dpsBonus: setup.enemy.dpsBonus };
 
   const playerStartMax = sideMaxHp(player);
-  const initialLivingPlayers = player.heroes.filter((h) => h.alive).length;
 
   const events: FightEvent[] = [];
   const snapshots: TickSnapshot[] = [];
 
   const dt = 1 / cfg.tickRate;
-  const maxTicks = Math.round(cfg.fightDurationSec * cfg.tickRate);
+  const maxTicks = Math.round(cfg.maxFightSec * cfg.tickRate);
 
   let gateOpened = false;
   let ignited = false;
   let hotHeroId: string | null = null;
   let bonusHitsLanded = 0;
-  let nextChainRollT = Infinity;
   let finalChainLength = 0;
 
   let outcome: "win" | "loss" | null = null;
-  let endReason: "wipe" | "timer" = "timer";
-  let endT = cfg.fightDurationSec;
+  let endReason: "wipe" | "failsafe" = "wipe";
+  let endT = 0;
 
   for (let tick = 1; tick <= maxTicks; tick++) {
-    const tStart = (tick - 1) * dt;
     const t = tick * dt;
+    endT = t;
 
-    // Continuous side-level damage this tick. Evaluated at the tick's midpoint
-    // (not tStart) so the discrete sum exactly matches the continuous integral
-    // of a linear rate — left-endpoint evaluation was biasing the trajectory
-    // just enough to turn FIGHT_SCRIPT.md §3's exact analytic tie at t=30
-    // (both sides land at exactly 30/300 HP) into a small, consistent enemy
-    // edge, silently converting "a genuine coin flip" into a guaranteed loss
-    // whenever no chain landed (~80% of fights) — see resolve below for the
-    // other half of this fix.
-    const tMid = tStart + dt / 2;
-    const enemyDpsNow =
-      cfg.enemyDpsStart + (cfg.enemyDpsEnd - cfg.enemyDpsStart) * (tMid / cfg.fightDurationSec);
-    const livingPlayers = player.heroes.filter((h) => h.alive).length;
-    const playerDpsScale = cfg.dpsScalesWithLivingHeroes
-      ? livingPlayers / Math.max(initialLivingPlayers, 1)
-      : 1;
-    const playerDpsNow = (cfg.playerDpsSideTotal + player.dpsBonus) * playerDpsScale;
-
-    for (const id of applyDistributedDamage(player, enemyDpsNow * dt)) {
-      events.push({ type: "heroDown", t, side: "player", heroId: id });
+    // Player heroes act on their own beats, targeting the front-most living
+    // enemy — deterministic, so the player can reliably focus down the
+    // bruiser. The hot hero also rolls its chain on the same beat.
+    for (const hero of player.heroes) {
+      if (!hero.alive || outcome || t < hero.nextAttackT) continue;
+      performHeroAction(events, t, rng, cfg, player, "player", enemy, "enemy", hero, true, "front");
+      hero.nextAttackT += hero.attackIntervalSec;
+      if (isWiped(enemy)) {
+        outcome = "win";
+        continue;
+      }
+      if (hero.id === hotHeroId) {
+        const chance = prdLookup(cfg.chainChanceByHitsSoFar, bonusHitsLanded);
+        if (rng.chance(chance)) {
+          const hitIndex = bonusHitsLanded + 1;
+          const damage = Math.min(cfg.bonusHitStep * hitIndex, cfg.bonusHitCap);
+          const targetId = frontMostAliveId(enemy);
+          if (targetId) {
+            const died = applyDamageFrom(enemy, targetId, damage);
+            events.push({ type: "chainHit", t, hitIndex, damage, targetId });
+            for (const id of died) events.push({ type: "heroDown", t, side: "enemy", heroId: id });
+            bonusHitsLanded = hitIndex;
+            if (isWiped(enemy)) outcome = "win";
+          }
+        } else {
+          events.push({ type: "chainEnd", t, chainLength: bonusHitsLanded });
+          finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
+          hotHeroId = null;
+        }
+      }
     }
-    for (const id of applyDistributedDamage(enemy, playerDpsNow * dt)) {
-      events.push({ type: "heroDown", t, side: "enemy", heroId: id });
-    }
 
-    if (isWiped(player)) {
-      outcome = "loss";
-      endReason = "wipe";
-      endT = t;
-    } else if (isWiped(enemy)) {
-      outcome = "win";
-      endReason = "wipe";
-      endT = t;
+    // Enemy heroes act on their own beats, targeting a weighted-random
+    // living player hero — see pickWeightedTargetId's docstring for why.
+    if (!outcome) {
+      for (const hero of enemy.heroes) {
+        if (!hero.alive || outcome || t < hero.nextAttackT) continue;
+        performHeroAction(events, t, rng, cfg, enemy, "enemy", player, "player", hero, false, "weighted");
+        hero.nextAttackT += hero.attackIntervalSec;
+        if (isWiped(player)) outcome = "loss";
+      }
     }
 
     // Stage 1 (deterministic) + stage 2 (PRD) ignition gate, one shot per fight.
     if (!gateOpened && !outcome) {
-      const currentMax = playerStartMax; // reading #3: fixed at fight start, not recomputed.
-      if (sideHp(player) <= cfg.eligibilityGateFraction * currentMax) {
+      if (sideHp(player) <= cfg.eligibilityGateFraction * playerStartMax) {
         gateOpened = true;
         events.push({ type: "gateOpen", t });
         const ignitionChance = prdLookup(cfg.ignitionChanceByFightsSince, setup.fightsSinceIgnition);
@@ -166,53 +207,10 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
               ignited = true;
               hotHeroId = heroId;
               bonusHitsLanded = 0;
-              nextChainRollT = t + cfg.attackIntervalSec;
             }
           }
         }
         events.push({ type: "ignitionRoll", t, fired: fired && heroId !== null, heroId });
-      }
-    }
-
-    // Chain rolls, on the hot hero's attack beat, while eligible and unresolved.
-    if (hotHeroId && !outcome && t >= nextChainRollT) {
-      const hero = player.heroes.find((h) => h.id === hotHeroId);
-      if (!hero || !hero.alive) {
-        // The hot hero itself died (shouldn't happen given it's picked from
-        // currently-alive heroes and player damage is now distributed rather
-        // than concentrated, but guard it defensively regardless).
-        events.push({ type: "chainEnd", t, chainLength: bonusHitsLanded });
-        finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
-        hotHeroId = null;
-      } else {
-        const chance = prdLookup(cfg.chainChanceByHitsSoFar, bonusHitsLanded);
-        const success = rng.chance(chance);
-        if (success) {
-          const hitIndex = bonusHitsLanded + 1;
-          const damage = Math.min(cfg.bonusHitStep * hitIndex, cfg.bonusHitCap);
-          const target = enemy.heroes.find((h) => h.alive);
-          for (const id of applyConcentratedDamage(enemy, damage)) {
-            events.push({ type: "heroDown", t, side: "enemy", heroId: id });
-          }
-          events.push({
-            type: "chainHit",
-            t,
-            hitIndex,
-            damage,
-            targetId: target?.id ?? "",
-          });
-          bonusHitsLanded = hitIndex;
-          nextChainRollT = t + cfg.attackIntervalSec;
-          if (isWiped(enemy)) {
-            outcome = "win";
-            endReason = "wipe";
-            endT = t;
-          }
-        } else {
-          events.push({ type: "chainEnd", t, chainLength: bonusHitsLanded });
-          finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
-          hotHeroId = null;
-        }
       }
     }
 
@@ -225,34 +223,25 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       playerHeroes: snapshotHeroes(player),
       enemyHeroes: snapshotHeroes(enemy),
       hotHeroId,
+      gateOpen: gateOpened,
     });
 
     if (outcome) break;
   }
 
-  // If a chain was still running when the fight ended (wipe or timer), close it out.
+  if (!outcome) {
+    // Failsafe only — should not happen given the stat blocks in config.ts,
+    // but the sim must never hang. Resolve by HP fraction.
+    const playerFraction = sideMaxHp(player) > 0 ? sideHp(player) / sideMaxHp(player) : 0;
+    const enemyFraction = sideMaxHp(enemy) > 0 ? sideHp(enemy) / sideMaxHp(enemy) : 0;
+    outcome = playerFraction >= enemyFraction ? "win" : "loss";
+    endReason = "failsafe";
+  }
+
+  // If a chain was still running when the fight ended, close it out.
   if (hotHeroId) {
     events.push({ type: "chainEnd", t: endT, chainLength: bonusHitsLanded });
     finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
-  }
-
-  if (!outcome) {
-    // Timer resolve: higher HP fraction wins. A near-exact tie (the intended
-    // no-cascade case, per FIGHT_SCRIPT.md §3's own worked check: both sides
-    // land at exactly 30/300 HP with no chain) is resolved by an actual coin
-    // flip — not a hardcoded loss — because the doc explicitly calls this
-    // case "a genuine coin flip," and the cascade is meant to be the *big*
-    // win, not the *only* win (§4).
-    const playerFraction = sideMaxHp(player) > 0 ? sideHp(player) / sideMaxHp(player) : 0;
-    const enemyFraction = sideMaxHp(enemy) > 0 ? sideHp(enemy) / sideMaxHp(enemy) : 0;
-    const tieEpsilon = 1e-6;
-    if (Math.abs(playerFraction - enemyFraction) < tieEpsilon) {
-      outcome = rng.chance(0.5) ? "win" : "loss";
-    } else {
-      outcome = playerFraction > enemyFraction ? "win" : "loss";
-    }
-    endReason = "timer";
-    endT = cfg.fightDurationSec;
   }
 
   events.push({ type: "resolve", t: endT, outcome, reason: endReason });

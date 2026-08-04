@@ -1,9 +1,9 @@
 import { Rng } from "../sim/rng.js";
 import { DEFAULT_RUN_CONFIG, type DeathPolicy, type RunConfig } from "../sim/config.js";
 import { runFight } from "../sim/fight.js";
-import { makeSide } from "../sim/types.js";
+import { makePlayerSide } from "../sim/heroes.js";
 import type { FightEvent, FightResult } from "../sim/events.js";
-import { makePolicy, runRun, type RunResult } from "../sim/run.js";
+import { makeEnemySide, makePolicy, runRun, type RunResult } from "../sim/run.js";
 import { BatchAggregator, formatReport } from "./report.js";
 
 function parseArgs(argv: string[]): Record<string, string> {
@@ -27,6 +27,10 @@ function parseArgs(argv: string[]): Record<string, string> {
 function formatEvent(e: FightEvent): string {
   const t = e.t.toFixed(2).padStart(5);
   switch (e.type) {
+    case "attack":
+      return `[t=${t}] ${e.side} ${e.attackerId} attacks ${e.targetId}: ${e.damage} dmg`;
+    case "heal":
+      return `[t=${t}] ${e.side} ${e.healerId} heals ${e.targetId}: +${e.amount}`;
     case "gateOpen":
       return `[t=${t}] gate opens (eligibility reached)`;
     case "ignitionRoll":
@@ -69,7 +73,7 @@ function runBatch(cfg: RunConfig, policyName: "never-spend" | "always-heal" | "a
   const agg = new BatchAggregator(cfg);
   for (let i = 0; i < n; i++) {
     const seed = baseSeed + i;
-    agg.add(runRun(cfg, new Rng(seed), policy, seed));
+    agg.add(runRun(cfg, new Rng(seed), policy, seed, makePlayerSide()));
   }
   console.log(formatReport(agg.finalize(), `policy=${policyName} deathPolicy=${cfg.deathPolicy}`));
 }
@@ -84,8 +88,8 @@ const cfg: RunConfig = { ...DEFAULT_RUN_CONFIG, deathPolicy };
 switch (cmd) {
   case "fight": {
     const setup = {
-      player: makeSide(cfg.playerN, cfg.fight.heroMaxHp, "p"),
-      enemy: makeSide(cfg.enemyN, cfg.enemyHpFight1 / cfg.enemyN, "e"),
+      player: makePlayerSide(),
+      enemy: makeEnemySide(cfg, 0),
       fightsSinceIgnition: args.fightsSince ? Number(args.fightsSince) : 0,
     };
     const result = runFight(setup, cfg.fight, new Rng(seed), seed);
@@ -94,7 +98,7 @@ switch (cmd) {
   }
   case "run": {
     const policyName = (args.policy as "never-spend" | "always-heal" | "always-upgrade") ?? "never-spend";
-    const result = runRun(cfg, new Rng(seed), makePolicy(policyName, cfg), seed);
+    const result = runRun(cfg, new Rng(seed), makePolicy(policyName, cfg), seed, makePlayerSide());
     printRunSummary(result);
     break;
   }

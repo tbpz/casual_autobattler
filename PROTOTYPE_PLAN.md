@@ -1,6 +1,8 @@
 # Prototype Implementation Plan — Casual Roguelike Autobattler
 
 > **What this file is:** the build doc for prototype #1. **Rewritten 2026-07-31**, superseding the 2026-07-14 version in full. The old version targeted the pre-2026-07-15 single-spine design — hex-grid tactical movement, terrain, A* pathing, a 9-Kings draft. That design is gone: `STATE.md` now files hex terrain and draft as optional-layer *candidate content*, not a core-loop requirement, and the fight actually specified in `FIGHT_SCRIPT.md` has no spatial movement at all — it's two aggregate meters and a proc chain. This version is derived from `FIGHT_SCRIPT.md` and the [2026-07-31 DECISIONS.md entry](DECISIONS.md). Not part of the STATE/DECISIONS discipline — a build doc, expected to go stale, re-derive by hand as the build teaches things.
+>
+> **Partially superseded 2026-08-04** (not yet logged to DECISIONS.md — pending confirmation): the first playable build was judged not fun — no legible cause for HP loss, the "turnaround" was a hidden timer, and there was nothing to assemble. The Scope and constants tables below are updated in place to reflect what was actually built in response; see the bottom of this doc for what changed and why.
 
 ---
 
@@ -19,16 +21,16 @@ Two completion criteria stand in for a test:
 
 **In:**
 
-- One fight, full beat sheet per `FIGHT_SCRIPT.md` §1–§4: opening exchange → dip → ignition → chain → resolve, ~30s, two aggregate HP meters.
+- One fight, full beat sheet per `FIGHT_SCRIPT.md` §1–§4: opening exchange → dip → ignition → chain → resolve, two aggregate HP meters. **Updated 2026-08-04:** length is no longer a fixed ~30s — the fight resolves by wipe, not a timer (see below).
 - A full run: 5 fights, win all 5 or run out of living heroes (2026-07-31).
-- Attrition: HP and death both carry between fights. HP is recoverable (free auto-recovery between fights, no input); death is permanent — max squad HP is 100 × living heroes.
+- Attrition: HP and death both carry between fights. HP is recoverable (free auto-recovery between fights, no input); death is permanent — max squad HP is the sum of living heroes' individual max HP (no longer a flat 100 × N now that heroes have distinct HP values, see below).
 - Coin economy: earned per fight won (+bonus if a cascade fired), spendable on exactly **one decision point** with a working accept-default — heal now, or bank toward a damage upgrade. Doing nothing still works (auto-recovery alone).
-- A **headless batch-sim mode**: run N runs with no rendering, report win rate per fight, run-completion rate, chain-length distribution, and how often a cascade decided the outcome. This is what turns tuning from argument into measurement, per the standing "learn by building" rule.
+- A **headless batch-sim mode**: run N runs with no rendering, report win rate per fight, run-completion rate, chain-length distribution, and how often a cascade decided the outcome. This is what turns tuning from argument into measurement, per the standing "learn by building" rule. **Extended 2026-08-04** with three more metrics: gate-cross rate, failsafe rate, and fraction of wins with no chain (see below).
+- **Added 2026-08-04, moved in from "Out":** hero roles (tank/damage/support, each with distinct HP/damage/attack cadence) and a run-start squad pick (3 of 6, pre-filled with a working default). Both were judged necessary for the fight to be legible at all — see the note at the bottom of this doc.
 
-**Out (explicitly, per Q30):**
+**Out (explicitly, per Q30 except where noted):**
 
-- Squad-pick / bench / draft (`FIGHT_SCRIPT.md` §5, deferred).
-- Hero roles or any distinguishing identity beyond a stub (silhouette + color, identical stats) — `DESIGN_QUESTIONS.md` Part 2/3.
+- Bench / draft beyond the single run-start pick (`FIGHT_SCRIPT.md` §5's fuller vision remains deferred).
 - Enemy cascading (2026-07-31: no, for the prototype — see `FIGHT_SCRIPT.md` §3).
 - Any spatial/tactical layer — no hex grid, no terrain, no pathing. Not deferred so much as no longer part of the specified core loop.
 - Art, sound. Sound flagged as a real cost (the ignition tell and the chain's "distinct sound" in `FIGHT_SCRIPT.md` §1 lean on it) — cheapest hedge is two placeholder blips, not a design pass, if the chain reads flat and the cause is ambiguous.
@@ -44,30 +46,22 @@ Simpler than the pre-2026-07-15 plan required, because the specified fight has n
 
 ## Fight-level constants
 
-Full detail, derivation, and the worked beat-sheet check are in `FIGHT_SCRIPT.md` §3. Summarized here for build reference:
+**Superseded 2026-08-04** — the side-level DPS budget model below (and `FIGHT_SCRIPT.md` §3's own worked check, which assumed it) no longer describes the build. Combat is now per-hero attack beats, not a continuous rate: each hero has its own HP/damage/attack interval (`sim/heroes.ts` for the player pool, `sim/config.ts`'s `bruiser`/`grunt` archetypes for enemies), a normal attack targets the front-most living enemy (deterministic for the player, weighted-random favoring the enemy's tank), and the fight resolves by wipe, not a 30s timer. The eligibility gate, both PRD tables, and the bonus-hit formula are unchanged. Current values live in `sim/config.ts` and `sim/heroes.ts`, tuned via the batch harness to land run-completion near the targets below — table not duplicated here since, per this doc's own header, constants are expected to move by playing.
 
 | Constant | Value |
 |---|---|
-| Hero HP | 100 each |
-| Player squad damage | 9/sec, side total (flat) |
-| Enemy damage | 16/sec at t=0, decaying linearly to 2/sec at t=30 |
-| Enemy HP (fight 1) | 300 |
-| Eligibility gate | player pool ≤ 40% of current max |
+| Eligibility gate | player pool ≤ 40% of current (fight-start) max |
 | Bonus hit damage | 20 × (bonus hits so far), capped at 100 |
-| Fight end, nobody wiped | 30s timer, higher meter wins |
+| Fight end | resolves by wipe; a `maxFightSec` failsafe (180s) exists only so the sim can never hang — batch-verified at 0% incidence |
 
 ## Run-level constants
 
-| Constant | Value |
-|---|---|
-| Fights per run | 5 — win all, or run out of living heroes |
-| Max squad HP | 100 × living heroes (death permanently removes capacity) |
-| Auto-recovery between fights | +100 HP free, capped at max, no input required |
-| Coin per fight won | 10, +5 if a cascade fired |
-| Sink A — heal | 10 coin → +50 HP now |
-| Sink B — upgrade | 30 coin → +2 dmg/sec, rest of the run |
-| Difficulty ramp | enemy HP +10% per fight (300 → ~440 by fight 5) |
-| On loss | run ends, coin lost, nothing carries to the next run |
+**Superseded 2026-08-04** in the same rewrite. Table not duplicated here for the same reason as above — see `sim/config.ts`'s `DEFAULT_RUN_CONFIG`. What changed structurally, not just numerically:
+
+- **Max squad HP** is the sum of the chosen heroes' individual max HP (they're no longer uniform), not a flat 100 × N.
+- **Difficulty ramp** now scales enemy HP only, not damage — scaling both compounded far faster than intended (batch-measured: fight-3 win rate collapsed from ~100% to ~13% before this fix).
+- **Heal/upgrade costs were re-tuned** (raised, and heal's HP-per-use lowered) after the batch harness showed "always heal" trivializing run completion (~93-98%) against a ~50% engaged target — support's in-combat healing plus a full between-fight auto-recovery made the old heal cost/amount too cheap on top of both.
+- Current tuning: passive (`never-spend`) run-completion ≈ 33% (target ~25%), engaged policies span ≈ 41-74% (target ~50%) depending on which lever is pulled — heal remains the strongest lever since it most directly counters permanent-death attrition. Still strawmen, per the standing "tune by playing" rule.
 
 ## Build phases
 
@@ -111,3 +105,17 @@ Full detail, derivation, and the worked beat-sheet check are in `FIGHT_SCRIPT.md
 ## Critical path
 
 Phases 0→1→2 are headless and strictly ordered — get the numbers right before spending effort on rendering, since Phase 2's batch harness is what makes "are these constants even in the right neighborhood" checkable in minutes instead of by replaying dozens of fights by hand. Phase 3 is the first genuinely make-or-break risk (is a watch-only fight actually watchable); Phase 5 is the first point real judgment is possible at all, since the vehicle framing means nothing before that is meant to be conclusive.
+
+## 2026-08-04 — legibility rewrite
+
+Phase 5 ran (Tu played first, per the plan above) and the verdict was that the build wasn't fun: no visible cause for HP loss, the turnaround was an authored timer rather than something caused, and the run had nothing to assemble. Diagnosis: the fight had no actors — `sim/fight.ts`'s old `applyDistributedDamage` spread a side-level DPS scalar across heroes with no attacker, no target, no attack event, so nothing on screen could explain why HP moved. Changed, all in service of making the fight causally legible without adding required reading:
+
+- **Per-hero attack beats** replaced side-level DPS — every HP change now traces to a specific attacker/target pair (`attack`/`heal` events).
+- **An enemy bruiser** (one big, slow, hard-hitting body) replaced the old enemy-DPS-decay curve as the dip's mechanism — the turnaround is now "you killed the big one," not a hidden clock.
+- **Wipe-only resolution** replaced the 30s timer and its `rng.chance(0.5)` tie-break — every fight now ends in a body count the player watched happen.
+- **Three roles** (tank/damage/support) gave targeting a reason and gave the support's heal a visible cause for a rising meter.
+- **A run-start squad pick** (3 of 6, pre-filled default) made "assemble your squad" literal — it had been unbuilt, not merely optional.
+- **A pre-fight read and an eligibility-gate mark on the meter** manufacture the expectation the cascade is meant to exceed — without a prediction to violate, "far bigger than expected" has nothing to be bigger than.
+- **A post-fight recap line** ("SPARK chained ×4 — 240 damage") gives the player a causal account after the fact, not just during.
+
+This is a change to the fight's *mechanism*, not the specified moment — see STATE.md's design-spine and the risk this puts pressure on (per-hero combat + wipe-only resolution can snowball, which cuts against "the cascade is the big win, not the only win"). Guarded by three new batch metrics (`fractionWinsWithNoChain`, `gateCrossRate`, `failsafeRate`) rather than by hope; current numbers hold `fractionWinsWithNoChain` ≈ 79%, comfortably non-trivial. Pending logging to `DECISIONS.md` on confirmation.

@@ -1,14 +1,14 @@
 import { Rng } from "../sim/rng.js";
 import type { RunConfig } from "../sim/config.js";
 import type { FightSetup, SideState } from "../sim/types.js";
-import { makeSide, sideHp, sideMaxHp } from "../sim/types.js";
+import { sideHp, sideMaxHp } from "../sim/types.js";
+import { makePlayerSide } from "../sim/heroes.js";
 import { runFight } from "../sim/fight.js";
 import type { FightResult } from "../sim/events.js";
 import {
   applyFightResultToPlayer,
   applySpend,
   coinAwardFor,
-  enemyHpForFight,
   healFlat,
   makeEnemySide,
   summarizeLoss,
@@ -39,11 +39,11 @@ export class RunSession {
   pendingCoinAwarded = 0;
   status: "in-progress" | "complete" | "over" = "in-progress";
 
-  constructor(cfg: RunConfig, seed: number) {
+  constructor(cfg: RunConfig, seed: number, heroIds?: string[]) {
     this.cfg = cfg;
     this.seed = seed;
     this.rng = new Rng(seed);
-    this.player = makeSide(cfg.playerN, cfg.fight.heroMaxHp, "p");
+    this.player = makePlayerSide(heroIds);
   }
 
   get currentFightIndex(): number {
@@ -62,11 +62,16 @@ export class RunSession {
     return { hp: sideHp(this.player), maxHp: sideMaxHp(this.player) };
   }
 
+  /** The current player roster, for the pre-fight screen's preview. */
+  get currentPlayerSide(): SideState {
+    return this.player;
+  }
+
   /** Runs the next fight and returns its result for the FightView to replay.
    * Does NOT advance fightIndex or apply the spend — call resolveSpend()
    * after the player (or the accept-default) decides. */
   playNextFight(): FightResult {
-    const enemy = makeEnemySide(this.cfg.enemyN, enemyHpForFight(this.cfg, this.fightIndex));
+    const enemy = makeEnemySide(this.cfg, this.fightIndex);
     const setup: FightSetup = { player: this.player, enemy, fightsSinceIgnition: this.fightsSinceIgnition };
     const result = runFight(setup, this.cfg.fight, this.rng, this.seed);
     this.lastFightResult = result;

@@ -7,6 +7,18 @@ import type { RunResult } from "../sim/run.js";
  * histogram, fraction of wins decided by a 3+ chain, plus a few extras
  * (ignition rate, mean duration, deaths/run) useful for spotting *why* a
  * target is missed, not just that it is.
+ *
+ * Three metrics added for the 2026-08-04 legibility rewrite, each a direct
+ * test of one named risk from that plan:
+ *  - fractionWinsWithNoChain: the "cascade is the big win, not the only win"
+ *    guardrail (DECISIONS.md 2026-07-29). If this collapses toward 0%, the
+ *    per-hero combat model has snowballed too hard — ordinary combat can no
+ *    longer win a fight unassisted.
+ *  - gateCrossRate: whether the dip (now caused by the enemy bruiser rather
+ *    than a scripted DPS curve) still reliably happens.
+ *  - failsafeRate: should be ~0% always — fights are meant to resolve by
+ *    wipe now that the 30s timer is gone; any failsafe hit means a fight
+ *    stalled and the sim's maxFightSec safety net had to step in.
  */
 export interface BatchReport {
   n: number;
@@ -16,6 +28,9 @@ export interface BatchReport {
   winRateByFightIndex: number[];
   chainLengthHistogram: Record<number, number>;
   fractionWinsWithChain3Plus: number;
+  fractionWinsWithNoChain: number;
+  gateCrossRate: number;
+  failsafeRate: number;
   ignitionRate: number;
   meanFightDurationSec: number;
   meanDeathsPerRun: number;
@@ -35,6 +50,9 @@ export class BatchAggregator {
   private chainHist: Record<number, number> = {};
   private winsTotal = 0;
   private winsWithChain3Plus = 0;
+  private winsWithNoChain = 0;
+  private gateOpenedFights = 0;
+  private failsafeFights = 0;
   private ignitedFights = 0;
   private totalFights = 0;
   private totalDuration = 0;
@@ -57,12 +75,15 @@ export class BatchAggregator {
         this.wonCount[f.fightIndex] = (this.wonCount[f.fightIndex] ?? 0) + 1;
         this.winsTotal++;
         if (f.chainLength >= 3) this.winsWithChain3Plus++;
+        if (f.chainLength === 0) this.winsWithNoChain++;
       }
     }
 
     for (const fr of r.fightResults) {
       this.totalFights++;
       if (fr.ignited) this.ignitedFights++;
+      if (fr.endReason === "failsafe") this.failsafeFights++;
+      if (fr.events.some((e) => e.type === "gateOpen")) this.gateOpenedFights++;
       this.totalDuration += fr.durationSec;
       this.chainHist[fr.chainLength] = (this.chainHist[fr.chainLength] ?? 0) + 1;
     }
@@ -81,6 +102,9 @@ export class BatchAggregator {
       winRateByFightIndex: this.wonCount.map((w, i) => (this.reachedCount[i] ? w / (this.reachedCount[i] as number) : 0)),
       chainLengthHistogram: this.chainHist,
       fractionWinsWithChain3Plus: this.winsTotal > 0 ? this.winsWithChain3Plus / this.winsTotal : 0,
+      fractionWinsWithNoChain: this.winsTotal > 0 ? this.winsWithNoChain / this.winsTotal : 0,
+      gateCrossRate: this.totalFights > 0 ? this.gateOpenedFights / this.totalFights : 0,
+      failsafeRate: this.totalFights > 0 ? this.failsafeFights / this.totalFights : 0,
       ignitionRate: this.totalFights > 0 ? this.ignitedFights / this.totalFights : 0,
       meanFightDurationSec: this.totalFights > 0 ? this.totalDuration / this.totalFights : 0,
       meanDeathsPerRun: this.totalDeaths / this.n,
@@ -99,7 +123,10 @@ export function formatReport(report: BatchReport, label: string): string {
       .map((w, i) => `f${i + 1}=${(w * 100).toFixed(1)}%`)
       .join("  ")}`,
     `  ignition rate:         ${(report.ignitionRate * 100).toFixed(1)}%`,
+    `  gate-cross rate:       ${(report.gateCrossRate * 100).toFixed(1)}%`,
+    `  failsafe rate:         ${(report.failsafeRate * 100).toFixed(1)}%  (target: 0%)`,
     `  wins with chain>=3:    ${(report.fractionWinsWithChain3Plus * 100).toFixed(1)}%`,
+    `  wins with no chain:    ${(report.fractionWinsWithNoChain * 100).toFixed(1)}%  (big win, not only win)`,
     `  chain length hist:     ${histKeys.map((k) => `${k}:${report.chainLengthHistogram[k]}`).join("  ")}`,
     `  mean fight duration:   ${report.meanFightDurationSec.toFixed(2)}s`,
     `  mean deaths per run:   ${report.meanDeathsPerRun.toFixed(2)}`,

@@ -8,6 +8,14 @@
 
 ---
 
+## [2026-08-04] Legibility rewrite: per-hero combat, a visible enemy bruiser, and wipe-only resolution replace side-level DPS, the timed dip, and the coin-flip tie-break
+
+- **Decision:** Replace the fight's side-level DPS model with per-hero attack beats (attacker → target, visible); replace the enemy-DPS-decay curve with a single dominant "bruiser" enemy as the dip's cause; resolve every fight by wipe instead of a 30s timer; add three hero roles (tank/damage/support); add a run-start squad pick (3 of 6, default pre-filled) and a pre-fight enemy read.
+- **Why:** The first playable build was judged not fun — no visible cause for HP loss, an unexplainable turnaround, nothing to assemble. Root cause: the fight had no actors, only two meters moved by a hidden formula. This is a change to the fight's mechanism, not to the lead moment itself; it puts real pressure on "the cascade is the big win, not the only win" (per-hero combat can snowball), guarded by a new batch metric (`fractionWinsWithNoChain`, currently ≈79%) rather than by hope.
+- **Replaces:** The fight-level mechanism described in `FIGHT_SCRIPT.md` §3's DPS-decay dip and the run wrapper's 30s-timer/coin-flip resolve (2026-07-29/31 entries). The lead moment, the run shape, the coin economy, and both PRD tables are unchanged.
+
+---
+
 ## [2026-07-31] Prototype #1 scoped: a vehicle covering a full 5-fight run, with attrition, an in-run coin economy, and one optional-layer lever
 
 - **Decision:** Nine commitments that turn the specified *fight* into a buildable *loop*, and fix what the first build is for:

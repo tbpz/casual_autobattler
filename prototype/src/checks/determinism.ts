@@ -6,8 +6,8 @@
 import { Rng } from "../sim/rng.js";
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
 import { runFight } from "../sim/fight.js";
-import { makeSide } from "../sim/types.js";
-import { makePolicy, runRun } from "../sim/run.js";
+import { makePlayerSide } from "../sim/heroes.js";
+import { makePolicy, makeEnemySide, runRun } from "../sim/run.js";
 
 let failed = false;
 
@@ -25,8 +25,8 @@ const cfg = DEFAULT_RUN_CONFIG;
 // Fight-level determinism.
 const seed = 42;
 const setup = {
-  player: makeSide(cfg.playerN, cfg.fight.heroMaxHp, "p"),
-  enemy: makeSide(cfg.enemyN, cfg.enemyHpFight1 / cfg.enemyN, "e"),
+  player: makePlayerSide(),
+  enemy: makeEnemySide(cfg, 0),
   fightsSinceIgnition: 0,
 };
 const fightA = runFight(setup, cfg.fight, new Rng(seed), seed);
@@ -53,8 +53,8 @@ check("fight: different seeds -> at least one pair diverges", sawDivergence);
 
 // Run-level determinism.
 const policy = makePolicy("always-heal", cfg);
-const runA = runRun(cfg, new Rng(seed), policy, seed);
-const runB = runRun(cfg, new Rng(seed), policy, seed);
+const runA = runRun(cfg, new Rng(seed), policy, seed, makePlayerSide());
+const runB = runRun(cfg, new Rng(seed), policy, seed, makePlayerSide());
 check(
   "run: same seed -> identical fight-by-fight summary",
   JSON.stringify(runA.fights) === JSON.stringify(runB.fights),

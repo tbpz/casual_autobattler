@@ -4,6 +4,8 @@ import { FightView } from "./fightView.js";
 import { Playback } from "./playback.js";
 import { RunSession } from "./runSession.js";
 import { renderRunCompleteScreen, renderRunOverScreen, renderSpendScreen } from "./runScreens.js";
+import { renderSquadPickScreen } from "./squadPickScreen.js";
+import { renderPreFightScreen } from "./preFightScreen.js";
 
 const cfg = DEFAULT_RUN_CONFIG;
 
@@ -12,27 +14,15 @@ export function mountApp(root: HTMLElement): void {
   let playback: Playback | null = null;
 
   function startNewRun(): void {
-    const seed = Math.floor(Math.random() * 1_000_000_000);
-    session = new RunSession(cfg, seed);
-    showReadyScreen();
+    renderSquadPickScreen(root, (heroIds) => {
+      const seed = Math.floor(Math.random() * 1_000_000_000);
+      session = new RunSession(cfg, seed, heroIds);
+      showPreFightScreen();
+    });
   }
 
-  function showReadyScreen(): void {
-    root.innerHTML = "";
-    const wrap = document.createElement("div");
-    const label = document.createElement("p");
-    label.className = "fight-clock";
-    label.textContent = `Fight ${session.currentFightIndex + 1} of ${cfg.fightsPerRun}`;
-    wrap.appendChild(label);
-
-    const playBtn = document.createElement("button");
-    playBtn.textContent = "Play";
-    playBtn.style.display = "block";
-    playBtn.style.margin = "0 auto";
-    playBtn.addEventListener("click", playCurrentFight);
-    wrap.appendChild(playBtn);
-
-    root.appendChild(wrap);
+  function showPreFightScreen(): void {
+    renderPreFightScreen(root, cfg, session.currentFightIndex, session.currentPlayerSide, playCurrentFight);
   }
 
   function playCurrentFight(): void {
@@ -44,7 +34,7 @@ export function mountApp(root: HTMLElement): void {
     controls.className = "controls";
     root.appendChild(controls);
 
-    const view = new FightView(fightContainer, cfg.playerN, cfg.enemyN);
+    const view = new FightView(fightContainer, cfg.fight.eligibilityGateFraction);
     const result = session.playNextFight();
 
     playback = new Playback(
@@ -83,15 +73,7 @@ export function mountApp(root: HTMLElement): void {
         renderRunOverScreen(root, session.fights.length, startNewRun);
         return;
       }
-      renderSpendScreen(
-        root,
-        cfg,
-        session,
-        session.currentFightIndex,
-        session.pendingCoinAwarded,
-        result.ignited,
-        onSpendChoice,
-      );
+      renderSpendScreen(root, cfg, session, session.currentFightIndex, session.pendingCoinAwarded, result, onSpendChoice);
     }, 900);
   }
 
@@ -101,7 +83,7 @@ export function mountApp(root: HTMLElement): void {
       renderRunCompleteScreen(root, session.coinBalance, startNewRun);
       return;
     }
-    showReadyScreen();
+    showPreFightScreen();
   }
 
   startNewRun();

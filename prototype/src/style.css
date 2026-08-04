@@ -61,11 +61,31 @@ body {
 }
 
 .meter-track {
+  position: relative;
   flex: 1;
   height: 18px;
   border-radius: 9px;
   background: #2a2e3a;
   overflow: hidden;
+}
+
+.gate-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--muted);
+  opacity: 0.6;
+  z-index: 1;
+  transition:
+    opacity 0.2s linear,
+    background 0.2s linear;
+}
+
+.gate-mark.crossed {
+  background: var(--ignite);
+  opacity: 1;
+  box-shadow: 0 0 6px 1px var(--ignite);
 }
 
 .meter-fill {
@@ -124,24 +144,69 @@ body {
 
 .side {
   display: flex;
+  align-items: flex-end;
   gap: 14px;
 }
 
+.hero-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.body-name {
+  font-size: 0.65em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .body {
-  width: 40px;
-  height: 40px;
   border-radius: 50%;
   transition:
     opacity 0.2s linear,
-    transform 0.3s ease-in;
+    transform 0.3s ease-in,
+    filter 0.15s ease-out;
 }
 
-.player-side .body {
+.body.player-body {
   background: var(--player);
 }
 
-.enemy-side .body {
+.body.enemy-body {
   background: var(--enemy);
+}
+
+/* Role sizing/shape — a tank or bruiser reads as bigger and tougher at a
+   glance; support gets a squarish shape to hint "utility" rather than a
+   fighter; the bruiser is the biggest and most saturated body on screen,
+   since killing it is meant to be the dip's legible turnaround. */
+.body.role-tank {
+  width: 52px;
+  height: 52px;
+}
+
+.body.role-damage {
+  width: 34px;
+  height: 34px;
+}
+
+.body.role-support {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.body.role-grunt {
+  width: 34px;
+  height: 34px;
+}
+
+.body.role-bruiser {
+  width: 68px;
+  height: 68px;
+  background: #b23b3b;
+  box-shadow: 0 0 10px 2px rgba(178, 59, 59, 0.5);
 }
 
 .body.hot {
@@ -161,6 +226,65 @@ body {
 .body.down {
   transform: rotate(90deg) translateY(6px);
   opacity: 0.35 !important;
+}
+
+@keyframes lungeRight {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  40% {
+    transform: translateX(14px);
+  }
+}
+
+@keyframes lungeLeft {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  40% {
+    transform: translateX(-14px);
+  }
+}
+
+.body.lunge-right {
+  animation: lungeRight 0.25s ease-out;
+}
+
+.body.lunge-left {
+  animation: lungeLeft 0.25s ease-out;
+}
+
+@keyframes flinch {
+  0% {
+    filter: brightness(1);
+  }
+  30% {
+    filter: brightness(1.9) saturate(1.4);
+    transform: translateX(-4px);
+  }
+  100% {
+    filter: brightness(1);
+    transform: translateX(0);
+  }
+}
+
+.body.flinch {
+  animation: flinch 0.3s ease-out;
+}
+
+@keyframes healPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(90, 220, 130, 0.85);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(90, 220, 130, 0);
+  }
+}
+
+.body.healed {
+  animation: healPulse 0.5s ease-out;
 }
 
 .callout {
@@ -335,4 +459,123 @@ button:disabled {
 .coin {
   color: var(--ignite);
   font-weight: 700;
+}
+
+.recap {
+  color: var(--text);
+  background: #262a35;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.9em;
+}
+
+.play-btn {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 14px;
+  font-size: 1.05em;
+  font-weight: 700;
+  background: var(--player);
+  color: #0c1420;
+  border: none;
+}
+
+.play-btn:hover {
+  background: #66b8ff;
+}
+
+.play-btn:disabled {
+  background: #2a2e3a;
+  color: var(--muted);
+}
+
+/* ---------- Squad pick ---------- */
+
+.hint {
+  color: var(--muted);
+  margin-top: -8px;
+}
+
+.hero-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.hero-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #3a3f4e;
+  background: #20232c;
+  cursor: pointer;
+}
+
+.hero-pick-row.selected {
+  border-color: var(--player);
+  background: #1c2a3a;
+}
+
+.hero-pick-check {
+  width: 20px;
+  color: var(--player);
+  font-weight: 700;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.hero-pick-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.hero-pick-name {
+  font-weight: 700;
+}
+
+.hero-pick-role {
+  font-size: 0.8em;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.hero-pick-stats {
+  font-size: 0.85em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ---------- Pre-fight read ---------- */
+
+.pre-fight-compare {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.pre-fight-side {
+  flex: 1;
+  background: #20232c;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.pre-fight-side-title {
+  font-size: 0.85em;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.pre-fight-bodies {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 12px;
 }

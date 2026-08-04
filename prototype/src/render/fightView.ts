@@ -1,28 +1,38 @@
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
 
 /**
- * Renders one fight's replay: two aggregate meters, N stub bodies per side
- * (silhouette + color, identical stats — no role identity, per scope), the
- * ignition tell, and the chain's escalating damage-pop. Pure DOM + CSS, no
- * canvas library — the fight has no spatial movement to draw.
+ * Renders one fight's replay: two aggregate meters (with a mark for the
+ * eligibility gate), a body per hero sized/shaped by role with a name label,
+ * attack lunges and heal pulses so every HP change traces to a visible
+ * cause, the ignition tell, and the chain's escalating damage-pop.
  *
- * Driven entirely by render/playback.ts's onTick callback; never touches the
- * sim.
+ * Pure DOM + CSS, no canvas library. Driven entirely by render/playback.ts's
+ * onTick callback; never touches the sim.
+ *
+ * Bodies are built lazily from the first snapshot's hero list (id/name/role),
+ * not from a fixed N — attrition can leave a later fight with fewer than
+ * cfg.playerN living heroes, and the roster's role composition depends on
+ * the player's squad pick, neither of which the view should hardcode.
  */
 export class FightView {
   private playerMeterFill: HTMLElement;
   private enemyMeterFill: HTMLElement;
   private playerMeterLabel: HTMLElement;
   private enemyMeterLabel: HTMLElement;
+  private gateMark: HTMLElement;
   private playerBodies: Map<string, HTMLElement> = new Map();
   private enemyBodies: Map<string, HTMLElement> = new Map();
+  private heroNames: Map<string, string> = new Map();
+  private playerSlots: HTMLElement;
+  private enemySlots: HTMLElement;
   private arena: HTMLElement;
   private callout: HTMLElement;
   private popupLayer: HTMLElement;
   private resolveOverlay: HTMLElement;
   private clock: HTMLElement;
+  private built = false;
 
-  constructor(container: HTMLElement, playerN: number, enemyN: number) {
+  constructor(container: HTMLElement, eligibilityGateFraction: number) {
     container.innerHTML = "";
     container.classList.add("fight-view");
 
@@ -32,8 +42,12 @@ export class FightView {
 
     const meters = document.createElement("div");
     meters.className = "meters";
-    const [playerMeter, playerFill, playerLabel] = makeMeter("player");
+    const [playerMeter, playerFill, playerLabel, playerTrack] = makeMeter("player");
     const [enemyMeter, enemyFill, enemyLabel] = makeMeter("enemy");
+    this.gateMark = document.createElement("div");
+    this.gateMark.className = "gate-mark";
+    this.gateMark.style.left = `${eligibilityGateFraction * 100}%`;
+    playerTrack.appendChild(this.gateMark);
     meters.appendChild(playerMeter);
     meters.appendChild(enemyMeter);
     container.appendChild(meters);
@@ -44,22 +58,12 @@ export class FightView {
 
     this.arena = document.createElement("div");
     this.arena.className = "arena";
-    const playerSide = document.createElement("div");
-    playerSide.className = "side player-side";
-    const enemySide = document.createElement("div");
-    enemySide.className = "side enemy-side";
-    for (let i = 0; i < playerN; i++) {
-      const body = makeBody(`p${i}`);
-      playerSide.appendChild(body);
-      this.playerBodies.set(`p${i}`, body);
-    }
-    for (let i = 0; i < enemyN; i++) {
-      const body = makeBody(`e${i}`);
-      enemySide.appendChild(body);
-      this.enemyBodies.set(`e${i}`, body);
-    }
-    this.arena.appendChild(playerSide);
-    this.arena.appendChild(enemySide);
+    this.playerSlots = document.createElement("div");
+    this.playerSlots.className = "side player-side";
+    this.enemySlots = document.createElement("div");
+    this.enemySlots.className = "side enemy-side";
+    this.arena.appendChild(this.playerSlots);
+    this.arena.appendChild(this.enemySlots);
     container.appendChild(this.arena);
 
     this.callout = document.createElement("div");
@@ -76,6 +80,12 @@ export class FightView {
   }
 
   render(snapshot: TickSnapshot, eventsThisTick: FightEvent[]): void {
+    if (!this.built) {
+      this.buildBodies(this.playerSlots, this.playerBodies, snapshot.playerHeroes, "player");
+      this.buildBodies(this.enemySlots, this.enemyBodies, snapshot.enemyHeroes, "enemy");
+      this.built = true;
+    }
+
     this.clock.textContent = `t = ${snapshot.t.toFixed(1)}s`;
 
     const playerFraction = snapshot.playerMaxHp > 0 ? snapshot.playerHp / snapshot.playerMaxHp : 0;
@@ -84,6 +94,7 @@ export class FightView {
     this.enemyMeterFill.style.width = `${(enemyFraction * 100).toFixed(1)}%`;
     this.playerMeterLabel.textContent = `${Math.round(snapshot.playerHp)} / ${Math.round(snapshot.playerMaxHp)}`;
     this.enemyMeterLabel.textContent = `${Math.round(snapshot.enemyHp)} / ${Math.round(snapshot.enemyMaxHp)}`;
+    this.gateMark.classList.toggle("crossed", snapshot.gateOpen);
 
     updateBodies(this.playerBodies, snapshot.playerHeroes, snapshot.hotHeroId);
     updateBodies(this.enemyBodies, snapshot.enemyHeroes, null);
@@ -100,14 +111,35 @@ export class FightView {
     this.callout.classList.remove("show");
     this.popupLayer.innerHTML = "";
     this.arena.classList.remove("shake");
+    this.gateMark.classList.remove("crossed");
     for (const body of [...this.playerBodies.values(), ...this.enemyBodies.values()]) {
-      body.classList.remove("down", "hot");
+      body.classList.remove("down", "hot", "lunge-right", "lunge-left", "flinch", "healed");
       body.style.opacity = "1";
+    }
+  }
+
+  private buildBodies(
+    container: HTMLElement,
+    map: Map<string, HTMLElement>,
+    heroes: HeroSnapshot[],
+    side: "player" | "enemy",
+  ): void {
+    for (const hero of heroes) {
+      const [slot, body] = makeHeroSlot(hero, side);
+      container.appendChild(slot);
+      map.set(hero.id, body);
+      this.heroNames.set(hero.id, hero.name);
     }
   }
 
   private handleEvent(e: FightEvent): void {
     switch (e.type) {
+      case "attack":
+        this.showAttack(e.side, e.attackerId, e.targetId);
+        break;
+      case "heal":
+        this.showHeal(e.targetId);
+        break;
       case "ignitionRoll":
         if (e.fired && e.heroId) {
           this.showIgnition(e.heroId);
@@ -124,8 +156,23 @@ export class FightView {
     }
   }
 
+  private showAttack(side: "player" | "enemy", attackerId: string, targetId: string): void {
+    const attackerBodies = side === "player" ? this.playerBodies : this.enemyBodies;
+    const defenderBodies = side === "player" ? this.enemyBodies : this.playerBodies;
+    const attacker = attackerBodies.get(attackerId);
+    const target = defenderBodies.get(targetId);
+    if (attacker) pulseClass(attacker, side === "player" ? "lunge-right" : "lunge-left", 250);
+    if (target) pulseClass(target, "flinch", 300);
+  }
+
+  private showHeal(targetId: string): void {
+    const target = this.playerBodies.get(targetId) ?? this.enemyBodies.get(targetId);
+    if (target) pulseClass(target, "healed", 500);
+  }
+
   private showIgnition(heroId: string): void {
-    this.callout.textContent = `${heroId.toUpperCase()} IGNITES!`;
+    const name = this.heroNames.get(heroId) ?? heroId;
+    this.callout.textContent = `${name.toUpperCase()} IGNITES!`;
     this.callout.classList.remove("show");
     // Force reflow so the animation restarts if triggered again mid-run.
     void this.callout.offsetWidth;
@@ -170,7 +217,7 @@ export class FightView {
   }
 }
 
-function makeMeter(side: "player" | "enemy"): [HTMLElement, HTMLElement, HTMLElement] {
+function makeMeter(side: "player" | "enemy"): [HTMLElement, HTMLElement, HTMLElement, HTMLElement] {
   const meter = document.createElement("div");
   meter.className = `meter ${side}`;
   const track = document.createElement("div");
@@ -182,14 +229,30 @@ function makeMeter(side: "player" | "enemy"): [HTMLElement, HTMLElement, HTMLEle
   track.appendChild(fill);
   meter.appendChild(track);
   meter.appendChild(label);
-  return [meter, fill, label];
+  return [meter, fill, label, track];
 }
 
-function makeBody(id: string): HTMLElement {
+function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy"): [HTMLElement, HTMLElement] {
+  const slot = document.createElement("div");
+  slot.className = "hero-slot";
   const body = document.createElement("div");
-  body.className = "body";
-  body.dataset.id = id;
-  return body;
+  body.className = `body ${side}-body role-${hero.role}`;
+  body.dataset.id = hero.id;
+  const name = document.createElement("div");
+  name.className = "body-name";
+  name.textContent = hero.name;
+  slot.appendChild(body);
+  slot.appendChild(name);
+  return [slot, body];
+}
+
+/** Adds `className` to `el`, then removes it after `ms` — restarting the
+ * animation if it's re-triggered before the previous run finished. */
+function pulseClass(el: HTMLElement, className: string, ms: number): void {
+  el.classList.remove(className);
+  void el.offsetWidth;
+  el.classList.add(className);
+  setTimeout(() => el.classList.remove(className), ms);
 }
 
 function updateBodies(bodies: Map<string, HTMLElement>, heroes: HeroSnapshot[], hotHeroId: string | null): void {

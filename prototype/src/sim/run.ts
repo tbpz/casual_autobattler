@@ -1,7 +1,7 @@
 import type { Rng } from "./rng.js";
-import type { DeathPolicy, RunConfig } from "./config.js";
+import type { DeathPolicy, EnemyArchetype, RunConfig } from "./config.js";
 import type { FightSetup, HeroState, SideState } from "./types.js";
-import { makeSide, sideHp, sideMaxHp } from "./types.js";
+import { sideHp, sideMaxHp } from "./types.js";
 import { runFight } from "./fight.js";
 import type { FightResult } from "./events.js";
 
@@ -56,15 +56,49 @@ export interface RunResult {
  * same rules rather than two copies that could drift apart.
  */
 
-export function enemyHpForFight(cfg: RunConfig, fightIndex: number): number {
-  return cfg.enemyHpFight1 * Math.pow(cfg.difficultyRampFactor, fightIndex);
+/** Scales only HP with the difficulty ramp, not damage — a later fight is a
+ * longer grind, not a harder-hitting one. Scaling both compounds far faster:
+ * enemy dps rising alongside enemy HP means the player pool drains faster
+ * *and* takes longer to return the favor, at the same time. Measured via the
+ * batch harness during the 2026-08-04 legibility rewrite: scaling both at
+ * 1.08 collapsed win rate from ~100% (fights 1-2) to ~13% (fight 3). */
+function scaledArchetype(def: EnemyArchetype, rampFactor: number, fightIndex: number): EnemyArchetype {
+  const scale = Math.pow(rampFactor, fightIndex);
+  return { ...def, maxHp: def.maxHp * scale };
 }
 
-export function makeEnemySide(n: number, totalHp: number): SideState {
-  const per = totalHp / n;
-  const heroes: HeroState[] = [];
-  for (let i = 0; i < n; i++) {
-    heroes.push({ id: `e${i}`, maxHp: per, hp: per, alive: true });
+/** Builds the enemy side for a fight: one bruiser (front, the dip's visible
+ * cause) plus (n-1) grunts, both archetypes scaled by the difficulty ramp.
+ * Bruiser leads the roster so the player's front-targeting attacks (fight.ts)
+ * reliably hit it first — the "kill the big one, the dip ends" causal story. */
+export function makeEnemySide(cfg: RunConfig, fightIndex: number): SideState {
+  const bruiser = scaledArchetype(cfg.bruiser, cfg.difficultyRampFactor, fightIndex);
+  const grunt = scaledArchetype(cfg.grunt, cfg.difficultyRampFactor, fightIndex);
+  const heroes: HeroState[] = [
+    {
+      id: "e0_bruiser",
+      name: `${bruiser.namePrefix}`,
+      role: "bruiser",
+      maxHp: bruiser.maxHp,
+      hp: bruiser.maxHp,
+      alive: true,
+      damage: bruiser.damage,
+      attackIntervalSec: bruiser.attackIntervalSec,
+      nextAttackT: bruiser.attackIntervalSec,
+    },
+  ];
+  for (let i = 1; i < cfg.enemyN; i++) {
+    heroes.push({
+      id: `e${i}_grunt`,
+      name: `${grunt.namePrefix} ${i}`,
+      role: "grunt",
+      maxHp: grunt.maxHp,
+      hp: grunt.maxHp,
+      alive: true,
+      damage: grunt.damage,
+      attackIntervalSec: grunt.attackIntervalSec,
+      nextAttackT: grunt.attackIntervalSec,
+    });
   }
   return { heroes, dpsBonus: 0 };
 }
@@ -154,9 +188,9 @@ export function summarizeWin(
   };
 }
 
-/** Runs one full 5-fight run to completion. Pure given (cfg, rng, policy). */
-export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number): RunResult {
-  let player = makeSide(cfg.playerN, cfg.fight.heroMaxHp, "p");
+/** Runs one full 5-fight run to completion. Pure given (cfg, rng, policy, player). */
+export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number, initialPlayer: SideState): RunResult {
+  let player = initialPlayer;
   let fightsSinceIgnition = 0;
   let coin = 0;
 
@@ -164,7 +198,7 @@ export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number
   const fightResults: FightResult[] = [];
 
   for (let i = 0; i < cfg.fightsPerRun; i++) {
-    const enemy = makeEnemySide(cfg.enemyN, enemyHpForFight(cfg, i));
+    const enemy = makeEnemySide(cfg, i);
 
     const setup: FightSetup = { player, enemy, fightsSinceIgnition };
     const result = runFight(setup, cfg.fight, rng, seed);
