@@ -5,6 +5,7 @@ import { sideHp, sideMaxHp } from "../sim/types.js";
 import { makePlayerSide } from "../sim/heroes.js";
 import { runFight } from "../sim/fight.js";
 import type { FightResult } from "../sim/events.js";
+import { project, type Projection } from "../sim/projection.js";
 import {
   applyFightResultToPlayer,
   applySpend,
@@ -35,6 +36,12 @@ export class RunSession {
 
   fights: FightSummary[] = [];
   lastFightResult: FightResult | null = null;
+  /** The projection computed just before the fight just resolved was run —
+   * stashed here so the post-fight recap (runScreens.ts's fightRecap) can
+   * compare projected vs. actual in the same units the pre-fight screen
+   * showed. See DECISIONS.md's 2026-08-06 "squad pick is the risk dial"
+   * entry. */
+  lastProjection: Projection | null = null;
   /** Coin earned by the fight just resolved, pending the spend decision. */
   pendingCoinAwarded = 0;
   status: "in-progress" | "complete" | "over" = "in-progress";
@@ -72,6 +79,10 @@ export class RunSession {
    * after the player (or the accept-default) decides. */
   playNextFight(): FightResult {
     const enemy = makeEnemySide(this.cfg, this.fightIndex);
+    // Computed BEFORE runFight so the recap compares against what was
+    // actually shown on the pre-fight screen, not a value derived after the
+    // fact from the outcome.
+    this.lastProjection = project(this.player, enemy, this.cfg.fight);
     const setup: FightSetup = { player: this.player, enemy, fightsSinceIgnition: this.fightsSinceIgnition };
     const result = runFight(setup, this.cfg.fight, this.rng, this.seed);
     this.lastFightResult = result;

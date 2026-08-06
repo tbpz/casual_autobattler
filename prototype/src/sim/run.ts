@@ -74,6 +74,11 @@ function scaledArchetype(def: EnemyArchetype, rampFactor: number, fightIndex: nu
 export function makeEnemySide(cfg: RunConfig, fightIndex: number): SideState {
   const bruiser = scaledArchetype(cfg.bruiser, cfg.difficultyRampFactor, fightIndex);
   const grunt = scaledArchetype(cfg.grunt, cfg.difficultyRampFactor, fightIndex);
+  // Every enemy shares an attackIntervalSec within its archetype, so without
+  // a phase offset the grunts would all beat on the identical tick — the
+  // same collision problem heroes.ts's makeHeroState fixes for the player
+  // side (2026-08-06). Bruiser gets phase 0 (front, fires first); grunts
+  // spread across the remaining slots.
   const heroes: HeroState[] = [
     {
       id: "e0_bruiser",
@@ -85,9 +90,15 @@ export function makeEnemySide(cfg: RunConfig, fightIndex: number): SideState {
       damage: bruiser.damage,
       attackIntervalSec: bruiser.attackIntervalSec,
       nextAttackT: bruiser.attackIntervalSec,
+      dealt: 0,
+      soaked: 0,
+      restored: 0,
+      hitsTaken: 0,
+      holding: false,
     },
   ];
   for (let i = 1; i < cfg.enemyN; i++) {
+    const phase = i / cfg.enemyN;
     heroes.push({
       id: `e${i}_grunt`,
       name: `${grunt.namePrefix} ${i}`,
@@ -97,7 +108,12 @@ export function makeEnemySide(cfg: RunConfig, fightIndex: number): SideState {
       alive: true,
       damage: grunt.damage,
       attackIntervalSec: grunt.attackIntervalSec,
-      nextAttackT: grunt.attackIntervalSec,
+      nextAttackT: grunt.attackIntervalSec * (1 - phase * 0.8),
+      dealt: 0,
+      soaked: 0,
+      restored: 0,
+      hitsTaken: 0,
+      holding: false,
     });
   }
   return { heroes, dpsBonus: 0 };

@@ -1,20 +1,24 @@
 /**
- * Regression pin for fight 1 (default roster, no ramp, seed=8), with both PRD
- * tables zeroed so the pure-combat trajectory is isolated from the two dice
- * layered on top of it.
+ * Regression pins for two representative comps, both PRD tables zeroed so
+ * the pure-combat trajectory is isolated from the two dice layered on top
+ * of it (ignition and chain).
  *
- * Unlike the pre-2026-08-04 version of this check, the exact numbers below
- * are *not* hand-derivable from the constants alone: the support hero's
- * in-combat healing (fight.ts's performHeroAction) and the enemy's
- * weighted-random targeting (pickWeightedTargetId) both consume the RNG
- * stream, so exactly when the eligibility gate opens — and whether it opens
- * before or after the bruiser falls — varies seed to seed (confirmed by
- * scanning seeds 1-10 during the 2026-08-04 legibility rewrite: order and
- * timing both move). What *is* still deterministic, and worth pinning, is
- * the aggregate shape: total damage output per tick depends only on who's
- * alive, not on which specific hero a hit lands on, so a fixed seed always
- * reproduces the same beat-by-beat event log. That reproducibility — not an
- * independently-derived arithmetic check — is what this test guards.
+ * Inverted 2026-08-06 (see DECISIONS.md's "jeopardy no longer mandatory"
+ * entry). The pre-2026-08-06 version of this file pinned "the gate must
+ * open — jeopardy is mandatory every fight" and had to hand-pick seed 8
+ * specifically because the gate happened to open there (a comment on that
+ * version noted 4 of the first 10 seeds tried never crossed the threshold
+ * at all). That was the bug, not a fact to defend: a comp built to be safe
+ * should be ABLE to win with no dip, no gate, and no ignition roll — and
+ * usually does. This file pins one seed of the comfortable comp doing
+ * exactly that, and one seed of an under-tanked comp reliably dipping
+ * instead, as the funnel's two anchor points.
+ *
+ * As in the pre-2026-08-06 version, exact event *timing* is not
+ * independently hand-derivable (support healing and weighted-random enemy
+ * targeting both consume the RNG stream, so precisely which beat a
+ * transition lands on moves seed to seed) — what's pinned is the *shape*:
+ * whether a dip/gate happens at all, and their relative order when they do.
  */
 import { Rng } from "../sim/rng.js";
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
@@ -24,50 +28,51 @@ import { makeEnemySide } from "../sim/run.js";
 
 let failed = false;
 
-function equal(name: string, actual: unknown, expected: unknown): void {
-  const ok = actual === expected;
-  console.log(`${ok ? "PASS" : "FAIL"}: ${name} — got ${String(actual)}, expected ${String(expected)}`);
+function check(name: string, condition: boolean, detail = ""): void {
+  const ok = condition;
+  console.log(`${ok ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
   if (!ok) failed = true;
 }
 
-const cfg = { ...DEFAULT_RUN_CONFIG, fight: { ...DEFAULT_RUN_CONFIG.fight, ignitionChanceByFightsSince: [0], chainChanceByHitsSoFar: [0] } };
-const setup = {
-  player: makePlayerSide(),
-  enemy: makeEnemySide(cfg, 0),
-  fightsSinceIgnition: 0,
+const cfg = {
+  ...DEFAULT_RUN_CONFIG,
+  fight: { ...DEFAULT_RUN_CONFIG.fight, ignitionChanceByFightsSince: [0], chainChanceByHitsSoFar: [0] },
 };
-const result = runFight(setup, cfg.fight, new Rng(8), 8);
 
-// The eligibility gate must still open — jeopardy is mandatory (DECISIONS.md
-// 2026-07-28) — even though support healing means it doesn't open on every
-// seed's fight 1 (scan seeds 1-10: 4/10 never cross the 40% threshold at all
-// with a fresh, undamaged squad). Seed 8 is chosen specifically because it does.
-const gateEvent = result.events.find((e) => e.type === "gateOpen");
-if (!gateEvent) {
-  console.log("FAIL: gate never opened");
-  failed = true;
-} else {
-  equal("gate-open time", gateEvent.t, 17);
+// --- Comfortable comp: bracer+rook+cairn, the default roster. Batch-verified
+// (npm run batch --squad comfortable) dip rate ~27% at these constants, so
+// "never dips" is a per-seed fact, not a guarantee — seed 1 is one of the
+// ~73% of fights that doesn't, chosen for that reason, not because it's
+// special.
+{
+  const setup = { player: makePlayerSide(["bracer", "rook", "cairn"]), enemy: makeEnemySide(cfg, 0), fightsSinceIgnition: 0 };
+  const result = runFight(setup, cfg.fight, new Rng(1), 1);
+
+  check("comfortable comp: tank line never breaks", !result.events.some((e) => e.type === "tankBreak"));
+  check("comfortable comp: gate never opens", !result.events.some((e) => e.type === "gateOpen"));
+  check("comfortable comp: no dip recorded", !result.dipOccurred);
+  check("comfortable comp: wins by wipe", result.outcome === "win" && result.endReason === "wipe");
 }
 
-// The bruiser is the dip's visible cause — killing it is the turnaround.
-const bruiserDown = result.events.find((e) => e.type === "heroDown" && e.side === "enemy" && e.heroId === "e0_bruiser");
-if (!bruiserDown) {
-  console.log("FAIL: bruiser never fell");
-  failed = true;
-} else {
-  equal("bruiser death time", bruiserDown.t, 16);
+// --- Under-tanked comp: hollow (the weaker of the two tanks) + rook + ward
+// (the weaker healer, half of Cairn's heal-per-beat) — a tank with thin
+// support. npm run batch --squad hollow,rook,ward reports ~66% dip rate
+// averaged across a full run's 5 (difficulty-ramped) fights; fight 1 alone,
+// against the unscaled fight-0 enemy this check uses, dips less often —
+// seeds 1-15 scanned, seed 12 picked as one of the fight-1 seeds that does.
+{
+  const setup = { player: makePlayerSide(["hollow", "rook", "ward"]), enemy: makeEnemySide(cfg, 0), fightsSinceIgnition: 0 };
+  const result = runFight(setup, cfg.fight, new Rng(12), 12);
+
+  const breakEvent = result.events.find((e) => e.type === "tankBreak");
+  const gateEvent = result.events.find((e) => e.type === "gateOpen");
+  check("under-tanked comp: tank line breaks", !!breakEvent);
+  check("under-tanked comp: gate opens", !!gateEvent);
+  if (breakEvent && gateEvent) {
+    check("under-tanked comp: tank breaks before the gate opens", breakEvent.t <= gateEvent.t, `break=${breakEvent.t} gate=${gateEvent.t}`);
+  }
+  check("under-tanked comp: dip recorded", result.dipOccurred);
 }
-
-// No cascade (both PRD tables zeroed) — the fight is won on ordinary combat alone.
-equal("no ignition", result.ignited, false);
-equal("no chain", result.chainLength, 0);
-
-// Fight ends by wiping the enemy, not by hitting the failsafe.
-equal("outcome", result.outcome, "win");
-equal("end reason", result.endReason, "wipe");
-equal("fight duration", result.durationSec, 26);
-equal("final player HP", Math.round(result.finalPlayerHeroes.reduce((s, h) => s + h.hp, 0)), 140);
 
 if (failed) {
   console.error("\nbeatsheet check FAILED");

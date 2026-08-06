@@ -19,6 +19,18 @@ import type { RunResult } from "../sim/run.js";
  *  - failsafeRate: should be ~0% always — fights are meant to resolve by
  *    wipe now that the 30s timer is gone; any failsafe hit means a fight
  *    stalled and the sim's maxFightSec safety net had to step in.
+ *
+ * Two more added for the 2026-08-06 legibility pass (see DECISIONS.md's
+ * "jeopardy no longer mandatory" and "spectacle gated on payoff" entries):
+ *  - dipRate: fraction of fights where the player's tank line ever broke (or
+ *    there was no tank to break). Target ~20-30% for a comfortable comp —
+ *    down from ~100% under the old always-mandatory gate.
+ *  - fullSpectacleRate: fraction of fights that hit chainFullTellThreshold+
+ *    (the shake/loud-callout tier). This MUST equal fractionWinsWithChain3Plus
+ *    by construction (both count the same chain length) — the metric exists
+ *    so a future change to the tell thresholds can't silently reintroduce
+ *    the RC1 bug (spectacle firing far more often than the payoff it
+ *    advertises) without a batch number catching it.
  */
 export interface BatchReport {
   n: number;
@@ -32,6 +44,8 @@ export interface BatchReport {
   gateCrossRate: number;
   failsafeRate: number;
   ignitionRate: number;
+  dipRate: number;
+  fullSpectacleRate: number;
   meanFightDurationSec: number;
   meanDeathsPerRun: number;
 }
@@ -54,6 +68,8 @@ export class BatchAggregator {
   private gateOpenedFights = 0;
   private failsafeFights = 0;
   private ignitedFights = 0;
+  private dipFights = 0;
+  private fullSpectacleFights = 0;
   private totalFights = 0;
   private totalDuration = 0;
   private totalDeaths = 0;
@@ -84,6 +100,8 @@ export class BatchAggregator {
       if (fr.ignited) this.ignitedFights++;
       if (fr.endReason === "failsafe") this.failsafeFights++;
       if (fr.events.some((e) => e.type === "gateOpen")) this.gateOpenedFights++;
+      if (fr.dipOccurred) this.dipFights++;
+      if (fr.chainLength >= this.cfg.fight.chainFullTellThreshold) this.fullSpectacleFights++;
       this.totalDuration += fr.durationSec;
       this.chainHist[fr.chainLength] = (this.chainHist[fr.chainLength] ?? 0) + 1;
     }
@@ -106,6 +124,8 @@ export class BatchAggregator {
       gateCrossRate: this.totalFights > 0 ? this.gateOpenedFights / this.totalFights : 0,
       failsafeRate: this.totalFights > 0 ? this.failsafeFights / this.totalFights : 0,
       ignitionRate: this.totalFights > 0 ? this.ignitedFights / this.totalFights : 0,
+      dipRate: this.totalFights > 0 ? this.dipFights / this.totalFights : 0,
+      fullSpectacleRate: this.totalFights > 0 ? this.fullSpectacleFights / this.totalFights : 0,
       meanFightDurationSec: this.totalFights > 0 ? this.totalDuration / this.totalFights : 0,
       meanDeathsPerRun: this.totalDeaths / this.n,
     };
@@ -122,8 +142,10 @@ export function formatReport(report: BatchReport, label: string): string {
     `  win rate by fight:     ${report.winRateByFightIndex
       .map((w, i) => `f${i + 1}=${(w * 100).toFixed(1)}%`)
       .join("  ")}`,
+    `  dip rate:              ${(report.dipRate * 100).toFixed(1)}%  (tank line ever broke, or no tank)`,
     `  ignition rate:         ${(report.ignitionRate * 100).toFixed(1)}%`,
     `  gate-cross rate:       ${(report.gateCrossRate * 100).toFixed(1)}%`,
+    `  full-spectacle rate:   ${(report.fullSpectacleRate * 100).toFixed(1)}%  (should track wins-with-chain>=3, below)`,
     `  failsafe rate:         ${(report.failsafeRate * 100).toFixed(1)}%  (target: 0%)`,
     `  wins with chain>=3:    ${(report.fractionWinsWithChain3Plus * 100).toFixed(1)}%`,
     `  wins with no chain:    ${(report.fractionWinsWithNoChain * 100).toFixed(1)}%  (big win, not only win)`,

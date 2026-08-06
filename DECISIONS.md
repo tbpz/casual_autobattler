@@ -8,6 +8,32 @@
 
 ---
 
+## [2026-08-06] The squad pick becomes the run's risk dial; the cascade is only reachable from a broken tank line
+
+- **Decision:** The player's squad composition determines how dangerous a fight is, via a pre-fight projection (comfortable / tight / losing) computed from mean-value DPS/HP math. The ignition gate (see the same day's "spectacle" entry) is only reachable once the squad's own tank line has broken (or, for tankless comps, the squad is projected to lose from the current position) — not from arithmetic pool-draining alone.
+- **Why:** The player named the missing ingredient directly: "these moments have value because they happen once in a while, and the player needs to take a risk to earn that." A safe, balanced comp (tank/damage/support) should win clean and boring, with no cascade available to it. A greedy comp (e.g. two damage dealers, no tank) buys access to the big moment by accepting real danger. This gives "assemble your squad" a mechanical consequence beyond flavor, partially answering the open question of what the optional layer is allowed to modify in the fight.
+- **Replaces:** Nothing directly, but changes how the eligibility gate (2026-07-29) is reached — see the "spectacle gated on payoff" and "jeopardy no longer mandatory" entries below, which this decision depends on.
+
+## [2026-08-06] Spectacle (shake, callout, glow, escalating numbers) is gated on the chain's actual length, not on the ignition roll
+
+- **Decision:** The full visual spectacle — screen shake, name callout, permanent hero glow, escalating damage font — fires only once a chain reaches a length threshold (3+), not the instant the ignition roll succeeds. A length-1 chain gets a slightly bigger damage number and nothing else; a length-2 chain adds a small callout and a glow. Ordinary attacks and heals gain their own small damage/heal numbers so they're legible without needing the spectacle vocabulary at all.
+- **Why:** Measured directly from the running build: `npm run check:chaindist` showed an ignition rate of 64.65% against a chain≥3 rate of 7.30% — meaning the full light show fired roughly nine times for every one time the payoff it advertised actually happened (confirmed in a sampled run: two consecutive fights returned `ignited=true, chain=0` — full fireworks, zero effect). The player reported exactly the predicted consequence: "I don't even know what they are... it feels like a script fight." Gating spectacle on the outcome rather than the trigger means the rare, real payoff is the only time the game performs it, which is what makes it legible as rare.
+- **Replaces:** The 2026-08-04 legibility rewrite's ignition tell (`fightView.ts`'s `showIgnition`, which fired shake+callout+permanent-glow on every successful ignition roll regardless of resulting chain length).
+
+## [2026-08-06] In-fight jeopardy is no longer mandatory every fight
+
+- **Decision:** The eligibility gate — and therefore the possibility of a dip/comeback beat at all — is no longer guaranteed to open every fight. Whether a fight has jeopardy now depends on the squad's composition (see the same day's "squad pick is the risk dial" entry): a comfortable comp can win a fight with no dip, no gate, no ignition roll, ever. Target funnel: roughly 3 in 4 fights are completely undramatic.
+- **Why:** Reverses the 2026-07-28 stakes-shape decision's "in-fight jeopardy mandatory" clause. The player's own diagnosis: "these moments have value because they happen once in a while... right now it happens every fight so I feel no emotion for that and feel scripted." Verified in the code: the eligibility gate (pool ≤ 40% of fight-start max) was reached by arithmetic in nearly every fight regardless of play; `checks/beatsheet.ts` had to hand-pick a seed specifically because the gate didn't open on 4 of the first 10 seeds tried. A guaranteed near-loss is not a comeback — it's a cutscene the player learns to sit through. Rarity, bought with an elected risk at squad-pick time, is what restores the moment's value.
+- **Replaces:** The mandatory-jeopardy clause of `[2026-07-28] Stakes' shape`. The run-scoped economy, permanent-loss ban, and both PRD tables named in that entry are unaffected.
+
+## [2026-08-06] Per-hero HP bars replace the two aggregate side meters
+
+- **Decision:** Both sides render six (or fewer, post-attrition) individual, proportionally-sized HP bars instead of one aggregate meter per side. Bar width scales with each hero's maxHp, so a 200 HP tank's bar is visibly ~4x a 45 HP glass cannon's — this gives a shared scale across bars (total bar-pixels on a side still reads as that side's total remaining HP) while also making each hero's individual state legible.
+- **Why:** The player's core complaint — "I never know if my tanker takes damage... my dealer deals good damage... my healer is doing his job" — is a direct consequence of per-hero HP being encoded as circle opacity between 0.4 and 1.0, the least legible channel available, while the only prominent readout (the two aggregate meters) throws away exactly the per-hero information the player's squad plan needs to be checked against. Per-hero HP bars, plus job counters (soaked/dealt/restored) added the same day, are what let the player verify their plan actually happened.
+- **Replaces:** `STATE.md`'s design-spine reasoning against per-hero bars ("not per-hero bars — six bars have no shared scale, so a glancing player can't tell who's winning") — proportional bar widths are the fix that reasoning didn't consider.
+
+---
+
 ## [2026-08-04] Legibility rewrite: per-hero combat, a visible enemy bruiser, and wipe-only resolution replace side-level DPS, the timed dip, and the coin-flip tie-break
 
 - **Decision:** Replace the fight's side-level DPS model with per-hero attack beats (attacker → target, visible); replace the enemy-DPS-decay curve with a single dominant "bruiser" enemy as the dip's cause; resolve every fight by wipe instead of a 30s timer; add three hero roles (tank/damage/support); add a run-start squad pick (3 of 6, default pre-filled) and a pre-fight enemy read.

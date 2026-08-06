@@ -14,7 +14,7 @@ export function mountApp(root: HTMLElement): void {
   let playback: Playback | null = null;
 
   function startNewRun(): void {
-    renderSquadPickScreen(root, (heroIds) => {
+    renderSquadPickScreen(root, cfg, (heroIds) => {
       const seed = Math.floor(Math.random() * 1_000_000_000);
       session = new RunSession(cfg, seed, heroIds);
       showPreFightScreen();
@@ -34,7 +34,7 @@ export function mountApp(root: HTMLElement): void {
     controls.className = "controls";
     root.appendChild(controls);
 
-    const view = new FightView(fightContainer, cfg.fight.eligibilityGateFraction);
+    const view = new FightView(fightContainer, cfg.fight);
     const result = session.playNextFight();
 
     playback = new Playback(
@@ -73,7 +73,16 @@ export function mountApp(root: HTMLElement): void {
         renderRunOverScreen(root, session.fights.length, startNewRun);
         return;
       }
-      renderSpendScreen(root, cfg, session, session.currentFightIndex, session.pendingCoinAwarded, result, onSpendChoice);
+      renderSpendScreen(
+        root,
+        cfg,
+        session,
+        session.currentFightIndex,
+        session.pendingCoinAwarded,
+        result,
+        session.lastProjection,
+        onSpendChoice,
+      );
     }, 900);
   }
 

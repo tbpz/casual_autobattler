@@ -10,10 +10,11 @@
     "fight": "tsx src/batch/cli.ts fight",
     "run": "tsx src/batch/cli.ts run",
     "batch": "tsx src/batch/cli.ts batch",
-    "check": "npm run check:determinism && npm run check:beatsheet && npm run check:chaindist",
+    "check": "npm run check:determinism && npm run check:beatsheet && npm run check:chaindist && npm run check:projection",
     "check:determinism": "tsx src/checks/determinism.ts",
     "check:beatsheet": "tsx src/checks/beatsheet.ts",
-    "check:chaindist": "tsx src/checks/chaindist.ts"
+    "check:chaindist": "tsx src/checks/chaindist.ts",
+    "check:projection": "tsx src/checks/projection.ts"
   },
   "devDependencies": {
     "vite": "^8.2.0",

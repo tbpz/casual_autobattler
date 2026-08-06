@@ -1,4 +1,7 @@
-import { DEFAULT_PLAYER_ROSTER_IDS, PLAYER_HERO_POOL } from "../sim/heroes.js";
+import type { RunConfig } from "../sim/config.js";
+import { DEFAULT_PLAYER_ROSTER_IDS, PLAYER_HERO_POOL, makePlayerSide } from "../sim/heroes.js";
+import { makeEnemySide } from "../sim/run.js";
+import { project } from "../sim/projection.js";
 
 /**
  * Run-start squad pick: 3 of 6, pre-checked with the default roster and a
@@ -6,8 +9,14 @@ import { DEFAULT_PLAYER_ROSTER_IDS, PLAYER_HERO_POOL } from "../sim/heroes.js";
  * "optional layer must stay optional" rule (DECISIONS.md 2026-07-26, 0/4 in
  * probing when forced). Picking a 4th swaps out the earliest pick so the
  * roster always holds exactly 3.
+ *
+ * As of 2026-08-06 (see DECISIONS.md's "squad pick is the risk dial" entry)
+ * the pick also renders a live projection verdict against fight 1's enemy
+ * composition, computed by sim/projection.ts — the same module the
+ * pre-fight screen and the post-fight recap use, so the three can never
+ * disagree about what a comp was expected to do.
  */
-export function renderSquadPickScreen(container: HTMLElement, onPlay: (heroIds: string[]) => void): void {
+export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, onPlay: (heroIds: string[]) => void): void {
   container.innerHTML = "";
   const screen = document.createElement("div");
   screen.className = "screen squad-pick";
@@ -27,8 +36,13 @@ export function renderSquadPickScreen(container: HTMLElement, onPlay: (heroIds: 
   list.className = "hero-pick-list";
   const rows = new Map<string, HTMLElement>();
 
+  const projectionLine = document.createElement("p");
+  projectionLine.className = "projection-line";
+
   const playBtn = document.createElement("button");
   playBtn.className = "play-btn";
+
+  const enemyPreview = makeEnemySide(cfg, 0);
 
   function refreshPlayState(): void {
     const ready = selected.size === 3;
@@ -43,6 +57,17 @@ export function renderSquadPickScreen(container: HTMLElement, onPlay: (heroIds: 
       const check = row.querySelector(".hero-pick-check");
       if (check) check.textContent = isSelected ? "✓" : "";
     }
+  }
+
+  function refreshProjection(): void {
+    if (selected.size !== 3) {
+      projectionLine.textContent = "";
+      projectionLine.className = "projection-line";
+      return;
+    }
+    const proj = project(makePlayerSide([...selected]), enemyPreview, cfg.fight);
+    projectionLine.textContent = proj.verdict;
+    projectionLine.className = `projection-line band-${proj.band}`;
   }
 
   for (const def of PLAYER_HERO_POOL) {
@@ -69,6 +94,7 @@ export function renderSquadPickScreen(container: HTMLElement, onPlay: (heroIds: 
       }
       refreshChecks();
       refreshPlayState();
+      refreshProjection();
     });
     rows.set(def.id, row);
     list.appendChild(row);
@@ -76,9 +102,11 @@ export function renderSquadPickScreen(container: HTMLElement, onPlay: (heroIds: 
 
   refreshChecks();
   refreshPlayState();
+  refreshProjection();
   playBtn.addEventListener("click", () => onPlay([...selected]));
 
   screen.appendChild(list);
+  screen.appendChild(projectionLine);
   screen.appendChild(playBtn);
   container.appendChild(screen);
 }

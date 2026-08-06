@@ -2,6 +2,7 @@ import type { RunConfig } from "../sim/config.js";
 import type { SideState } from "../sim/types.js";
 import { sideHp, sideMaxHp } from "../sim/types.js";
 import { makeEnemySide } from "../sim/run.js";
+import { project, projectionSummary, type Projection } from "../sim/projection.js";
 
 /**
  * The pre-fight read: your squad against this fight's enemy composition,
@@ -11,6 +12,11 @@ import { makeEnemySide } from "../sim/run.js";
  * legibility plan). Reuses fightView's body/role/hero-slot styling so the
  * enemy bruiser reads as visually dominant here too, before the fight even
  * starts.
+ *
+ * As of 2026-08-06 this also shows sim/projection.ts's three job lines and
+ * verdict — "Bracer holds ~24s," "Rook + Vex drop the Bruiser around 13s,"
+ * etc. — in the same units render/runScreens.ts's post-fight recap uses, so
+ * "bigger than I expected" has a concrete baseline to be bigger than.
  */
 export function renderPreFightScreen(
   container: HTMLElement,
@@ -35,6 +41,9 @@ export function renderPreFightScreen(
   compare.appendChild(makeSidePreview("Enemy", enemy, "enemy"));
   screen.appendChild(compare);
 
+  const proj = project(player, enemy, cfg.fight);
+  screen.appendChild(makeProjectionBlock(proj));
+
   const playBtn = document.createElement("button");
   playBtn.className = "play-btn";
   playBtn.textContent = "Play";
@@ -42,6 +51,25 @@ export function renderPreFightScreen(
   screen.appendChild(playBtn);
 
   container.appendChild(screen);
+}
+
+function makeProjectionBlock(proj: Projection): HTMLElement {
+  const block = document.createElement("div");
+  block.className = "pre-fight-projection";
+
+  for (const line of proj.lines) {
+    const p = document.createElement("p");
+    p.className = "projection-detail";
+    p.textContent = line;
+    block.appendChild(p);
+  }
+
+  const verdict = document.createElement("p");
+  verdict.className = `projection-line band-${proj.band}`;
+  verdict.textContent = projectionSummary(proj.spareSec);
+  block.appendChild(verdict);
+
+  return block;
 }
 
 function makeSidePreview(label: string, side: SideState, kind: "player" | "enemy"): HTMLElement {

@@ -28,6 +28,19 @@ export interface HeroState {
    * of attacking — the mechanism for a rising meter the player can attribute
    * to a specific body. */
   healPerBeat?: number;
+
+  /** Per-fight job counters (2026-08-06 legibility pass) — zeroed at fight
+   * start by cloneHeroes, never carried between fights. These are the
+   * readout the player's squad plan is judged against: did the tank soak,
+   * did the dealer deal, did the healer restore. See fightView.ts. */
+  dealt: number;
+  soaked: number;
+  restored: number;
+  hitsTaken: number;
+  /** True while a tank is still holding aggro (above tankBreakFraction of
+   * its own maxHp). Always false for non-tank roles. Drives both the
+   * enemy's targeting weight (fight.ts) and the "broken" visual tell. */
+  holding: boolean;
 }
 
 export interface SideState {

@@ -1,21 +1,40 @@
 import type { RunConfig } from "../sim/config.js";
 import type { FightResult } from "../sim/events.js";
 import type { SpendChoice } from "../sim/run.js";
+import type { Projection } from "../sim/projection.js";
 import type { RunSession } from "./runSession.js";
 
-/** "SPARK chained ×4 — 240 damage", or a plain no-chain line — the account
- * of what just happened that lets a player build a causal model of the
- * fight after the fact, not just during it (OQ-7, pulled forward). */
-function chainRecapText(result: FightResult): string {
-  if (!result.ignited || result.chainLength === 0) {
-    return "No chain this fight — a solid win on ordinary combat.";
+/** The per-hero job lines (soaked/dealt/restored) plus a projected-vs-actual
+ * spare-time line — the surprise-carrier "bigger than I expected" needs a
+ * concrete baseline to be bigger than (2026-08-06, see DECISIONS.md's
+ * "squad pick is the risk dial" entry). The chain, when there was one, is
+ * reported as an ingredient inside the dealer's line rather than as the
+ * headline — it's the rare case, not the point of the recap. */
+function fightRecap(result: FightResult): string[] {
+  const lines: string[] = [];
+  for (const hero of result.finalPlayerHeroes) {
+    if (hero.role === "tank" && hero.soaked > 0) {
+      const brokeNote = !hero.holding && hero.alive ? " — line broke" : "";
+      lines.push(`${hero.name} soaked ${Math.round(hero.soaked)} across ${hero.hitsTaken} hits${brokeNote}.`);
+    } else if (hero.role === "support" && hero.restored > 0) {
+      lines.push(`${hero.name} restored ${Math.round(hero.restored)}.`);
+    } else if (hero.dealt > 0) {
+      const chainNote =
+        result.ignited && result.chainLength > 0 ? ` (chained ×${result.chainLength})` : "";
+      lines.push(`${hero.name} dealt ${Math.round(hero.dealt)}${chainNote}.`);
+    }
   }
-  const ignitionEvent = result.events.find((e) => e.type === "ignitionRoll" && e.fired && e.heroId);
-  const heroId = ignitionEvent && ignitionEvent.type === "ignitionRoll" ? ignitionEvent.heroId : null;
-  const hero = heroId ? result.finalPlayerHeroes.find((h) => h.id === heroId) : null;
-  const totalDamage = result.events.reduce((sum, e) => (e.type === "chainHit" ? sum + e.damage : sum), 0);
-  const name = (hero?.name ?? "Someone").toUpperCase();
-  return `${name} chained ×${result.chainLength} — ${totalDamage} damage.`;
+  return lines;
+}
+
+/** projected-vs-actual line: same units as the pre-fight screen's verdict,
+ * so the comparison is legible without re-deriving anything. */
+function spareLine(result: FightResult, projection: Projection | null): string {
+  if (!projection) return result.outcome === "win" ? "Won this fight." : "Lost this fight.";
+  const actualOutcome = result.outcome === "win" ? "Won" : "Lost";
+  const actualSpareSec = projection.killSec - result.durationSec;
+  const spareWord = actualSpareSec >= 0 ? "to spare" : "short";
+  return `${actualOutcome} with ${Math.abs(Math.round(actualSpareSec))}s ${spareWord}.   (projected ${Math.abs(Math.round(projection.spareSec))}s ${projection.spareSec >= 0 ? "to spare" : "short"})`;
 }
 
 /** After a won fight: what the chain did (or didn't), coin awarded, the
@@ -28,6 +47,7 @@ export function renderSpendScreen(
   fightIndex: number,
   coinAwarded: number,
   result: FightResult,
+  projection: Projection | null,
   onChoose: (choice: SpendChoice) => void,
 ): void {
   container.innerHTML = "";
@@ -38,9 +58,17 @@ export function renderSpendScreen(
   h1.textContent = `Fight ${fightIndex + 1} — Victory`;
   screen.appendChild(h1);
 
-  const recap = document.createElement("p");
+  const recap = document.createElement("div");
   recap.className = "recap";
-  recap.textContent = chainRecapText(result);
+  for (const line of fightRecap(result)) {
+    const p = document.createElement("p");
+    p.textContent = line;
+    recap.appendChild(p);
+  }
+  const spare = document.createElement("p");
+  spare.className = "recap-spare";
+  spare.textContent = spareLine(result, projection);
+  recap.appendChild(spare);
   screen.appendChild(recap);
 
   if (result.ignited) {

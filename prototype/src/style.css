@@ -47,76 +47,14 @@ body {
   margin-bottom: 12px;
 }
 
-.meters {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 24px;
-}
-
-.meter {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.meter-track {
-  position: relative;
-  flex: 1;
-  height: 18px;
-  border-radius: 9px;
-  background: #2a2e3a;
-  overflow: hidden;
-}
-
-.gate-mark {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--muted);
-  opacity: 0.6;
-  z-index: 1;
-  transition:
-    opacity 0.2s linear,
-    background 0.2s linear;
-}
-
-.gate-mark.crossed {
-  background: var(--ignite);
-  opacity: 1;
-  box-shadow: 0 0 6px 1px var(--ignite);
-}
-
-.meter-fill {
-  height: 100%;
-  width: 100%;
-  transition: width 0.12s linear;
-}
-
-.meter.player .meter-fill {
-  background: var(--player);
-}
-
-.meter.enemy .meter-fill {
-  background: var(--enemy);
-}
-
-.meter-label {
-  width: 70px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-size: 0.85em;
-  color: var(--muted);
-}
-
 .arena {
   position: relative;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 16px;
   min-height: 160px;
-  padding: 0 12px;
+  padding: 12px 12px 0;
 }
 
 .arena.shake {
@@ -142,27 +80,129 @@ body {
   }
 }
 
+/* Each side's flex-grow is set inline to that side's total maxHp (see
+   fightView.ts's buildSide) — this is the outer half of the two-level
+   proportional-bar scheme: total width given to a side of the arena tracks
+   that side's total HP, and within a side, each hero-slot's flex-grow (also
+   inline, per-hero maxHp) subdivides it further. Together this gives one
+   shared pixel-per-HP scale across all six-or-fewer bars, which is what lets
+   a glancing player still read "who's winning" from per-hero bars alone
+   (2026-08-06 — see DECISIONS.md's "per-hero HP bars" entry, which
+   supersedes the old two-aggregate-meter design specifically to fix this). */
 .side {
   display: flex;
-  align-items: flex-end;
-  gap: 14px;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .hero-slot {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+  min-width: 44px;
 }
 
+/* A tank-break/recover tell, anchored to its own hero (2026-08-06
+   attributability pass) instead of the shared arena .callout — see
+   fightView.ts's showTankTransition. Quiet by design: small, muted, no
+   shake. */
+.hero-status {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translate(-50%, 4px);
+  font-size: 0.55em;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hero-status.show {
+  animation: heroStatusPop 1s ease-out forwards;
+}
+
+@keyframes heroStatusPop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+}
+
+/* Bumped from a muted 0.65em (2026-08-06 build) — the name is now a
+   secondary identity cue behind the accent ring/tracer colour, not the only
+   one, so it no longer needs to recede as hard. */
 .body-name {
-  font-size: 0.65em;
+  font-size: 0.75em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.hp-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: #2a2e3a;
+  overflow: hidden;
+}
+
+.hp-fill {
+  height: 100%;
+  width: 100%;
+  transition: width 0.15s linear;
+}
+
+.player-side .hp-fill {
+  background: var(--player);
+}
+
+.enemy-side .hp-fill {
+  background: var(--enemy);
+}
+
+.hp-label {
+  font-size: 0.6em;
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
   white-space: nowrap;
 }
 
+.job-counter {
+  font-size: 0.58em;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 .body {
+  position: relative;
   border-radius: 50%;
+  /* The accent ring — a hero's stable identity colour (2026-08-06
+     attributability pass, see fightView.ts's ACCENT_PALETTE). Set via a
+     custom property rather than a class so .hot/.broken's own box-shadow
+     (higher specificity) still cleanly overrides it when those states are
+     active. */
+  box-shadow: 0 0 0 3px var(--accent, transparent);
   transition:
     opacity 0.2s linear,
     transform 0.3s ease-in,
@@ -209,6 +249,16 @@ body {
   box-shadow: 0 0 10px 2px rgba(178, 59, 59, 0.5);
 }
 
+/* A tank that has stopped holding aggro (2026-08-06 — see DECISIONS.md's
+   "squad pick is the risk dial" entry): desaturated + a dashed outline, so
+   the moment the player's plan starts failing is visible on the body
+   itself, not just inferable from the HP bars moving faster. */
+.body.broken {
+  filter: saturate(0.4) brightness(0.85);
+  outline: 2px dashed var(--enemy);
+  outline-offset: 2px;
+}
+
 .body.hot {
   box-shadow: 0 0 0 4px var(--ignite), 0 0 18px 4px var(--ignite);
   animation: pulse 0.5s ease-in-out infinite alternate;
@@ -228,41 +278,37 @@ body {
   opacity: 0.35 !important;
 }
 
-@keyframes lungeRight {
+/* Aimed lunge (2026-08-06 attributability pass) — replaces the old fixed
+   lunge-right/lunge-left pair, which nudged every attacker the same
+   direction regardless of target. --lunge-x/--lunge-y are set per-attack by
+   fightView.ts's lungeToward, pointed at the actual target, so the
+   attacker's own motion carries "who I'm swinging at" even if the tracer
+   (below) is missed. */
+@keyframes lunge {
   0%,
   100% {
-    transform: translateX(0);
+    transform: translate(0, 0);
   }
   40% {
-    transform: translateX(14px);
+    transform: translate(var(--lunge-x, 0px), var(--lunge-y, 0px));
   }
 }
 
-@keyframes lungeLeft {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  40% {
-    transform: translateX(-14px);
-  }
+.body.lunge {
+  animation: lunge 0.25s ease-out;
 }
 
-.body.lunge-right {
-  animation: lungeRight 0.25s ease-out;
-}
-
-.body.lunge-left {
-  animation: lungeLeft 0.25s ease-out;
-}
-
+/* --flinch-scale (0.15-1, set per-hit by fightView.ts from damage as a
+   fraction of the target's maxHp) makes a heavy hit visibly heavier than a
+   graze — a graze barely brightens or shifts, a near-max hit does both
+   hard. */
 @keyframes flinch {
   0% {
     filter: brightness(1);
   }
   30% {
-    filter: brightness(1.9) saturate(1.4);
-    transform: translateX(-4px);
+    filter: brightness(calc(1 + 0.9 * var(--flinch-scale, 1))) saturate(1.4);
+    transform: translateX(calc(-4px * var(--flinch-scale, 1)));
   }
   100% {
     filter: brightness(1);
@@ -272,6 +318,49 @@ body {
 
 .body.flinch {
   animation: flinch 0.3s ease-out;
+}
+
+/* An independent overlay per hit (2026-08-06) rather than a toggled class —
+   see fightView.ts's showImpactFlash — so two hits landing close together
+   stack as two flashes instead of the second cancelling the first's
+   animation. --flash-opacity is set per-hit, scaled the same way as
+   --flinch-scale. */
+.impact-flash {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #fff;
+  pointer-events: none;
+  animation: impactFlash 0.35s ease-out forwards;
+}
+
+@keyframes impactFlash {
+  0% {
+    opacity: var(--flash-opacity, 0.5);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The tracer layer sits between the callout and the popup layer so a
+   travelling dot passes under the damage number it's about to spawn. Each
+   .tracer is a single flight (attacker -> target), coloured by the
+   source's accent — see fightView.ts's fireTracer. Keep the transition
+   duration in sync with TRACER_MS there. */
+.tracer-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tracer {
+  position: absolute;
+  border-radius: 50%;
+  transform: translate(0, 0);
+  transition:
+    transform 0.2s ease-out,
+    opacity 0.2s ease-out;
 }
 
 @keyframes healPulse {
@@ -304,6 +393,14 @@ body {
   animation: calloutPop 1.1s ease-out forwards;
 }
 
+/* Quiet tier — tank break/recover and a length-2 (not yet full) chain use
+   this: smaller, dimmer, no urgency implied. The loud, un-muted callout is
+   reserved for the chain>=3 spectacle (see fightView.ts's showChainHit). */
+.callout.muted {
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
 @keyframes calloutPop {
   0% {
     opacity: 0;
@@ -332,9 +429,35 @@ body {
   position: absolute;
   transform: translate(-50%, -100%);
   font-weight: 800;
-  color: var(--ignite);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   animation: popUp 0.85s ease-out forwards;
+}
+
+/* Ordinary attacks (2026-08-06): small and muted, so a chain hit — which
+   reuses this same element at a bigger scale and the --tier accent color —
+   reads as "the same thing, bigger" rather than being the only number in
+   the game. See DECISIONS.md's "per-hero HP bars" entry. */
+.damage-popup.normal {
+  color: var(--text);
+  opacity: 0.85;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.damage-popup.heal {
+  color: #6ee7a0;
+}
+
+.damage-popup.chain {
+  color: var(--ignite);
+}
+
+/* Tier 3+ chain hits escalate in color as well as size — set via
+   fightView.ts's data-tier attribute (0-5). */
+.damage-popup.chain[data-tier="3"],
+.damage-popup.chain[data-tier="4"],
+.damage-popup.chain[data-tier="5"] {
+  color: #ff8a3d;
 }
 
 @keyframes popUp {
@@ -467,6 +590,7 @@ button:disabled {
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 0.9em;
+  text-align: left;
 }
 
 .play-btn {
@@ -578,4 +702,48 @@ button:disabled {
   justify-content: center;
   align-items: flex-end;
   gap: 12px;
+}
+
+/* ---------- Projection (2026-08-06) ---------- */
+
+.pre-fight-projection {
+  background: #20232c;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.projection-detail {
+  color: var(--muted);
+  font-size: 0.85em;
+  margin: 4px 0;
+}
+
+.projection-line {
+  font-weight: 700;
+  font-size: 0.9em;
+  margin: 8px 0 0;
+}
+
+.projection-line.band-comfortable {
+  color: var(--player);
+}
+
+.projection-line.band-tight {
+  color: var(--ignite);
+}
+
+.projection-line.band-losing {
+  color: var(--enemy);
+}
+
+.recap p {
+  margin: 4px 0;
+}
+
+.recap-spare {
+  font-weight: 700;
+  margin-top: 8px !important;
+  color: var(--text);
 }

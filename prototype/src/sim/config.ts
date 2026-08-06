@@ -23,8 +23,8 @@
  *     unpredictable fight to fight. Chain bonus hits keep the old
  *     concentrated-with-retarget rule (FIGHT_SCRIPT.md §3 is explicit that a
  *     bonus hit is focused and retargets on a kill).
- *  2. The 40%-of-max eligibility gate denominator is fixed at fight start,
- *     not recomputed as heroes die mid-fight (fight.ts).
+ *  2. The gatePoolFraction denominator is fixed at fight start, not
+ *     recomputed as heroes die mid-fight (fight.ts).
  *  3. Support heroes act on their own attack beat like everyone else, but
  *     heal their lowest-HP living ally instead of attacking.
  */
@@ -51,8 +51,23 @@ export interface FightConfig {
    * it resolves by HP fraction so the sim can never hang. */
   maxFightSec: number;
 
-  /** Eligibility gate: player pool <= this fraction of current (fight-start) max. */
-  eligibilityGateFraction: number;
+  /** Eligibility gate (2026-08-06 rework — see DECISIONS.md's "jeopardy no
+   * longer mandatory" and "squad pick is the risk dial" entries): the gate
+   * is only reachable once the player's tank line has broken (or there's no
+   * living tank), AND the pool is at/below this fraction of fight-start max.
+   * Replaces the old eligibilityGateFraction, which fired on pool alone and
+   * was reached by nearly every fight regardless of squad or play. */
+  gatePoolFraction: number;
+
+  /** A tank stops holding aggro (targeting weight drops to
+   * brokenTankTargetWeight) once its own HP falls to/below this fraction of
+   * its own maxHp. */
+  tankBreakFraction: number;
+  /** Hysteresis: a broken tank resumes holding once healed back up to this
+   * fraction, so a healer's save is a real, visible event rather than the
+   * break/recover tell flickering every tick near the threshold. Must be
+   * greater than tankBreakFraction. */
+  tankRecoverFraction: number;
 
   /** Ignition PRD by fights-since-last-ignition: index 0 = 0 fights since,
    * last entry repeats (capped) for any higher count. */
@@ -65,9 +80,31 @@ export interface FightConfig {
   bonusHitStep: number;
   bonusHitCap: number;
 
+  /** Chain length (bonusHitsLanded) at/above which the render layer shows
+   * the small tell (glow + quiet callout). Below this, a chain hit gets only
+   * a slightly bigger damage number — see DECISIONS.md's "spectacle gated
+   * on payoff" entry. */
+  chainTellThreshold: number;
+  /** Chain length at/above which the render layer shows the FULL spectacle
+   * (shake, escalating font, loud callout). This is deliberately the same
+   * threshold batch/report.ts's fractionWinsWithChain3Plus already tracks,
+   * so tuning "how rare is the big moment" and "how rare is the show" stay
+   * the same knob. */
+  chainFullTellThreshold: number;
+
   /** Weight multiplier applied to a tank's chance of being the enemy's
-   * chosen target, relative to weight 1 for every other role. */
+   * chosen target while holding (HP above tankBreakFraction), relative to
+   * weight 1 for every other role. */
   tankTargetWeight: number;
+  /** Same, but for a tank that has broken — dropping this near 1 is what
+   * makes damage splash onto the rest of the squad once the tank fails. */
+  brokenTankTargetWeight: number;
+
+  /** Per-hit damage variance for normal attacks, as a fraction of base
+   * damage (e.g. 0.25 = ±25%). NOT applied to chain bonus hits, which stay
+   * exact so the escalating tiers read cleanly. 0 disables variance (used by
+   * checks/beatsheet.ts to isolate the pure-combat trajectory). */
+  damageVariance: number;
 }
 
 export interface RunConfig {
@@ -98,15 +135,41 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   tickRate: 20,
   maxFightSec: 180,
 
-  eligibilityGateFraction: 0.4,
+  gatePoolFraction: 0.35,
+  // tankBreakFraction retuned down hard from an initial 0.3 during the
+  // 2026-08-06 tuning pass: at 0.3 the comfortable comp (bracer+rook+cairn)
+  // broke its tank line in ~90-100% of fights regardless of Bracer's own
+  // HP/damage (batch-verified — tripling his damage and adding 40% more HP
+  // each barely moved the rate). The real driver turned out to be that a
+  // tank's SHARE of incoming damage (weighted targeting) sustained over a
+  // whole fight overwhelms almost any reasonable buffer above ~15-20% of his
+  // own maxHp; only a low break threshold (tank has to be nearly dead, not
+  // just battered) gets a comfortable comp's dip rate down near the ~25%
+  // target. Batch-verified at these values (npm run batch --squad
+  // comfortable): dip rate ~27%, ignition ~20%, full-spectacle (chain>=3)
+  // ~8% — see checks/chaindist.ts's pinned bands for the regression guard.
+  tankBreakFraction: 0.03,
+  tankRecoverFraction: 0.2,
 
-  ignitionChanceByFightsSince: [0.55, 0.8, 0.92],
+  // Retuned 2026-08-06: the gate is now reachable only from a broken tank
+  // line, which happens in a minority of fights by construction (see
+  // projection.ts's margin bands) — so ignition needs to fire more often
+  // *conditional on the gate opening* than the old always-reachable gate
+  // did, to land the same overall funnel. See checks/chaindist.ts for the
+  // measured bands this targets.
+  ignitionChanceByFightsSince: [0.5, 0.7, 0.85],
 
-  chainChanceByHitsSoFar: [0.35, 0.5, 0.65, 0.8, 0.9],
+  chainChanceByHitsSoFar: [0.7, 0.75, 0.8, 0.85, 0.9],
   bonusHitStep: 20,
   bonusHitCap: 100,
 
+  chainTellThreshold: 2,
+  chainFullTellThreshold: 3,
+
   tankTargetWeight: 3,
+  brokenTankTargetWeight: 1,
+
+  damageVariance: 0.25,
 };
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {
