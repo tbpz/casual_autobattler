@@ -194,6 +194,46 @@ body {
   max-width: 100%;
 }
 
+/* Heat meter (2026-08-07 rebuild) — the anticipation the old pity-gate never
+   gave the player: filling toward ignition instead of the payoff landing
+   with no warning. Player-only; collapsed on the enemy side below, since
+   only the player's heat ever drives ignition.
+   2026-08-08: labelled CHAIN — the word "heat" never appeared anywhere the
+   player could see it, and this bar now visibly DRAINS on a miss (heat is
+   spent on every roll, win or lose — see sim/fight.ts), which is the thing
+   that teaches the whole mechanism without a tutorial. */
+.heat-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.heat-label {
+  font-size: 0.6em;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.heat-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: #2a2e3a;
+  overflow: hidden;
+}
+
+.heat-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--ignite);
+  transition: width 0.15s linear;
+}
+
+.enemy-side .heat-row {
+  display: none;
+}
+
 .body {
   position: relative;
   border-radius: 50%;
@@ -669,10 +709,32 @@ button:disabled {
   text-transform: capitalize;
 }
 
+/* Identity line (2026-08-08) — what picking this hero buys you, beyond its
+ * raw numbers. Sits under role, above the stats column. */
+.hero-pick-identity {
+  font-size: 0.78em;
+  color: var(--muted);
+  font-style: italic;
+  margin-top: 2px;
+}
+
 .hero-pick-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
   font-size: 0.85em;
   color: var(--muted);
   white-space: nowrap;
+}
+
+/* Chain affinity pips (2026-08-08) — the cascade lever, visible at pick
+ * time. Ignite-yellow so it reads as the same "payoff" channel as the
+ * in-fight heat bar (see .heat-fill), not just another stat. */
+.hero-pick-chain {
+  color: var(--ignite);
+  letter-spacing: 1px;
+  font-size: 0.9em;
 }
 
 /* ---------- Pre-fight read ---------- */
@@ -746,4 +808,12 @@ button:disabled {
   font-weight: 700;
   margin-top: 8px !important;
   color: var(--text);
+}
+
+/* 2026-08-08: the "no cascade this fight" explanation — quiet/muted since a
+ * miss is the common case, not the payoff (see the ignited tag it replaces
+ * for the rare fight where there WAS one). */
+.recap-miss {
+  color: var(--muted);
+  font-size: 0.9em;
 }

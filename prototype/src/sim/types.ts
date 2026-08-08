@@ -28,6 +28,17 @@ export interface HeroState {
    * of attacking — the mechanism for a rising meter the player can attribute
    * to a specific body. */
   healPerBeat?: number;
+  /** If set alongside healPerBeat, this hero ALSO attacks on the same beat
+   * instead of the heal replacing the attack — Ward's hybrid identity (see
+   * heroes.ts). Meaningless without healPerBeat set. */
+  attacksWhileHealing?: boolean;
+
+  /** Multiplies both how fast this hero's own heat accrues and how big its
+   * chain hits land (see fight.ts's chain-damage formula and config.ts's
+   * heatWeight* constants) — the squad-pick lever for "how often do I get a
+   * shot at the cascade, and how big is it when it lands." See heroes.ts's
+   * PLAYER_HERO_POOL for why each hero's value differs. */
+  chainAffinity: number;
 
   /** Per-fight job counters (2026-08-06 legibility pass) — zeroed at fight
    * start by cloneHeroes, never carried between fights. These are the
@@ -41,6 +52,26 @@ export interface HeroState {
    * its own maxHp). Always false for non-tank roles. Drives both the
    * enemy's targeting weight (fight.ts) and the "broken" visual tell. */
   holding: boolean;
+
+  /** Ignition eligibility meter (2026-08-07 rebuild, replaces the old
+   * pity-gate — see config.ts's FightConfig docstring). Accrues from this
+   * hero's own job (dealt/soaked/restored, weighted by config.ts's
+   * heatWeightDealt/Soaked/Restored); the first living hero to cross
+   * heatThreshold triggers an ignition roll. Zeroed at fight start by
+   * cloneHeroes, same as the other per-fight job counters. */
+  heat: number;
+
+  /** Enemy bruiser only: sim-clock time of this hero's next wind-up charge
+   * start. Undefined for every other role. */
+  nextWindupT?: number;
+  /** Set only while charging (telegraphed) — the sim-clock time the wind-up
+   * fires. Undefined when not charging. */
+  windupFireT?: number;
+  /** Locked target id for the current charge, chosen when the charge starts
+   * so the telegraph and the eventual hit agree on who's threatened — even
+   * if that hero dies to something else before the hit lands (fight.ts falls
+   * back to a fresh weighted pick in that case). */
+  windupTargetId?: string | null;
 }
 
 export interface SideState {
@@ -67,6 +98,11 @@ export function sideLivingCount(side: SideState): number {
 export interface FightSetup {
   player: SideState;
   enemy: SideState;
-  /** Fights since the player side last ignited, going into this fight (PRD counter). */
-  fightsSinceIgnition: number;
+  /** Failed ignition attempts since the player side last ignited, going into
+   * this fight (PRD counter). As of the heat-is-spent rebuild an "attempt" is
+   * a single roll, not a fight — a fight can contain several (heat resets
+   * and rebuilds after every roll), so this can advance mid-fight too; see
+   * fight.ts and FightResult.attemptsSinceIgnition, which carries the
+   * counter's value at fight-end forward into the next fight's setup. */
+  attemptsSinceIgnition: number;
 }

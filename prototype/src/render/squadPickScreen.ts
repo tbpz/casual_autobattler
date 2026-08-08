@@ -1,7 +1,17 @@
 import type { RunConfig } from "../sim/config.js";
-import { DEFAULT_PLAYER_ROSTER_IDS, PLAYER_HERO_POOL, makePlayerSide } from "../sim/heroes.js";
+import { DEFAULT_PLAYER_ROSTER_IDS, MAX_CHAIN_AFFINITY, PLAYER_HERO_POOL, makePlayerSide } from "../sim/heroes.js";
 import { makeEnemySide } from "../sim/run.js";
 import { project } from "../sim/projection.js";
+
+/** Renders a hero's chainAffinity as filled/empty pips, normalized against
+ * the pool's own highest value (2026-08-08 — the player's complaint was that
+ * squad choice had no visible connection to the cascade; this is that
+ * connection, made literal at pick time, the way a Dota player reads an
+ * item's stats before deciding to build it). */
+function chainAffinityPips(affinity: number): string {
+  const filled = Math.max(1, Math.round((affinity / MAX_CHAIN_AFFINITY) * 5));
+  return "●".repeat(filled) + "○".repeat(5 - filled);
+}
 
 /**
  * Run-start squad pick: 3 of 6, pre-checked with the default roster and a
@@ -15,6 +25,12 @@ import { project } from "../sim/projection.js";
  * composition, computed by sim/projection.ts — the same module the
  * pre-fight screen and the post-fight recap use, so the three can never
  * disagree about what a comp was expected to do.
+ *
+ * 2026-08-08: each row also shows attack interval, a chainAffinity pip
+ * meter, and a one-line identity — the player's own diagnosis was "I know
+ * the cascade is there, but I don't know how to head into it while playing
+ * a normal round." This is the missing lever, stated at the only moment a
+ * player can act on it: before the fight, not during the recap.
  */
 export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, onPlay: (heroIds: string[]) => void): void {
   container.innerHTML = "";
@@ -79,8 +95,12 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
       <span class="hero-pick-info">
         <span class="hero-pick-name">${def.name}</span>
         <span class="hero-pick-role">${def.role}</span>
+        <span class="hero-pick-identity">${def.identity}</span>
       </span>
-      <span class="hero-pick-stats">${def.maxHp}hp / ${def.damage}dmg${def.healPerBeat ? " +heal" : ""}</span>
+      <span class="hero-pick-stats">
+        <span class="hero-pick-numbers">${def.maxHp}hp / ${def.damage}dmg / ${def.attackIntervalSec}s${def.healPerBeat ? ` +${def.healPerBeat}heal` : ""}${def.attacksWhileHealing ? " +atk" : ""}</span>
+        <span class="hero-pick-chain" title="Chain affinity — how often and how big this hero's cascade lands">CHAIN ${chainAffinityPips(def.chainAffinity)}</span>
+      </span>
     `;
     row.addEventListener("click", () => {
       if (selected.has(def.id)) {

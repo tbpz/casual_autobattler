@@ -3,22 +3,27 @@
  * the pure-combat trajectory is isolated from the two dice layered on top
  * of it (ignition and chain).
  *
- * Inverted 2026-08-06 (see DECISIONS.md's "jeopardy no longer mandatory"
- * entry). The pre-2026-08-06 version of this file pinned "the gate must
- * open — jeopardy is mandatory every fight" and had to hand-pick seed 8
- * specifically because the gate happened to open there (a comment on that
- * version noted 4 of the first 10 seeds tried never crossed the threshold
- * at all). That was the bug, not a fact to defend: a comp built to be safe
- * should be ABLE to win with no dip, no gate, and no ignition roll — and
- * usually does. This file pins one seed of the comfortable comp doing
- * exactly that, and one seed of an under-tanked comp reliably dipping
- * instead, as the funnel's two anchor points.
+ * Rewritten 2026-08-07 for the fight causality rebuild (see DECISIONS.md's
+ * "fight causality rebuild" entry): the old pity-gate — ignition only
+ * reachable once the tank line had broken and the pool had fallen below a
+ * fraction of its start — is gone, replaced by a per-hero HEAT meter that
+ * accrues from doing the job a hero was picked for (see config.ts's
+ * FightConfig docstring). Heat is now reachable on a WINNING path too (a
+ * dealer's `dealt` keeps accruing whether or not the tank ever wavers), so
+ * "does heat ever cross" and "does the tank ever break" are independent
+ * facts, unlike the old gate where they were the same fact. This file pins:
+ *  1. a comfortable, tanked comp — the tank line holds the entire fight
+ *     (its job is being done), AND heat still crosses given enough fight
+ *     duration (a dealer's own job accrues regardless of how the tank is
+ *     doing) — demonstrating the two are no longer coupled.
+ *  2. a tankless comp — dip is recorded from the first tick (no line to
+ *     hold, same semantics the old gate's "no living tank" clause had), and
+ *     the wind-up actually fires within the fight — the mechanism that's
+ *     supposed to make fragility cost something is live, not theoretical.
  *
- * As in the pre-2026-08-06 version, exact event *timing* is not
- * independently hand-derivable (support healing and weighted-random enemy
- * targeting both consume the RNG stream, so precisely which beat a
- * transition lands on moves seed to seed) — what's pinned is the *shape*:
- * whether a dip/gate happens at all, and their relative order when they do.
+ * As before, exact event *timing* is not independently hand-derivable
+ * (support healing and weighted-random enemy/wind-up targeting both consume
+ * the RNG stream) — what's pinned is the *shape*.
  */
 import { Rng } from "../sim/rng.js";
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
@@ -36,42 +41,36 @@ function check(name: string, condition: boolean, detail = ""): void {
 
 const cfg = {
   ...DEFAULT_RUN_CONFIG,
-  fight: { ...DEFAULT_RUN_CONFIG.fight, ignitionChanceByFightsSince: [0], chainChanceByHitsSoFar: [0] },
+  fight: { ...DEFAULT_RUN_CONFIG.fight, ignitionChanceByAttemptsSinceIgnition: [0], chainChanceByHitsSoFar: [0] },
 };
 
-// --- Comfortable comp: bracer+rook+cairn, the default roster. Batch-verified
-// (npm run batch --squad comfortable) dip rate ~27% at these constants, so
-// "never dips" is a per-seed fact, not a guarantee — seed 1 is one of the
-// ~73% of fights that doesn't, chosen for that reason, not because it's
-// special.
+// --- Comfortable comp: bracer+rook+cairn, the default roster. The tank's
+// job (holding the line) and the dealer's job (accruing heat) are
+// independent now — both should hold true in the same fight.
 {
-  const setup = { player: makePlayerSide(["bracer", "rook", "cairn"]), enemy: makeEnemySide(cfg, 0), fightsSinceIgnition: 0 };
+  const setup = { player: makePlayerSide(["bracer", "rook", "cairn"]), enemy: makeEnemySide(cfg, 0), attemptsSinceIgnition: 0 };
   const result = runFight(setup, cfg.fight, new Rng(1), 1);
 
   check("comfortable comp: tank line never breaks", !result.events.some((e) => e.type === "tankBreak"));
-  check("comfortable comp: gate never opens", !result.events.some((e) => e.type === "gateOpen"));
   check("comfortable comp: no dip recorded", !result.dipOccurred);
+  check(
+    "comfortable comp: heat still crosses given enough fight duration",
+    result.events.some((e) => e.type === "heatFull"),
+  );
   check("comfortable comp: wins by wipe", result.outcome === "win" && result.endReason === "wipe");
 }
 
-// --- Under-tanked comp: hollow (the weaker of the two tanks) + rook + ward
-// (the weaker healer, half of Cairn's heal-per-beat) — a tank with thin
-// support. npm run batch --squad hollow,rook,ward reports ~66% dip rate
-// averaged across a full run's 5 (difficulty-ramped) fights; fight 1 alone,
-// against the unscaled fight-0 enemy this check uses, dips less often —
-// seeds 1-15 scanned, seed 12 picked as one of the fight-1 seeds that does.
+// --- Tankless comp: vex+rook+ward — no line to hold, so dip is automatic
+// from tick 1 (same semantics the old gate's "no living tank" clause had).
+// The wind-up should fire at least once in any fight that runs past
+// windupIntervalSec + windupTelegraphSec — the mechanism that's supposed to
+// make fragility cost something needs to actually be live.
 {
-  const setup = { player: makePlayerSide(["hollow", "rook", "ward"]), enemy: makeEnemySide(cfg, 0), fightsSinceIgnition: 0 };
+  const setup = { player: makePlayerSide(["vex", "rook", "ward"]), enemy: makeEnemySide(cfg, 0), attemptsSinceIgnition: 0 };
   const result = runFight(setup, cfg.fight, new Rng(12), 12);
 
-  const breakEvent = result.events.find((e) => e.type === "tankBreak");
-  const gateEvent = result.events.find((e) => e.type === "gateOpen");
-  check("under-tanked comp: tank line breaks", !!breakEvent);
-  check("under-tanked comp: gate opens", !!gateEvent);
-  if (breakEvent && gateEvent) {
-    check("under-tanked comp: tank breaks before the gate opens", breakEvent.t <= gateEvent.t, `break=${breakEvent.t} gate=${gateEvent.t}`);
-  }
-  check("under-tanked comp: dip recorded", result.dipOccurred);
+  check("tankless comp: dip recorded from the start", result.dipOccurred);
+  check("tankless comp: at least one wind-up fires", result.events.some((e) => e.type === "windupStart"));
 }
 
 if (failed) {

@@ -27,7 +27,7 @@ const seed = 42;
 const setup = {
   player: makePlayerSide(),
   enemy: makeEnemySide(cfg, 0),
-  fightsSinceIgnition: 0,
+  attemptsSinceIgnition: 0,
 };
 const fightA = runFight(setup, cfg.fight, new Rng(seed), seed);
 const fightB = runFight(setup, cfg.fight, new Rng(seed), seed);
@@ -35,17 +35,14 @@ check("fight: same seed -> identical event log", JSON.stringify(fightA.events) =
 check("fight: same seed -> identical outcome", fightA.outcome === fightB.outcome && fightA.chainLength === fightB.chainLength);
 
 // Different seeds should (almost certainly) diverge, as a sanity check that
-// the RNG is actually being consumed. Since 2026-08-06 the ignition roll is
-// only reachable once the tank line has broken (see DECISIONS.md's "squad
-// pick is the risk dial" entry), so a comp with a living tank (the default)
-// may never even reach the gate — use the greedy tankless comp instead,
-// which reaches it every fight, at fightsSinceIgnition=2 (85% ignition
-// chance) so two seeds coincidentally both fizzling is vanishingly
-// unlikely, and check several pairs rather than trusting one.
+// the RNG is actually being consumed. Use a high attemptsSinceIgnition (85%
+// ignition chance, the table's capped tail — see config.ts) so two seeds
+// coincidentally both fizzling is vanishingly unlikely, and check several
+// pairs rather than trusting one.
 const highIgnitionSetup = {
   player: makePlayerSide(["vex", "rook", "ward"]),
   enemy: makeEnemySide(cfg, 0),
-  fightsSinceIgnition: 2,
+  attemptsSinceIgnition: 5,
 };
 let sawDivergence = false;
 for (let i = 0; i < 10; i++) {

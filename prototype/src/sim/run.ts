@@ -56,15 +56,24 @@ export interface RunResult {
  * same rules rather than two copies that could drift apart.
  */
 
-/** Scales only HP with the difficulty ramp, not damage — a later fight is a
- * longer grind, not a harder-hitting one. Scaling both compounds far faster:
- * enemy dps rising alongside enemy HP means the player pool drains faster
- * *and* takes longer to return the favor, at the same time. Measured via the
- * batch harness during the 2026-08-04 legibility rewrite: scaling both at
- * 1.08 collapsed win rate from ~100% (fights 1-2) to ~13% (fight 3). */
-function scaledArchetype(def: EnemyArchetype, rampFactor: number, fightIndex: number): EnemyArchetype {
+/** Scales HP with difficultyRampFactor (a later fight is mostly a longer
+ * grind) and damage with a much gentler difficultyDamageRampFactor. HP-only
+ * scaling was the original design (2026-08-04): scaling both aggressively
+ * compounds fast — enemy dps rising alongside enemy HP means the player pool
+ * drains faster AND takes longer to return the favor at the same time,
+ * which collapsed win rate from ~100% to ~13% by fight 3 when both ran at
+ * 1.08. The small damage ramp was added 2026-08-08 because HP-only scaling
+ * turned out to have a structural blind spot: a comp that kills fast enough
+ * (high damage + a real tank + real healing, e.g. bracer+vex+cairn) barely
+ * lengthens its own fights as enemy HP rises, so it barely feels the ramp at
+ * all — batch-verified at ~100% run completion regardless of how hard the
+ * HP-only ramp was pushed. A gentle per-hit damage ramp threatens exactly
+ * the fast, well-protected comps the HP ramp couldn't reach, since it lands
+ * regardless of fight length. */
+function scaledArchetype(def: EnemyArchetype, rampFactor: number, damageRampFactor: number, fightIndex: number): EnemyArchetype {
   const scale = Math.pow(rampFactor, fightIndex);
-  return { ...def, maxHp: def.maxHp * scale };
+  const damageScale = Math.pow(damageRampFactor, fightIndex);
+  return { ...def, maxHp: def.maxHp * scale, damage: def.damage * damageScale };
 }
 
 /** Builds the enemy side for a fight: one bruiser (front, the dip's visible
@@ -72,8 +81,8 @@ function scaledArchetype(def: EnemyArchetype, rampFactor: number, fightIndex: nu
  * Bruiser leads the roster so the player's front-targeting attacks (fight.ts)
  * reliably hit it first — the "kill the big one, the dip ends" causal story. */
 export function makeEnemySide(cfg: RunConfig, fightIndex: number): SideState {
-  const bruiser = scaledArchetype(cfg.bruiser, cfg.difficultyRampFactor, fightIndex);
-  const grunt = scaledArchetype(cfg.grunt, cfg.difficultyRampFactor, fightIndex);
+  const bruiser = scaledArchetype(cfg.bruiser, cfg.difficultyRampFactor, cfg.difficultyDamageRampFactor, fightIndex);
+  const grunt = scaledArchetype(cfg.grunt, cfg.difficultyRampFactor, cfg.difficultyDamageRampFactor, fightIndex);
   // Every enemy shares an attackIntervalSec within its archetype, so without
   // a phase offset the grunts would all beat on the identical tick — the
   // same collision problem heroes.ts's makeHeroState fixes for the player
@@ -95,6 +104,16 @@ export function makeEnemySide(cfg: RunConfig, fightIndex: number): SideState {
       restored: 0,
       hitsTaken: 0,
       holding: false,
+      heat: 0,
+      // Enemies never ignite (fight.ts only scans the player side), so this
+      // value is inert — set to 1 (a no-op multiplier) rather than 0 purely
+      // so nothing downstream that reads it accidentally divides by zero.
+      chainAffinity: 1,
+      // Only the bruiser winds up (2026-08-07 rebuild) — see config.ts's
+      // FightConfig docstring. First charge starts at windupIntervalSec, not
+      // t=0, so the opening exchange stays symmetric/boring as the beat
+      // sheet intends.
+      nextWindupT: cfg.fight.windupIntervalSec,
     },
   ];
   for (let i = 1; i < cfg.enemyN; i++) {
@@ -114,6 +133,8 @@ export function makeEnemySide(cfg: RunConfig, fightIndex: number): SideState {
       restored: 0,
       hitsTaken: 0,
       holding: false,
+      heat: 0,
+      chainAffinity: 1, // inert — see the bruiser's identical field above
     });
   }
   return { heroes, dpsBonus: 0 };
@@ -143,6 +164,22 @@ export function applyFightResultToPlayer(
 
 export function healFlat(side: SideState, amount: number): SideState {
   return { ...side, heroes: side.heroes.map((h) => ({ ...h, hp: Math.min(h.maxHp, h.hp + amount) })) };
+}
+
+/** Recovers a FRACTION of each hero's own maxHp, rather than a flat amount —
+ * used for the between-fight auto-recovery tick (2026-08-08 fix). A flat
+ * amount silently favors low-maxHp heroes: at the old autoRecoverHp=90, any
+ * hero with maxHp <= 90 (Rook, Vex, Ward) was topped off to FULL every
+ * single fight regardless of squad, while Bracer (280 maxHp) recovered only
+ * ~32% and carried the rest forward as permanent attrition — which is why
+ * cutting the old flat constant inverted the risk dial (tank-based
+ * "comfortable" collapsed to 3.5% run completion while glass-cannon "greedy"
+ * rose to 65.9%: the tank was the only hero actually being punished).
+ * healFlat (above) is kept for the coin-spend heal, a small, deliberately-
+ * chosen player action where that bias is a minor, acceptable side effect —
+ * not the passive recovery every squad gets regardless of choice. */
+export function healFraction(side: SideState, fraction: number): SideState {
+  return { ...side, heroes: side.heroes.map((h) => ({ ...h, hp: Math.min(h.maxHp, h.hp + h.maxHp * fraction) })) };
 }
 
 export function coinAwardFor(cfg: RunConfig, result: FightResult): number {
@@ -207,7 +244,7 @@ export function summarizeWin(
 /** Runs one full 5-fight run to completion. Pure given (cfg, rng, policy, player). */
 export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number, initialPlayer: SideState): RunResult {
   let player = initialPlayer;
-  let fightsSinceIgnition = 0;
+  let attemptsSinceIgnition = 0;
   let coin = 0;
 
   const fights: FightSummary[] = [];
@@ -216,7 +253,7 @@ export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number
   for (let i = 0; i < cfg.fightsPerRun; i++) {
     const enemy = makeEnemySide(cfg, i);
 
-    const setup: FightSetup = { player, enemy, fightsSinceIgnition };
+    const setup: FightSetup = { player, enemy, attemptsSinceIgnition };
     const result = runFight(setup, cfg.fight, rng, seed);
     fightResults.push(result);
 
@@ -225,13 +262,17 @@ export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number
       return { seed, fights, fightResults, outcome: "over", fightsWon: i, finalCoin: 0 };
     }
 
-    fightsSinceIgnition = result.ignited ? 0 : fightsSinceIgnition + 1;
+    // Carries the sim's own final counter forward (2026-08-08) rather than
+    // re-deriving it from result.ignited here — a fight can now contain
+    // several attempts (heat resets and rebuilds mid-fight), so the value at
+    // fight-end isn't simply "0 if ignited, else +1" anymore.
+    attemptsSinceIgnition = result.attemptsSinceIgnition;
 
     const coinAwarded = coinAwardFor(cfg, result);
     coin += coinAwarded;
 
     player = applyFightResultToPlayer(player, result, cfg.deathPolicy);
-    player = healFlat(player, cfg.autoRecoverHp);
+    player = healFraction(player, cfg.autoRecoverFraction);
 
     const choice = policy({ coin, player });
     const applied = applySpend(cfg, player, coin, choice);

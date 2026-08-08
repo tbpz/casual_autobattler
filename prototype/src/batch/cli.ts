@@ -14,7 +14,13 @@ import { BatchAggregator, formatReport } from "./report.js";
 const SQUAD_PRESETS: Record<string, string[]> = {
   comfortable: ["bracer", "rook", "cairn"],
   tight: ["hollow", "rook", "cairn"],
-  greedy: ["vex", "rook", "ward"],
+  // Redefined 2026-08-08: vex+rook+ward (the pre-existing "greedy" preset)
+  // stopped being greedy once Ward's attacksWhileHealing landed (see
+  // heroes.ts) — it now has three effective attackers plus real healing and
+  // completes ~57% of runs, on par with "comfortable." vex+rook+hollow has
+  // NO healer at all — a genuinely no-safety-net pick (~5% completion,
+  // ~2.9 deaths/run) that actually earns the name.
+  greedy: ["vex", "rook", "hollow"],
 };
 
 function resolveSquad(arg: string | undefined): string[] | undefined {
@@ -48,10 +54,10 @@ function formatEvent(e: FightEvent): string {
       return `[t=${t}] ${e.side} ${e.attackerId} attacks ${e.targetId}: ${e.damage} dmg`;
     case "heal":
       return `[t=${t}] ${e.side} ${e.healerId} heals ${e.targetId}: +${e.amount}`;
-    case "gateOpen":
-      return `[t=${t}] gate opens (eligibility reached)`;
+    case "heatFull":
+      return `[t=${t}] ${e.heroId} is HOT (heat threshold crossed) — ignition roll follows`;
     case "ignitionRoll":
-      return `[t=${t}] ignition roll: ${e.fired ? `FIRED, hero ${e.heroId} goes hot` : "fizzled"}`;
+      return `[t=${t}] ignition roll (${e.heroId}): ${e.fired ? "FIRED, goes hot" : "fizzled"}`;
     case "chainHit":
       return `[t=${t}] chain hit #${e.hitIndex}: ${e.damage} dmg -> ${e.targetId}`;
     case "chainEnd":
@@ -62,6 +68,12 @@ function formatEvent(e: FightEvent): string {
       return `[t=${t}] ${e.side} tank ${e.heroId} BREAKS — line is down`;
     case "tankRecover":
       return `[t=${t}] ${e.side} tank ${e.heroId} recovers — holding again`;
+    case "windupStart":
+      return `[t=${t}] bruiser winds up on ${e.targetId ?? "?"} — fires at t=${e.fireT.toFixed(2)}`;
+    case "windupHit":
+      return `[t=${t}] bruiser SLAMS ${e.targetId}: ${e.damage} dmg`;
+    case "enrageStart":
+      return `[t=${t}] enemy enrage begins`;
     case "resolve":
       return `[t=${t}] RESOLVE: ${e.outcome.toUpperCase()} (${e.reason})`;
   }
@@ -76,7 +88,7 @@ function printFightLog(result: FightResult, label: string): void {
       `duration=${result.durationSec.toFixed(2)}s | dip=${result.dipOccurred}`,
   );
   console.log("  per-hero: " + result.finalPlayerHeroes
-    .map((h) => `${h.name}(${h.role}) dealt=${h.dealt} soaked=${h.soaked} restored=${h.restored} hits=${h.hitsTaken}`)
+    .map((h) => `${h.name}(${h.role}) dealt=${h.dealt} soaked=${h.soaked} restored=${h.restored} hits=${h.hitsTaken} heat=${h.heat.toFixed(0)}`)
     .join("  "));
 }
 
@@ -122,7 +134,7 @@ switch (cmd) {
     const setup = {
       player: makePlayerSide(squad),
       enemy: makeEnemySide(cfg, 0),
-      fightsSinceIgnition: args.fightsSince ? Number(args.fightsSince) : 0,
+      attemptsSinceIgnition: args.attemptsSince ? Number(args.attemptsSince) : 0,
     };
     const result = runFight(setup, cfg.fight, new Rng(seed), seed);
     printFightLog(result, "single fight");
@@ -158,7 +170,7 @@ switch (cmd) {
   }
   default:
     console.error(
-      `Usage: tsx src/batch/cli.ts <fight|run|batch> [--seed N] [--n N] [--policy name] [--death downAtFightEnd|onlyOnLoss] [--squad comfortable|tight|greedy|id,id,id]`,
+      `Usage: tsx src/batch/cli.ts <fight|run|batch> [--seed N] [--n N] [--policy name] [--death downAtFightEnd|onlyOnLoss] [--squad comfortable|tight|greedy|id,id,id] [--attemptsSince N]`,
     );
     process.exit(1);
 }

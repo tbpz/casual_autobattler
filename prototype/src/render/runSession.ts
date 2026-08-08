@@ -10,7 +10,7 @@ import {
   applyFightResultToPlayer,
   applySpend,
   coinAwardFor,
-  healFlat,
+  healFraction,
   makeEnemySide,
   summarizeLoss,
   summarizeWin,
@@ -30,7 +30,7 @@ export class RunSession {
   private rng: Rng;
   private seed: number;
   private player: SideState;
-  private fightsSinceIgnition = 0;
+  private attemptsSinceIgnition = 0;
   private coin = 0;
   private fightIndex = 0;
 
@@ -83,7 +83,7 @@ export class RunSession {
     // actually shown on the pre-fight screen, not a value derived after the
     // fact from the outcome.
     this.lastProjection = project(this.player, enemy, this.cfg.fight);
-    const setup: FightSetup = { player: this.player, enemy, fightsSinceIgnition: this.fightsSinceIgnition };
+    const setup: FightSetup = { player: this.player, enemy, attemptsSinceIgnition: this.attemptsSinceIgnition };
     const result = runFight(setup, this.cfg.fight, this.rng, this.seed);
     this.lastFightResult = result;
 
@@ -93,10 +93,12 @@ export class RunSession {
       return result;
     }
 
-    this.fightsSinceIgnition = result.ignited ? 0 : this.fightsSinceIgnition + 1;
+    // See sim/run.ts's runRun for why this carries the sim's own final
+    // counter forward rather than re-deriving it from result.ignited.
+    this.attemptsSinceIgnition = result.attemptsSinceIgnition;
     this.pendingCoinAwarded = coinAwardFor(this.cfg, result);
     this.player = applyFightResultToPlayer(this.player, result, this.cfg.deathPolicy);
-    this.player = healFlat(this.player, this.cfg.autoRecoverHp);
+    this.player = healFraction(this.player, this.cfg.autoRecoverFraction);
     this.coin += this.pendingCoinAwarded;
     return result;
   }

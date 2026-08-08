@@ -69,10 +69,10 @@ check(
 
 // killSec should roughly predict actual fight duration once variance and
 // both PRD tables are zeroed out, isolating the mean-value trajectory.
-const zeroedCfg = { ...cfg.fight, damageVariance: 0, ignitionChanceByFightsSince: [0], chainChanceByHitsSoFar: [0] };
+const zeroedCfg = { ...cfg.fight, damageVariance: 0, ignitionChanceByAttemptsSinceIgnition: [0], chainChanceByHitsSoFar: [0] };
 const player = makePlayerSide();
 const proj = project(player, enemy, zeroedCfg);
-const result = runFight({ player, enemy, fightsSinceIgnition: 0 }, zeroedCfg, new Rng(1), 1);
+const result = runFight({ player, enemy, attemptsSinceIgnition: 0 }, zeroedCfg, new Rng(1), 1);
 const errFrac = Math.abs(result.durationSec - proj.killSec) / proj.killSec;
 check(
   "projected killSec tracks actual fight duration within 20%",

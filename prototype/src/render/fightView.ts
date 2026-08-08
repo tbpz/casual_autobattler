@@ -8,6 +8,12 @@ interface HeroSlot {
   hpLabel: HTMLElement;
   counter: HTMLElement;
   status: HTMLElement;
+  /** Heat meter fill (2026-08-07 rebuild) — player-side only; built for
+   * every slot for simplicity, styled to collapse on the enemy side (see
+   * style.css). Filling this IS the anticipation the old pity-gate never
+   * gave the player: you watch it approach the threshold instead of being
+   * handed the payoff (or not) with no warning. */
+  heatFill: HTMLElement;
   /** This hero's stable identity colour — the attribution channel (see the
    * "make attacks and heals attributable" plan). Distinct from the side's
    * blue/red body fill, which stays reserved for the who's-winning read. */
@@ -30,6 +36,11 @@ const TRACER_MS = 200;
  * "restoration" on sight, and a healer's own accent ring already carries
  * their identity once the tracer lands on them. */
 const HEAL_ACCENT = "#6ee7a0";
+
+/** The bruiser's wind-up/slam colour (2026-08-07 rebuild) — a distinct
+ * danger-red, separate from both the enemy body's own red and the chain's
+ * ignite-yellow, so a telegraphed hit reads as its own category of threat. */
+const WINDUP_ACCENT = "#ff5252";
 
 /** Six well-separated hues, chosen to stay legible against the panel
  * background and distinct from both the player-blue/enemy-red body fill and
@@ -133,11 +144,14 @@ export class FightView {
       this.built = true;
     }
 
-    this.clock.textContent = `t = ${snapshot.t.toFixed(1)}s`;
+    this.clock.textContent =
+      snapshot.enrageMultiplier > 1
+        ? `t = ${snapshot.t.toFixed(1)}s · ENRAGED ×${snapshot.enrageMultiplier.toFixed(2)}`
+        : `t = ${snapshot.t.toFixed(1)}s`;
     this.currentHotHeroId = snapshot.hotHeroId;
 
-    this.updateSide(this.playerHeroes, snapshot.playerHeroes, snapshot.visibleChainHeroId);
-    this.updateSide(this.enemyHeroes, snapshot.enemyHeroes, snapshot.visibleChainHeroId);
+    this.updateSide(this.playerHeroes, snapshot.playerHeroes, snapshot.visibleChainHeroId, snapshot.windupTargetId);
+    this.updateSide(this.enemyHeroes, snapshot.enemyHeroes, snapshot.visibleChainHeroId, snapshot.windupTargetId);
 
     for (const e of eventsThisTick) {
       this.handleEvent(e);
@@ -153,7 +167,7 @@ export class FightView {
     this.tracerLayer.innerHTML = "";
     this.arena.classList.remove("shake");
     for (const { body, status } of [...this.playerHeroes.values(), ...this.enemyHeroes.values()]) {
-      body.classList.remove("down", "hot", "lunge", "flinch", "healed", "broken");
+      body.classList.remove("down", "hot", "lunge", "flinch", "healed", "broken", "charging");
       body.querySelectorAll(".impact-flash").forEach((el) => el.remove());
       status.classList.remove("show");
     }
@@ -178,7 +192,12 @@ export class FightView {
     });
   }
 
-  private updateSide(map: Map<string, HeroSlot>, heroes: HeroSnapshot[], visibleChainHeroId: string | null): void {
+  private updateSide(
+    map: Map<string, HeroSlot>,
+    heroes: HeroSnapshot[],
+    visibleChainHeroId: string | null,
+    windupTargetId: string | null,
+  ): void {
     for (const hero of heroes) {
       const refs = map.get(hero.id);
       if (!refs) continue;
@@ -188,6 +207,17 @@ export class FightView {
       refs.body.classList.toggle("down", !hero.alive);
       refs.body.classList.toggle("hot", hero.id === visibleChainHeroId);
       refs.body.classList.toggle("broken", hero.role === "tank" && hero.alive && !hero.holding);
+      // Wind-up telegraph (2026-08-07): snapshot-driven, like hot/broken
+      // above, so it stays correct under pause/step/scrub rather than
+      // depending on a timer racing the wall clock.
+      refs.body.classList.toggle("charging", hero.alive && hero.id === windupTargetId);
+      // Heat meter (2026-08-07): the anticipation the old pity-gate never
+      // gave the player — you watch this fill toward the threshold instead
+      // of the payoff (or not) landing with no warning. Enemies also carry
+      // a heat field but it's never read for ignition, so their bar stays
+      // empty; CSS collapses it on the enemy side regardless.
+      const heatFraction = this.cfg.heatThreshold > 0 ? Math.min(hero.heat / this.cfg.heatThreshold, 1) : 0;
+      refs.heatFill.style.width = `${(heatFraction * 100).toFixed(1)}%`;
       refs.counter.textContent = counterText(hero);
     }
   }
@@ -209,13 +239,29 @@ export class FightView {
       case "chainHit":
         this.showChainHit(e.hitIndex, e.damage, e.targetId);
         break;
+      case "windupStart":
+        this.showWindupStart(e.targetId);
+        break;
+      case "windupHit":
+        this.showWindupHit(e.targetId, e.damage);
+        break;
+      case "enrageStart":
+        this.showCallout("ENEMY ENRAGES", true);
+        break;
       case "resolve":
         this.showResolve(e.outcome);
         break;
-      // ignitionRoll and gateOpen deliberately have no visual as of
-      // 2026-08-06 — spectacle is gated on the chain's actual length
-      // (showChainHit), not on the roll that made it possible. See
-      // DECISIONS.md's "spectacle gated on payoff" entry.
+      case "ignitionRoll":
+        // A successful roll needs no separate visual — the chain itself
+        // (showChainHit) carries it, spectacle gated on the chain's actual
+        // length per DECISIONS.md's "spectacle gated on payoff" entry. A
+        // FAILED roll (2026-08-08) gets a quiet, named tell: the heat bar
+        // already visibly drains (it's reset to 0 in the sim), but without
+        // this a miss and "nothing happened yet" look identical.
+        if (!e.fired) this.showIgnitionMiss(e.heroId);
+        break;
+      // heatFull deliberately has no visual of its own — the heat bar
+      // filling already carries the anticipation.
       default:
         break;
     }
@@ -348,6 +394,48 @@ export class FightView {
     }
   }
 
+  /** A named hero's ignition roll missed (2026-08-08) — quiet by design,
+   * same register as showTankTransition: this is common enough (the roll's
+   * odds start at 20%) to be a normal beat, not the rare payoff. Anchored to
+   * the hero's own slot, not the shared arena callout reserved for the chain
+   * spectacle. */
+  private showIgnitionMiss(heroId: string): void {
+    const refs = this.slotFor(heroId);
+    if (!refs) return;
+    refs.status.textContent = "not yet";
+    refs.status.classList.remove("show");
+    void refs.status.offsetWidth;
+    refs.status.classList.add("show");
+  }
+
+  /** The bruiser begins its telegraph (2026-08-07 rebuild) — the dread beat:
+   * a named hero, on a visible clock. The "charging" class itself is applied
+   * by updateSide from the snapshot's windupTargetId (so it stays correct
+   * under pause/step), not by this timer-driven event handler — this just
+   * announces it with a quiet callout so a glancing player knows to look. */
+  private showWindupStart(targetId: string | null): void {
+    const name = targetId ? this.nameOf(targetId) : "someone";
+    this.showCallout(`BRUISER TARGETS ${name}`, true);
+  }
+
+  /** The wind-up resolves — a heavier version of a normal attack: bigger
+   * flash, its own damage-popup colour (WINDUP_ACCENT) distinct from both a
+   * normal hit and the chain's ignite-yellow, and a loud (non-muted)
+   * callout, since this is the beat that's supposed to make fragility
+   * actually threatening rather than routine. */
+  private showWindupHit(targetId: string, damage: number): void {
+    const target = this.playerHeroes.get(targetId);
+    if (!target) return;
+
+    const maxHp = this.heroMaxHp.get(targetId) ?? 1;
+    const frac = Math.max(0.3, Math.min(1, damage / maxHp));
+    target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
+    pulseClass(target.body, "flinch", 300);
+    this.showImpactFlash(target.body, frac);
+    this.showPopup(target.body, `-${damage}`, "windup", 1 + frac, 0, WINDUP_ACCENT);
+    this.showCallout("SLAM", false);
+  }
+
   /** Tiered per DECISIONS.md's 2026-08-06 "spectacle gated on payoff" entry:
    * a length-1 chain hit gets a bigger damage number and nothing else; at
    * chainTellThreshold the hero starts glowing with a small callout; at
@@ -402,7 +490,7 @@ export class FightView {
   private showPopup(
     target: HTMLElement,
     text: string,
-    tier: "normal" | "heal" | "chain",
+    tier: "normal" | "heal" | "chain" | "windup",
     scale = 1,
     tierNum = 0,
     color?: string,
@@ -472,13 +560,31 @@ function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: stri
   const counter = document.createElement("div");
   counter.className = "job-counter";
 
+  // Heat meter (2026-08-07 rebuild) — built for every slot for simplicity;
+  // style.css collapses it on the enemy side, since only the player's heat
+  // ever drives ignition. Labelled CHAIN as of 2026-08-08 (see style.css) —
+  // the word "heat" never appeared anywhere the player could see it before.
+  const heatRow = document.createElement("div");
+  heatRow.className = "heat-row";
+  const heatLabel = document.createElement("span");
+  heatLabel.className = "heat-label";
+  heatLabel.textContent = "CHAIN";
+  const heatTrack = document.createElement("div");
+  heatTrack.className = "heat-track";
+  const heatFill = document.createElement("div");
+  heatFill.className = "heat-fill";
+  heatTrack.appendChild(heatFill);
+  heatRow.appendChild(heatLabel);
+  heatRow.appendChild(heatTrack);
+
   slot.appendChild(body);
   slot.appendChild(name);
   slot.appendChild(hpTrack);
   slot.appendChild(hpLabel);
+  slot.appendChild(heatRow);
   slot.appendChild(counter);
 
-  return { slot, body, hpFill, hpLabel, counter, status, accent, offsetIndex };
+  return { slot, body, hpFill, hpLabel, heatFill, counter, status, accent, offsetIndex };
 }
 
 /** Adds `className` to `el`, then removes it after `ms` — restarting the

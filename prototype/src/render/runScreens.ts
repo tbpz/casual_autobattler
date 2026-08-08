@@ -1,5 +1,5 @@
 import type { RunConfig } from "../sim/config.js";
-import type { FightResult } from "../sim/events.js";
+import type { FightEvent, FightResult } from "../sim/events.js";
 import type { SpendChoice } from "../sim/run.js";
 import type { Projection } from "../sim/projection.js";
 import type { RunSession } from "./runSession.js";
@@ -25,6 +25,26 @@ function fightRecap(result: FightResult): string[] {
     }
   }
   return lines;
+}
+
+/** When a fight didn't ignite, says who got hot and missed instead of the
+ * total silence the recap gave this case before 2026-08-08 — the player's
+ * complaint was not knowing how they were doing relative to the cascade at
+ * all; "Rook got hot twice — none caught" is the closest thing to an
+ * explanation a fight without a cascade can offer. */
+function ignitionMissRecapLine(result: FightResult): string | null {
+  if (result.ignited) return null; // covered by fightRecap's "(chained xN)" and the ignition tag below
+  const misses = result.events.filter(
+    (e): e is Extract<FightEvent, { type: "ignitionRoll" }> => e.type === "ignitionRoll" && !e.fired,
+  );
+  if (misses.length === 0) return null;
+  const nameById = new Map(result.finalPlayerHeroes.map((h) => [h.id, h.name]));
+  const names = [...new Set(misses.map((m) => nameById.get(m.heroId) ?? m.heroId))];
+  const who =
+    names.length === 1
+      ? `${names[0]} got hot ${misses.length === 1 ? "once" : `${misses.length} times`}`
+      : `${names.join(" and ")} got hot`;
+  return `${who} — none caught.`;
 }
 
 /** projected-vs-actual line: same units as the pre-fight screen's verdict,
@@ -75,6 +95,14 @@ export function renderSpendScreen(
     const tag = document.createElement("p");
     tag.textContent = "The chain ignited this fight — bonus coin.";
     screen.appendChild(tag);
+  } else {
+    const missLine = ignitionMissRecapLine(result);
+    if (missLine) {
+      const tag = document.createElement("p");
+      tag.className = "recap-miss";
+      tag.textContent = missLine;
+      screen.appendChild(tag);
+    }
   }
 
   const coinRow = document.createElement("p");

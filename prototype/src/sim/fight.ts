@@ -14,7 +14,12 @@ import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "
  * (<= amount — less if the side didn't have enough total HP to absorb it),
  * which the caller credits to the attacker's `dealt` counter.
  */
-function applyDamageFrom(side: SideState, startId: string, amount: number): { died: string[]; applied: number } {
+function applyDamageFrom(
+  side: SideState,
+  startId: string,
+  amount: number,
+  heatWeightSoaked = 0,
+): { died: string[]; applied: number } {
   const startIdx = side.heroes.findIndex((h) => h.id === startId);
   if (startIdx < 0) return { died: [], applied: 0 };
   let remaining = amount;
@@ -25,6 +30,7 @@ function applyDamageFrom(side: SideState, startId: string, amount: number): { di
     const taken = Math.min(hero.hp, remaining);
     hero.hp -= taken;
     hero.soaked += taken;
+    hero.heat += taken * heatWeightSoaked * hero.chainAffinity;
     hero.hitsTaken += 1;
     remaining -= taken;
     if (hero.hp <= 0) {
@@ -79,12 +85,24 @@ function isWiped(side: SideState): boolean {
 }
 
 /** Rolls a normal attack's damage within +/-variance of base. Chain bonus
- * hits never go through this — they stay exact so the escalating tiers
- * (bonusHitStep * hitIndex) read as clean steps rather than noisy ones. */
+ * hits and wind-up hits never go through this — they stay exact so the
+ * escalating tiers and the telegraph's threat read as clean numbers rather
+ * than noisy ones. */
 function rollDamage(base: number, rng: Rng, variance: number): number {
   if (variance <= 0) return base;
   const factor = 1 + (rng.next() * 2 - 1) * variance;
   return Math.max(1, Math.round(base * factor));
+}
+
+/** Enemy damage multiplier from the enrage clock (2026-08-07 rebuild) — 1x
+ * until enrageStartSec into the fight, then ramping linearly. Applies to
+ * both normal enemy attacks and wind-up hits, so the cost of a slow fight
+ * grows for the whole enemy side, not just the bruiser. See config.ts's
+ * FightConfig docstring for why this resets every fight rather than
+ * compounding across the run. */
+function enrageMultiplierAt(t: number, cfg: FightConfig): number {
+  if (t <= cfg.enrageStartSec) return 1;
+  return 1 + (t - cfg.enrageStartSec) * cfg.enrageRampPerSec;
 }
 
 function snapshotHeroes(side: SideState): HeroSnapshot[] {
@@ -100,11 +118,21 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
     restored: h.restored,
     hitsTaken: h.hitsTaken,
     holding: h.holding,
+    heat: h.heat,
   }));
 }
 
 function cloneHeroes(heroes: HeroState[]): HeroState[] {
-  return heroes.map((h) => ({ ...h, dealt: 0, soaked: 0, restored: 0, hitsTaken: 0 }));
+  return heroes.map((h) => ({
+    ...h,
+    dealt: 0,
+    soaked: 0,
+    restored: 0,
+    hitsTaken: 0,
+    heat: 0,
+    windupFireT: undefined,
+    windupTargetId: undefined,
+  }));
 }
 
 /** One hero's beat: support heroes heal their lowest-HP living ally instead
@@ -124,6 +152,7 @@ function performHeroAction(
   hero: HeroState,
   isPlayerAttacker: boolean,
   targeting: "front" | "weighted",
+  damageMultiplier = 1,
 ): void {
   if (hero.healPerBeat) {
     const target = lowestHpAliveHero(attackerSide);
@@ -132,18 +161,23 @@ function performHeroAction(
       if (amount > 0) {
         target.hp += amount;
         hero.restored += amount;
+        hero.heat += amount * cfg.heatWeightRestored * hero.chainAffinity;
         events.push({ type: "heal", t, side: attackerSideLabel, healerId: hero.id, targetId: target.id, amount });
       }
     }
-    return;
+    // Ward's hybrid identity (2026-08-08, see heroes.ts): the heal doesn't
+    // replace the attack when attacksWhileHealing is set — both happen on
+    // the same beat, so a two-support comp is no longer an automatic loss.
+    if (!hero.attacksWhileHealing) return;
   }
   const targetId =
     targeting === "front" ? frontMostAliveId(defenderSide) : pickWeightedTargetId(defenderSide, rng, cfg);
   if (!targetId) return;
-  const base = hero.damage + (isPlayerAttacker ? attackerSide.dpsBonus : 0);
+  const base = (hero.damage + (isPlayerAttacker ? attackerSide.dpsBonus : 0)) * damageMultiplier;
   const damage = rollDamage(base, rng, cfg.damageVariance);
-  const { died, applied } = applyDamageFrom(defenderSide, targetId, damage);
+  const { died, applied } = applyDamageFrom(defenderSide, targetId, damage, cfg.heatWeightSoaked);
   hero.dealt += applied;
+  hero.heat += applied * cfg.heatWeightDealt * hero.chainAffinity;
   events.push({ type: "attack", t, side: attackerSideLabel, attackerId: hero.id, targetId, damage });
   for (const id of died) events.push({ type: "heroDown", t, side: defenderSideLabel, heroId: id });
 }
@@ -167,6 +201,57 @@ function updateTankHolding(events: FightEvent[], t: number, side: SideState, sid
   }
 }
 
+/** The enemy bruiser's telegraphed heavy hit (2026-08-07 rebuild) — see
+ * config.ts's FightConfig docstring. A small state machine on the bruiser's
+ * own HeroState: idle (normal attack beat) until nextWindupT, then charging
+ * (windupFireT set, no normal attacks) until the charge resolves, then back
+ * to idle with nextWindupT pushed forward. The wind-up REPLACES the
+ * bruiser's beat rather than adding to it — it's the same actor doing a
+ * different, telegraphed thing, not bonus damage on top.
+ * Returns true if this beat wiped the player side. */
+function handleBruiserBeat(
+  events: FightEvent[],
+  t: number,
+  rng: Rng,
+  cfg: FightConfig,
+  enemy: SideState,
+  player: SideState,
+  hero: HeroState,
+  enrageMult: number,
+): boolean {
+  if (hero.windupFireT !== undefined) {
+    if (t < hero.windupFireT) return false; // still telegraphing
+    // Charge resolves. If the locked target died to something else first,
+    // retarget fresh — the threat was real, just not to that hero anymore.
+    const lockedAlive = hero.windupTargetId && player.heroes.some((h) => h.id === hero.windupTargetId && h.alive);
+    const targetId = lockedAlive ? (hero.windupTargetId as string) : pickWeightedTargetId(player, rng, cfg);
+    hero.windupFireT = undefined;
+    hero.windupTargetId = undefined;
+    hero.nextWindupT = t + cfg.windupIntervalSec;
+    hero.nextAttackT = t + hero.attackIntervalSec;
+    if (!targetId) return false;
+    const damage = Math.max(1, Math.round(hero.damage * cfg.windupDamageMultiplier * enrageMult));
+    const { died, applied } = applyDamageFrom(player, targetId, damage, cfg.heatWeightSoaked);
+    hero.dealt += applied;
+    events.push({ type: "windupHit", t, targetId, damage });
+    for (const id of died) events.push({ type: "heroDown", t, side: "player", heroId: id });
+    return isWiped(player);
+  }
+  if (hero.nextWindupT !== undefined && t >= hero.nextWindupT) {
+    const targetId = pickWeightedTargetId(player, rng, cfg) ?? null;
+    hero.windupTargetId = targetId;
+    hero.windupFireT = t + cfg.windupTelegraphSec;
+    events.push({ type: "windupStart", t, targetId, fireT: hero.windupFireT });
+    return false;
+  }
+  if (t >= hero.nextAttackT) {
+    performHeroAction(events, t, rng, cfg, enemy, "enemy", player, "player", hero, false, "weighted", enrageMult);
+    hero.nextAttackT += hero.attackIntervalSec;
+    return isWiped(player);
+  }
+  return false;
+}
+
 /**
  * Runs one fight to completion and returns the full record for replay.
  * Pure function: no DOM, no wall-clock, no imports outside sim/.
@@ -176,20 +261,26 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   const player: SideState = { heroes: cloneHeroes(setup.player.heroes), dpsBonus: setup.player.dpsBonus };
   const enemy: SideState = { heroes: cloneHeroes(setup.enemy.heroes), dpsBonus: setup.enemy.dpsBonus };
 
-  const playerStartMax = sideMaxHp(player);
-
   const events: FightEvent[] = [];
   const snapshots: TickSnapshot[] = [];
 
   const dt = 1 / cfg.tickRate;
   const maxTicks = Math.round(cfg.maxFightSec * cfg.tickRate);
 
-  let gateOpened = false;
   let ignited = false;
   let hotHeroId: string | null = null;
   let bonusHitsLanded = 0;
   let finalChainLength = 0;
-  let dipOccurred = false;
+  // Spent-per-roll PRD counter (2026-08-08 "heat is spent" rebuild) — an
+  // "attempt" is a single roll, not a fight, since heat now resets and can
+  // rebuild several times within one fight. Starts from whatever the
+  // previous fight ended with (setup.attemptsSinceIgnition); its final value
+  // here is returned on FightResult for the run wrapper to carry forward.
+  let attemptsSinceIgnition = setup.attemptsSinceIgnition;
+  // A tankless comp is living dangerously from the first tick — counted as a
+  // dip immediately, same as the old gate's "no living tank" clause.
+  let dipOccurred = !player.heroes.some((h) => h.role === "tank" && h.alive);
+  let enrageStarted = false;
 
   let outcome: "win" | "loss" | null = null;
   let endReason: "wipe" | "failsafe" = "wipe";
@@ -199,22 +290,36 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
     const t = tick * dt;
     endT = t;
 
+    const enrageMult = enrageMultiplierAt(t, cfg);
+    if (!enrageStarted && enrageMult > 1) {
+      enrageStarted = true;
+      events.push({ type: "enrageStart", t });
+    }
+
     // Player heroes act on their own beats, targeting the front-most living
     // enemy — deterministic, so the player can reliably focus down the
-    // bruiser. The hot hero also rolls its chain on the same beat.
+    // bruiser. The hot hero also rolls its chain on the same beat, and its
+    // beat itself runs faster while hot (hotBeatIntervalFactor) — the chain
+    // visibly accelerates the hot hero's cadence.
     for (const hero of player.heroes) {
       if (!hero.alive || outcome || t < hero.nextAttackT) continue;
+      const isHot = hero.id === hotHeroId;
       performHeroAction(events, t, rng, cfg, player, "player", enemy, "enemy", hero, true, "front");
-      hero.nextAttackT += hero.attackIntervalSec;
+      hero.nextAttackT += hero.attackIntervalSec * (isHot ? cfg.hotBeatIntervalFactor : 1);
       if (isWiped(enemy)) {
         outcome = "win";
         continue;
       }
-      if (hero.id === hotHeroId) {
-        const chance = prdLookup(cfg.chainChanceByHitsSoFar, bonusHitsLanded);
+      if (isHot) {
+        const chance = bonusHitsLanded >= cfg.chainMaxHits ? 0 : prdLookup(cfg.chainChanceByHitsSoFar, bonusHitsLanded);
         if (rng.chance(chance)) {
           const hitIndex = bonusHitsLanded + 1;
-          const damage = Math.min(cfg.bonusHitStep * hitIndex, cfg.bonusHitCap);
+          // Multiplicative off the hot hero's own damage AND its own
+          // chainAffinity (2026-08-07/08) — see config.ts's FightConfig
+          // docstring: a Vex chain is explosive, a Bracer chain is a damp
+          // squib, so squad choice sets the ceiling's SIZE, not just
+          // whether it's reachable.
+          const damage = Math.max(1, Math.round(hero.damage * cfg.chainHitMultiplier * hitIndex * hero.chainAffinity));
           const targetId = frontMostAliveId(enemy);
           if (targetId) {
             const { died, applied } = applyDamageFrom(enemy, targetId, damage);
@@ -232,14 +337,23 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       }
     }
 
-    // Enemy heroes act on their own beats, targeting a weighted-random
-    // living player hero — see pickWeightedTargetId's docstring for why.
+    // Enemy heroes act on their own beats. The bruiser runs its wind-up
+    // state machine (charge/fire, replacing its normal attack while
+    // telegraphing); everyone else attacks a weighted-random living player
+    // hero, same as before — see pickWeightedTargetId's docstring for why.
+    // Both routes scale by the current enrage multiplier.
     if (!outcome) {
       for (const hero of enemy.heroes) {
-        if (!hero.alive || outcome || t < hero.nextAttackT) continue;
-        performHeroAction(events, t, rng, cfg, enemy, "enemy", player, "player", hero, false, "weighted");
-        hero.nextAttackT += hero.attackIntervalSec;
-        if (isWiped(player)) outcome = "loss";
+        if (!hero.alive || outcome) continue;
+        let wiped = false;
+        if (hero.role === "bruiser") {
+          wiped = handleBruiserBeat(events, t, rng, cfg, enemy, player, hero, enrageMult);
+        } else if (t >= hero.nextAttackT) {
+          performHeroAction(events, t, rng, cfg, enemy, "enemy", player, "player", hero, false, "weighted", enrageMult);
+          hero.nextAttackT += hero.attackIntervalSec;
+          wiped = isWiped(player);
+        }
+        if (wiped) outcome = "loss";
       }
     }
 
@@ -252,49 +366,40 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       if (player.heroes.some((h) => h.role === "tank" && h.alive && !h.holding)) dipOccurred = true;
     }
 
-    // The gate (2026-08-06 rework): only reachable once the player's tank
-    // line has actually failed — every living tank broken, or no tank at
-    // all — AND the pool has fallen to gatePoolFraction of its fight-start
-    // max. A comfortable comp with a holding tank never reaches this, by
-    // construction; see DECISIONS.md's "jeopardy no longer mandatory" and
-    // "squad pick is the risk dial" entries. Stage 1 (this) + stage 2 (PRD),
-    // one shot per fight.
-    if (!gateOpened && !outcome) {
-      const livingTanks = player.heroes.filter((h) => h.role === "tank" && h.alive);
-      const lineBroken = livingTanks.length === 0 || livingTanks.every((h) => !h.holding);
-      if (lineBroken) dipOccurred = true;
-      if (lineBroken && sideHp(player) <= cfg.gatePoolFraction * playerStartMax) {
-        gateOpened = true;
-        events.push({ type: "gateOpen", t });
-        const ignitionChance = prdLookup(cfg.ignitionChanceByFightsSince, setup.fightsSinceIgnition);
+    // Heat-based ignition eligibility (2026-08-07 rebuild, replaces the old
+    // pity-gate — see config.ts's FightConfig docstring and DECISIONS.md's
+    // "fight causality rebuild" entry). Only checked while no chain is
+    // currently running (hotHeroId === null) — a second candidate crossing
+    // threshold mid-chain waits its turn rather than interrupting it.
+    // 2026-08-08: the CANDIDATE is the highest-heat living hero, not the
+    // first in array order (which always favored the tank); and heat is
+    // SPENT on the roll — win or lose — rather than latching out after one
+    // attempt per fight forever, so a squad that keeps taking damage keeps
+    // earning shots within the same fight. See config.ts's docstring.
+    if (!outcome && hotHeroId === null) {
+      let candidate: HeroState | undefined;
+      for (const h of player.heroes) {
+        if (!h.alive || h.heat < cfg.heatThreshold) continue;
+        if (!candidate || h.heat > candidate.heat) candidate = h;
+      }
+      if (candidate) {
+        events.push({ type: "heatFull", t, heroId: candidate.id });
+        const ignitionChance = prdLookup(cfg.ignitionChanceByAttemptsSinceIgnition, attemptsSinceIgnition);
         const fired = rng.chance(ignitionChance);
-        let heroId: string | null = null;
+        candidate.heat = 0;
         if (fired) {
-          // The hero who has done the most of its job goes hot — not a
-          // random pick (2026-08-06, see DECISIONS.md's "squad pick is the
-          // risk dial" entry) — so "VEX CHAIN x5" reads as Vex having
-          // earned it rather than as a coin landing on Vex. Falls back to
-          // restored (a pure-healer squad, or one where nobody has dealt
-          // damage yet) if nobody has a dealt total to compare.
-          const aliveHeroes = player.heroes.filter((h) => h.alive);
-          if (aliveHeroes.length > 0) {
-            const dealers = aliveHeroes.filter((h) => h.dealt > 0);
-            const pool = dealers.length > 0 ? dealers : aliveHeroes;
-            const byDealt = dealers.length > 0;
-            let best = pool[0] as HeroState;
-            for (const h of pool) {
-              const better = byDealt ? h.dealt > best.dealt : h.restored > best.restored;
-              if (better) best = h;
-            }
-            heroId = best.id;
-            ignited = true;
-            hotHeroId = heroId;
-            bonusHitsLanded = 0;
-          }
+          ignited = true;
+          hotHeroId = candidate.id;
+          bonusHitsLanded = 0;
+          attemptsSinceIgnition = 0;
+        } else {
+          attemptsSinceIgnition += 1;
         }
-        events.push({ type: "ignitionRoll", t, fired: fired && heroId !== null, heroId });
+        events.push({ type: "ignitionRoll", t, fired, heroId: candidate.id });
       }
     }
+
+    const bruiser = enemy.heroes.find((h) => h.role === "bruiser");
 
     snapshots.push({
       t,
@@ -305,11 +410,12 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       playerHeroes: snapshotHeroes(player),
       enemyHeroes: snapshotHeroes(enemy),
       hotHeroId,
-      gateOpen: gateOpened,
       // Render-facing (2026-08-06): only surfaced once the chain has earned
       // its tell, so a fizzled length-0/1 chain never glows or callouts.
       visibleChainHeroId: hotHeroId && bonusHitsLanded >= cfg.chainTellThreshold ? hotHeroId : null,
       visibleChainLength: bonusHitsLanded,
+      enrageMultiplier: enrageMult,
+      windupTargetId: bruiser?.alive && bruiser.windupFireT !== undefined ? (bruiser.windupTargetId ?? null) : null,
     });
 
     if (outcome) break;
@@ -343,5 +449,6 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
     durationSec: endT,
     finalPlayerHeroes: snapshotHeroes(player),
     dipOccurred,
+    attemptsSinceIgnition,
   };
 }
