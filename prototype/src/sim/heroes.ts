@@ -27,46 +27,49 @@ export interface HeroDef {
  * set of tradeoffs — Vex out-DPSed Rook for near-free, any comp with both
  * Cairn and Ward lost 100% of the time since two non-attacking supports is a
  * guaranteed loss, and squad choice barely moved the cascade's odds at all).
- * Each role's pair now trades on a DIFFERENT axis so no hero dominates every
- * axis, and every hero carries a visible `chainAffinity` — the lever that
- * makes "who I pick" answer "how am I going for the cascade," the way
- * picking a Dota item build does:
+ * Re-tuned again 2026-08-08 after that first re-cut turned out to still be a
+ * dominance ladder in disguise: `chainAffinity` was multiplying against each
+ * hero's raw throughput in BOTH the heat term (heatWeight * dps * affinity)
+ * and the chain-damage term (damage * affinity * N) rather than being an
+ * orthogonal axis, so Vex's higher damage stat alone made it out-DPS,
+ * out-heat, AND out-chain Rook despite Rook's higher affinity — a full
+ * 20-squad batch sweep found 3 near-unloseable comps (bracer+vex+cairn,
+ * vex+cairn+ward, bracer+vex+ward, all >=98% run completion) plus 2 more
+ * near-unloseable by a different route (bracer+rook+ward, rook+cairn+ward,
+ * both >=93%, via Ward's attacksWhileHealing beating Cairn on total
+ * throughput for only 35 less HP) — see DECISIONS.md's entry on this pass
+ * for the full root-cause writeup.
+ *
+ * The operative principle as of 2026-08-08: within a role, every hero gets
+ * roughly the SAME throughput budget (DPS for damage, heal-per-second for
+ * support), and differs only in SHAPE — burst size vs. cadence, fragility,
+ * and `chainAffinity`. Only once throughput is equalized does `chainAffinity`
+ * become a real, standalone lever rather than a rounding error riding on top
+ * of a raw stat-block gap:
  *  - tank: Bracer is the wall (low affinity, rarely chains); Hollow is
  *    fragile but chains hard (high affinity) — a real HP-for-ceiling trade.
  *  - damage: Rook is the heat engine — frequent, modest chains (highest
- *    affinity in the pool, on a small damage stat); Vex is burst — rare but
- *    enormous chains (high damage, moderate affinity). Rook no longer loses
- *    to Vex on every axis; they're different bets.
+ *    affinity in the pool). Vex is burst — rare but bigger chains, now at
+ *    near-parity DPS with Rook (was 17.14 vs 6.67; walked down to ~7.2 vs
+ *    6.67 by halving its cadence, not its per-hit damage, so the "explosive"
+ *    identity survives the nerf).
  *  - support: Cairn is the pure safety net (lowest affinity — it almost
- *    never chains, by design); Ward now attacks AND heals on the same beat
- *    (attacksWhileHealing) so a two-support comp is no longer an automatic
- *    loss, and Ward's own moderate affinity gives the healing-forward comp a
- *    real, if modest, shot at the cascade too.
+ *    never chains, by design, and has the pool's highest heal throughput).
+ *    Ward attacks AND heals on the same beat (attacksWhileHealing), so a
+ *    two-support comp is still viable, but its healPerBeat is cut so that
+ *    hybrid flexibility and its own moderate affinity cost something instead
+ *    of beating Cairn on every axis for free.
  * Values are strawmen for the batch harness (npm run batch --squad <combo>)
  * to move, same as everywhere else in this file. See DECISIONS.md's
  * housekeeping note for the 2026-08-07 heat rebuild this pool sits on top of.
- *
- * Known open tuning gap (2026-08-08, same shape as the earlier hollow/bracer
- * gap this docstring used to carry): bracer+vex+cairn and vex+cairn+ward —
- * the safest tank, the highest-damage dealer, and a real healer, together —
- * stay near-100% run completion in the batch harness regardless of how hard
- * config.ts's difficultyRampFactor/difficultyDamageRampFactor are pushed.
- * The reason is structural, not a tuning miss: Vex kills so fast that few
- * enemy attacks land at all, so neither an HP ramp (more total exposure
- * time) nor a damage ramp (harder per-hit) has much to bite into. This comp
- * has no weakness on any axis a global ramp can reach — fixing it needs a
- * hero-stat-level change (e.g. a real cost on Vex, or a cap on how much
- * burst a healer can out-sustain), not another global-ramp pass. Not
- * blocking: every other comp, including the default roster, shows a real
- * spread of risk (see `npm run batch` with no args for the full matrix).
  */
 export const PLAYER_HERO_POOL: HeroDef[] = [
   {
-    id: "bracer", name: "Bracer", role: "tank", maxHp: 280, damage: 5, attackIntervalSec: 1.4,
+    id: "bracer", name: "Bracer", role: "tank", maxHp: 195, damage: 7, attackIntervalSec: 1.4,
     chainAffinity: 0.4, identity: "The wall. Steady, unglamorous, rarely chains.",
   },
   {
-    id: "hollow", name: "Hollow", role: "tank", maxHp: 130, damage: 6, attackIntervalSec: 1.1,
+    id: "hollow", name: "Hollow", role: "tank", maxHp: 180, damage: 6, attackIntervalSec: 1.1,
     chainAffinity: 1.4, identity: "Fragile — but chains hard when it connects.",
   },
   {
@@ -74,7 +77,7 @@ export const PLAYER_HERO_POOL: HeroDef[] = [
     chainAffinity: 1.6, identity: "The heat engine. Frequent, modest chains.",
   },
   {
-    id: "vex", name: "Vex", role: "damage", maxHp: 45, damage: 12, attackIntervalSec: 0.7,
+    id: "vex", name: "Vex", role: "damage", maxHp: 70, damage: 13, attackIntervalSec: 1.5,
     chainAffinity: 0.9, identity: "Explosive burst. Rare, enormous chains.",
   },
   {
@@ -82,7 +85,7 @@ export const PLAYER_HERO_POOL: HeroDef[] = [
     chainAffinity: 0.3, identity: "The safety net. Almost never chains.",
   },
   {
-    id: "ward", name: "Ward", role: "support", maxHp: 75, damage: 3, attackIntervalSec: 1.0, healPerBeat: 4,
+    id: "ward", name: "Ward", role: "support", maxHp: 92, damage: 3, attackIntervalSec: 1.0, healPerBeat: 3,
     attacksWhileHealing: true, chainAffinity: 1.1, identity: "Heals AND swings — a hybrid pick.",
   },
 ];

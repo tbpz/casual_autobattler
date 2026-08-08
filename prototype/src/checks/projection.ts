@@ -7,11 +7,12 @@
  * zeroed (so the projection reads the same physics the sim implements, not
  * a divergent approximation).
  *
- * Also asserts the default roster (DEFAULT_PLAYER_ROSTER_IDS) bands
- * "comfortable" against fight 0 — the numeric target of the 2026-08-06
- * tuning pass (see DECISIONS.md's "squad pick is the risk dial" entry and
- * config.ts's tankBreakFraction/tankRecoverFraction comments for how it got
- * there; batch-verified dip rate ~27% via `npm run batch --squad comfortable`).
+ * Also asserts the default roster (DEFAULT_PLAYER_ROSTER_IDS) bands "tight"
+ * against fight 0 — flipped from "comfortable" by the 2026-08-08
+ * dominant-squad root-cause pass (see heroes.ts's pool docstring):
+ * bracer+rook+cairn is no longer a blind-safe pick by design, so it should no
+ * longer read as an effortless "comfortable" floor either. See DECISIONS.md's
+ * entry on that pass for the batch numbers this retune is pinned to.
  */
 import { Rng } from "../sim/rng.js";
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
@@ -34,7 +35,11 @@ function check(name: string, condition: boolean, detail: string): void {
 const cfg = DEFAULT_RUN_CONFIG;
 const enemy = makeEnemySide(cfg, 0);
 
-const wellBuffered = project(makePlayerSide(["hollow", "vex", "cairn"]), enemy, cfg.fight);
+// 2026-08-08 (dominant-squad root-cause pass — see heroes.ts's pool
+// docstring and DECISIONS.md): swapped from hollow+vex+cairn, which now
+// bands "tight" under the retuned numbers — bracer+vex+cairn is the squad
+// that still comfortably clears TANK_HOLDS_COMFORTABLE_RATIO post-retune.
+const wellBuffered = project(makePlayerSide(["bracer", "vex", "cairn"]), enemy, cfg.fight);
 check(
   "a tank projected to outlast the fight bands comfortable",
   wellBuffered.band === "comfortable",
@@ -48,10 +53,15 @@ check(
   `got ${tankless.band} (margin=${tankless.margin.toFixed(2)})`,
 );
 
+// 2026-08-08: expectation flipped from "comfortable" to "tight" by the
+// dominant-squad root-cause pass — the whole point of that pass was that the
+// default pick (bracer+rook+cairn) is no longer a free, blind-safe win (see
+// heroes.ts's pool docstring). It should still clearly clear "losing," just
+// not read as effortless.
 const defaultRoster = project(makePlayerSide(), enemy, cfg.fight);
 check(
-  "the default roster bands comfortable against fight 0",
-  defaultRoster.band === "comfortable",
+  "the default roster bands tight (no longer a blind-safe pick) against fight 0",
+  defaultRoster.band === "tight",
   `got ${defaultRoster.band} (tankHolds=${defaultRoster.tankHoldsSec?.toFixed(1)} kill=${defaultRoster.killSec.toFixed(1)})`,
 );
 

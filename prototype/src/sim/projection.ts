@@ -96,14 +96,26 @@ function verdictFor(band: MarginBand, tankName: string | null): string {
  * it also carries a (small) damage stat, matching fight.ts's
  * performHeroAction. Ward's attacksWhileHealing (2026-08-08, see heroes.ts)
  * is the one exception: it contributes to BOTH dps and healPerSec, since it
- * genuinely does both on the same beat rather than one replacing the other. */
-function sideRates(heroes: HeroState[]): { dps: number; healPerSec: number } {
+ * genuinely does both on the same beat rather than one replacing the other.
+ *
+ * 2026-08-08 (root-cause pass): each healer's per-beat amount is capped
+ * against cfg.healMaxFractionOfTargetMaxHp, same as fight.ts's
+ * performHeroAction — otherwise this projection understates incoming
+ * pressure on a squishy ally exactly the way the pre-fix sim did. A heal
+ * always lands on the lowest-HP living ally (fight.ts's lowestHpAliveHero),
+ * which trends toward the squishiest body in the side, so this approximates
+ * the cap against the SMALLEST living ally's maxHp rather than the healer's
+ * own — a mean-value estimate, not a per-tick replay (see this file's top
+ * docstring). */
+function sideRates(heroes: HeroState[], cfg: FightConfig): { dps: number; healPerSec: number } {
   let dps = 0;
   let healPerSec = 0;
+  const minAllyMaxHp = Math.min(...heroes.filter((h) => h.alive).map((h) => h.maxHp));
   for (const h of heroes) {
     if (!h.alive) continue;
     if (h.healPerBeat) {
-      healPerSec += h.healPerBeat / h.attackIntervalSec;
+      const cap = minAllyMaxHp * cfg.healMaxFractionOfTargetMaxHp;
+      healPerSec += Math.min(h.healPerBeat, cap) / h.attackIntervalSec;
       if (h.attacksWhileHealing) dps += h.damage / h.attackIntervalSec;
     } else {
       dps += h.damage / h.attackIntervalSec;
@@ -113,25 +125,34 @@ function sideRates(heroes: HeroState[]): { dps: number; healPerSec: number } {
 }
 
 /** Mean enrage multiplier over a fight of estimated length `durationSec`
- * (2026-08-07 rebuild) — the ramp is linear from 1x at enrageStartSec, so
- * the enraged portion's mean is its own midpoint; blended against the
- * pre-enrage portion (always 1x) by time share. An estimate, not an exact
- * replay of fight.ts's per-tick enrageMultiplierAt — this is a pre-fight
- * expectation, not a guarantee (see this file's top docstring). */
+ * (2026-08-07 rebuild) — the wall-clock term ramps linearly from 1x at
+ * enrageStartSec, so the enraged portion's mean is its own midpoint; blended
+ * against the pre-enrage portion (always 1x) by time share. An estimate, not
+ * an exact replay of fight.ts's per-tick enrageMultiplierAt — this is a
+ * pre-fight expectation, not a guarantee (see this file's top docstring).
+ *
+ * 2026-08-08 (root-cause pass): adds the mean contribution of the HP-lost
+ * enrage term (see config.ts's enrageFromEnemyHpLostFactor docstring). Enemy
+ * HP lost runs ~linearly 0->1 over the course of a fight regardless of its
+ * length, so its mean over the whole fight is a flat half of the factor —
+ * added on top of the wall-clock blend above rather than folded into it,
+ * since the two terms are independent (one keyed to seconds, one to damage
+ * dealt). */
 function meanEnrageMultiplier(durationSec: number, cfg: FightConfig): number {
-  if (durationSec <= cfg.enrageStartSec) return 1;
+  const hpLostMeanTerm = cfg.enrageFromEnemyHpLostFactor * 0.5;
+  if (durationSec <= cfg.enrageStartSec) return 1 + hpLostMeanTerm;
   const enragedSec = durationSec - cfg.enrageStartSec;
   const finalMult = 1 + enragedSec * cfg.enrageRampPerSec;
   const meanEnragedMult = (1 + finalMult) / 2;
-  return (cfg.enrageStartSec * 1 + enragedSec * meanEnragedMult) / durationSec;
+  return (cfg.enrageStartSec * 1 + enragedSec * meanEnragedMult) / durationSec + hpLostMeanTerm;
 }
 
 export function project(player: SideState, enemy: SideState, cfg: FightConfig): Projection {
   const playerAlive = player.heroes.filter((h) => h.alive);
   const enemyAlive = enemy.heroes.filter((h) => h.alive);
 
-  const playerRates = sideRates(playerAlive);
-  const enemyRates = sideRates(enemyAlive);
+  const playerRates = sideRates(playerAlive, cfg);
+  const enemyRates = sideRates(enemyAlive, cfg);
   // The run's dpsBonus upgrade (coin sink B) applies to every hero that
   // actually attacks — everyone without healPerBeat, PLUS Ward-style hybrids
   // (attacksWhileHealing) who attack on top of healing (matches fight.ts's

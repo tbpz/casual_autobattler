@@ -132,6 +132,22 @@ export interface FightConfig {
    */
   enrageStartSec: number;
   enrageRampPerSec: number;
+  /**
+   * 2026-08-08 (root-cause pass, same as healMaxFractionOfTargetMaxHp above):
+   * enrage also scales with the fraction of the enemy side's starting HP
+   * already destroyed — a wounded enemy hits back harder. Before this, enrage
+   * was purely wall-clock, which meant damage output was ALSO the best
+   * defensive stat: every enemy threat (attack cadence, the wind-up, enrage
+   * itself) is time-metered, so a comp that killed fast enough (e.g.
+   * bracer+vex+cairn's 14s fights) reduced its OWN exposure to all three at
+   * once and simply never reached the danger the ramp was meant to create.
+   * This term makes killing fast cost something: a burst comp still reaches
+   * the angry phase, just via HP destroyed rather than seconds elapsed, so
+   * speed alone no longer removes exposure. lostFraction runs 0->1 over a
+   * fight; multiplied by this factor and added straight to the multiplier
+   * (see fight.ts's enrageMultiplierAt).
+   */
+  enrageFromEnemyHpLostFactor: number;
 
   /** Ignition PRD by failed-ATTEMPTS-since-last-ignition (renamed and
    * re-scoped 2026-08-08 from "fights since" — see heatWeightDealt's
@@ -193,6 +209,20 @@ export interface FightConfig {
    * read cleanly. 0 disables variance (used by checks/beatsheet.ts to
    * isolate the pure-combat trajectory). */
   damageVariance: number;
+
+  /**
+   * 2026-08-08 (root-cause pass on the bracer+vex+cairn/vex+cairn+ward
+   * dominant-squad gap — see DECISIONS.md and heroes.ts's pool docstring): a
+   * single heal beat can restore at most this fraction of the TARGET's own
+   * maxHp. healPerBeat is otherwise a flat amount, which silently
+   * over-rewards small HP pools — Cairn's 5.83 HPS was 13%/sec of Vex's
+   * 45-maxHp pool but only 2%/sec of Bracer's 280, so a healer erased a
+   * squishy attacker's fragility for free rather than that fragility costing
+   * anything. This caps the effective heal rate against the target's own
+   * body, not a flat number, so the cap scales with whoever's being healed.
+   * Deliberately leaves tank-healing (large maxHp) close to unaffected.
+   */
+  healMaxFractionOfTargetMaxHp: number;
 }
 
 export interface RunConfig {
@@ -277,6 +307,17 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // run's 5 fights the way HP scaling does.
   enrageStartSec: 20,
   enrageRampPerSec: 0.025,
+  // 2026-08-08 (root-cause pass): started at 0.6, walked back to 0.25 during
+  // the 20-squad batch sweep — 0.6 turned out to double-punish SLOW fights
+  // rather than selectively reaching fast ones (every WON fight ends at 100%
+  // enemy HP lost by definition, so the term reaches its cap in every win
+  // regardless of squad; a slow fight just spends more real seconds exposed
+  // while ramping through it, so it ate more total bonus damage than the fast
+  // comps it was aimed at). At 0.25, an enemy side ground down to 50% HP is
+  // hitting x1.125, and to 10% HP is hitting x1.225 — enough that a burst
+  // comp still feels real pressure it didn't used to, without re-punishing
+  // the already-slower squads harder than the fast ones it targets.
+  enrageFromEnemyHpLostFactor: 0.25,
 
   // 2026-08-08: lower start (0.5 -> 0.2) and a longer ramp than the
   // pre-2026-08-08 table, because attempts are now repeatable within a
@@ -300,6 +341,17 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   brokenTankTargetWeight: 1,
 
   damageVariance: 0.25,
+
+  // 2026-08-08 (root-cause pass): started at 0.05, loosened to 0.11 during
+  // the 20-squad batch sweep — 0.05 over-corrected and starved every
+  // no-tank/double-support squad's sustain at once (several fell to 0-3% run
+  // completion). At 0.11, Cairn's 7/beat is uncapped against Bracer (11% of
+  // 195 = 21.5) and Hollow (11% of 180 = 19.8), barely trimmed against Rook
+  // (11% of 85 = 9.35, vs its 7 raw), and meaningfully cut against Vex (11%
+  // of 70 = 7.7, close to uncapped now that Vex's own maxHp was raised — see
+  // heroes.ts) — the small-body case this exists to fix. See this file's
+  // FightConfig docstring.
+  healMaxFractionOfTargetMaxHp: 0.11,
 };
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {
@@ -316,21 +368,44 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   // enough to make the wind-up/enrage stack unsurvivable. See DECISIONS.md's
   // "fight causality rebuild" entry: enemy pool size, heatThreshold, and
   // windupIntervalSec are tuned together, not as independent knobs.
-  bruiser: { role: "bruiser", namePrefix: "Bruiser", maxHp: 190, damage: 9, attackIntervalSec: 1 },
-  grunt: { role: "grunt", namePrefix: "Grunt", maxHp: 60, damage: 4, attackIntervalSec: 1 },
-  // Raised 1.06 -> 1.12 (2026-08-08): at 1.06 the best squad completed
-  // 100% of runs with 0.00 deaths across every one of the 20 possible
-  // 3-hero comps — the run literally could not be lost, which is the root
-  // cause of the "solved puzzle" verdict as much as the flat dominance
-  // ladder was. Retuned by the batch harness toward ~50% completion for the
-  // best comp; see checks/chaindist.ts for the pinned target.
-  difficultyRampFactor: 1.07,
-  // Added 2026-08-08 (see scaledArchetype's docstring): even at 1.12 HP-only,
+  // HP trimmed again 190/60 -> 155/48 (2026-08-08, dominant-squad root-cause
+  // pass) as part of recompensating global difficulty downward once the pool
+  // rebalance and the two new mechanisms below (healMaxFractionOfTargetMaxHp,
+  // enrageFromEnemyHpLostFactor) made the base fight harder for everyone —
+  // see heroes.ts's pool docstring for the full pass.
+  bruiser: { role: "bruiser", namePrefix: "Bruiser", maxHp: 155, damage: 9, attackIntervalSec: 1 },
+  grunt: { role: "grunt", namePrefix: "Grunt", maxHp: 48, damage: 4, attackIntervalSec: 1 },
+  // Re-tuned 1.12 -> 1.06 (2026-08-08, dominant-squad root-cause pass — see
+  // heroes.ts's pool docstring): 1.12 was pushed that high specifically to
+  // reach bracer+vex+cairn/vex+cairn+ward, comps a global HP ramp
+  // structurally couldn't threaten (see this field's superseded note below
+  // and scaledArchetype's docstring) — once the pool rebalance and the new
+  // enrageFromEnemyHpLostFactor mechanism reached them directly, that pressure
+  // was no longer needed, and left at 1.12 it over-punished every OTHER
+  // squad. Retuned by the 20-squad batch sweep toward max completion <=~55%
+  // across all of them; see checks/chaindist.ts's "no dominant squad" block
+  // for the pinned target.
+  //
+  // Superseded 2026-08-08 note, kept for history: "at 1.06 the best squad
+  // completed 100% of runs with 0.00 deaths across every one of the 20
+  // possible 3-hero comps — the run literally could not be lost." That
+  // diagnosis was correct for the OLD stat block (see heroes.ts) — under the
+  // rebalanced pool, 1.06 is once again the right value, for a different
+  // reason (the pool no longer has a single unreachable comp to chase).
+  difficultyRampFactor: 1.06,
+  // Re-tuned 1.02 -> 1.045 (2026-08-08, dominant-squad root-cause pass): a
+  // per-hit damage ramp is still what actually threatens a comp that wins
+  // fast (the reasoning below is unchanged), but with enrageFromEnemyHpLostFactor
+  // now ALSO taxing fast kills directly (see this file's FightConfig
+  // docstring), less ramp is needed here than the pre-pass 1.02 to reach the
+  // same squads without over-punishing slower ones.
+  //
+  // 2026-08-08 note, still the core reasoning: even at 1.12 HP-only,
   // bracer+vex+cairn and vex+cairn+ward — fast kill, real tank, real heal,
   // no weakness on any axis — stayed at ~100% run completion, because their
   // fights are too short to accumulate much HP-ramp exposure. A small per-hit
   // damage ramp is what actually threatens a comp that wins fast.
-  difficultyDamageRampFactor: 1.02,
+  difficultyDamageRampFactor: 1.045,
   playerN: 3,
   enemyN: 3,
 

@@ -3,10 +3,34 @@
 > **What this file is:** an append-only history of decisions and their rationale.
 > **Rules:** never edit or delete an existing entry; only add new ones. Newest at the top.
 > **When to read it:** only to answer a "why did we decide X?" question — grep it, don't read top-to-bottom. The current state lives in [STATE.md](STATE.md), not here.
+> **Appending:** use the `decision-log` skill — it carries the format, the word budget, and the rules that keep entries grep-safe.
+> **Archive boundary:** entries below the `ARCHIVE` rule predate the 2026-07-18 pivot and describe a superseded game design (hex grid, elevation, deploy zones, timed ultimate, fog-of-war, 5-heroes-plus-bench). Read them as history, not live rationale.
 >
 > Entry format: `## [YYYY-MM-DD] Title` → **Decision** / **Why** / **Replaces**.
 
 ---
+
+## [2026-08-08] DECISIONS.md entries are historical evidence, not a live config mirror — closes the 5-vs-3 squad-size gap
+
+- **Decision:**
+  - `prototype/src/sim/config.ts` and `heroes.ts` are the sole authority for current tuning constants.
+  - A number inside a DECISIONS.md entry is evidence as of that entry's date only — never a current setting.
+  - Squad size is **N=3**, per the live build.
+  - The pre-pivot "5 heroes + bench" entries (below the `ARCHIVE` rule) no longer bind squad size or anything else.
+- **Why:**
+  - Two same-day 2026-08-08 entries record `difficultyRampFactor` moving in opposite directions (`1.06→1.12` and `1.12→1.06`); append-only means neither can be corrected in place.
+  - `config.ts:395` holds the actual current value; nothing in the log itself signals which entry is current without checking code.
+  - `STATE.md`'s Next-up list has carried an unreconciled 5-vs-3 squad-size question since the 2026-07-18 pivot suspended the old roster entries in general but never named this specific contradiction as closed.
+  - Raised while auditing why DECISIONS.md was growing fast and getting expensive to grep — see the new `decision-log` skill and this entry's own format, both from the same pass.
+- **Replaces:** Nothing structural. Annotates, without editing, the numeric claims in the five 2026-08-08 tuning entries above. Formally closes the old "5 heroes + bench" entries' authority over squad size specifically — they were already suspended in general by 2026-07-18, this names the specific open item resolved.
+
+---
+
+## [2026-08-08] Dominant-squad fix: equal-throughput pool rebalance, a target-relative heal cap, HP-destroyed enrage, and a single-tank aggro cap
+
+- **Decision:** Four changes, made together against the open "bracer+vex+cairn / vex+cairn+ward stay near-100%" gap this pool docstring had been carrying: (1) Vex's DPS is walked down to near-parity with Rook (17.1 → 7.2, via a slower cadence not a smaller hit) and its maxHp raised (45 → 70) so the slower cadence doesn't just trade one death spiral for another; Hollow's maxHp raised (130 → 180) so its HP-for-affinity trade is a real choice; Ward's heal cut (4 → 3) so its hybrid flexibility costs something; Bracer's maxHp trimmed (280 → 195) and damage raised (5 → 7). (2) A new `healMaxFractionOfTargetMaxHp` (0.11) caps a single heal beat at a fraction of the *target's* own maxHp, not a flat amount — a healer can no longer fully erase a squishy attacker's fragility for free. (3) A new `enrageFromEnemyHpLostFactor` (0.25) adds a second enrage term keyed to the fraction of enemy HP already destroyed, alongside the existing wall-clock term — a burst comp now still reaches the "angry" phase, via damage dealt instead of seconds elapsed, so killing fast no longer removes all exposure at once. (4) `fight.ts`'s weighted targeting now caps the tank aggro bonus to the *first* living holding tank — found mid-pass: it had been applying to every living holding tank at once, so a Bracer+Hollow double-tank pick stacked additively and was ~90-100% unloseable by a third route this pool rebalance alone didn't touch. Global difficulty (`difficultyRampFactor` 1.12→1.06, `difficultyDamageRampFactor` 1.045, enemy `bruiser`/`grunt` HP 190/60→155/48, `autoRecoverFraction` unchanged at 0.55) was recompensated downward throughout, since every change above made the base fight harder.
+- **Why:** The player's diagnosis, given directly: this comb [sic] is "still too overwhelm that I can spam blindly and win the game and it's boring." A full 20-squad batch sweep (n=400-500) confirmed and widened the known gap: it wasn't 2 squads, it was 5 (bracer+vex+cairn, vex+cairn+ward, bracer+vex+ward all ≥98%; bracer+rook+ward, rook+cairn+ward both ≥93%), and the dominant comp was structurally the one LEAST able to deliver the game's own lead moment — bracer+vex+cairn fired 0.0% of its cascades from below 40% pool, because it won too fast and too safely for the fight's jeopardy beats (dip, wind-up, enrage) to ever engage. Root cause: every enemy threat is time-metered (attack cadence, a 5s wind-up, a 20s enrage clock), so damage output was ALSO the best defensive stat — killing faster reduced ALL of them at once, and nothing charged a price for DPS. A second, independent root cause surfaced mid-tuning: Bracer+Hollow's aggro weights were stacking additively, making any double-tank pick separately unloseable regardless of the third slot. After the fix (20-squad sweep, n=500): 18 of 20 squads land between 21-59% run completion (no blind-spam winner, no near-impossible pick), and the best comp now fires ~30-35% of its cascades from below 40% pool — every one of the 20 squads clears ≥25% on this metric, versus the old best comp's 0.0%. Two squads remain documented exceptions the pass's levers couldn't reach without re-inflating the other 18 back out of band: `rook+vex+ward` (no tank, weak healer, ~0%) and `bracer+cairn+ward` (near-zero real damage output — Cairn's own `damage` stat is decorative, it never attacks while `healPerBeat` is set — ~5-8%). Both are pinned individually in `checks/chaindist.ts`'s new "no dominant squad" sweep rather than silently ignored.
+- **Replaces:** Closes the open gap left by the 2026-08-08 "difficulty retuned so the best squad can actually lose" entry below, which explicitly named this as unsolved and requiring a hero-stat-level change. Also flips `checks/projection.ts`'s "default roster bands comfortable" assertion to "bands tight" (the default pick is deliberately no longer a blind-safe win) and retires the old "risk dial: comfortable > tight > greedy" strict-ordering check in `checks/chaindist.ts` — Hollow's higher chainAffinity is now a genuine alternate path to survival rather than a strictly worse HP trade, so "tight" (hollow+rook+cairn) now completes MORE runs than "comfortable" (bracer+rook+cairn), 37.0% vs. 22.6% at n=2000. That ordering assumption no longer holds by design, not by accident.
 
 ## [2026-08-08] Every hero gets a visible chainAffinity stat — squad choice becomes the cascade's steering wheel; the hero pool is rebalanced off a dominance ladder
 
@@ -204,6 +228,11 @@
 - **Decision:** The core fun was **theorized, never verified by play**; STATE's "core insight" is a hypothesis, not a finding. Therefore: (1) the entire **"Settled — do not re-litigate" list is demoted to working hypotheses**, reopenable until play earns each one back; (2) **no new do-not-re-litigate decisions** are minted until play produces a lean-in; (3) the next work is **discovery, not construction** — starting with co-founder alignment, then small disposable probes that each isolate one autobattler fun-engine (watching / building / gambling), judged only by "do I not want to stop?"; (4) because this is a two-person team, a **co-founder alignment step runs first** to surface where the two makers' visions diverge before anything is built.
 - **Why:** An extensive design + a faithful prototype produced boredom — evidence that more theorizing is the wrong tool and fun is empirical. Keeping the "Settled" list binding protects an *unverified* direction, which is worse than no discipline. The reference games (Balatro/StS/ItB) were themselves found by play, and two of them contradict the settled determinism + free-same-difficulty-retry choices. Two makers with fuzzy, possibly divergent visions (friend's DD + TFT + "chaos" clips point at three different engines) risk a compromise that is "technically fine, secretly boring."
 - **Replaces:** Does not delete prior entries (append-only) but **suspends the binding force** of the 2026-07-11 → 2026-07-15 "Settled" decisions (education-primary, watch-only, deterministic sim, same-difficulty retry, on-map hex placement, etc.) — they revert to hypotheses. Supersedes STATE's "prototype-spec gate is cleared, nothing blocks building" — building is now blocked pending the fun-lead decision.
+
+---
+
+> ## ARCHIVE — entries below predate the 2026-07-18 pivot
+> Everything below this line describes the pre-pivot game design (hex-grid tactics, elevation, authored deploy zones, timed-ultimate mid-fight decisions, fog-of-war, a 5-hero-plus-bench roster). The entry immediately above suspended all of it. Kept for the historical record of *why* the pivot happened — not current, not live rationale.
 
 ## [2026-07-15] OQ-6 (form) resolved: pre-fight setup is on-map placement into an authored bounded deploy zone
 

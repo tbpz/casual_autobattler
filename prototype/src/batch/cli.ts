@@ -6,20 +6,29 @@ import type { FightEvent, FightResult } from "../sim/events.js";
 import { makeEnemySide, makePolicy, runRun, type RunResult } from "../sim/run.js";
 import { BatchAggregator, formatReport } from "./report.js";
 
-/** Named squads for --squad, for comparing how the risk dial (DECISIONS.md
- * 2026-08-06 "squad pick is the risk dial") actually plays out across the
- * comfortable/tight/greedy spectrum, side by side, from real batch data
- * rather than hand-reasoning about the stat blocks. A literal comma-
- * separated hero id list (e.g. "vex,rook,hollow") also works. */
+/** Named squads for --squad, for comparing a few reference picks side by
+ * side from real batch data rather than hand-reasoning about the stat
+ * blocks. A literal comma-separated hero id list (e.g. "vex,rook,hollow")
+ * also works — use that for anything not named here, including the other 17
+ * of the 20 possible 3-hero squads.
+ *
+ * These are no longer a strict comfortable > tight > greedy risk LADDER
+ * (2026-08-08, dominant-squad root-cause pass — see heroes.ts's pool
+ * docstring and checks/chaindist.ts's "risk dial" comment for the full
+ * story): "tight" (hollow+rook+cairn) now completes MORE runs than
+ * "comfortable" (bracer+rook+cairn) — 37.0% vs. 22.6% at n=2000 — because
+ * Hollow's higher chainAffinity became a genuine alternate path to survival
+ * once the pool was rebalanced to equal throughput, not just a strictly
+ * worse HP trade. The names now mark reference points along a
+ * multi-dimensional choice, not ranks. */
 const SQUAD_PRESETS: Record<string, string[]> = {
   comfortable: ["bracer", "rook", "cairn"],
   tight: ["hollow", "rook", "cairn"],
   // Redefined 2026-08-08: vex+rook+ward (the pre-existing "greedy" preset)
   // stopped being greedy once Ward's attacksWhileHealing landed (see
   // heroes.ts) — it now has three effective attackers plus real healing and
-  // completes ~57% of runs, on par with "comfortable." vex+rook+hollow has
-  // NO healer at all — a genuinely no-safety-net pick (~5% completion,
-  // ~2.9 deaths/run) that actually earns the name.
+  // completed on par with "comfortable." vex+rook+hollow has NO healer at
+  // all — a genuinely no-safety-net pick that actually earns the name.
   greedy: ["vex", "rook", "hollow"],
 };
 

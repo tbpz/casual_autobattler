@@ -1,46 +1,29 @@
 # CLAUDE.md — how to work with the context files
 
-This project's design context lives in two files with **opposite rules**. Read this first, then follow it every session.
+This project's design context lives in two files with **opposite rules**:
 
-- **[STATE.md](STATE.md)** — the snapshot of what is true *right now*. Present tense. Small. Rewritten wholesale, never appended to.
-- **[DECISIONS.md](DECISIONS.md)** — the append-only history of decisions and their rationale. Dated. Never edited or deleted, only added to (newest at top).
+- **[STATE.md](STATE.md)** — what is true *right now*. Present tense. Small. Rewritten wholesale, never appended to.
+- **[DECISIONS.md](DECISIONS.md)** — the append-only history of decisions and their rationale. Dated, newest at top. Never edited or deleted, only added to.
 
-The litmus test that keeps STATE trustworthy: **every line in STATE.md must be checkable as true/false without opening any other file.** If a line needs history to make sense, it belongs in DECISIONS.md, not STATE.md.
-
----
+Placement rule: if a line needs history to make sense, it belongs in DECISIONS.md, not STATE.md.
 
 ## On session start — the READ protocol
 
 1. **Read `STATE.md` first, always.** It is the current direction.
-2. **Do not read `DECISIONS.md` top-to-bottom.** Only consult it to answer a "why did we decide X?" question — grep it for the relevant entry.
-3. **Staleness check:** `STATE.md` has a `Last synced` date; `DECISIONS.md` entries are dated. If DECISIONS has entries *newer* than STATE's last-synced date, STATE is behind — **trust the newer DECISIONS entries, tell the user STATE is stale, and offer to re-sync** (see the STATE regeneration protocol below).
+2. **Do not read `DECISIONS.md` top-to-bottom.** Only grep it to answer a "why did we decide X?" question.
+3. **Staleness check:** if `DECISIONS.md` has entries newer than `STATE.md`'s `Last synced` date, STATE is behind — trust the newer DECISIONS entries, tell the user STATE is stale, and offer to re-sync.
+4. `STRATEGY.md` is deprecated pending a rewrite; do not treat it as current.
+5. `DECISIONS.md` has an in-place archive boundary: entries below the `ARCHIVE` rule predate the 2026-07-18 pivot and describe a superseded game design. Discount grep hits below that line as history, not live rationale, unless the question is specifically about the pre-pivot era.
 
 ## During the session — the DECISION protocol
 
-I cannot reliably detect on my own when a decision is final — in design talk, things that sound settled often get reversed. So the rule is **propose, don't silently commit:**
+I cannot reliably detect on my own when a decision is final — in design talk, things that sound settled often get reversed. So: **propose, don't silently commit.**
 
-1. When something sounds like a decision, **surface it to the user**: "That sounds like a decision: *X over Y*. Log it?"
-2. **Only on the user's confirmation**, append one entry to `DECISIONS.md` immediately — do not batch it to later, and do not edit `STATE.md` for it yet.
-   - Entry format: `## [YYYY-MM-DD] Title` → **Decision** / **Why** / **Replaces**. Add it at the **top** of the log (below the header).
-   - Use today's real date.
-3. Never auto-write a decision the user hasn't confirmed. The user's confirmation is the source of truth — that is what makes the log auditable.
+1. When something sounds like a decision, **surface it**: "That sounds like a decision: *X over Y*. Log it?"
+2. **Only on the user's confirmation**, append one entry to `DECISIONS.md` immediately — do not batch it, and do not edit `STATE.md` for it.
+   - **Invoke the `decision-log` skill**, which carries the entry format, the word budget, and the rules that keep entries small and grep-safe. Never write a DECISIONS.md entry freehand.
+3. Never auto-write a decision the user hasn't confirmed. Their confirmation is what makes the log auditable.
 
-## When the state has changed — the STATE regeneration protocol
+## Rewriting STATE.md
 
-`STATE.md` is regenerated **only when the user asks** (e.g. "sync", "update the state"). It does not update automatically and is not tied to "end of session" (I can't detect session end). This is deliberate: regenerating STATE is a high-stakes wholesale rewrite the user should be present to audit.
-
-When asked to sync:
-
-1. **Rewrite `STATE.md` from scratch** — do not edit it line by line. Regenerate the whole document from the current STATE plus the DECISIONS entries added since its last sync.
-2. **Deprecated ideas fall away by omission** — simply don't write them again. Do not add "❌ deprecated" tombstones to STATE; deprecations live in DECISIONS.
-3. Keep it **present tense, one-fact-one-place, self-contained** (obey the litmus test above). Keep the section headers stable across rewrites so the user's eye always knows where to look.
-4. Update the `Last synced` date to today.
-5. Present the rewrite for the user to audit. The user maintains nothing by hand — I draft, they verify.
-
-## Guardrails
-
-- Keep `STATE.md` small enough to read in ~3 minutes. If it's growing, it's carrying history that belongs in DECISIONS.
-- Never repeat the same fact in two places in STATE — redundancy is where contradictions breed.
-- **Live status lives in exactly one place.** If a fact has an evolving status (e.g. a probe's result, an arm's outcome), give it one home — a dedicated table or section — and have every other mention *point* there instead of restating it. A second copy is how sync drift starts: one gets updated, the other doesn't, and STATE ends up contradicting itself.
-- A resync regenerates STATE.md into this section skeleton (stable headers, so the reader's eye always knows where to look): What we're making → Where we are right now → The shared lead moment (or its successor north-star) → Probe status (or its successor live-status table) → Next up → The design spine → Working assumptions → Reference games → Open questions → Related files. Sections may be renamed as the project's phase changes, but the shape — one current-direction paragraph, one live-status table, one hypotheses list, one open-questions list — should persist.
-- `STRATEGY.md` is deprecated pending a rewrite; do not treat it as current.
+`STATE.md` is regenerated **only when the user asks** ("sync", "update the state") — never automatically, because a wholesale rewrite is high-stakes and the user should be present to audit it. When asked, **invoke the `state-sync` skill**, which carries the full protocol, the word budget, and the section caps. Never regenerate `STATE.md` freehand.

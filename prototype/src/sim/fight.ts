@@ -57,11 +57,32 @@ function frontMostAliveId(side: SideState): string | undefined {
  * onto the rest of the squad. Not every attack lands on the tank even while
  * holding — that's what keeps an individual body's death contingent rather
  * than baked into the arithmetic, while the AGGREGATE pool still drains at a
- * fixed, tunable rate (see config.ts's docstring). */
+ * fixed, tunable rate (see config.ts's docstring).
+ *
+ * 2026-08-08 (root-cause pass, found while re-tuning the dominant-squad gap
+ * — see DECISIONS.md): only the FIRST living holding tank in list order gets
+ * the aggro bonus; a second holding tank counts as weight 1, same as a
+ * non-tank. Before this fix, the bonus weight applied to EVERY living
+ * holding tank at once, so a double-tank pick (Bracer+Hollow, the only two
+ * pool members with role "tank") stacked additively — at tankTargetWeight=3
+ * two tanks drew 6-of-7 incoming attacks between them, splitting the pool's
+ * effective HP across two bodies with the third slot (no dedicated damage OR
+ * support) taking almost nothing. That made every Bracer+Hollow+X squad
+ * ~90-100% run completion regardless of X or how hard the ramp was pushed —
+ * the same "no weakness a global ramp can reach" shape as the vex-burst gap
+ * this whole pass exists to fix, just via double-tanking instead of
+ * burst-killing. */
 function pickWeightedTargetId(side: SideState, rng: Rng, cfg: FightConfig): string | undefined {
   const alive = side.heroes.filter((h) => h.alive && h.hp > 0);
   if (alive.length === 0) return undefined;
-  const weights = alive.map((h) => (h.role === "tank" ? (h.holding ? cfg.tankTargetWeight : cfg.brokenTankTargetWeight) : 1));
+  let aggroTankClaimed = false;
+  const weights = alive.map((h) => {
+    if (h.role !== "tank") return 1;
+    if (!h.holding) return cfg.brokenTankTargetWeight;
+    if (aggroTankClaimed) return 1;
+    aggroTankClaimed = true;
+    return cfg.tankTargetWeight;
+  });
   const total = weights.reduce((a, b) => a + b, 0);
   let roll = rng.next() * total;
   for (let i = 0; i < alive.length; i++) {
@@ -94,15 +115,23 @@ function rollDamage(base: number, rng: Rng, variance: number): number {
   return Math.max(1, Math.round(base * factor));
 }
 
-/** Enemy damage multiplier from the enrage clock (2026-08-07 rebuild) — 1x
- * until enrageStartSec into the fight, then ramping linearly. Applies to
- * both normal enemy attacks and wind-up hits, so the cost of a slow fight
- * grows for the whole enemy side, not just the bruiser. See config.ts's
- * FightConfig docstring for why this resets every fight rather than
- * compounding across the run. */
-function enrageMultiplierAt(t: number, cfg: FightConfig): number {
-  if (t <= cfg.enrageStartSec) return 1;
-  return 1 + (t - cfg.enrageStartSec) * cfg.enrageRampPerSec;
+/** Enemy damage multiplier from the enrage clock (2026-08-07 rebuild,
+ * extended 2026-08-08) — two additive terms on top of 1x. The wall-clock
+ * term ramps linearly from enrageStartSec. The HP-lost term (2026-08-08 root-
+ * cause pass — see config.ts's enrageFromEnemyHpLostFactor docstring) scales
+ * with the fraction of the enemy side's starting HP already destroyed, so a
+ * comp that kills fast still reaches the angry phase — via HP lost rather
+ * than seconds elapsed — instead of out-racing enrage entirely. Applies to
+ * both normal enemy attacks and wind-up hits, so the cost of a slow OR a
+ * fast-but-incomplete fight grows for the whole enemy side, not just the
+ * bruiser. See config.ts's FightConfig docstring for why the wall-clock term
+ * resets every fight rather than compounding across the run; the HP-lost
+ * term is naturally per-fight for the same reason (enemy HP resets). */
+function enrageMultiplierAt(t: number, enemy: SideState, cfg: FightConfig): number {
+  const timeTerm = t <= cfg.enrageStartSec ? 0 : (t - cfg.enrageStartSec) * cfg.enrageRampPerSec;
+  const maxHp = sideMaxHp(enemy);
+  const lostFraction = maxHp > 0 ? 1 - sideHp(enemy) / maxHp : 0;
+  return 1 + timeTerm + lostFraction * cfg.enrageFromEnemyHpLostFactor;
 }
 
 function snapshotHeroes(side: SideState): HeroSnapshot[] {
@@ -157,7 +186,12 @@ function performHeroAction(
   if (hero.healPerBeat) {
     const target = lowestHpAliveHero(attackerSide);
     if (target) {
-      const amount = Math.min(hero.healPerBeat, target.maxHp - target.hp);
+      // Capped against the TARGET's own maxHp (2026-08-08 root-cause pass —
+      // see config.ts's healMaxFractionOfTargetMaxHp docstring): flat healing
+      // silently over-rewarded small HP pools, erasing a squishy attacker's
+      // fragility for free.
+      const cap = target.maxHp * cfg.healMaxFractionOfTargetMaxHp;
+      const amount = Math.min(hero.healPerBeat, cap, target.maxHp - target.hp);
       if (amount > 0) {
         target.hp += amount;
         hero.restored += amount;
@@ -290,7 +324,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
     const t = tick * dt;
     endT = t;
 
-    const enrageMult = enrageMultiplierAt(t, cfg);
+    const enrageMult = enrageMultiplierAt(t, enemy, cfg);
     if (!enrageStarted && enrageMult > 1) {
       enrageStarted = true;
       events.push({ type: "enrageStart", t });
