@@ -109,10 +109,14 @@ export function renderSpendScreen(
   coinRow.innerHTML = `+<span class="coin">${coinAwarded} coin</span> — balance: <span class="coin">${session.coinBalance}</span>`;
   screen.appendChild(coinRow);
 
+  // 2026-08-09 (roster/bench pass): both figures are roster-wide (bench
+  // included) — see RunSession's livingHeroes/playerHp getters — since
+  // that's the run-wide "how are we doing" reading, not just this fight's
+  // fielded-3 recap (already shown above).
   const hp = session.playerHp;
   const statRow = document.createElement("div");
   statRow.className = "stat-row";
-  statRow.innerHTML = `<span>Squad</span><span>${session.livingHeroes} living, ${Math.round(hp.hp)}/${Math.round(hp.maxHp)} HP</span>`;
+  statRow.innerHTML = `<span>Roster</span><span>${session.livingHeroes} living, ${Math.round(hp.hp)}/${Math.round(hp.maxHp)} HP</span>`;
   screen.appendChild(statRow);
 
   const choices = document.createElement("div");
@@ -120,13 +124,18 @@ export function renderSpendScreen(
 
   const healBtn = makeChoiceButton(
     "Heal now",
-    `${cfg.healCoinCost} coin -> +${cfg.healHpAmount} HP`,
+    // 2026-08-09 fix: this claimed "+${healHpAmount} HP" like a single grant;
+    // healFlat (sim/run.ts) actually applies it to every living hero.
+    `${cfg.healCoinCost} coin -> +${cfg.healHpAmount} HP to each living hero`,
     session.canAfford("heal"),
     () => onChoose("heal"),
   );
   const upgradeBtn = makeChoiceButton(
     "Bank upgrade",
-    `${cfg.upgradeCoinCost} coin -> +${cfg.upgradeDpsBonus} dmg/sec, rest of run`,
+    // 2026-08-09 fix: this said "dmg/sec"; applySpend (sim/run.ts) adds a
+    // flat dpsBonus per ATTACK (fight.ts's performHeroAction), not per
+    // second — actual DPS gain varies by attacker cadence.
+    `${cfg.upgradeCoinCost} coin -> +${cfg.upgradeDpsBonus} dmg per attack, rest of run`,
     session.canAfford("upgrade"),
     () => onChoose("upgrade"),
   );
@@ -140,11 +149,27 @@ export function renderSpendScreen(
   container.appendChild(screen);
 }
 
-export function renderRunOverScreen(container: HTMLElement, fightsWon: number, onRetry: () => void): void {
+/** 2026-08-09 (roster/bench pass): a run can now end two structurally
+ * different ways (see sim/run.ts's RunResult.overReason) — a fight LOST
+ * outright, or the living roster falling below cfg.playerN so the next
+ * fight can't even be fielded. They read very differently to a player
+ * ("we got wiped" vs. "we ran out of people to send"), so the copy splits
+ * on it rather than lumping both under one generic message. */
+export function renderRunOverScreen(
+  container: HTMLElement,
+  fightsWon: number,
+  overReason: "loss" | "rosterExhausted" | null,
+  onRetry: () => void,
+): void {
   container.innerHTML = "";
   const screen = document.createElement("div");
   screen.className = "screen";
-  screen.innerHTML = `<h1>Run over</h1><p>Your squad ran out of living heroes after ${fightsWon} win${fightsWon === 1 ? "" : "s"}. All coin is lost.</p>`;
+  const wonNote = `after ${fightsWon} win${fightsWon === 1 ? "" : "s"}`;
+  const body =
+    overReason === "rosterExhausted"
+      ? `Your roster couldn't field a full squad ${wonNote} — too many fallen. All coin is lost.`
+      : `Your fielded squad was wiped ${wonNote}. All coin is lost.`;
+  screen.innerHTML = `<h1>Run over</h1><p>${body}</p>`;
   const retry = document.createElement("button");
   retry.textContent = "New run";
   retry.addEventListener("click", onRetry);

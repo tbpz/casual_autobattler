@@ -7,12 +7,30 @@
  * zeroed (so the projection reads the same physics the sim implements, not
  * a divergent approximation).
  *
- * Also asserts the default roster (DEFAULT_PLAYER_ROSTER_IDS) bands "tight"
- * against fight 0 — flipped from "comfortable" by the 2026-08-08
- * dominant-squad root-cause pass (see heroes.ts's pool docstring):
- * bracer+rook+cairn is no longer a blind-safe pick by design, so it should no
- * longer read as an effortless "comfortable" floor either. See DECISIONS.md's
- * entry on that pass for the batch numbers this retune is pinned to.
+ * Also asserts the default roster (DEFAULT_PLAYER_ROSTER_IDS) is NOT a
+ * blind-safe pick across the whole run — flipped from "comfortable at fight
+ * 0" by the 2026-08-08 dominant-squad root-cause pass (see heroes.ts's pool
+ * docstring): bracer+rook+cairn is no longer a free win by design.
+ *
+ * 2026-08-09 (boring-middle root-cause pass): the "comfortable" fixture
+ * moved from bracer+vex+cairn to bracer+hollow+cairn (double tank). Fixing
+ * two separate overstatements in the SAME direction — this file's wind-up
+ * DPS was averaged over the wrong cycle length, and config.ts's heal cap
+ * never actually bound on anyone — happened to also expose that Vex's
+ * pre-fix DPS overshoot (see heroes.ts) was propping bracer+vex+cairn's
+ * margin up. Once Vex was cut to real parity with Rook, no single-tank comp
+ * clears TANK_HOLDS_COMFORTABLE_RATIO at fight 0 any more; double tank is now
+ * the only pick that does, honestly.
+ *
+ * Also 2026-08-09 (encounter-table pass — see sim/encounters.ts): the
+ * single "fight 0" fixture for the default-roster assertion is gone. Each of
+ * the 5 fights now authors its own shape, so a squad reads differently
+ * against each one BY DESIGN (see encounters.ts's top docstring) — a single
+ * pinned "bands tight against fight 0" no longer describes the property
+ * that matters. The property now checked: the default roster does not band
+ * "comfortable" against every one of the 5 fights — i.e. at least one
+ * encounter genuinely tests it, rather than every fight reading as an
+ * effortless floor the way the pre-encounter-table game did.
  */
 import { Rng } from "../sim/rng.js";
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
@@ -33,13 +51,18 @@ function check(name: string, condition: boolean, detail: string): void {
 }
 
 const cfg = DEFAULT_RUN_CONFIG;
-const enemy = makeEnemySide(cfg, 0);
+// Fixture is fight index 1 (The Wall — sim/encounters.ts), not 0 (Pack), as
+// of the encounter-table pass: Pack's five simultaneous attackers spread
+// enough incoming damage that even a double-tank pick only just clears
+// margin 1 there (ratio ~1.0-1.02 measured), while a single, slower-hitting
+// body (The Wall) is exactly the shape a real tank comp should read as safe
+// against.
+const enemy = makeEnemySide(cfg, 1);
 
-// 2026-08-08 (dominant-squad root-cause pass — see heroes.ts's pool
-// docstring and DECISIONS.md): swapped from hollow+vex+cairn, which now
-// bands "tight" under the retuned numbers — bracer+vex+cairn is the squad
-// that still comfortably clears TANK_HOLDS_COMFORTABLE_RATIO post-retune.
-const wellBuffered = project(makePlayerSide(["bracer", "vex", "cairn"]), enemy, cfg.fight);
+// 2026-08-09 (see this file's top docstring): swapped again to
+// bracer+hollow+cairn — the double-tank pick is the only one left that
+// clears TANK_HOLDS_COMFORTABLE_RATIO once Vex's DPS overshoot was fixed.
+const wellBuffered = project(makePlayerSide(["bracer", "hollow", "cairn"]), enemy, cfg.fight);
 check(
   "a tank projected to outlast the fight bands comfortable",
   wellBuffered.band === "comfortable",
@@ -53,16 +76,14 @@ check(
   `got ${tankless.band} (margin=${tankless.margin.toFixed(2)})`,
 );
 
-// 2026-08-08: expectation flipped from "comfortable" to "tight" by the
-// dominant-squad root-cause pass — the whole point of that pass was that the
-// default pick (bracer+rook+cairn) is no longer a free, blind-safe win (see
-// heroes.ts's pool docstring). It should still clearly clear "losing," just
-// not read as effortless.
-const defaultRoster = project(makePlayerSide(), enemy, cfg.fight);
+// 2026-08-09 (encounter-table pass — see this file's top docstring): checks
+// across all 5 authored fights rather than pinning one fixture, since each
+// fight is now a different shape by design.
+const defaultRosterBands = [0, 1, 2, 3, 4].map((i) => project(makePlayerSide(), makeEnemySide(cfg, i), cfg.fight).band);
 check(
-  "the default roster bands tight (no longer a blind-safe pick) against fight 0",
-  defaultRoster.band === "tight",
-  `got ${defaultRoster.band} (tankHolds=${defaultRoster.tankHoldsSec?.toFixed(1)} kill=${defaultRoster.killSec.toFixed(1)})`,
+  "the default roster is not a blind-safe pick (not comfortable against every fight)",
+  defaultRosterBands.some((b) => b !== "comfortable"),
+  `got bands [${defaultRosterBands.join(", ")}]`,
 );
 
 // bracer+rook+ward isn't underpowered against fight 0's enemy (retuned

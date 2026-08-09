@@ -32,18 +32,29 @@
  * gate left to fix a denominator for.)
  */
 
-export type DeathPolicy = "downAtFightEnd" | "onlyOnLoss";
+/**
+ * 2026-08-09 (boring-middle root-cause pass — the player's report was "safe
+ * builds win 5/5 with no mid-run tension, and only ~3 of 20 squads are
+ * viable"). DeathPolicy is GONE: the player explicitly chose to keep death
+ * permanent for the run rather than soften it (see DECISIONS.md's entry on
+ * this pass) — "onlyOnLoss" (full revival every win) was only ever a
+ * diagnostic A/B variant used to isolate RC4 (the run's difficulty cliff was
+ * short-handedness, not permanence — measured via `--death onlyOnLoss`:
+ * bracer+rook+cairn's fight-5 win rate rose from 27.8% to 54.5% just from
+ * always fielding 3, with no other change), never a real design option. The
+ * fix that measurement pointed to is roster.ts's draft/field split: death
+ * stays permanent, but the roster is drafted wider (rosterSize, below) than
+ * what's fielded each fight (playerN), so a death shrinks your OPTIONS
+ * without ever leaving you fielding fewer than a full, fair squad.
+ */
 
-/** One enemy archetype's stat block — same shape as sim/heroes.ts's HeroDef,
- * kept separate since enemy composition (one bruiser + N-1 grunts) is a
- * run-level rule, not a player pick. */
-export interface EnemyArchetype {
-  role: "bruiser" | "grunt";
-  namePrefix: string;
-  maxHp: number;
-  damage: number;
-  attackIntervalSec: number;
-}
+// EnemyArchetype (a single "the bruiser" / "the grunt" stat block shared by
+// every fight, only scaled bigger) is GONE (2026-08-09, encounter-table
+// pass — see sim/encounters.ts's top docstring). Each of the run's 5 fights
+// now authors its own enemy composition and stat blocks directly in
+// encounters.ts's ENCOUNTERS table — that's what makes fight 1 ask a
+// different question than fight 4, which a single scaled archetype
+// structurally could not.
 
 export interface FightConfig {
   /** Ticks per second. FIGHT_SCRIPT.md doesn't specify a tick rate; 20/s gives
@@ -228,27 +239,49 @@ export interface FightConfig {
 export interface RunConfig {
   fight: FightConfig;
   fightsPerRun: number;
-  bruiser: EnemyArchetype;
-  grunt: EnemyArchetype;
-  /** Enemy HP scaling for fight index i: maxHp * difficultyRampFactor^i. */
+  /** Residual global multiplier on top of each fight's AUTHORED encounter
+   * (sim/encounters.ts's ENCOUNTERS table, 2026-08-09) — still
+   * maxHp * difficultyRampFactor^fightIndex, applied to every bruiser/grunt
+   * in that fight's composition. Kept as a single batch-tuning knob for
+   * "make the whole curve steeper/shallower" without re-authoring all 5
+   * encounters by hand; the actual SHAPE of each fight's difficulty now
+   * comes from the table, not this exponent. */
   difficultyRampFactor: number;
-  /** Enemy per-hit damage scaling for fight index i: damage *
-   * difficultyDamageRampFactor^i — deliberately much gentler than the HP
-   * ramp (see sim/run.ts's scaledArchetype docstring for why HP-only scaling
-   * has a blind spot against fast, well-protected comps that a small damage
-   * ramp is what actually threatens). */
+  /** Same, for per-hit damage — see difficultyRampFactor above and
+   * sim/encounters.ts's makeEncounterEnemySide. Deliberately gentler than
+   * the HP ramp, same historical reasoning as before this pass: HP-only
+   * scaling has a blind spot against fast, well-protected comps. */
   difficultyDamageRampFactor: number;
+  /** Heroes FIELDED per fight (roster.ts) — the actual fight is always this
+   * many, never fewer (this is what RC4's fix guarantees). The enemy side's
+   * composition is no longer a fixed count against this — see
+   * sim/encounters.ts, where each fight authors its own headcount (Pack
+   * fields 5 grunts and no bruiser; The Wall fields 1 bruiser alone). */
   playerN: number;
-  enemyN: number;
 
-  deathPolicy: DeathPolicy;
+  /** Heroes DRAFTED once at run start (roster.ts's RosterState) — the
+   * run-level build commitment. Always >= playerN; the difference is the
+   * bench. See config.ts's DeathPolicy-removal docstring above and
+   * roster.ts's top docstring for why this replaced deathPolicy. */
+  rosterSize: number;
 
-  /** Fraction of each hero's OWN maxHp granted between fights, no input,
-   * capped at their own max (see sim/run.ts's healFraction). Deliberately
-   * per-hero-proportional rather than a flat HP amount — see healFraction's
-   * docstring for why a flat amount silently favors low-maxHp heroes and
-   * specifically starves the tank. */
+  /** Fraction of a FIELDED hero's own maxHp granted between fights, no
+   * input, capped at their own max (see roster.ts's applyFightResultToRoster).
+   * Deliberately per-hero-proportional rather than a flat HP amount — a flat
+   * amount silently favors low-maxHp heroes and specifically starves the
+   * tank (see this field's 2026-08-08 history for the batch numbers that
+   * caught it). Cut further 2026-08-09 (0.55 -> 0.25) now that a fielded
+   * hero's exposure is compensated by benchedRecoverFraction below — see
+   * that field's docstring for why the two move as a pair. */
   autoRecoverFraction: number;
+  /** Fraction of a BENCHED (living, not fielded this fight) roster hero's own
+   * maxHp granted between fights — deliberately HIGHER than
+   * autoRecoverFraction (2026-08-09, roster/bench pass): resting is the
+   * reward for not fielding a hero, which is what makes the bench a real
+   * rotation decision rather than "always field your best 3" — a hero left
+   * out after a rough fight comes back meaningfully healthier next time,
+   * while the three who fought carry real, slower-healing wear. */
+  benchedRecoverFraction: number;
 
   coinPerWin: number;
   coinBonusOnIgnition: number;
@@ -343,73 +376,43 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   damageVariance: 0.25,
 
   // 2026-08-08 (root-cause pass): started at 0.05, loosened to 0.11 during
-  // the 20-squad batch sweep — 0.05 over-corrected and starved every
-  // no-tank/double-support squad's sustain at once (several fell to 0-3% run
-  // completion). At 0.11, Cairn's 7/beat is uncapped against Bracer (11% of
-  // 195 = 21.5) and Hollow (11% of 180 = 19.8), barely trimmed against Rook
-  // (11% of 85 = 9.35, vs its 7 raw), and meaningfully cut against Vex (11%
-  // of 70 = 7.7, close to uncapped now that Vex's own maxHp was raised — see
-  // heroes.ts) — the small-body case this exists to fix. See this file's
-  // FightConfig docstring.
-  healMaxFractionOfTargetMaxHp: 0.11,
+  // the 20-squad batch sweep. Re-lowered to 0.06 (2026-08-09, boring-middle
+  // root-cause pass): at 0.11 the cap never actually bound on any hero in the
+  // pool — even Vex's cap (7.7) sat above Cairn's raw 7/beat, so the whole
+  // mechanism was a documented no-op. At 0.06, caps are Bracer 11.7, Hollow
+  // 10.8, Cairn 6.6, Ward 5.5, Rook 5.1, Vex 4.2 — Cairn's 7/beat now
+  // genuinely trims against every squishy target (Cairn healing Vex caps at
+  // 4.2, not 7), which is the small-body case this exists to fix. See this
+  // file's FightConfig docstring.
+  healMaxFractionOfTargetMaxHp: 0.06,
 };
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {
   fight: DEFAULT_FIGHT_CONFIG,
   fightsPerRun: 5,
-  // HP raised from 160/50, then walked back from an initial 280/90 during
-  // the first batch pass (2026-08-07 rebuild) — the larger pool nearly
-  // doubled mean fight duration (~40s), which multiplies exposure to the
-  // wind-up (every windupIntervalSec) and the enrage ramp (time-based) far
-  // more than intended: run completion collapsed to ~0% for every squad.
-  // Settled at a more modest bump — enough that a 7-hit chain (see
-  // chainMaxHits) still meaningfully changes a fight rather than only
-  // punctuating an already-decided one, without stretching fight length
-  // enough to make the wind-up/enrage stack unsurvivable. See DECISIONS.md's
-  // "fight causality rebuild" entry: enemy pool size, heatThreshold, and
-  // windupIntervalSec are tuned together, not as independent knobs.
-  // HP trimmed again 190/60 -> 155/48 (2026-08-08, dominant-squad root-cause
-  // pass) as part of recompensating global difficulty downward once the pool
-  // rebalance and the two new mechanisms below (healMaxFractionOfTargetMaxHp,
-  // enrageFromEnemyHpLostFactor) made the base fight harder for everyone —
-  // see heroes.ts's pool docstring for the full pass.
-  bruiser: { role: "bruiser", namePrefix: "Bruiser", maxHp: 155, damage: 9, attackIntervalSec: 1 },
-  grunt: { role: "grunt", namePrefix: "Grunt", maxHp: 48, damage: 4, attackIntervalSec: 1 },
-  // Re-tuned 1.12 -> 1.06 (2026-08-08, dominant-squad root-cause pass — see
-  // heroes.ts's pool docstring): 1.12 was pushed that high specifically to
-  // reach bracer+vex+cairn/vex+cairn+ward, comps a global HP ramp
-  // structurally couldn't threaten (see this field's superseded note below
-  // and scaledArchetype's docstring) — once the pool rebalance and the new
-  // enrageFromEnemyHpLostFactor mechanism reached them directly, that pressure
-  // was no longer needed, and left at 1.12 it over-punished every OTHER
-  // squad. Retuned by the 20-squad batch sweep toward max completion <=~55%
-  // across all of them; see checks/chaindist.ts's "no dominant squad" block
-  // for the pinned target.
+  // bruiser/grunt (a single global archetype shared by every fight) is GONE
+  // (2026-08-09, encounter-table pass) — each fight's enemy composition and
+  // stat blocks are now authored directly in sim/encounters.ts's ENCOUNTERS
+  // table. History of the pre-pass HP/damage tuning (160/50 -> 280/90 ->
+  // 155/48, and the ramp-factor walk below) lives in DECISIONS.md rather
+  // than here now that there's no longer a single archetype for it to
+  // describe.
   //
-  // Superseded 2026-08-08 note, kept for history: "at 1.06 the best squad
-  // completed 100% of runs with 0.00 deaths across every one of the 20
-  // possible 3-hero comps — the run literally could not be lost." That
-  // diagnosis was correct for the OLD stat block (see heroes.ts) — under the
-  // rebalanced pool, 1.06 is once again the right value, for a different
-  // reason (the pool no longer has a single unreachable comp to chase).
-  difficultyRampFactor: 1.06,
-  // Re-tuned 1.02 -> 1.045 (2026-08-08, dominant-squad root-cause pass): a
-  // per-hit damage ramp is still what actually threatens a comp that wins
-  // fast (the reasoning below is unchanged), but with enrageFromEnemyHpLostFactor
-  // now ALSO taxing fast kills directly (see this file's FightConfig
-  // docstring), less ramp is needed here than the pre-pass 1.02 to reach the
-  // same squads without over-punishing slower ones.
-  //
-  // 2026-08-08 note, still the core reasoning: even at 1.12 HP-only,
-  // bracer+vex+cairn and vex+cairn+ward — fast kill, real tank, real heal,
-  // no weakness on any axis — stayed at ~100% run completion, because their
-  // fights are too short to accumulate much HP-ramp exposure. A small per-hit
-  // damage ramp is what actually threatens a comp that wins fast.
-  difficultyDamageRampFactor: 1.045,
+  // These two ramp factors are now a residual GLOBAL multiplier on top of
+  // each encounter's authored numbers (see this field's RunConfig
+  // docstring) — deliberately much gentler than the pre-pass values (1.06 /
+  // 1.045), since the table's per-fight authored shape now carries most of
+  // the curve. Batch-tuning knob, not the primary difficulty lever anymore.
+  difficultyRampFactor: 1.03,
+  difficultyDamageRampFactor: 1.02,
   playerN: 3,
-  enemyN: 3,
 
-  deathPolicy: "downAtFightEnd",
+  // Draft 5 of the 6-hero pool at run start, field 3 each fight (2026-08-09
+  // roster/bench pass — see this file's DeathPolicy-removal docstring and
+  // roster.ts). Every combination but one (rosterSize = pool size - 1) keeps
+  // a real bench; the pool has exactly 6, so 5 is the largest draft that
+  // still leaves a choice of who to leave out.
+  rosterSize: 5,
 
   // Converted from a flat autoRecoverHp (200) to a fraction of each hero's
   // OWN maxHp (2026-08-08) — the flat amount fully erased attrition (every
@@ -421,12 +424,27 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   // 3.5% run completion while the glass-cannon "greedy" squad rose to 65.9%,
   // exactly backwards. A fraction recovers every hero proportionally to its
   // own max, so the ramp above can raise real difficulty without punishing
-  // one archetype specifically. See sim/run.ts's healFraction.
-  autoRecoverFraction: 0.55,
+  // one archetype specifically. See roster.ts's applyFightResultToRoster.
+  //
+  // Cut again 0.55 -> 0.25 (2026-08-09, roster/bench pass): with a 5-hero
+  // roster now absorbing what used to be pure attrition, free recovery this
+  // generous made HP carry between fights almost irrelevant — see
+  // benchedRecoverFraction below, the field this one is now tuned opposite.
+  autoRecoverFraction: 0.25,
+  // See benchedRecoverFraction's own docstring on RunConfig above (why
+  // benched recovers faster than fielded). 0.45 chosen so a hero rested one
+  // fight comes back meaningfully ahead of one that fought every fight, but
+  // still short of a full heal — rotation helps, it doesn't erase the run's
+  // attrition entirely.
+  benchedRecoverFraction: 0.45,
 
   coinPerWin: 10,
   coinBonusOnIgnition: 5,
-  healCoinCost: 16,
+  // 2026-08-09 fix: was 16 against a max of coinPerWin+coinBonusOnIgnition =
+  // 15/fight, so the FIRST spend decision in every single run was
+  // structurally unaffordable no matter what happened in fight 1 — the coin
+  // economy was dead on arrival. 10 is affordable off any single win.
+  healCoinCost: 10,
   healHpAmount: 25,
   upgradeCoinCost: 45,
   upgradeDpsBonus: 2,

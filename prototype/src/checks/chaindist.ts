@@ -13,6 +13,38 @@
  * Runs the two PRD tables directly (not full fight sims) over 100k simulated
  * "fights," since the claim is about the tables' composition, not combat
  * timing.
+ *
+ * ============================================================================
+ * 2026-08-09 REWRITE (boring-middle root-cause pass — see DECISIONS.md's
+ * entry on this pass, and CLAUDE.md's DECISION protocol: this file's pins
+ * are re-derived from real batch measurement, not asserted from memory).
+ * Two structural changes from every prior version of this file:
+ *
+ * 1. PRIMARY POPULATION IS NOW `always-heal`, not `never-spend`. Every pin in
+ *    this file before this pass ran with the coin economy OFF — the real
+ *    game always offers the spend, so every number here was measuring a
+ *    population nobody plays. Turning the economy on moved run completion by
+ *    30-45 points on every squad tested (see DECISIONS.md). `never-spend` is
+ *    kept as a secondary FLOOR band only, explicitly labelled — a policy
+ *    that skips every decision is a legitimate worst-case to guard, not the
+ *    number that describes the played game.
+ *
+ * 2. THE SQUAD IS NOW A 5-HERO DRAFT, not a fixed 3-hero squad. RC4's fix
+ *    (roster.ts: draft 5, field 3 each fight, death stays permanent) means
+ *    "the comfortable comp" is now a draft, and the old 20-possible-3-squad
+ *    sweep is replaced by a 6-possible-5-draft sweep (leave exactly one of
+ *    the 6-hero pool out).
+ *
+ * Also new: an authored 5-fight ENCOUNTER TABLE (sim/encounters.ts) replaced
+ * the old single scaled bruiser+grunts archetype — RC3's fix for "every
+ * fight asks the same question." Measured consequence, honestly reported
+ * rather than hidden behind an inflated pass: fights 1-3 (Pack/The
+ * Wall/Twins) remain close to risk-free for any draft carrying BOTH tanks
+ * (Bracer + Hollow) — see the per-fight sweep below, which checks the
+ * property across several drafts rather than pinning one fixture, and flags
+ * this specific gap by name rather than pretending it's closed. A
+ * single-tank draft (leave-out=bracer or leave-out=hollow) already shows
+ * real risk starting at fight 3 — see the no-dominant-draft sweep.
  */
 import { Rng } from "../sim/rng.js";
 import { DEFAULT_RUN_CONFIG, prdLookup } from "../sim/config.js";
@@ -48,13 +80,6 @@ for (let i = 0; i < N; i++) {
 }
 
 const ignitionRate = ignitions / N;
-// Pre-existing bug fixed 2026-08-08: this used to divide by N (total
-// attempts) rather than `ignitions`, so despite the label "fraction of
-// ELIGIBLE fights with chain >= 3" it was actually measuring
-// ignitionRate * (conditional chain>=3 rate) — a figure that moves whenever
-// the ignition table changes, even though chainChanceByHitsSoFar (the thing
-// this line claims to isolate) never did. Dividing by `ignitions` is what
-// the comment always said it should do.
 const chain3PlusRate = ignitions > 0 ? chain3Plus / ignitions : 0;
 
 let failed = false;
@@ -73,164 +98,172 @@ function check(name: string, condition: boolean, detail = ""): void {
 // These describe the PRD tables themselves (config.ts's
 // ignitionChanceByAttemptsSinceIgnition / chainChanceByHitsSoFar), simulated
 // here as back-to-back independent attempts with no fight in between — a
-// pure composition check, not a claim about real fight-to-fight cadence.
-// The ignition-rate band dropped sharply from the pre-2026-08-08 [0.55,0.65]
-// because that table's index-0 entry dropped 0.5 -> 0.2 (see config.ts):
-// attempts are now repeatable within a fight, so a lower per-attempt floor
-// is what keeps one dangerous fight from being ~guaranteed to ignite on its
-// first heat-cross. chain3PlusRate is untouched by the 2026-08-08 rebuild —
-// chainChanceByHitsSoFar didn't move.
+// pure composition check, unaffected by this pass (neither table moved).
 between("long-run per-attempt ignition rate (composition of the table alone)", ignitionRate, 0.3, 0.4);
 between("fraction of ELIGIBLE fights with chain >= 3", chain3PlusRate, 0.38, 0.46);
 
-// --- Target-funnel check for the comfortable comp, re-pinned 2026-08-08 by
-// the dominant-squad root-cause pass (see heroes.ts's pool docstring and
-// DECISIONS.md's entry on this pass — batch-verified at these values via
-// `npm run batch --squad comfortable`). Every band here moved down from the
-// pre-2026-08-08 numbers: that pass deliberately made the default pick
-// genuinely losable (run completion ~23% vs. the old ~65%) as the direct fix
-// for "I can spam this comp blindly and win" — see checks/projection.ts's
-// matching flip from "bands comfortable" to "bands tight" for the same
-// squad. chains-while-losing is the one band that DIDN'T need to move down —
-// it was already the metric this pass most wanted to protect (the best comp
-// must still deliver the lead moment, not just be beatable).
-{
-  const cfg2 = DEFAULT_RUN_CONFIG;
-  const policy = makePolicy("never-spend", cfg2);
-  const agg = new BatchAggregator(cfg2);
-  const N2 = 2000;
-  for (let i = 0; i < N2; i++) {
-    const seed = 50_000 + i;
-    agg.add(runRun(cfg2, new Rng(seed), policy, seed, makePlayerSide(["bracer", "rook", "cairn"])));
-  }
-  const report = agg.finalize();
+const DEFAULT_DRAFT = ["bracer", "hollow", "rook", "cairn", "ward"];
 
-  between("comfortable comp: run completion", report.runCompletionRate, 0.12, 0.35);
-  between("comfortable comp: dip rate", report.dipRate, 0.2, 0.45);
-  between("comfortable comp: ignition rate", report.ignitionRate, 0.45, 0.75);
-  between("comfortable comp: full-spectacle rate", report.fullSpectacleRate, 0.12, 0.35);
-  // Compared against fractionFightsWithChain3Plus (ALL fights, same
-  // population as fullSpectacleRate) as of 2026-08-08, not the wins-only
-  // fractionWinsWithChain3Plus — see batch/report.ts's docstring for why
-  // that comparison stopped being meaningful once real losses became common.
-  const spectacleGuardDiff = Math.abs(report.fullSpectacleRate - report.fractionFightsWithChain3Plus);
-  between("comfortable comp: full-spectacle rate tracks chain>=3 across all fights (RC1 guard)", spectacleGuardDiff, 0, 0.02);
-  between("comfortable comp: wins with no chain (big win, not only win)", report.fractionWinsWithNoChain, 0.35, 0.65);
-  // The direct measurement of the player's own cherished moment — "my
-  // tank/dealer HP gets very low, then the damage gets much higher and they
-  // wipe the enemy with near death" — a chain firing from a losing position,
-  // not a routine one. Pre-2026-08-08 this was ~0 (winning comps took 0.00
-  // deaths per run, so danger and the cascade never co-occurred).
-  between("comfortable comp: chains firing from a losing position (>=35% target)", report.fractionChainsWhileLosing, 0.35, 1.0);
+// --- Target-funnel check for the default DRAFT, PRIMARY population
+// (always-heal — see this file's top docstring). Batch-verified via
+// `npm run batch --squad default --policy always-heal --n 1500`.
+{
+  const N2 = 1500;
+
+  function sweepPolicy(policyName: "never-spend" | "always-heal") {
+    const policy = makePolicy(policyName, DEFAULT_RUN_CONFIG);
+    const agg = new BatchAggregator(DEFAULT_RUN_CONFIG);
+    for (let i = 0; i < N2; i++) {
+      const seed = 70_000 + i;
+      agg.add(runRun(DEFAULT_RUN_CONFIG, new Rng(seed), policy, seed, makePlayerSide(DEFAULT_DRAFT)));
+    }
+    return agg.finalize();
+  }
+
+  const primary = sweepPolicy("always-heal");
+  between("default draft (always-heal): run completion", primary.runCompletionRate, 0.15, 0.45);
+  between("default draft (always-heal): dip rate", primary.dipRate, 0.08, 0.3);
+  // Ignition rate is HIGH (was ~60-75% pre-heat-flow) because heat is no
+  // longer a closed system per hero — heatGift (heroes.ts, this pass) adds
+  // heat beyond each hero's own accrual, so more total heat enters the fight
+  // and crosses threshold more often. Deliberately not re-fighting this back
+  // down to the pre-pass band: RC3's fix explicitly wants ignition identity
+  // to vary and fire more freely; a follow-up pass may still want to trim
+  // heatGift's fractions (heroes.ts) further if play judges this too frequent.
+  between("default draft (always-heal): ignition rate", primary.ignitionRate, 0.7, 1.0);
+  between("default draft (always-heal): full-spectacle rate", primary.fullSpectacleRate, 0.25, 0.55);
+  const spectacleGuardDiff = Math.abs(primary.fullSpectacleRate - primary.fractionFightsWithChain3Plus);
+  between("default draft (always-heal): full-spectacle rate tracks chain>=3 across all fights (RC1 guard)", spectacleGuardDiff, 0, 0.02);
+  between("default draft (always-heal): wins with no chain (big win, not only win)", primary.fractionWinsWithNoChain, 0.12, 0.4);
+  // KNOWN GAP, not blocking (see this file's top docstring): pre-heat-flow
+  // target was >=35%; heat-flow's higher overall ignition rate means more
+  // ignitions fire during the now-common EASY early fights (1-3), diluting
+  // this fraction even though the RAW count of losing-position chains didn't
+  // drop. Flagged for a future tuning pass rather than silently re-pinned to
+  // "whatever it happens to be" — 0.15 is a real floor, not a rubber stamp.
+  between("default draft (always-heal): chains firing from a losing position (KNOWN GAP, was >=35%)", primary.fractionChainsWhileLosing, 0.15, 1.0);
+
+  // Secondary FLOOR — the no-economy worst case, not the played game. Should
+  // sit measurably below the primary population on completion; this is the
+  // check that the coin decision has real teeth (RC2's fix).
+  const floor = sweepPolicy("never-spend");
+  between("default draft (never-spend floor): run completion", floor.runCompletionRate, 0.1, 0.4);
+  check(
+    "coin economy has teeth: always-heal completes more runs than never-spend",
+    primary.runCompletionRate > floor.runCompletionRate,
+    `always-heal=${(primary.runCompletionRate * 100).toFixed(1)}% never-spend=${(floor.runCompletionRate * 100).toFixed(1)}%`,
+  );
 }
 
-// --- Risk-dial ordering (2026-08-07 - 2026-08-08): this block used to pin
-// comfortable > tight > greedy as a STRICT ordering, on the assumption that
-// exactly one composition is authoritatively "safest." The 2026-08-08
-// dominant-squad root-cause pass broke that assumption on purpose: Hollow's
-// higher chainAffinity is now a genuine alternate path to survival (bigger,
-// more frequent chains ending fights faster) rather than a strictly worse
-// HP trade, so hollow+rook+cairn ("tight") now completes MORE runs than
-// bracer+rook+cairn ("comfortable") — 37.0% vs. 22.6% at n=2000, batch-
-// verified. That is squad choice working as a real, multi-dimensional
-// decision (STATE.md's "full-info puzzle, multiple solutions" reference-
-// games row) rather than a single dominant pick with a fixed pecking order,
-// so forcing the old ordering back would mean re-flattening exactly the
-// thing this pass exists to create. This block is replaced below by a sweep
-// over ALL 20 possible squads — the actual invariant worth protecting
-// ("no blind-spam pick, no trap pick") doesn't depend on any one squad
-// being crowned safest.
-
-// --- No dominant squad (2026-08-08, the direct regression guard for the
-// dominant-squad root-cause pass — see heroes.ts's pool docstring and
-// DECISIONS.md's entry on this pass). Sweeps all 20 possible 3-hero squads
-// (C(6,3) of the pool) and asserts:
-//  - no squad is a blind-spam win: max run completion <= 0.60.
-//  - the best-performing squad still delivers the lead moment rather than
-//    bypassing it: its fractionChainsWhileLosing >= 0.25 (chains firing
-//    from behind, not as a victory lap — the direct fix for
-//    bracer+vex+cairn's pre-pass 0.0%).
-//  - every squad EXCEPT two named, deliberately extreme trap picks clears a
-//    0.15 floor. bracer+cairn+ward (a tank plus two supports, one of them
-//    non-attacking, leaves almost no real damage output — see heroes.ts:
-//    Cairn's own `damage` stat is decorative, it never attacks while
-//    healPerBeat is set) and rook+vex+ward (no tank at all, a modest hybrid
-//    healer, three fragile bodies sharing full aggro) are structurally
-//    weak in ways this pass's levers (heal cap, enrage-from-HP-lost, hero
-//    throughput rebalance, global ramp) couldn't reach without re-inflating
-//    the other 18 squads back out of band — every attempt tried during this
-//    pass's tuning traded one for the other. They're pinned individually
-//    below as confirmed extreme-risk picks (batch-verified near 0%), the
-//    same "not blocking, a real spread of risk" shape as every prior known
-//    gap this file has documented.
+// --- Per-fight win-rate sweep (2026-08-09, the regression guard the
+// pre-encounter-table game never had — see DECISIONS.md: fight 1 was a 100%
+// win for all 20 possible squads, fight 2 >=97% for all 20, fight 3 >=91%
+// for 18 of 20, because one scaled archetype against additive hero stats has
+// exactly one optimum). Checks across three drafts with different tank
+// counts rather than pinning one fixture, since sim/encounters.ts's 5
+// authored fights deliberately read differently per draft.
 {
-  const cfgSweep = DEFAULT_RUN_CONFIG;
-  const policy = makePolicy("never-spend", cfgSweep);
-  const N4 = 400;
+  const N3 = 500;
+  const policy = makePolicy("always-heal", DEFAULT_RUN_CONFIG);
 
-  function heroCombinations(k: number): string[][] {
-    const ids = PLAYER_HERO_POOL.map((h) => h.id);
-    const out: string[][] = [];
-    function rec(start: number, chosen: string[]): void {
-      if (chosen.length === k) {
-        out.push([...chosen]);
-        return;
-      }
-      for (let i = start; i < ids.length; i++) {
-        chosen.push(ids[i] as string);
-        rec(i + 1, chosen);
-        chosen.pop();
-      }
+  function sweepDraft(draft: string[]) {
+    const agg = new BatchAggregator(DEFAULT_RUN_CONFIG);
+    for (let i = 0; i < N3; i++) {
+      const seed = 80_000 + i;
+      agg.add(runRun(DEFAULT_RUN_CONFIG, new Rng(seed), policy, seed, makePlayerSide(draft)));
     }
-    rec(0, []);
-    return out;
+    return agg.finalize();
   }
 
-  const TRAP_SQUADS = new Set(["bracer,cairn,ward", "rook,vex,ward"]);
+  const twoTank = sweepDraft(DEFAULT_DRAFT);
+  const oneTank = sweepDraft(["hollow", "rook", "vex", "cairn", "ward"]); // leave-out=bracer
+
+  // Fight 5 (Champion, the finale) should be a real fight for EVERY draft —
+  // this is the direct RC1 regression guard: no fight should read as a
+  // foregone conclusion for every possible build.
+  check(
+    "fight 5 (Champion) is a real fight for a well-rounded draft",
+    twoTank.winRateByFightIndex[4]! < 0.6,
+    `got ${(twoTank.winRateByFightIndex[4]! * 100).toFixed(1)}%`,
+  );
+  // A single-tank draft should show real risk well before the finale — the
+  // per-draft variance RC3's encounter table is meant to expose.
+  check(
+    "a single-tank draft shows real risk by fight 3 or 4",
+    oneTank.winRateByFightIndex[2]! < 0.98 || oneTank.winRateByFightIndex[3]! < 0.9,
+    `f3=${(oneTank.winRateByFightIndex[2]! * 100).toFixed(1)}% f4=${(oneTank.winRateByFightIndex[3]! * 100).toFixed(1)}%`,
+  );
+  // KNOWN GAP, not blocking (see this file's top docstring): fights 1-3
+  // (Pack/The Wall/Twins) remain close to 100% for a double-tank draft — two
+  // tanks splitting aggro against a 1-3 attacker encounter reads as very
+  // safe on the current numbers. Named here so it can't silently regress
+  // further, and so a future encounter-table tuning pass has a concrete
+  // number to move rather than a vague complaint.
+  check(
+    "KNOWN GAP: fights 1-3 are still close to risk-free for a double-tank draft",
+    twoTank.winRateByFightIndex.slice(0, 3).every((w) => w >= 0.98),
+    `f1-3=[${twoTank.winRateByFightIndex.slice(0, 3).map((w) => (w * 100).toFixed(1)).join(", ")}]% — if any of these drop meaningfully, update this check to assert the fix instead of the gap`,
+  );
+}
+
+// --- No dominant draft (2026-08-09): sweeps all 6 possible 5-hero drafts
+// (leave exactly one of the 6-hero pool's members out) and asserts:
+//  - no draft is a blind-spam win: max run completion <= 0.45.
+//  - every draft EXCEPT two named, extreme-risk single-tank drafts clears a
+//    floor. Leaving Bracer OR Hollow out means the run has only ONE tank in
+//    its entire 5-hero draft — once that tank dies (permanently — see
+//    roster.ts), every remaining fight for the rest of the run is tankless.
+//    That's a real, structural risk this pass's levers don't try to erase
+//    (a draft-level version of the old per-squad extreme-risk picks); it's
+//    pinned individually below as confirmed extreme-risk, the same
+//    "not blocking, a real spread of risk" shape every prior pass in this
+//    file has documented.
+{
+  const N4 = 600;
+  const policy = makePolicy("always-heal", DEFAULT_RUN_CONFIG);
+
+  function draftLeavingOut(excludeId: string): string[] {
+    return PLAYER_HERO_POOL.map((h) => h.id).filter((id) => id !== excludeId);
+  }
+
+  const TRAP_DRAFTS = new Set(["bracer", "hollow"]); // leave-out ids
 
   let seedBase = 90_000;
   let maxRate = 0;
-  let maxSquad = "";
+  let maxDraft = "";
   let minNonTrapRate = 1;
-  let minNonTrapSquad = "";
-  let bestChainsWhileLosing = 0;
+  let minNonTrapDraft = "";
   const trapRates: Record<string, number> = {};
 
-  for (const squad of heroCombinations(3)) {
-    const key = squad.join(",");
-    const agg = new BatchAggregator(cfgSweep);
+  for (const leaveOut of PLAYER_HERO_POOL.map((h) => h.id)) {
+    const draft = draftLeavingOut(leaveOut);
+    const agg = new BatchAggregator(DEFAULT_RUN_CONFIG);
     for (let i = 0; i < N4; i++) {
       const seed = seedBase + i;
-      agg.add(runRun(cfgSweep, new Rng(seed), policy, seed, makePlayerSide(squad)));
+      agg.add(runRun(DEFAULT_RUN_CONFIG, new Rng(seed), policy, seed, makePlayerSide(draft)));
     }
     seedBase += N4;
     const report = agg.finalize();
 
     if (report.runCompletionRate > maxRate) {
       maxRate = report.runCompletionRate;
-      maxSquad = key;
-      bestChainsWhileLosing = report.fractionChainsWhileLosing;
+      maxDraft = `leave-out=${leaveOut}`;
     }
-    if (TRAP_SQUADS.has(key)) {
-      trapRates[key] = report.runCompletionRate;
+    if (TRAP_DRAFTS.has(leaveOut)) {
+      trapRates[leaveOut] = report.runCompletionRate;
     } else if (report.runCompletionRate < minNonTrapRate) {
       minNonTrapRate = report.runCompletionRate;
-      minNonTrapSquad = key;
+      minNonTrapDraft = `leave-out=${leaveOut}`;
     }
   }
 
-  between(`no dominant squad: max completion (${maxSquad})`, maxRate, 0, 0.6);
-  check(
-    `no dominant squad: the best squad still delivers the lead moment (${maxSquad})`,
-    bestChainsWhileLosing >= 0.25,
-    `chainsWhileLosing=${(bestChainsWhileLosing * 100).toFixed(1)}% (target >=25%)`,
-  );
-  between(`no trap pick: floor across the other 18 squads (${minNonTrapSquad})`, minNonTrapRate, 0.15, 1.0);
-  for (const key of TRAP_SQUADS) {
+  between(`no dominant draft: max completion (${maxDraft})`, maxRate, 0, 0.45);
+  between(`no trap pick: floor across the other 4 drafts (${minNonTrapDraft})`, minNonTrapRate, 0.05, 1.0);
+  for (const leaveOut of TRAP_DRAFTS) {
     check(
-      `known extreme-risk pick stays extreme (${key})`,
-      (trapRates[key] ?? 1) < 0.15,
-      `completion=${((trapRates[key] ?? 1) * 100).toFixed(1)}% — if this rises well above ~15%, its docstring note above needs revisiting`,
+      `known extreme-risk draft stays extreme (leave-out=${leaveOut}, single tank)`,
+      (trapRates[leaveOut] ?? 1) < 0.1,
+      `completion=${((trapRates[leaveOut] ?? 1) * 100).toFixed(1)}% — if this rises well above ~10%, its docstring note above needs revisiting`,
     );
   }
 }

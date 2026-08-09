@@ -6,6 +6,54 @@ import { sideHp, sideMaxHp } from "./types.js";
 import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "./events.js";
 
 /**
+ * Credits a hero's heatGift (2026-08-09, heat-flow pass — see types.ts's
+ * HeroState docstring): when `actingHero` did the gift's `on` thing, a
+ * fraction of `amount` (the raw dealt/soaked/healed/etc. quantity, same
+ * scale the acting hero's OWN heatWeight* credit uses) is credited to
+ * another living ally on `side`, scaled by the RECIPIENT's own
+ * chainAffinity — not the giver's — so the gift's value depends on who
+ * receives it, same as every hero's own heat always has. `explicitTarget`
+ * is required for `to: "target"` (currently only Cairn's "healed" gift,
+ * where the recipient is whoever was just healed, not derivable from `side`
+ * alone). No-ops silently if actingHero has no heatGift, or its `on` doesn't
+ * match — callers pass the specific `on` they're firing so one function
+ * covers every site without each site needing to know the others exist. */
+function applyHeatGift(
+  side: SideState,
+  actingHero: HeroState,
+  on: NonNullable<HeroState["heatGift"]>["on"],
+  amount: number,
+  explicitTarget?: HeroState,
+): void {
+  const gift = actingHero.heatGift;
+  if (!gift || gift.on !== on || amount <= 0) return;
+  const gifted = amount * gift.fraction;
+  const creditTo = (h: HeroState) => {
+    h.heat += gifted * h.chainAffinity;
+  };
+  if (gift.to === "target") {
+    if (explicitTarget?.alive) creditTo(explicitTarget);
+    return;
+  }
+  const others = side.heroes.filter((h) => h.alive && h.id !== actingHero.id);
+  if (gift.to === "all") {
+    for (const h of others) creditTo(h);
+    return;
+  }
+  if (gift.to === "lowestHeat") {
+    let best: HeroState | undefined;
+    for (const h of others) if (!best || h.heat < best.heat) best = h;
+    if (best) creditTo(best);
+    return;
+  }
+  if (gift.to === "highestAffinity") {
+    let best: HeroState | undefined;
+    for (const h of others) if (!best || h.chainAffinity > best.chainAffinity) best = h;
+    if (best) creditTo(best);
+  }
+}
+
+/**
  * Applies `amount` damage starting at the hero with id `startId`, overflowing
  * to the next living hero in list order if the hit is a killing blow with
  * damage to spare. Used for every normal attack (single-target) and for the
@@ -31,6 +79,7 @@ function applyDamageFrom(
     hero.hp -= taken;
     hero.soaked += taken;
     hero.heat += taken * heatWeightSoaked * hero.chainAffinity;
+    applyHeatGift(side, hero, "soaked", taken);
     hero.hitsTaken += 1;
     remaining -= taken;
     if (hero.hp <= 0) {
@@ -90,6 +139,15 @@ function pickWeightedTargetId(side: SideState, rng: Rng, cfg: FightConfig): stri
     if (roll <= 0) return alive[i]?.id;
   }
   return alive[alive.length - 1]?.id;
+}
+
+/** Picks a wind-up's target per the bruiser's own windupTargeting rule
+ * (2026-08-09, encounter-table pass — see types.ts's HeroState docstring and
+ * sim/encounters.ts). Falls back to the normal weighted rule when unset, so
+ * every pre-existing bruiser (no field set) behaves exactly as before. */
+function pickWindupTargetId(hero: HeroState, player: SideState, rng: Rng, cfg: FightConfig): string | undefined {
+  if (hero.windupTargeting === "lowestHp") return lowestHpAliveHero(player)?.id;
+  return pickWeightedTargetId(player, rng, cfg);
 }
 
 function lowestHpAliveHero(side: SideState): HeroState | undefined {
@@ -196,6 +254,7 @@ function performHeroAction(
         target.hp += amount;
         hero.restored += amount;
         hero.heat += amount * cfg.heatWeightRestored * hero.chainAffinity;
+        applyHeatGift(attackerSide, hero, "healed", amount, target);
         events.push({ type: "heal", t, side: attackerSideLabel, healerId: hero.id, targetId: target.id, amount });
       }
     }
@@ -212,6 +271,7 @@ function performHeroAction(
   const { died, applied } = applyDamageFrom(defenderSide, targetId, damage, cfg.heatWeightSoaked);
   hero.dealt += applied;
   hero.heat += applied * cfg.heatWeightDealt * hero.chainAffinity;
+  applyHeatGift(attackerSide, hero, "dealt", applied);
   events.push({ type: "attack", t, side: attackerSideLabel, attackerId: hero.id, targetId, damage });
   for (const id of died) events.push({ type: "heroDown", t, side: defenderSideLabel, heroId: id });
 }
@@ -227,6 +287,13 @@ function updateTankHolding(events: FightEvent[], t: number, side: SideState, sid
     const frac = h.hp / h.maxHp;
     if (h.holding && frac <= cfg.tankBreakFraction) {
       h.holding = false;
+      // Heat-gift "break" site (2026-08-09 — see Hollow's heatGift in
+      // heroes.ts): unlike the continuous dealt/soaked/healed sites, a break
+      // is a discrete event with no natural "raw amount" of its own, so the
+      // gifted quantity is a fraction of cfg.heatThreshold itself — "how
+      // much of a full meter does the dip hand out" rather than scaling off
+      // any one hit.
+      applyHeatGift(side, h, "break", cfg.heatThreshold);
       events.push({ type: "tankBreak", t, side: sideLabel, heroId: h.id });
     } else if (!h.holding && frac >= cfg.tankRecoverFraction) {
       h.holding = true;
@@ -258,7 +325,7 @@ function handleBruiserBeat(
     // Charge resolves. If the locked target died to something else first,
     // retarget fresh — the threat was real, just not to that hero anymore.
     const lockedAlive = hero.windupTargetId && player.heroes.some((h) => h.id === hero.windupTargetId && h.alive);
-    const targetId = lockedAlive ? (hero.windupTargetId as string) : pickWeightedTargetId(player, rng, cfg);
+    const targetId = lockedAlive ? (hero.windupTargetId as string) : pickWindupTargetId(hero, player, rng, cfg);
     hero.windupFireT = undefined;
     hero.windupTargetId = undefined;
     hero.nextWindupT = t + cfg.windupIntervalSec;
@@ -272,7 +339,7 @@ function handleBruiserBeat(
     return isWiped(player);
   }
   if (hero.nextWindupT !== undefined && t >= hero.nextWindupT) {
-    const targetId = pickWeightedTargetId(player, rng, cfg) ?? null;
+    const targetId = pickWindupTargetId(hero, player, rng, cfg) ?? null;
     hero.windupTargetId = targetId;
     hero.windupFireT = t + cfg.windupTelegraphSec;
     events.push({ type: "windupStart", t, targetId, fireT: hero.windupFireT });
@@ -325,7 +392,13 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
     endT = t;
 
     const enrageMult = enrageMultiplierAt(t, enemy, cfg);
-    if (!enrageStarted && enrageMult > 1) {
+    // 2026-08-09 fix: this used to test `enrageMult > 1`, which the HP-lost
+    // term (config.ts's enrageFromEnemyHpLostFactor) makes true the instant
+    // any enemy takes damage — so the "enemy enrage begins" tell fired at
+    // t~1s in every fight, not at enrageStartSec, meaning nothing. Gate the
+    // TELL on the wall-clock term only; enrageMult itself (used for actual
+    // damage below) is unchanged and still includes both terms.
+    if (!enrageStarted && t > cfg.enrageStartSec) {
       enrageStarted = true;
       events.push({ type: "enrageStart", t });
     }
@@ -348,16 +421,27 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         const chance = bonusHitsLanded >= cfg.chainMaxHits ? 0 : prdLookup(cfg.chainChanceByHitsSoFar, bonusHitsLanded);
         if (rng.chance(chance)) {
           const hitIndex = bonusHitsLanded + 1;
-          // Multiplicative off the hot hero's own damage AND its own
-          // chainAffinity (2026-08-07/08) — see config.ts's FightConfig
-          // docstring: a Vex chain is explosive, a Bracer chain is a damp
-          // squib, so squad choice sets the ceiling's SIZE, not just
-          // whether it's reachable.
-          const damage = Math.max(1, Math.round(hero.damage * cfg.chainHitMultiplier * hitIndex * hero.chainAffinity));
+          // Multiplicative off the hot hero's own damage (PLUS the run's
+          // dpsBonus upgrade — 2026-08-09 fix: this was reading raw
+          // hero.damage only, so the one thing coin buys never touched the
+          // one thing the game is built around) AND its own chainAffinity
+          // (2026-08-07/08) — see config.ts's FightConfig docstring: a Vex
+          // chain is explosive, a Bracer chain is a damp squib, so squad
+          // choice sets the ceiling's SIZE, not just whether it's reachable.
+          const damage = Math.max(
+            1,
+            Math.round((hero.damage + player.dpsBonus) * cfg.chainHitMultiplier * hitIndex * hero.chainAffinity),
+          );
           const targetId = frontMostAliveId(enemy);
           if (targetId) {
             const { died, applied } = applyDamageFrom(enemy, targetId, damage);
             hero.dealt += applied;
+            // Rook's "chainHit" gift (2026-08-09, see heroes.ts): a chain
+            // hit itself doesn't run through performHeroAction (it's a
+            // separate escalating-damage path, not a normal attack), so this
+            // site needs its own applyHeatGift call rather than picking one
+            // up for free the way "dealt" does above.
+            applyHeatGift(player, hero, "chainHit", applied);
             events.push({ type: "chainHit", t, hitIndex, damage, targetId });
             for (const id of died) events.push({ type: "heroDown", t, side: "enemy", heroId: id });
             bonusHitsLanded = hitIndex;
@@ -414,6 +498,15 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       let candidate: HeroState | undefined;
       for (const h of player.heroes) {
         if (!h.alive || h.heat < cfg.heatThreshold) continue;
+        // 2026-08-09 fix: a pure healer (healPerBeat set, no
+        // attacksWhileHealing — i.e. Cairn) never reaches the chain-hit
+        // branch below, since performHeroAction returns before the attack
+        // path on every one of its own beats. Before this guard it could
+        // still WIN the ignition roll — burning the roll and the whole PRD
+        // chain for ~1 damage/hit while every other candidate's heat kept
+        // accruing unspent. Exclude it from candidacy so only a hero that
+        // can actually land a chain hit ever goes hot.
+        if (h.healPerBeat && !h.attacksWhileHealing) continue;
         if (!candidate || h.heat > candidate.heat) candidate = h;
       }
       if (candidate) {

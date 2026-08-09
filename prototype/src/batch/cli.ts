@@ -1,40 +1,38 @@
 import { Rng } from "../sim/rng.js";
-import { DEFAULT_RUN_CONFIG, type DeathPolicy, type RunConfig } from "../sim/config.js";
+import { DEFAULT_RUN_CONFIG, type RunConfig } from "../sim/config.js";
 import { runFight } from "../sim/fight.js";
-import { makePlayerSide } from "../sim/heroes.js";
+import { DEFAULT_DRAFT_ROSTER_IDS, makePlayerSide } from "../sim/heroes.js";
 import type { FightEvent, FightResult } from "../sim/events.js";
 import { makeEnemySide, makePolicy, runRun, type RunResult } from "../sim/run.js";
 import { BatchAggregator, formatReport } from "./report.js";
 
-/** Named squads for --squad, for comparing a few reference picks side by
- * side from real batch data rather than hand-reasoning about the stat
- * blocks. A literal comma-separated hero id list (e.g. "vex,rook,hollow")
- * also works — use that for anything not named here, including the other 17
- * of the 20 possible 3-hero squads.
- *
- * These are no longer a strict comfortable > tight > greedy risk LADDER
- * (2026-08-08, dominant-squad root-cause pass — see heroes.ts's pool
- * docstring and checks/chaindist.ts's "risk dial" comment for the full
- * story): "tight" (hollow+rook+cairn) now completes MORE runs than
- * "comfortable" (bracer+rook+cairn) — 37.0% vs. 22.6% at n=2000 — because
- * Hollow's higher chainAffinity became a genuine alternate path to survival
- * once the pool was rebalanced to equal throughput, not just a strictly
- * worse HP trade. The names now mark reference points along a
- * multi-dimensional choice, not ranks. */
+/** Named FIELDED squads (exactly 3) for the `fight` subcommand's --squad —
+ * an isolated single fight, no roster/attrition involved. A literal
+ * comma-separated hero id list also works. */
 const SQUAD_PRESETS: Record<string, string[]> = {
   comfortable: ["bracer", "rook", "cairn"],
   tight: ["hollow", "rook", "cairn"],
-  // Redefined 2026-08-08: vex+rook+ward (the pre-existing "greedy" preset)
-  // stopped being greedy once Ward's attacksWhileHealing landed (see
-  // heroes.ts) — it now has three effective attackers plus real healing and
-  // completed on par with "comfortable." vex+rook+hollow has NO healer at
-  // all — a genuinely no-safety-net pick that actually earns the name.
   greedy: ["vex", "rook", "hollow"],
 };
 
-function resolveSquad(arg: string | undefined): string[] | undefined {
+/** Named DRAFT rosters (5 of 6) for `run`/`batch` — 2026-08-09 roster/bench
+ * pass. Each leaves a different hero on the bench from the start, so the
+ * three presets exercise a different starting shape rather than just a
+ * different fielded triple. */
+const DRAFT_PRESETS: Record<string, string[]> = {
+  // Leaves Vex out — the accept-default draft (see heroes.ts).
+  default: DEFAULT_DRAFT_ROSTER_IDS,
+  // Leaves Cairn out — no pure-healer safety net available at all, Ward is
+  // the only support in the draft.
+  burst: ["bracer", "hollow", "rook", "vex", "ward"],
+  // Leaves Bracer out — only one tank (Hollow) in the whole draft, so a
+  // Hollow death mid-run forces a tankless fielding for good.
+  thin: ["hollow", "rook", "vex", "cairn", "ward"],
+};
+
+function resolveSquad(arg: string | undefined, presets: Record<string, string[]>): string[] | undefined {
   if (!arg) return undefined;
-  if (SQUAD_PRESETS[arg]) return SQUAD_PRESETS[arg];
+  if (presets[arg]) return presets[arg];
   return arg.split(",");
 }
 
@@ -105,12 +103,13 @@ function printRunSummary(result: RunResult): void {
   console.log(`\n--- run (seed=${result.seed}) ---`);
   for (const f of result.fights) {
     console.log(
-      `  fight ${f.fightIndex + 1}: ${f.outcome.toUpperCase()} | ignited=${f.ignited} | chain=${f.chainLength} | ` +
-        `coin+${f.coinAwarded} | spend=${f.spend} | living=${f.livingHeroesAfter} | ` +
+      `  fight ${f.fightIndex + 1}: ${f.outcome.toUpperCase()} | fielded=${f.fieldedIds.join("+")} | ignited=${f.ignited} | chain=${f.chainLength} | ` +
+        `coin+${f.coinAwarded} | spend=${f.spend} | roster-living=${f.livingHeroesAfter} | ` +
         `HP=${f.playerHpAfter.toFixed(0)}/${f.playerMaxHpAfter.toFixed(0)}`,
     );
   }
-  console.log(`run outcome: ${result.outcome.toUpperCase()} (${result.fightsWon}/5 won, ${result.finalCoin} coin left)`);
+  const overNote = result.overReason ? ` (${result.overReason})` : "";
+  console.log(`run outcome: ${result.outcome.toUpperCase()}${overNote} (${result.fightsWon}/5 won, ${result.finalCoin} coin left)`);
 }
 
 function runBatch(
@@ -118,28 +117,29 @@ function runBatch(
   policyName: "never-spend" | "always-heal" | "always-upgrade",
   n: number,
   baseSeed: number,
-  squad: string[] | undefined,
+  roster: string[] | undefined,
 ) {
   const policy = makePolicy(policyName, cfg);
   const agg = new BatchAggregator(cfg);
   for (let i = 0; i < n; i++) {
     const seed = baseSeed + i;
-    agg.add(runRun(cfg, new Rng(seed), policy, seed, makePlayerSide(squad)));
+    agg.add(runRun(cfg, new Rng(seed), policy, seed, makePlayerSide(roster ?? DEFAULT_DRAFT_ROSTER_IDS)));
   }
-  const squadLabel = squad ? ` squad=${squad.join("+")}` : "";
-  console.log(formatReport(agg.finalize(), `policy=${policyName} deathPolicy=${cfg.deathPolicy}${squadLabel}`));
+  const rosterLabel = ` roster=${(roster ?? DEFAULT_DRAFT_ROSTER_IDS).join("+")}`;
+  console.log(formatReport(agg.finalize(), `policy=${policyName}${rosterLabel}`));
 }
 
 const [, , cmd, ...rest] = process.argv;
 const args = parseArgs(rest);
 const seed = args.seed ? Number(args.seed) : 1;
 const n = args.n ? Number(args.n) : 1000;
-const deathPolicy = (args.death as DeathPolicy) ?? DEFAULT_RUN_CONFIG.deathPolicy;
-const cfg: RunConfig = { ...DEFAULT_RUN_CONFIG, deathPolicy };
-const squad = resolveSquad(args.squad);
+const cfg: RunConfig = DEFAULT_RUN_CONFIG;
 
 switch (cmd) {
   case "fight": {
+    // A single ad-hoc fight, no roster/attrition — --squad takes exactly
+    // cfg.playerN (3) ids (or a named SQUAD_PRESETS entry).
+    const squad = resolveSquad(args.squad, SQUAD_PRESETS);
     const setup = {
       player: makePlayerSide(squad),
       enemy: makeEnemySide(cfg, 0),
@@ -150,28 +150,36 @@ switch (cmd) {
     break;
   }
   case "run": {
-    const policyName = (args.policy as "never-spend" | "always-heal" | "always-upgrade") ?? "never-spend";
-    const result = runRun(cfg, new Rng(seed), makePolicy(policyName, cfg), seed, makePlayerSide(squad));
+    // A full 5-fight run. --squad now takes a DRAFT (any length >=
+    // cfg.playerN — passing exactly 3 degrades to "no bench," the pre-
+    // 2026-08-09 shape) or a DRAFT_PRESETS name; defaults to the accept-
+    // default 5-hero draft.
+    const roster = resolveSquad(args.squad, DRAFT_PRESETS);
+    const policyName = (args.policy as "never-spend" | "always-heal" | "always-upgrade") ?? "always-heal";
+    const result = runRun(cfg, new Rng(seed), makePolicy(policyName, cfg), seed, makePlayerSide(roster ?? DEFAULT_DRAFT_ROSTER_IDS));
     printRunSummary(result);
     break;
   }
   case "batch": {
-    if (args.squad && !SQUAD_PRESETS[args.squad]) {
-      // A literal hero-id list with no --policy given: run just that one combo.
-      runBatch(cfg, (args.policy as "never-spend" | "always-heal" | "always-upgrade") ?? "never-spend", n, seed, squad);
-    } else if (args.policy || args.squad) {
-      runBatch(cfg, (args.policy as "never-spend" | "always-heal" | "always-upgrade") ?? "never-spend", n, seed, squad);
+    if (args.squad || args.policy) {
+      // 2026-08-09 fix: this used to silently default an unspecified
+      // --policy to "never-spend" for any --squad investigation — every
+      // per-roster number anyone pulled this way (including the balance
+      // pins in checks/chaindist.ts before this pass) was therefore
+      // measuring a population that never plays the coin economy the real
+      // game always offers. Default to "always-heal" instead — the
+      // played-game population — and pass --policy never-spend explicitly
+      // to get the no-economy floor.
+      const roster = resolveSquad(args.squad, DRAFT_PRESETS);
+      runBatch(cfg, (args.policy as "never-spend" | "always-heal" | "always-upgrade") ?? "always-heal", n, seed, roster);
     } else {
-      // Default: the full matrix — 3 policies x 2 death policies x 3 named
-      // squads (comfortable/tight/greedy), so the risk dial's effect on
-      // run-completion is visible side by side rather than assumed.
+      // Default: the full matrix — 3 policies x 3 named draft rosters, so
+      // the coin economy's and the starting draft's effect on run
+      // completion are visible side by side rather than assumed.
       const policies = ["never-spend", "always-heal", "always-upgrade"] as const;
-      const deathPolicies: DeathPolicy[] = ["downAtFightEnd", "onlyOnLoss"];
-      for (const dp of deathPolicies) {
-        for (const p of policies) {
-          for (const squadName of Object.keys(SQUAD_PRESETS)) {
-            runBatch({ ...DEFAULT_RUN_CONFIG, deathPolicy: dp }, p, n, seed, SQUAD_PRESETS[squadName]);
-          }
+      for (const p of policies) {
+        for (const rosterName of Object.keys(DRAFT_PRESETS)) {
+          runBatch(cfg, p, n, seed, DRAFT_PRESETS[rosterName]);
         }
       }
     }
@@ -179,7 +187,7 @@ switch (cmd) {
   }
   default:
     console.error(
-      `Usage: tsx src/batch/cli.ts <fight|run|batch> [--seed N] [--n N] [--policy name] [--death downAtFightEnd|onlyOnLoss] [--squad comfortable|tight|greedy|id,id,id] [--attemptsSince N]`,
+      `Usage: tsx src/batch/cli.ts <fight|run|batch> [--seed N] [--n N] [--policy name] [--squad comfortable|tight|greedy|default|burst|thin|id,id,id...] [--attemptsSince N]`,
     );
     process.exit(1);
 }

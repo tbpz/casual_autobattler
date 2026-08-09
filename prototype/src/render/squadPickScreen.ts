@@ -1,5 +1,6 @@
 import type { RunConfig } from "../sim/config.js";
-import { DEFAULT_PLAYER_ROSTER_IDS, MAX_CHAIN_AFFINITY, PLAYER_HERO_POOL, makePlayerSide } from "../sim/heroes.js";
+import { DEFAULT_DRAFT_ROSTER_IDS, MAX_CHAIN_AFFINITY, PLAYER_HERO_POOL, makePlayerSide } from "../sim/heroes.js";
+import { defaultFieldPick, fieldSquad } from "../sim/roster.js";
 import { makeEnemySide } from "../sim/run.js";
 import { project } from "../sim/projection.js";
 
@@ -14,17 +15,26 @@ function chainAffinityPips(affinity: number): string {
 }
 
 /**
- * Run-start squad pick: 3 of 6, pre-checked with the default roster and a
+ * Run-start DRAFT: 5 of 6, pre-checked with the default draft and a
  * prominent Play button — the accept-default path is a single tap, per the
  * "optional layer must stay optional" rule (DECISIONS.md 2026-07-26, 0/4 in
- * probing when forced). Picking a 4th swaps out the earliest pick so the
- * roster always holds exactly 3.
+ * probing when forced). Picking a 6th swaps out the earliest pick so the
+ * draft always holds exactly cfg.rosterSize.
+ *
+ * 2026-08-09 (roster/bench pass — see config.ts's DeathPolicy-removal
+ * docstring): widened from "pick 3 (the fielded squad)" to "pick 5 (the
+ * whole run's roster) — fielding which 3 answer a given fight is now a
+ * SEPARATE, per-fight decision (see fieldPickScreen.ts). This screen is the
+ * run-level build commitment: which one hero to leave out of the run
+ * entirely.
  *
  * As of 2026-08-06 (see DECISIONS.md's "squad pick is the risk dial" entry)
  * the pick also renders a live projection verdict against fight 1's enemy
  * composition, computed by sim/projection.ts — the same module the
  * pre-fight screen and the post-fight recap use, so the three can never
- * disagree about what a comp was expected to do.
+ * disagree about what a comp was expected to do. The projection previews
+ * the DEFAULT fielding (roster.ts's defaultFieldPick) of whatever 5 are
+ * currently selected, since the draft itself is never fielded directly.
  *
  * 2026-08-08: each row also shows attack interval, a chainAffinity pip
  * meter, and a one-line identity — the player's own diagnosis was "I know
@@ -38,15 +48,16 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
   screen.className = "screen squad-pick";
 
   const h1 = document.createElement("h1");
-  h1.textContent = "Assemble your squad";
+  h1.textContent = "Draft your roster";
   screen.appendChild(h1);
 
+  const draftSize = cfg.rosterSize;
   const hint = document.createElement("p");
   hint.className = "hint";
-  hint.textContent = "Pick 3 — or just hit Play.";
+  hint.textContent = `Pick ${draftSize} for the run — or just hit Play. You'll choose 3 to field each fight.`;
   screen.appendChild(hint);
 
-  const selected = new Set<string>(DEFAULT_PLAYER_ROSTER_IDS);
+  const selected = new Set<string>(DEFAULT_DRAFT_ROSTER_IDS);
 
   const list = document.createElement("div");
   list.className = "hero-pick-list";
@@ -61,9 +72,9 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
   const enemyPreview = makeEnemySide(cfg, 0);
 
   function refreshPlayState(): void {
-    const ready = selected.size === 3;
+    const ready = selected.size === draftSize;
     playBtn.disabled = !ready;
-    playBtn.textContent = ready ? "Play" : `Pick ${3 - selected.size} more`;
+    playBtn.textContent = ready ? "Play" : `Pick ${draftSize - selected.size} more`;
   }
 
   function refreshChecks(): void {
@@ -76,13 +87,20 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
   }
 
   function refreshProjection(): void {
-    if (selected.size !== 3) {
+    if (selected.size !== draftSize) {
       projectionLine.textContent = "";
       projectionLine.className = "projection-line";
       return;
     }
-    const proj = project(makePlayerSide([...selected]), enemyPreview, cfg.fight);
-    projectionLine.textContent = proj.verdict;
+    // 2026-08-09 bug fix: defaultFieldPick returns ROSTER instance ids
+    // (e.g. "p0_bracer"), not raw pool ids ("bracer") — makePlayerSide
+    // expects the latter (it calls findHeroDef, which only knows pool ids).
+    // fieldSquad is the correct roster.ts helper for turning a set of
+    // instance ids back into a fightable SideState.
+    const draft = makePlayerSide([...selected]);
+    const fielded = fieldSquad(draft, defaultFieldPick(draft, cfg.playerN));
+    const proj = project(fielded, enemyPreview, cfg.fight);
+    projectionLine.textContent = `Default fielding: ${proj.verdict}`;
     projectionLine.className = `projection-line band-${proj.band}`;
   }
 
@@ -106,7 +124,7 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
       if (selected.has(def.id)) {
         selected.delete(def.id);
       } else {
-        if (selected.size >= 3) {
+        if (selected.size >= draftSize) {
           const oldest = selected.values().next().value;
           if (oldest) selected.delete(oldest);
         }

@@ -1,9 +1,11 @@
 import type { Rng } from "./rng.js";
-import type { DeathPolicy, EnemyArchetype, RunConfig } from "./config.js";
-import type { FightSetup, HeroState, SideState } from "./types.js";
+import type { RunConfig } from "./config.js";
+import type { FightSetup, SideState } from "./types.js";
 import { sideHp, sideMaxHp } from "./types.js";
 import { runFight } from "./fight.js";
 import type { FightResult } from "./events.js";
+import { applyFightResultToRoster, canFieldSquad, defaultFieldPick, fieldSquad, type RosterState } from "./roster.js";
+import { makeEncounterEnemySide } from "./encounters.js";
 
 export type SpendChoice = "heal" | "upgrade" | "skip";
 
@@ -34,9 +36,16 @@ export interface FightSummary {
   chainLength: number;
   coinAwarded: number;
   spend: SpendChoice;
+  /** Living ROSTER heroes after this fight (2026-08-09 roster/bench pass —
+   * out of cfg.rosterSize, not cfg.playerN), the run-wide "how much of my
+   * draft is left" figure, not just this fight's fielded-3 survival. */
   livingHeroesAfter: number;
+  /** Roster-wide HP (bench included). */
   playerHpAfter: number;
   playerMaxHpAfter: number;
+  /** Which roster members were fielded for this specific fight — the UI
+   * needs this to show "who fought" distinct from "who's in the draft." */
+  fieldedIds: string[];
 }
 
 export interface RunResult {
@@ -45,6 +54,13 @@ export interface RunResult {
   /** Full per-fight records, for a UI to replay any fight in the run. */
   fightResults: FightResult[];
   outcome: "complete" | "over";
+  /** Why the run ended early — undefined when outcome is "complete".
+   * 2026-08-09 (roster/bench pass): a run can now end two structurally
+   * different ways — a fight lost outright, or the living roster falling
+   * below playerN so the NEXT fight can't even be fielded — and they read
+   * very differently to a player, so the UI/report should be able to tell
+   * them apart rather than lumping both under "over". */
+  overReason?: "loss" | "rosterExhausted";
   fightsWon: number;
   finalCoin: number;
 }
@@ -56,130 +72,31 @@ export interface RunResult {
  * same rules rather than two copies that could drift apart.
  */
 
-/** Scales HP with difficultyRampFactor (a later fight is mostly a longer
- * grind) and damage with a much gentler difficultyDamageRampFactor. HP-only
- * scaling was the original design (2026-08-04): scaling both aggressively
- * compounds fast — enemy dps rising alongside enemy HP means the player pool
- * drains faster AND takes longer to return the favor at the same time,
- * which collapsed win rate from ~100% to ~13% by fight 3 when both ran at
- * 1.08. The small damage ramp was added 2026-08-08 because HP-only scaling
- * turned out to have a structural blind spot: a comp that kills fast enough
- * (high damage + a real tank + real healing, e.g. bracer+vex+cairn) barely
- * lengthens its own fights as enemy HP rises, so it barely feels the ramp at
- * all — batch-verified at ~100% run completion regardless of how hard the
- * HP-only ramp was pushed. A gentle per-hit damage ramp threatens exactly
- * the fast, well-protected comps the HP ramp couldn't reach, since it lands
- * regardless of fight length. */
-function scaledArchetype(def: EnemyArchetype, rampFactor: number, damageRampFactor: number, fightIndex: number): EnemyArchetype {
-  const scale = Math.pow(rampFactor, fightIndex);
-  const damageScale = Math.pow(damageRampFactor, fightIndex);
-  return { ...def, maxHp: def.maxHp * scale, damage: def.damage * damageScale };
-}
+// makeEnemySide: RE-EXPORTED from sim/encounters.ts (2026-08-09,
+// encounter-table pass — see that file's top docstring for why the old
+// single-scaled-archetype builder was replaced). Kept under this name so
+// every existing call site (batch/cli.ts, checks/*, render/*) needed no
+// changes — only the implementation moved.
+export { makeEncounterEnemySide as makeEnemySide } from "./encounters.js";
 
-/** Builds the enemy side for a fight: one bruiser (front, the dip's visible
- * cause) plus (n-1) grunts, both archetypes scaled by the difficulty ramp.
- * Bruiser leads the roster so the player's front-targeting attacks (fight.ts)
- * reliably hit it first — the "kill the big one, the dip ends" causal story. */
-export function makeEnemySide(cfg: RunConfig, fightIndex: number): SideState {
-  const bruiser = scaledArchetype(cfg.bruiser, cfg.difficultyRampFactor, cfg.difficultyDamageRampFactor, fightIndex);
-  const grunt = scaledArchetype(cfg.grunt, cfg.difficultyRampFactor, cfg.difficultyDamageRampFactor, fightIndex);
-  // Every enemy shares an attackIntervalSec within its archetype, so without
-  // a phase offset the grunts would all beat on the identical tick — the
-  // same collision problem heroes.ts's makeHeroState fixes for the player
-  // side (2026-08-06). Bruiser gets phase 0 (front, fires first); grunts
-  // spread across the remaining slots.
-  const heroes: HeroState[] = [
-    {
-      id: "e0_bruiser",
-      name: `${bruiser.namePrefix}`,
-      role: "bruiser",
-      maxHp: bruiser.maxHp,
-      hp: bruiser.maxHp,
-      alive: true,
-      damage: bruiser.damage,
-      attackIntervalSec: bruiser.attackIntervalSec,
-      nextAttackT: bruiser.attackIntervalSec,
-      dealt: 0,
-      soaked: 0,
-      restored: 0,
-      hitsTaken: 0,
-      holding: false,
-      heat: 0,
-      // Enemies never ignite (fight.ts only scans the player side), so this
-      // value is inert — set to 1 (a no-op multiplier) rather than 0 purely
-      // so nothing downstream that reads it accidentally divides by zero.
-      chainAffinity: 1,
-      // Only the bruiser winds up (2026-08-07 rebuild) — see config.ts's
-      // FightConfig docstring. First charge starts at windupIntervalSec, not
-      // t=0, so the opening exchange stays symmetric/boring as the beat
-      // sheet intends.
-      nextWindupT: cfg.fight.windupIntervalSec,
-    },
-  ];
-  for (let i = 1; i < cfg.enemyN; i++) {
-    const phase = i / cfg.enemyN;
-    heroes.push({
-      id: `e${i}_grunt`,
-      name: `${grunt.namePrefix} ${i}`,
-      role: "grunt",
-      maxHp: grunt.maxHp,
-      hp: grunt.maxHp,
-      alive: true,
-      damage: grunt.damage,
-      attackIntervalSec: grunt.attackIntervalSec,
-      nextAttackT: grunt.attackIntervalSec * (1 - phase * 0.8),
-      dealt: 0,
-      soaked: 0,
-      restored: 0,
-      hitsTaken: 0,
-      holding: false,
-      heat: 0,
-      chainAffinity: 1, // inert — see the bruiser's identical field above
-    });
-  }
-  return { heroes, dpsBonus: 0 };
-}
+// applyFightResultToPlayer and healFraction (2026-08-09, roster/bench pass):
+// REMOVED — see config.ts's DeathPolicy-removal docstring and roster.ts's
+// applyFightResultToRoster, which now does both jobs at once (fold in the
+// fight's HP/alive AND apply the fielded-vs-benched recovery split) since
+// the two can no longer be separated once recovery depends on which roster
+// members were actually fielded.
 
-/** Folds a fight's outcome into the persisted player roster: HP and alive
- * flags come from the fight, then deathPolicy decides whether a downed hero
- * stays down (only called after a WIN — a loss ends the run before this runs,
- * so "downAtFightEnd" and "onlyOnLoss" only differ in what a win leaves behind). */
-export function applyFightResultToPlayer(
-  player: SideState,
-  result: FightResult,
-  deathPolicy: DeathPolicy,
-): SideState {
-  const finalById = new Map(result.finalPlayerHeroes.map((h) => [h.id, h]));
-  let heroes: HeroState[] = player.heroes.map((h) => {
-    const final = finalById.get(h.id);
-    if (!final) return h;
-    return { ...h, hp: final.hp, alive: final.alive };
-  });
-  heroes =
-    deathPolicy === "downAtFightEnd"
-      ? heroes.filter((h) => h.alive)
-      : heroes.map((h) => (h.alive ? h : { ...h, hp: h.maxHp, alive: true }));
-  return { heroes, dpsBonus: player.dpsBonus };
-}
-
+/** Flat coin-spend heal (choice "heal" — see applySpend below): +amount HP
+ * to every LIVING roster hero, bench included. Guards on `alive` (2026-08-09
+ * roster/bench pass): a permanently-dead hero is now kept in the roster
+ * array (not spliced out — see roster.ts) so a field-pick screen can show
+ * "Cairn has fallen," so this must skip it explicitly or it would silently
+ * un-zero a corpse's hp while leaving alive:false, a contradictory state. */
 export function healFlat(side: SideState, amount: number): SideState {
-  return { ...side, heroes: side.heroes.map((h) => ({ ...h, hp: Math.min(h.maxHp, h.hp + amount) })) };
-}
-
-/** Recovers a FRACTION of each hero's own maxHp, rather than a flat amount —
- * used for the between-fight auto-recovery tick (2026-08-08 fix). A flat
- * amount silently favors low-maxHp heroes: at the old autoRecoverHp=90, any
- * hero with maxHp <= 90 (Rook, Vex, Ward) was topped off to FULL every
- * single fight regardless of squad, while Bracer (280 maxHp) recovered only
- * ~32% and carried the rest forward as permanent attrition — which is why
- * cutting the old flat constant inverted the risk dial (tank-based
- * "comfortable" collapsed to 3.5% run completion while glass-cannon "greedy"
- * rose to 65.9%: the tank was the only hero actually being punished).
- * healFlat (above) is kept for the coin-spend heal, a small, deliberately-
- * chosen player action where that bias is a minor, acceptable side effect —
- * not the passive recovery every squad gets regardless of choice. */
-export function healFraction(side: SideState, fraction: number): SideState {
-  return { ...side, heroes: side.heroes.map((h) => ({ ...h, hp: Math.min(h.maxHp, h.hp + h.maxHp * fraction) })) };
+  return {
+    ...side,
+    heroes: side.heroes.map((h) => (h.alive ? { ...h, hp: Math.min(h.maxHp, h.hp + amount) } : h)),
+  };
 }
 
 export function coinAwardFor(cfg: RunConfig, result: FightResult): number {
@@ -207,7 +124,7 @@ export function applySpend(
   return { player, coin, spend: "skip" };
 }
 
-export function summarizeLoss(fightIndex: number, result: FightResult, playerMaxHp: number): FightSummary {
+export function summarizeLoss(fightIndex: number, result: FightResult, rosterMaxHpAtStart: number, fieldedIds: string[]): FightSummary {
   return {
     fightIndex,
     outcome: "loss",
@@ -217,7 +134,8 @@ export function summarizeLoss(fightIndex: number, result: FightResult, playerMax
     spend: "skip",
     livingHeroesAfter: 0,
     playerHpAfter: 0,
-    playerMaxHpAfter: playerMaxHp,
+    playerMaxHpAfter: rosterMaxHpAtStart,
+    fieldedIds,
   };
 }
 
@@ -226,7 +144,8 @@ export function summarizeWin(
   result: FightResult,
   coinAwarded: number,
   spend: SpendChoice,
-  player: SideState,
+  roster: RosterState,
+  fieldedIds: string[],
 ): FightSummary {
   return {
     fightIndex,
@@ -235,15 +154,25 @@ export function summarizeWin(
     chainLength: result.chainLength,
     coinAwarded,
     spend,
-    livingHeroesAfter: player.heroes.filter((h) => h.alive).length,
-    playerHpAfter: sideHp(player),
-    playerMaxHpAfter: sideMaxHp(player),
+    livingHeroesAfter: roster.heroes.filter((h) => h.alive).length,
+    playerHpAfter: sideHp(roster),
+    playerMaxHpAfter: sideMaxHp(roster),
+    fieldedIds,
   };
 }
 
-/** Runs one full 5-fight run to completion. Pure given (cfg, rng, policy, player). */
-export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number, initialPlayer: SideState): RunResult {
-  let player = initialPlayer;
+/** Runs one full 5-fight run to completion. Pure given (cfg, rng, policy,
+ * initialRoster). 2026-08-09 (roster/bench pass): initialRoster can be any
+ * size >= cfg.playerN — passing exactly cfg.playerN ids degrades gracefully
+ * to "no bench" (every fight fields the whole roster), which is how the old
+ * downAtFightEnd model's behavior is still reachable for comparison. Each
+ * fight fields the ACCEPT-DEFAULT pick (roster.ts's defaultFieldPick) — this
+ * is the headless/batch driver, which has always measured the accept-default
+ * path (same convention as the coin-spend `policy` argument); an interactive
+ * UI drives the equivalent steps itself (see render/runSession.ts) so a real
+ * player can override the fielding choice. */
+export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number, initialRoster: RosterState): RunResult {
+  let roster = initialRoster;
   let attemptsSinceIgnition = 0;
   let coin = 0;
 
@@ -251,15 +180,21 @@ export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number
   const fightResults: FightResult[] = [];
 
   for (let i = 0; i < cfg.fightsPerRun; i++) {
-    const enemy = makeEnemySide(cfg, i);
+    if (!canFieldSquad(roster, cfg.playerN)) {
+      return { seed, fights, fightResults, outcome: "over", overReason: "rosterExhausted", fightsWon: i, finalCoin: 0 };
+    }
+
+    const fieldedIds = defaultFieldPick(roster, cfg.playerN);
+    const player = fieldSquad(roster, fieldedIds);
+    const enemy = makeEncounterEnemySide(cfg, i);
 
     const setup: FightSetup = { player, enemy, attemptsSinceIgnition };
     const result = runFight(setup, cfg.fight, rng, seed);
     fightResults.push(result);
 
     if (result.outcome === "loss") {
-      fights.push(summarizeLoss(i, result, sideMaxHp(player)));
-      return { seed, fights, fightResults, outcome: "over", fightsWon: i, finalCoin: 0 };
+      fights.push(summarizeLoss(i, result, sideMaxHp(roster), fieldedIds));
+      return { seed, fights, fightResults, outcome: "over", overReason: "loss", fightsWon: i, finalCoin: 0 };
     }
 
     // Carries the sim's own final counter forward (2026-08-08) rather than
@@ -271,15 +206,14 @@ export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number
     const coinAwarded = coinAwardFor(cfg, result);
     coin += coinAwarded;
 
-    player = applyFightResultToPlayer(player, result, cfg.deathPolicy);
-    player = healFraction(player, cfg.autoRecoverFraction);
+    roster = applyFightResultToRoster(roster, player, result, cfg);
 
-    const choice = policy({ coin, player });
-    const applied = applySpend(cfg, player, coin, choice);
-    player = applied.player;
+    const choice = policy({ coin, player: roster });
+    const applied = applySpend(cfg, roster, coin, choice);
+    roster = applied.player;
     coin = applied.coin;
 
-    fights.push(summarizeWin(i, result, coinAwarded, applied.spend, player));
+    fights.push(summarizeWin(i, result, coinAwarded, applied.spend, roster, fieldedIds));
   }
 
   return { seed, fights, fightResults, outcome: "complete", fightsWon: cfg.fightsPerRun, finalCoin: coin };

@@ -54,7 +54,15 @@ const MARGIN_LOSING = 1.0;
  * so this band is read-only for "how safe is this fight," not for "how
  * likely is a chain." See DECISIONS.md's "squad pick is the risk dial" and
  * "fight causality rebuild" entries for that split.) */
-const TANK_HOLDS_COMFORTABLE_RATIO = 1.25;
+// 2026-08-09: retuned 1.25 -> 1.15 as a direct consequence of this file's own
+// windup-avg and config.ts's heal-cap fixes (both were, independently,
+// silently inflating a tank comp's projected safety margin — see this file's
+// bruiserDpsAvg comment and config.ts's healMaxFractionOfTargetMaxHp
+// comment). With both fixed, the projection is more honest and margins are
+// tighter across the board; 1.15 is where the pool's best defensive pick
+// (bracer+hollow+cairn, ratio ~1.21 at fight 0) still clears it, so
+// "comfortable" stays a reachable band rather than dead code.
+const TANK_HOLDS_COMFORTABLE_RATIO = 1.15;
 /** A tankless comp has no line to break, so it's living dangerously by
  * construction — it only bands comfortable if it's overwhelming the fight
  * on pure pool margin. */
@@ -152,7 +160,11 @@ export function project(player: SideState, enemy: SideState, cfg: FightConfig): 
   const enemyAlive = enemy.heroes.filter((h) => h.alive);
 
   const playerRates = sideRates(playerAlive, cfg);
-  const enemyRates = sideRates(enemyAlive, cfg);
+  // The bruiser is excluded from the generic side-rates pass below — its
+  // real output isn't a continuous h.damage/h.attackIntervalSec stream, it's
+  // gated by the wind-up cycle (see the windup-aware term a few lines down).
+  const enemyNonBruiser = enemyAlive.filter((h) => h.role !== "bruiser");
+  const enemyRates = sideRates(enemyNonBruiser, cfg);
   // The run's dpsBonus upgrade (coin sink B) applies to every hero that
   // actually attacks — everyone without healPerBeat, PLUS Ward-style hybrids
   // (attacksWhileHealing) who attack on top of healing (matches fight.ts's
@@ -169,9 +181,25 @@ export function project(player: SideState, enemy: SideState, cfg: FightConfig): 
   // ramp's expected effect over a fight of ~killSec length (2026-08-07
   // rebuild) — without this the projection would still understate incoming
   // damage the way the old point-estimate did, just via a different gap.
+  //
+  // 2026-08-09 fix: this used to divide the wind-up hit by windupIntervalSec
+  // alone (5s), which double-counts — fight.ts's handleBruiserBeat sets
+  // nextWindupT from the FIRE time, and the bruiser makes zero normal
+  // attacks during the windupTelegraphSec (1.5s) that precedes each fire. So
+  // the real cycle is windupIntervalSec + windupTelegraphSec = 6.5s, during
+  // which the bruiser lands ~(windupIntervalSec / attackIntervalSec) normal
+  // attacks plus exactly one wind-up hit — not a full attackIntervalSec-rate
+  // stream on top of a 5s-cycled wind-up. Verified against fight.ts's actual
+  // per-tick state machine, not re-derived independently.
   const bruiserAlive = enemyAlive.find((h) => h.role === "bruiser");
-  const windupDpsAvg = bruiserAlive ? (bruiserAlive.damage * cfg.windupDamageMultiplier) / cfg.windupIntervalSec : 0;
-  const enemyDpsPreEnrage = enemyRates.dps + windupDpsAvg;
+  let bruiserDpsAvg = 0;
+  if (bruiserAlive) {
+    const cycleSec = cfg.windupIntervalSec + cfg.windupTelegraphSec;
+    const normalAttacksPerCycle = cfg.windupIntervalSec / bruiserAlive.attackIntervalSec;
+    const cycleDamage = normalAttacksPerCycle * bruiserAlive.damage + bruiserAlive.damage * cfg.windupDamageMultiplier;
+    bruiserDpsAvg = cycleDamage / cycleSec;
+  }
+  const enemyDpsPreEnrage = enemyRates.dps + bruiserDpsAvg;
   const enemyDps = enemyDpsPreEnrage * meanEnrageMultiplier(killSec, cfg);
 
   const netIncoming = Math.max(enemyDps - healPerSec, 0.01);

@@ -65,8 +65,14 @@ const cfg = {
 // The wind-up should fire at least once in any fight that runs past
 // windupIntervalSec + windupTelegraphSec — the mechanism that's supposed to
 // make fragility cost something needs to actually be live.
+//
+// 2026-08-09 (encounter-table pass): pitted against fight index 4
+// (Champion), not 0 — fight 0 is now "Pack" (sim/encounters.ts), which has
+// no bruiser at all by design (the whole point of that encounter is "many
+// bodies, no telegraphed spike"), so it can never fire a wind-up. Champion
+// keeps the pre-pass "1 bruiser + grunts" shape this test needs.
 {
-  const setup = { player: makePlayerSide(["vex", "rook", "ward"]), enemy: makeEnemySide(cfg, 0), attemptsSinceIgnition: 0 };
+  const setup = { player: makePlayerSide(["vex", "rook", "ward"]), enemy: makeEnemySide(cfg, 4), attemptsSinceIgnition: 0 };
   const result = runFight(setup, cfg.fight, new Rng(12), 12);
 
   check("tankless comp: dip recorded from the start", result.dipOccurred);

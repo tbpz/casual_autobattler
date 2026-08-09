@@ -40,6 +40,24 @@ export interface HeroState {
    * PLAYER_HERO_POOL for why each hero's value differs. */
   chainAffinity: number;
 
+  /** 2026-08-09 (boring-middle root-cause pass, RC3's deep cause): heat was
+   * strictly PRIVATE per hero before this — measured over 60 fights per
+   * squad, whoever had the highest heat/sec ignited every single time (Rook
+   * 34/34, Vex 13/13, Hollow 24/24), making ignition identity a deterministic
+   * one-bit choice locked in at squad-pick, with zero in-fight variance. This
+   * makes heat a currency that can flow between allies: when this hero does
+   * the named thing (`on`), a fraction of that event's raw amount is
+   * credited to another living ally's heat too (`to`), scaled by the
+   * RECIPIENT's own chainAffinity, not the giver's — so who actually ignites
+   * becomes squad-dependent and can shift mid-fight, not a fixed pick. See
+   * heroes.ts's PLAYER_HERO_POOL for each hero's specific gift and
+   * fight.ts's applyHeatGift for where each `on` site fires from. */
+  heatGift?: {
+    on: "dealt" | "soaked" | "healed" | "chainHit" | "break";
+    to: "target" | "lowestHeat" | "highestAffinity" | "all";
+    fraction: number;
+  };
+
   /** Per-fight job counters (2026-08-06 legibility pass) — zeroed at fight
    * start by cloneHeroes, never carried between fights. These are the
    * readout the player's squad plan is judged against: did the tank soak,
@@ -72,6 +90,14 @@ export interface HeroState {
    * if that hero dies to something else before the hit lands (fight.ts falls
    * back to a fresh weighted pick in that case). */
   windupTargetId?: string | null;
+  /** Enemy bruiser only (2026-08-09, encounter-table pass — see
+   * sim/encounters.ts): which rule picks a wind-up's target. "weighted"
+   * (default when unset) is the normal enemy-attack rule — a holding tank
+   * draws it disproportionately. "lowestHp" always locks the lowest-current-
+   * HP living player hero — the Executioner encounter's whole premise
+   * ("can your squishies survive"), deliberately bypassing tank aggro
+   * entirely for this one threat. */
+  windupTargeting?: "weighted" | "lowestHp";
 }
 
 export interface SideState {

@@ -63,6 +63,25 @@ import type { RunResult } from "../sim/run.js";
  *    fraction fired while the player's pool was below 40% of its fight-start
  *    max. Pre-rebuild this was ≈0 (winning comps took 0.00 deaths per run,
  *    so danger and the cascade never co-occurred) — target ≥35%.
+ *
+ * meanDeathsPerRun's aggregation fixed 2026-08-09 (boring-middle root-cause
+ * pass): it used to read ONLY r.fights[r.fights.length-1].livingHeroesAfter
+ * and subtract from cfg.playerN. That total happened to be arithmetically
+ * correct under the OLD rules (a fixed-size squad that only ever shrinks
+ * under downAtFightEnd, so the last fight's living count was always
+ * cumulative) — but it threw away WHICH fight each death happened in, which
+ * is exactly the diagnostic that would have surfaced RC4 (deaths
+ * concentrated in fights the run could not lose, arriving as an invisible
+ * tax by fight 5) directly from a batch run instead of needing a separate
+ * --death onlyOnLoss A/B to find it. Now walks r.fights in order, diffing
+ * consecutive livingHeroesAfter (or crediting the full remaining roster to a
+ * loss fight), and reports both the run total AND a per-fight-index
+ * breakdown (deathsByFightIndex) — the baseline is cfg.rosterSize (the
+ * 5-hero draft), not cfg.playerN (the 3 fielded per fight), now that
+ * roster.ts's draft/field split (same pass) replaced deathPolicy: the
+ * "read only the last fight" shortcut this replaced would have been
+ * actively wrong the moment a bench existed (living count no longer
+ * monotonic against a single fixed-size array).
  */
 export interface BatchReport {
   n: number;
@@ -82,6 +101,12 @@ export interface BatchReport {
   fightDurationStdDevSec: number;
   windupDeathRate: number;
   meanDeathsPerRun: number;
+  /** Mean deaths credited to each fight index, across all n runs (a run that
+   * ended before reaching an index contributes 0 to it, same convention as
+   * winRateByFightIndex's reach-conditioning but for a sum rather than a
+   * rate) — the per-fight breakdown meanDeathsPerRun's total collapses away.
+   * See this file's top docstring, 2026-08-09 entry. */
+  deathsByFightIndex: number[];
   fractionChainsWhileLosing: number;
   fractionFightsWithChain3Plus: number;
 }
@@ -111,6 +136,7 @@ export class BatchAggregator {
   private totalDuration = 0;
   private totalDurationSq = 0;
   private totalDeaths = 0;
+  private deathsByFightIndex: number[];
   private chainsFired = 0;
   private chainsWhileLosing = 0;
   private fightsWithChain3Plus = 0;
@@ -120,6 +146,7 @@ export class BatchAggregator {
     this.cfg = cfg;
     this.reachedCount = new Array(cfg.fightsPerRun).fill(0) as number[];
     this.wonCount = new Array(cfg.fightsPerRun).fill(0) as number[];
+    this.deathsByFightIndex = new Array(cfg.fightsPerRun).fill(0) as number[];
   }
 
   add(r: RunResult): void {
@@ -151,10 +178,18 @@ export class BatchAggregator {
       this.countChainsWhileLosing(fr);
     }
 
-    const lastFight = r.fights[r.fights.length - 1];
-    if (lastFight) {
-      this.totalDeaths +=
-        lastFight.outcome === "win" ? this.cfg.playerN - lastFight.livingHeroesAfter : this.cfg.playerN;
+    // Walk fights in order, crediting each death to the fight it happened in
+    // rather than only reading the run's last entry — see this file's top
+    // docstring, 2026-08-09 entry. Baseline is rosterSize (the full draft),
+    // not playerN (what's fielded per fight) — see config.ts's roster/bench
+    // pass: deaths are permanent removals from the roster, not the fielded
+    // squad.
+    let livingBefore = this.cfg.rosterSize;
+    for (const f of r.fights) {
+      const deathsThisFight = f.outcome === "win" ? Math.max(livingBefore - f.livingHeroesAfter, 0) : livingBefore;
+      this.totalDeaths += deathsThisFight;
+      this.deathsByFightIndex[f.fightIndex] = (this.deathsByFightIndex[f.fightIndex] ?? 0) + deathsThisFight;
+      livingBefore = f.outcome === "win" ? f.livingHeroesAfter : 0;
     }
   }
 
@@ -204,6 +239,7 @@ export class BatchAggregator {
       fightDurationStdDevSec: Math.sqrt(durationVariance),
       windupDeathRate: this.totalFights > 0 ? this.windupDeathFights / this.totalFights : 0,
       meanDeathsPerRun: this.totalDeaths / this.n,
+      deathsByFightIndex: this.deathsByFightIndex.map((d) => d / this.n),
       fractionChainsWhileLosing: this.chainsFired > 0 ? this.chainsWhileLosing / this.chainsFired : 0,
       fractionFightsWithChain3Plus: this.totalFights > 0 ? this.fightsWithChain3Plus / this.totalFights : 0,
     };
@@ -231,6 +267,7 @@ export function formatReport(report: BatchReport, label: string): string {
     `  chain length hist:     ${histKeys.map((k) => `${k}:${report.chainLengthHistogram[k]}`).join("  ")}`,
     `  mean fight duration:   ${report.meanFightDurationSec.toFixed(2)}s  (stddev ${report.fightDurationStdDevSec.toFixed(2)}s)`,
     `  mean deaths per run:   ${report.meanDeathsPerRun.toFixed(2)}`,
+    `  deaths by fight:       ${report.deathsByFightIndex.map((d, i) => `f${i + 1}=${d.toFixed(2)}`).join("  ")}`,
     `  chains while losing:   ${(report.fractionChainsWhileLosing * 100).toFixed(1)}%  (<40% pool at ignition — target >=35%)`,
   ];
   return lines.join("\n");

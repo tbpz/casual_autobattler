@@ -10,6 +10,26 @@
 
 ---
 
+## [2026-08-09] Boring-middle root-cause pass: roster/bench replaces deathPolicy, authored encounters replace one scaled archetype, heat flows between heroes
+
+- **Decision:**
+  - Death stays permanent for the run (explicit call, overriding this pass's own initial "downed one fight" proposal). The difficulty cliff is fixed by widening what's drafted vs. fielded instead — `sim/roster.ts` (new): a roster drafts once at run start, a smaller squad fields fresh each fight, so a fight is never short-handed even as deaths narrow the draft. `DeathPolicy` (`downAtFightEnd`/`onlyOnLoss`) is removed from `config.ts`, replaced outright by the roster/field split.
+  - Enemy composition is authored per fight (`sim/encounters.ts`, new) instead of one archetype scaled bigger each time — each fight now asks a different question. Replaces the single `bruiser`/`grunt` `EnemyArchetype` every prior entry below assumed.
+  - Heat can flow between heroes (`heatGift` on `HeroDef`/`HeroState`) instead of staying strictly private per hero.
+  - `checks/chaindist.ts`'s primary pinned population is the coin economy ON (`always-heal`), not off.
+- **Why:**
+  - Player's report: safe builds won 5/5 with no mid-run tension; only ~3 of 20 possible squads were viable.
+  - Measured pre-pass: fights 1-3 were a 100% win for all 20 squads; the difficulty ramp contributed nothing for 60% of a run.
+  - Measured pre-pass, 60 fights/squad: whichever hero had the highest heat/sec ignited every time (Rook 34/34, Vex 13/13, Hollow 24/24) — a deterministic one-bit choice, not an in-fight variable.
+  - Measured pre-pass: forcing every fight to field a full squad alone moved a squad's fight-5 win rate 27.8%→54.5% — isolating short-handedness, not permanence, as the cliff's cause.
+  - Every prior `chaindist.ts` pin ran with the coin spend off; turning it on moved run completion 30-45 points on every squad tested.
+- **Replaces:**
+  - Supersedes the 2026-08-08 "squad size is N=3" closure below — no longer one fixed number; current sizes live in `config.ts`'s `rosterSize`/`playerN`.
+  - Supersedes `deathPolicy` from the 2026-08-07 "fight causality rebuild" entry.
+  - Known gaps, not blocking: fights 1-3 stay close to risk-free for a double-tank draft (named in `chaindist.ts`); heat-flow's ignition/full-spectacle rate landed above this pass's own "rare, prized" target even after one fraction cut.
+
+---
+
 ## [2026-08-08] DECISIONS.md entries are historical evidence, not a live config mirror — closes the 5-vs-3 squad-size gap
 
 - **Decision:**
