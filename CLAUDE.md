@@ -7,6 +7,8 @@ This project's design context lives in two files with **opposite rules**:
 
 Placement rule: if a line needs history to make sense, it belongs in DECISIONS.md, not STATE.md.
 
+The `decision-log` and `state-sync` skills referenced below live in `.claude/skills/` and are tracked with this repo.
+
 ## On session start — the READ protocol
 
 1. **Read `STATE.md` first, always.** It is the current direction.

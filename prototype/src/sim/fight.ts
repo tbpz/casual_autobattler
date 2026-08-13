@@ -5,6 +5,25 @@ import type { FightSetup, HeroState, SideState } from "./types.js";
 import { sideHp, sideMaxHp } from "./types.js";
 import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "./events.js";
 
+/** Per-fight accumulator for heat-gift render tells (2026-08-14
+ * chain-legibility pass) — keyed by SideState object identity, which is
+ * fresh every runFight call (see cloneHeroes below), so this resets itself
+ * automatically per fight without threading an extra accumulator parameter
+ * through applyDamageFrom/performHeroAction/updateTankHolding on top of the
+ * events/t/cfg already added there. Purely a render-facing throttle — never
+ * read by anything that affects sim outcome, so it cannot affect
+ * determinism or any batch-pinned distribution. */
+const heatGiftAccumBySide = new WeakMap<SideState, Map<string, number>>();
+
+function heatGiftAccumFor(side: SideState): Map<string, number> {
+  let m = heatGiftAccumBySide.get(side);
+  if (!m) {
+    m = new Map();
+    heatGiftAccumBySide.set(side, m);
+  }
+  return m;
+}
+
 /**
  * Credits a hero's heatGift (2026-08-09, heat-flow pass — see types.ts's
  * HeroState docstring): when `actingHero` did the gift's `on` thing, a
@@ -17,8 +36,16 @@ import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "
  * where the recipient is whoever was just healed, not derivable from `side`
  * alone). No-ops silently if actingHero has no heatGift, or its `on` doesn't
  * match — callers pass the specific `on` they're firing so one function
- * covers every site without each site needing to know the others exist. */
+ * covers every site without each site needing to know the others exist.
+ *
+ * 2026-08-14 (chain-legibility pass): also emits a throttled `heatGift`
+ * event so the flow this function has always computed silently finally has
+ * a render-facing trace — see events.ts's docstring and heatGiftTellFraction
+ * in config.ts for why it's accumulated rather than fired 1:1. */
 function applyHeatGift(
+  events: FightEvent[],
+  t: number,
+  cfg: FightConfig,
   side: SideState,
   actingHero: HeroState,
   on: NonNullable<HeroState["heatGift"]>["on"],
@@ -28,8 +55,19 @@ function applyHeatGift(
   const gift = actingHero.heatGift;
   if (!gift || gift.on !== on || amount <= 0) return;
   const gifted = amount * gift.fraction;
+  const accum = heatGiftAccumFor(side);
+  const tellAt = cfg.heatThreshold * cfg.heatGiftTellFraction;
   const creditTo = (h: HeroState) => {
-    h.heat += gifted * h.chainAffinity;
+    const giftedHeat = gifted * h.chainAffinity;
+    h.heat += giftedHeat;
+    const key = `${actingHero.id}>${h.id}`;
+    const running = (accum.get(key) ?? 0) + giftedHeat;
+    if (running >= tellAt) {
+      events.push({ type: "heatGift", t, fromId: actingHero.id, toId: h.id, amount: running });
+      accum.set(key, 0);
+    } else {
+      accum.set(key, running);
+    }
   };
   if (gift.to === "target") {
     if (explicitTarget?.alive) creditTo(explicitTarget);
@@ -63,6 +101,9 @@ function applyHeatGift(
  * which the caller credits to the attacker's `dealt` counter.
  */
 function applyDamageFrom(
+  events: FightEvent[],
+  t: number,
+  cfg: FightConfig,
   side: SideState,
   startId: string,
   amount: number,
@@ -79,7 +120,7 @@ function applyDamageFrom(
     hero.hp -= taken;
     hero.soaked += taken;
     hero.heat += taken * heatWeightSoaked * hero.chainAffinity;
-    applyHeatGift(side, hero, "soaked", taken);
+    applyHeatGift(events, t, cfg, side, hero, "soaked", taken);
     hero.hitsTaken += 1;
     remaining -= taken;
     if (hero.hp <= 0) {
@@ -206,6 +247,7 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
     hitsTaken: h.hitsTaken,
     holding: h.holding,
     heat: h.heat,
+    canIgnite: !(h.healPerBeat && !h.attacksWhileHealing),
   }));
 }
 
@@ -254,7 +296,7 @@ function performHeroAction(
         target.hp += amount;
         hero.restored += amount;
         hero.heat += amount * cfg.heatWeightRestored * hero.chainAffinity;
-        applyHeatGift(attackerSide, hero, "healed", amount, target);
+        applyHeatGift(events, t, cfg, attackerSide, hero, "healed", amount, target);
         events.push({ type: "heal", t, side: attackerSideLabel, healerId: hero.id, targetId: target.id, amount });
       }
     }
@@ -268,10 +310,10 @@ function performHeroAction(
   if (!targetId) return;
   const base = (hero.damage + (isPlayerAttacker ? attackerSide.dpsBonus : 0)) * damageMultiplier;
   const damage = rollDamage(base, rng, cfg.damageVariance);
-  const { died, applied } = applyDamageFrom(defenderSide, targetId, damage, cfg.heatWeightSoaked);
+  const { died, applied } = applyDamageFrom(events, t, cfg, defenderSide, targetId, damage, cfg.heatWeightSoaked);
   hero.dealt += applied;
   hero.heat += applied * cfg.heatWeightDealt * hero.chainAffinity;
-  applyHeatGift(attackerSide, hero, "dealt", applied);
+  applyHeatGift(events, t, cfg, attackerSide, hero, "dealt", applied);
   events.push({ type: "attack", t, side: attackerSideLabel, attackerId: hero.id, targetId, damage });
   for (const id of died) events.push({ type: "heroDown", t, side: defenderSideLabel, heroId: id });
 }
@@ -293,7 +335,7 @@ function updateTankHolding(events: FightEvent[], t: number, side: SideState, sid
       // gifted quantity is a fraction of cfg.heatThreshold itself — "how
       // much of a full meter does the dip hand out" rather than scaling off
       // any one hit.
-      applyHeatGift(side, h, "break", cfg.heatThreshold);
+      applyHeatGift(events, t, cfg, side, h, "break", cfg.heatThreshold);
       events.push({ type: "tankBreak", t, side: sideLabel, heroId: h.id });
     } else if (!h.holding && frac >= cfg.tankRecoverFraction) {
       h.holding = true;
@@ -332,7 +374,7 @@ function handleBruiserBeat(
     hero.nextAttackT = t + hero.attackIntervalSec;
     if (!targetId) return false;
     const damage = Math.max(1, Math.round(hero.damage * cfg.windupDamageMultiplier * enrageMult));
-    const { died, applied } = applyDamageFrom(player, targetId, damage, cfg.heatWeightSoaked);
+    const { died, applied } = applyDamageFrom(events, t, cfg, player, targetId, damage, cfg.heatWeightSoaked);
     hero.dealt += applied;
     events.push({ type: "windupHit", t, targetId, damage });
     for (const id of died) events.push({ type: "heroDown", t, side: "player", heroId: id });
@@ -372,6 +414,13 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   let hotHeroId: string | null = null;
   let bonusHitsLanded = 0;
   let finalChainLength = 0;
+  // Running totals for the CURRENT chain (2026-08-14 chain-legibility pass)
+  // — reset alongside bonusHitsLanded on ignition, accumulated on every
+  // landed chain hit, and folded into the chainEnd event so the payoff
+  // summary ("Rook's chain — 5 hits, 187, Bruiser down") doesn't need the
+  // render layer to reconstruct it by re-summing chainHit events itself.
+  let chainDamageSoFar = 0;
+  let chainKillIds: string[] = [];
   // Spent-per-roll PRD counter (2026-08-08 "heat is spent" rebuild) — an
   // "attempt" is a single roll, not a fight, since heat now resets and can
   // rebuild several times within one fight. Starts from whatever the
@@ -434,21 +483,33 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
           );
           const targetId = frontMostAliveId(enemy);
           if (targetId) {
-            const { died, applied } = applyDamageFrom(enemy, targetId, damage);
+            const { died, applied } = applyDamageFrom(events, t, cfg, enemy, targetId, damage);
             hero.dealt += applied;
             // Rook's "chainHit" gift (2026-08-09, see heroes.ts): a chain
             // hit itself doesn't run through performHeroAction (it's a
             // separate escalating-damage path, not a normal attack), so this
             // site needs its own applyHeatGift call rather than picking one
             // up for free the way "dealt" does above.
-            applyHeatGift(player, hero, "chainHit", applied);
+            applyHeatGift(events, t, cfg, player, hero, "chainHit", applied);
             events.push({ type: "chainHit", t, hitIndex, damage, targetId });
             for (const id of died) events.push({ type: "heroDown", t, side: "enemy", heroId: id });
             bonusHitsLanded = hitIndex;
+            chainDamageSoFar += applied;
+            chainKillIds.push(...died);
             if (isWiped(enemy)) outcome = "win";
           }
         } else {
-          events.push({ type: "chainEnd", t, chainLength: bonusHitsLanded });
+          events.push({
+            type: "chainEnd",
+            t,
+            chainLength: bonusHitsLanded,
+            // hero.id here, not hotHeroId — isHot already established
+            // hero.id === hotHeroId, and hero.id is narrowed to string while
+            // hotHeroId's declared type stays `string | null`.
+            heroId: hero.id,
+            totalDamage: chainDamageSoFar,
+            killedIds: chainKillIds,
+          });
           finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
           hotHeroId = null;
         }
@@ -518,6 +579,8 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
           ignited = true;
           hotHeroId = candidate.id;
           bonusHitsLanded = 0;
+          chainDamageSoFar = 0;
+          chainKillIds = [];
           attemptsSinceIgnition = 0;
         } else {
           attemptsSinceIgnition += 1;
@@ -541,6 +604,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       // its tell, so a fizzled length-0/1 chain never glows or callouts.
       visibleChainHeroId: hotHeroId && bonusHitsLanded >= cfg.chainTellThreshold ? hotHeroId : null,
       visibleChainLength: bonusHitsLanded,
+      chainDamageSoFar: hotHeroId ? chainDamageSoFar : 0,
       enrageMultiplier: enrageMult,
       windupTargetId: bruiser?.alive && bruiser.windupFireT !== undefined ? (bruiser.windupTargetId ?? null) : null,
     });
@@ -559,7 +623,14 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
 
   // If a chain was still running when the fight ended, close it out.
   if (hotHeroId) {
-    events.push({ type: "chainEnd", t: endT, chainLength: bonusHitsLanded });
+    events.push({
+      type: "chainEnd",
+      t: endT,
+      chainLength: bonusHitsLanded,
+      heroId: hotHeroId,
+      totalDamage: chainDamageSoFar,
+      killedIds: chainKillIds,
+    });
     finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
   }
 

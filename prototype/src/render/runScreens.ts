@@ -7,9 +7,14 @@ import type { RunSession } from "./runSession.js";
 /** The per-hero job lines (soaked/dealt/restored) plus a projected-vs-actual
  * spare-time line — the surprise-carrier "bigger than I expected" needs a
  * concrete baseline to be bigger than (2026-08-06, see DECISIONS.md's
- * "squad pick is the risk dial" entry). The chain, when there was one, is
- * reported as an ingredient inside the dealer's line rather than as the
- * headline — it's the rare case, not the point of the recap. */
+ * "squad pick is the risk dial" entry).
+ *
+ * 2026-08-14: the chain used to be reported as a "(chained ×N)" parenthetical
+ * appended to EVERY damage-dealing hero's line whenever the fight ignited —
+ * not just the hero who actually chained, since the condition only checked
+ * result.ignited/result.chainLength, both fight-wide, not per-hero. A squad
+ * with two damage dealers would see both credited with the same chain. See
+ * chainRecapLine below for the dedicated, correctly-attributed replacement. */
 function fightRecap(result: FightResult): string[] {
   const lines: string[] = [];
   for (const hero of result.finalPlayerHeroes) {
@@ -19,32 +24,69 @@ function fightRecap(result: FightResult): string[] {
     } else if (hero.role === "support" && hero.restored > 0) {
       lines.push(`${hero.name} restored ${Math.round(hero.restored)}.`);
     } else if (hero.dealt > 0) {
-      const chainNote =
-        result.ignited && result.chainLength > 0 ? ` (chained ×${result.chainLength})` : "";
-      lines.push(`${hero.name} dealt ${Math.round(hero.dealt)}${chainNote}.`);
+      lines.push(`${hero.name} dealt ${Math.round(hero.dealt)}.`);
     }
   }
   return lines;
+}
+
+/** The chain's own attributed line (2026-08-14 chain-legibility pass) —
+ * previously the recap's only trace of the chain was the per-hero
+ * parenthetical above (buried, and misattributed to every dealer at once).
+ * Picks the chainEnd matching result.chainLength (the fight's longest chain,
+ * ties broken by first occurrence) and the ignitionRoll that started it, so
+ * the line reads like a moment ("Rook ignited at 14s and chained ×5 for
+ * 187 — took down 1 enemy") rather than a bare stat. */
+function chainRecapLine(result: FightResult): string | null {
+  if (!result.ignited || result.chainLength === 0) return null;
+  const chainEnd = result.events.find(
+    (e): e is Extract<FightEvent, { type: "chainEnd" }> => e.type === "chainEnd" && e.chainLength === result.chainLength,
+  );
+  if (!chainEnd) return null;
+  let ignitionT: number | undefined;
+  for (const e of result.events) {
+    if (e.type === "ignitionRoll" && e.fired && e.heroId === chainEnd.heroId && e.t <= chainEnd.t) ignitionT = e.t;
+  }
+  const name = result.finalPlayerHeroes.find((h) => h.id === chainEnd.heroId)?.name ?? chainEnd.heroId;
+  const atNote = ignitionT !== undefined ? ` at ${Math.round(ignitionT)}s` : "";
+  const killNote =
+    chainEnd.killedIds.length > 0
+      ? ` — took down ${chainEnd.killedIds.length === 1 ? "one enemy" : `${chainEnd.killedIds.length} enemies`}`
+      : "";
+  return `${name} ignited${atNote} and chained ×${chainEnd.chainLength} for ${Math.round(chainEnd.totalDamage)}${killNote}.`;
 }
 
 /** When a fight didn't ignite, says who got hot and missed instead of the
  * total silence the recap gave this case before 2026-08-08 — the player's
  * complaint was not knowing how they were doing relative to the cascade at
  * all; "Rook got hot twice — none caught" is the closest thing to an
- * explanation a fight without a cascade can offer. */
+ * explanation a fight without a cascade can offer.
+ *
+ * 2026-08-14: previously returned null (total silence again) for a fast,
+ * clean win where heat never even crossed the threshold once — now names
+ * whoever got closest instead, using the same canIgnite candidacy rule the
+ * sim itself rolls against (see events.ts's HeroSnapshot docstring). */
 function ignitionMissRecapLine(result: FightResult): string | null {
-  if (result.ignited) return null; // covered by fightRecap's "(chained xN)" and the ignition tag below
+  if (result.ignited) return null; // covered by chainRecapLine and the ignition tag below
   const misses = result.events.filter(
     (e): e is Extract<FightEvent, { type: "ignitionRoll" }> => e.type === "ignitionRoll" && !e.fired,
   );
-  if (misses.length === 0) return null;
-  const nameById = new Map(result.finalPlayerHeroes.map((h) => [h.id, h.name]));
-  const names = [...new Set(misses.map((m) => nameById.get(m.heroId) ?? m.heroId))];
-  const who =
-    names.length === 1
-      ? `${names[0]} got hot ${misses.length === 1 ? "once" : `${misses.length} times`}`
-      : `${names.join(" and ")} got hot`;
-  return `${who} — none caught.`;
+  if (misses.length > 0) {
+    const nameById = new Map(result.finalPlayerHeroes.map((h) => [h.id, h.name]));
+    const names = [...new Set(misses.map((m) => nameById.get(m.heroId) ?? m.heroId))];
+    const who =
+      names.length === 1
+        ? `${names[0]} got hot ${misses.length === 1 ? "once" : `${misses.length} times`}`
+        : `${names.join(" and ")} got hot`;
+    return `${who} — none caught.`;
+  }
+  let closest: FightResult["finalPlayerHeroes"][number] | undefined;
+  for (const h of result.finalPlayerHeroes) {
+    if (!h.canIgnite) continue;
+    if (!closest || h.heat > closest.heat) closest = h;
+  }
+  if (!closest || closest.heat <= 0) return null;
+  return `${closest.name} got closest to igniting — never crossed.`;
 }
 
 /** projected-vs-actual line: same units as the pre-fight screen's verdict,
@@ -93,7 +135,12 @@ export function renderSpendScreen(
 
   if (result.ignited) {
     const tag = document.createElement("p");
-    tag.textContent = "The chain ignited this fight — bonus coin.";
+    tag.className = "recap-chain";
+    // 2026-08-14: the attributed line ("Rook ignited at 14s and chained
+    // ×5 for 187 — took down 1 enemy") replaces the old generic "The chain
+    // ignited this fight" — the recap used to be the one place in the whole
+    // fight that flatly refused to say who.
+    tag.textContent = `${chainRecapLine(result) ?? "The chain ignited this fight."} — bonus coin.`;
     screen.appendChild(tag);
   } else {
     const missLine = ignitionMissRecapLine(result);

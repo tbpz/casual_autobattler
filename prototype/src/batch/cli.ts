@@ -65,10 +65,12 @@ function formatEvent(e: FightEvent): string {
       return `[t=${t}] ${e.heroId} is HOT (heat threshold crossed) — ignition roll follows`;
     case "ignitionRoll":
       return `[t=${t}] ignition roll (${e.heroId}): ${e.fired ? "FIRED, goes hot" : "fizzled"}`;
+    case "heatGift":
+      return `[t=${t}] ${e.fromId} gifts ${e.amount.toFixed(1)} heat -> ${e.toId}`;
     case "chainHit":
       return `[t=${t}] chain hit #${e.hitIndex}: ${e.damage} dmg -> ${e.targetId}`;
     case "chainEnd":
-      return `[t=${t}] chain ends, length=${e.chainLength}`;
+      return `[t=${t}] ${e.heroId}'s chain ends, length=${e.chainLength}, total=${e.totalDamage}${e.killedIds.length ? `, killed=${e.killedIds.join(",")}` : ""}`;
     case "heroDown":
       return `[t=${t}] ${e.side} hero ${e.heroId} falls`;
     case "tankBreak":

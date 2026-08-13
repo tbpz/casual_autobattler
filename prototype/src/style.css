@@ -157,6 +157,7 @@ body {
 }
 
 .hp-track {
+  position: relative;
   width: 100%;
   height: 8px;
   border-radius: 4px;
@@ -164,10 +165,36 @@ body {
   overflow: hidden;
 }
 
-.hp-fill {
+/* Both bars are stacked absolutely so the (narrower, opaque) real fill
+   paints over the (wider-for-a-moment, translucent) ghost — the visible gap
+   between their right edges IS "how much just got taken." Ghost appended
+   first in the DOM (see fightView.ts's makeHeroSlot) so normal stacking
+   order puts it underneath without needing z-index. */
+.hp-fill,
+.hp-ghost-fill {
+  position: absolute;
+  inset: 0;
   height: 100%;
   width: 100%;
+}
+
+.hp-fill {
   transition: width 0.15s linear;
+}
+
+/* Ghost fill (2026-08-14 chain-legibility pass) — driven from the exact same
+   per-tick HP fraction as .hp-fill, but with a much longer, DELAYED
+   transition, so it visually lags behind rather than tracking instantly.
+   Whenever HP drops fast (a chain, a wind-up slam) the real bar jumps down
+   almost at once while the ghost only starts catching up half a second
+   later, leaving a widening ignite-coloured gap for exactly as long as the
+   burst is landing. No JS state machine needed — this is the entire
+   mechanism, and it stays correct under pause/step since both bars are just
+   width values re-set from the same snapshot every render() call. */
+.hp-ghost-fill {
+  background: var(--ignite);
+  opacity: 0.4;
+  transition: width 0.6s ease-out 0.45s;
 }
 
 .player-side .hp-fill {
@@ -201,24 +228,56 @@ body {
    2026-08-08: labelled CHAIN — the word "heat" never appeared anywhere the
    player could see it, and this bar now visibly DRAINS on a miss (heat is
    spent on every roll, win or lose — see sim/fight.ts), which is the thing
-   that teaches the whole mechanism without a tutorial. */
+   that teaches the whole mechanism without a tutorial.
+   2026-08-14: bumped from 4px and a 0.6em muted label — the mechanism that
+   decides WHO ignites was the least prominent element in the whole slot,
+   bottom of a six-element stack. Brighter label, taller track, room for the
+   NEXT tag below. */
 .heat-row {
   display: flex;
   align-items: center;
   gap: 4px;
+  position: relative;
 }
 
 .heat-label {
-  font-size: 0.6em;
+  font-size: 0.62em;
+  font-weight: 700;
   letter-spacing: 0.5px;
-  color: var(--muted);
+  color: var(--ignite);
+  opacity: 0.75;
   flex-shrink: 0;
+}
+
+/* "Who's next" (2026-08-14) — the living, eligible player hero closest to
+   heatThreshold (fightView.ts's updateSide, mirroring fight.ts's own
+   candidacy rule). Sits right after the label so it reads as part of the
+   same line, not a separate callout. */
+.next-tag {
+  font-size: 0.55em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--bg);
+  background: var(--ignite);
+  border-radius: 3px;
+  padding: 0 3px;
+  flex-shrink: 0;
+  opacity: 0;
+  transform: scale(0.85);
+  transition:
+    opacity 0.2s ease-out,
+    transform 0.2s ease-out;
+}
+
+.next-tag.show {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .heat-track {
   width: 100%;
-  height: 4px;
-  border-radius: 2px;
+  height: 7px;
+  border-radius: 3px;
   background: #2a2e3a;
   overflow: hidden;
 }
@@ -228,6 +287,24 @@ body {
   width: 0%;
   background: var(--ignite);
   transition: width 0.15s linear;
+}
+
+/* A heat-gift landing (2026-08-14, see fightView.ts's showHeatGift) — a
+   brief brightness flash on the RECEIVING bar so "that tracer just arrived
+   here" reads as a discrete event, not just a slightly-faster fill. */
+.heat-fill.gift-pulse {
+  animation: giftPulse 0.4s ease-out;
+}
+
+@keyframes giftPulse {
+  0% {
+    filter: brightness(1.8);
+    box-shadow: 0 0 6px 2px var(--ignite);
+  }
+  100% {
+    filter: brightness(1);
+    box-shadow: none;
+  }
 }
 
 .enemy-side .heat-row {
@@ -299,6 +376,33 @@ body {
   outline-offset: 2px;
 }
 
+/* Attribution, ungated (2026-08-14) — driven straight off snapshot.hotHeroId
+   from hit 0, unlike .hot below which only appears once the chain has
+   earned its chainTellThreshold glow. A steady owner-accent ring, no pulse:
+   this answers "who" the instant ignition fires, not once the spectacle has
+   caught up. Declared BEFORE .hot so .hot's own box-shadow (same
+   specificity, later in the cascade) wins the moment a chain earns full
+   spectacle — both classes can be present on the same body at once. */
+.body.igniting {
+  box-shadow: 0 0 0 4px var(--accent, var(--ignite)), 0 0 10px 2px var(--accent, var(--ignite));
+}
+
+/* One-shot ring burst on the exact tick a hero ignites (2026-08-14, see
+   fightView.ts's showIgnition) — distinct from .igniting's steady ring
+   above, which persists for the chain's whole duration. */
+.body.ignite-burst {
+  animation: igniteBurst 0.5s ease-out;
+}
+
+@keyframes igniteBurst {
+  0% {
+    box-shadow: 0 0 0 4px var(--accent, var(--ignite)), 0 0 0 4px var(--accent, var(--ignite));
+  }
+  100% {
+    box-shadow: 0 0 0 4px var(--accent, var(--ignite)), 0 0 0 22px transparent;
+  }
+}
+
 .body.hot {
   box-shadow: 0 0 0 4px var(--ignite), 0 0 18px 4px var(--ignite);
   animation: pulse 0.5s ease-in-out infinite alternate;
@@ -311,6 +415,25 @@ body {
   to {
     transform: scale(1.12);
   }
+}
+
+/* Ambient dimming while a chain is live (2026-08-14, pacing pass) — the
+   arena's OWN combat traffic fades so the chain doesn't have to compete
+   with six bodies swinging at once; the chain's own tracers (.chain-tracer),
+   the gift tracers (.gift), and the HUD/callout are excluded. Render-only:
+   driven by fightView.ts toggling this class off snapshot.hotHeroId, no
+   Playback/timing change. */
+.arena.chain-live .tracer.ambient {
+  opacity: 0.25;
+}
+
+.arena.chain-live .damage-popup.normal {
+  opacity: 0.2;
+}
+
+.arena.chain-live .player-side .body:not(.igniting) {
+  filter: saturate(0.5) brightness(0.85);
+  transition: filter 0.3s ease-out;
 }
 
 .body.down {
@@ -403,6 +526,17 @@ body {
     opacity 0.2s ease-out;
 }
 
+/* A heat-gift tracer (2026-08-14 — see fightView.ts's showHeatGift and
+   GIFT_TRACER_MS) flies noticeably slower and softer than a combat tracer —
+   ally-to-ally, unhurried — so it reads as a different KIND of motion, not
+   an extra attack. Keep the transform duration in sync with GIFT_TRACER_MS. */
+.tracer.gift {
+  opacity: 0.8;
+  transition:
+    transform 0.45s ease-in-out,
+    opacity 0.45s ease-in-out;
+}
+
 @keyframes healPulse {
   0% {
     box-shadow: 0 0 0 0 rgba(90, 220, 130, 0.85);
@@ -414,6 +548,31 @@ body {
 
 .body.healed {
   animation: healPulse 0.5s ease-out;
+}
+
+/* The persistent chain HUD (2026-08-14) — unlike .callout below, which pops
+   for ~1.1s and fades, this stays up and updates every tick for the whole
+   duration of a chain (see fightView.ts's updateChainHud), so "what is that
+   hero doing right now" has an answer at any glance, not only the instant a
+   callout happened to fire. Anchored opposite the clock so it never
+   overlaps the transient callout beneath it. */
+.chain-hud {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-weight: 700;
+  font-size: 0.85em;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease-out;
+}
+
+.chain-hud.show {
+  opacity: 1;
 }
 
 .callout {
@@ -488,8 +647,20 @@ body {
   color: #6ee7a0;
 }
 
+/* --owner-accent (2026-08-14, set inline by fightView.ts's showChainHit) is
+   the identity channel; the text colour below stays the tier-escalating
+   ignite/orange magnitude channel — both on one number instead of the
+   attacker's accent overriding it outright, which used to erase identity
+   from the loudest element in the fight. Defaults to --ignite so a popup
+   with no owner (shouldn't happen, but see showChainHit's fallback) still
+   renders sanely. */
 .damage-popup.chain {
   color: var(--ignite);
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.6),
+    0 0 6px var(--owner-accent, transparent);
+  border-left: 3px solid var(--owner-accent, transparent);
+  padding-left: 3px;
 }
 
 /* Tier 3+ chain hits escalate in color as well as size — set via
@@ -816,4 +987,12 @@ button:disabled {
 .recap-miss {
   color: var(--muted);
   font-size: 0.9em;
+}
+
+/* 2026-08-14: the chain's attributed recap line — the opposite register
+ * from .recap-miss above, since this IS the rare payoff. See
+ * runScreens.ts's chainRecapLine. */
+.recap-chain {
+  color: var(--ignite);
+  font-weight: 700;
 }

@@ -115,6 +115,17 @@ export interface FightConfig {
    * repeatably; see the heatWeightDealt docstring above for why this is no
    * longer a once-per-fight latch. */
   heatThreshold: number;
+  /** Render-only throttle (2026-08-14 chain-legibility pass) — has zero
+   * effect on ignition or chain outcomes. A heatGift fires on nearly every
+   * beat (soaked/dealt/healed/chainHit), so a render event per gift would
+   * out-noise the very chain it exists to explain — Rook's chainHit gift
+   * would otherwise fire a tell alongside every single chain hit. fight.ts
+   * accumulates gifted heat per (giver, receiver) pair and only emits a
+   * heatGift event once the running total crosses this fraction of a full
+   * heatThreshold meter, then resets. 0.12 ≈ 8 tells per pair per full bar —
+   * frequent enough to read as a flow, sparse enough not to compete with
+   * combat's own tracers. */
+  heatGiftTellFraction: number;
 
   /**
    * The enemy bruiser's telegraphed heavy hit (2026-08-07 rebuild) — the
@@ -320,6 +331,7 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   heatWeightSoaked: 0.5,
   heatWeightRestored: 1.5,
   heatThreshold: 110,
+  heatGiftTellFraction: 0.12,
 
   // Wind-up (2026-08-07 rebuild, retuned twice after batch passes — see
   // DECISIONS.md's "fight causality rebuild" entry): the initial strawman
