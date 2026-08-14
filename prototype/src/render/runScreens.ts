@@ -30,63 +30,49 @@ function fightRecap(result: FightResult): string[] {
   return lines;
 }
 
-/** The chain's own attributed line (2026-08-14 chain-legibility pass) —
- * previously the recap's only trace of the chain was the per-hero
- * parenthetical above (buried, and misattributed to every dealer at once).
- * Picks the chainEnd matching result.chainLength (the fight's longest chain,
- * ties broken by first occurrence) and the ignitionRoll that started it, so
- * the line reads like a moment ("Rook ignited at 14s and chained ×5 for
- * 187 — took down 1 enemy") rather than a bare stat. */
-function chainRecapLine(result: FightResult): string | null {
+/** The chain's own attributed line — picks the chainEnd matching
+ * result.chainLength (the fight's longest chain, ties broken by first
+ * occurrence) and the chainStart that fired it, so the line reads like a
+ * moment ("Rook ignited at 14s and chained ×5 for 187 — took down 1 enemy")
+ * rather than a bare stat. `backfire` rides along so the caller can recolor
+ * the whole line red instead of the chain's gold (see .recap-chain.backfire
+ * in style.css) — a backfire is still a moment worth naming, just not a win. */
+function chainRecapLine(result: FightResult): { text: string; backfire: boolean } | null {
   if (!result.ignited || result.chainLength === 0) return null;
   const chainEnd = result.events.find(
     (e): e is Extract<FightEvent, { type: "chainEnd" }> => e.type === "chainEnd" && e.chainLength === result.chainLength,
   );
   if (!chainEnd) return null;
-  let ignitionT: number | undefined;
+  let startT: number | undefined;
   for (const e of result.events) {
-    if (e.type === "ignitionRoll" && e.fired && e.heroId === chainEnd.heroId && e.t <= chainEnd.t) ignitionT = e.t;
+    if (e.type === "chainStart" && e.heroId === chainEnd.heroId && e.backfire === chainEnd.backfire && e.t <= chainEnd.t) {
+      startT = e.t;
+    }
   }
   const name = result.finalPlayerHeroes.find((h) => h.id === chainEnd.heroId)?.name ?? chainEnd.heroId;
-  const atNote = ignitionT !== undefined ? ` at ${Math.round(ignitionT)}s` : "";
+  const atNote = startT !== undefined ? ` at ${Math.round(startT)}s` : "";
+  const verb = chainEnd.backfire ? "backfired" : "ignited";
   const killNote =
     chainEnd.killedIds.length > 0
       ? ` — took down ${chainEnd.killedIds.length === 1 ? "one enemy" : `${chainEnd.killedIds.length} enemies`}`
       : "";
-  return `${name} ignited${atNote} and chained ×${chainEnd.chainLength} for ${Math.round(chainEnd.totalDamage)}${killNote}.`;
+  const text = `${name} ${verb}${atNote} and chained ×${chainEnd.chainLength} for ${Math.round(chainEnd.totalDamage)}${killNote}.`;
+  return { text, backfire: chainEnd.backfire };
 }
 
-/** When a fight didn't ignite, says who got hot and missed instead of the
- * total silence the recap gave this case before 2026-08-08 — the player's
- * complaint was not knowing how they were doing relative to the cascade at
- * all; "Rook got hot twice — none caught" is the closest thing to an
- * explanation a fight without a cascade can offer.
- *
- * 2026-08-14: previously returned null (total silence again) for a fast,
- * clean win where heat never even crossed the threshold once — now names
- * whoever got closest instead, using the same canIgnite candidacy rule the
- * sim itself rolls against (see events.ts's HeroSnapshot docstring). */
-function ignitionMissRecapLine(result: FightResult): string | null {
-  if (result.ignited) return null; // covered by chainRecapLine and the ignition tag below
-  const misses = result.events.filter(
-    (e): e is Extract<FightEvent, { type: "ignitionRoll" }> => e.type === "ignitionRoll" && !e.fired,
-  );
-  if (misses.length > 0) {
-    const nameById = new Map(result.finalPlayerHeroes.map((h) => [h.id, h.name]));
-    const names = [...new Set(misses.map((m) => nameById.get(m.heroId) ?? m.heroId))];
-    const who =
-      names.length === 1
-        ? `${names[0]} got hot ${misses.length === 1 ? "once" : `${misses.length} times`}`
-        : `${names.join(" and ")} got hot`;
-    return `${who} — none caught.`;
-  }
+/** When a fight never saw a chain fire, names whoever's bar got closest
+ * instead of total silence — the closest thing to an explanation a
+ * chain-free fight can offer. 2026-08-14 chain rebuild: also doubles as a
+ * heads-up for what's carrying forward, since charge persists into the next
+ * fight rather than resetting (see sim/types.ts's HeroState.charge). */
+function noChainRecapLine(result: FightResult): string | null {
+  if (result.ignited) return null; // covered by chainRecapLine and the tag below
   let closest: FightResult["finalPlayerHeroes"][number] | undefined;
   for (const h of result.finalPlayerHeroes) {
-    if (!h.canIgnite) continue;
-    if (!closest || h.heat > closest.heat) closest = h;
+    if (!closest || h.charge > closest.charge) closest = h;
   }
-  if (!closest || closest.heat <= 0) return null;
-  return `${closest.name} got closest to igniting — never crossed.`;
+  if (!closest || closest.charge <= 0) return null;
+  return `${closest.name} is closest to a chain — carries into the next fight.`;
 }
 
 /** projected-vs-actual line: same units as the pre-fight screen's verdict,
@@ -134,16 +120,13 @@ export function renderSpendScreen(
   screen.appendChild(recap);
 
   if (result.ignited) {
+    const chainLine = chainRecapLine(result);
     const tag = document.createElement("p");
-    tag.className = "recap-chain";
-    // 2026-08-14: the attributed line ("Rook ignited at 14s and chained
-    // ×5 for 187 — took down 1 enemy") replaces the old generic "The chain
-    // ignited this fight" — the recap used to be the one place in the whole
-    // fight that flatly refused to say who.
-    tag.textContent = `${chainRecapLine(result) ?? "The chain ignited this fight."} — bonus coin.`;
+    tag.className = chainLine?.backfire ? "recap-chain backfire" : "recap-chain";
+    tag.textContent = `${chainLine?.text ?? "A chain fired this fight."} — bonus coin.`;
     screen.appendChild(tag);
   } else {
-    const missLine = ignitionMissRecapLine(result);
+    const missLine = noChainRecapLine(result);
     if (missLine) {
       const tag = document.createElement("p");
       tag.className = "recap-miss";

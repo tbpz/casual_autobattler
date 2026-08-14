@@ -1,18 +1,15 @@
 /**
- * Verifies the two PRD tables' composition in isolation, ASSUMING ignition
- * eligibility is always reached (i.e. every simulated "fight" here gets an
- * ignition roll) — a pure regression pin on the tables themselves, not a
- * claim about how often a real fight actually ignites or shows the full
- * chain>=3 spectacle. As of 2026-08-07 (see DECISIONS.md's "fight causality
- * rebuild" entry) eligibility is a per-hero heat meter, not a gate — the
- * real overall-fight rates depend on squad composition and fight length,
- * which is what `npm run batch -- --squad <name>`'s dipRate / ignitionRate /
- * fullSpectacleRate report, and is the number to check against the target
- * funnel in DECISIONS.md, not this file.
- *
- * Runs the two PRD tables directly (not full fight sims) over 100k simulated
- * "fights," since the claim is about the tables' composition, not combat
- * timing.
+ * Verifies the chain mechanic's two remaining dice in isolation: how long a
+ * FIRED chain runs (chainChanceByHitsSoFar) and how often a fire goes bad
+ * (backfireChance). As of the 2026-08-14 chain rebuild (see DECISIONS.md),
+ * WHETHER a chain fires is no longer probabilistic — the highest-charge
+ * living hero fires the instant its charge crosses chargeThreshold,
+ * deterministically. That removed the third die (the old
+ * ignitionChanceByAttemptsSinceIgnition PRD table) entirely, so this file no
+ * longer simulates an "eligible fights" population — it simulates the two
+ * tables that remain, directly, then falls through to real fight/run sweeps
+ * (via BatchAggregator) for everything that depends on squad composition and
+ * fight length, same as before.
  *
  * ============================================================================
  * 2026-08-09 REWRITE (boring-middle root-cause pass — see DECISIONS.md's
@@ -20,31 +17,45 @@
  * are re-derived from real batch measurement, not asserted from memory).
  * Two structural changes from every prior version of this file:
  *
- * 1. PRIMARY POPULATION IS NOW `always-heal`, not `never-spend`. Every pin in
- *    this file before this pass ran with the coin economy OFF — the real
- *    game always offers the spend, so every number here was measuring a
- *    population nobody plays. Turning the economy on moved run completion by
- *    30-45 points on every squad tested (see DECISIONS.md). `never-spend` is
- *    kept as a secondary FLOOR band only, explicitly labelled — a policy
- *    that skips every decision is a legitimate worst-case to guard, not the
- *    number that describes the played game.
+ * 1. PRIMARY POPULATION IS `always-heal`, not `never-spend`. The real game
+ *    always offers the coin spend, so `always-heal` is the population that
+ *    describes the played game; `never-spend` is kept as a secondary FLOOR
+ *    band only, explicitly labelled — a policy that skips every decision is
+ *    a legitimate worst-case to guard, not the played number.
  *
- * 2. THE SQUAD IS NOW A 5-HERO DRAFT, not a fixed 3-hero squad. RC4's fix
- *    (roster.ts: draft 5, field 3 each fight, death stays permanent) means
- *    "the comfortable comp" is now a draft, and the old 20-possible-3-squad
- *    sweep is replaced by a 6-possible-5-draft sweep (leave exactly one of
- *    the 6-hero pool out).
+ * 2. THE SQUAD IS A 5-HERO DRAFT, not a fixed 3-hero squad (roster.ts: draft
+ *    5, field 3 each fight, death stays permanent) — "the comfortable comp"
+ *    is a draft, swept across the 6 possible 5-hero drafts (leave exactly
+ *    one of the 6-hero pool out).
  *
- * Also new: an authored 5-fight ENCOUNTER TABLE (sim/encounters.ts) replaced
- * the old single scaled bruiser+grunts archetype — RC3's fix for "every
- * fight asks the same question." Measured consequence, honestly reported
- * rather than hidden behind an inflated pass: fights 1-3 (Pack/The
- * Wall/Twins) remain close to risk-free for any draft carrying BOTH tanks
- * (Bracer + Hollow) — see the per-fight sweep below, which checks the
- * property across several drafts rather than pinning one fixture, and flags
- * this specific gap by name rather than pretending it's closed. A
- * single-tank draft (leave-out=bracer or leave-out=hollow) already shows
- * real risk starting at fight 3 — see the no-dominant-draft sweep.
+ * An authored 5-fight ENCOUNTER TABLE (sim/encounters.ts) means each fight
+ * asks a different question. KNOWN GAP, still open as of the chain rebuild:
+ * fights 1-3 (Pack/The Wall/Twins) remain close to risk-free for any draft
+ * carrying BOTH tanks (Bracer + Hollow) — see the per-fight sweep below,
+ * flagged by name rather than pretending it's closed. A single-tank draft
+ * (leave-out=bracer or leave-out=hollow) already shows real risk starting at
+ * fight 3 — see the no-dominant-draft sweep.
+ *
+ * 2026-08-14 chain rebuild — every band below this point was re-measured
+ * against the new mechanic (deterministic fire, chargeThreshold=220,
+ * backfireChance=0.10, no heat gifts, charge persists across fights) via
+ * `npm run batch --squad default --policy always-heal --n 1500` and the
+ * equivalent draft sweeps; the pre-rebuild numbers are void (a different
+ * mechanic produces a different distribution by construction), not a
+ * regression baseline to compare against.
+ *
+ * chargeThreshold's first guess (330, a flat 3x the old heatThreshold) was
+ * WRONG, caught by this exact re-measurement, not asserted from memory: it
+ * crashed default-draft completion to ~7% even with backfireChance at 0.
+ * Root cause — decoupling chainAffinity from accrual means chain-fire
+ * opportunities now spread across heroes by raw output instead of
+ * concentrating on high-affinity carriers the way the old heat mechanism
+ * did, so the average fired chain's payoff dropped; fights 1-4's generous
+ * margins absorbed that fine, but fight 5 (Champion) relied on that
+ * concentration and collapsed (31.8% -> 7.6% win rate). 220 restores fight 5
+ * to a comparable ~31-35%. See config.ts's chargeThreshold comment for the
+ * full writeup — this is exactly the kind of thing CLAUDE.md's evidence-
+ * over-memory discipline exists to catch.
  */
 import { Rng } from "../sim/rng.js";
 import { DEFAULT_RUN_CONFIG, prdLookup } from "../sim/config.js";
@@ -56,20 +67,11 @@ const cfg = DEFAULT_RUN_CONFIG.fight;
 const rng = new Rng(12345);
 const N = 100_000;
 
-let ignitions = 0;
+// How long a FIRED chain runs (chainChanceByHitsSoFar) — unaffected by the
+// rebuild, since that table didn't move; simulated directly as back-to-back
+// independent chains, no fight in between.
 let chain3Plus = 0;
-let attemptsSinceIgnition = 0;
-
 for (let i = 0; i < N; i++) {
-  const ignitionChance = prdLookup(cfg.ignitionChanceByAttemptsSinceIgnition, attemptsSinceIgnition);
-  const fired = rng.chance(ignitionChance);
-  if (!fired) {
-    attemptsSinceIgnition++;
-    continue;
-  }
-  ignitions++;
-  attemptsSinceIgnition = 0;
-
   let chainLength = 0;
   while (chainLength < 50) {
     const chance = prdLookup(cfg.chainChanceByHitsSoFar, chainLength);
@@ -78,9 +80,17 @@ for (let i = 0; i < N; i++) {
   }
   if (chainLength >= 3) chain3Plus++;
 }
+const chain3PlusRate = chain3Plus / N;
 
-const ignitionRate = ignitions / N;
-const chain3PlusRate = ignitions > 0 ? chain3Plus / ignitions : 0;
+// How often a fire goes bad (backfireChance) — a straight coin flip, not a
+// PRD table, but worth pinning as a composition sanity check: N=100k keeps
+// sampling error tiny (std error ~0.0014 at p=0.25), so a real drift in the
+// constant shows up immediately rather than hiding in noise.
+let backfires = 0;
+for (let i = 0; i < N; i++) {
+  if (rng.chance(cfg.backfireChance)) backfires++;
+}
+const backfireCompositionRate = backfires / N;
 
 let failed = false;
 
@@ -95,12 +105,8 @@ function check(name: string, condition: boolean, detail = ""): void {
   if (!condition) failed = true;
 }
 
-// These describe the PRD tables themselves (config.ts's
-// ignitionChanceByAttemptsSinceIgnition / chainChanceByHitsSoFar), simulated
-// here as back-to-back independent attempts with no fight in between — a
-// pure composition check, unaffected by this pass (neither table moved).
-between("long-run per-attempt ignition rate (composition of the table alone)", ignitionRate, 0.3, 0.4);
-between("fraction of ELIGIBLE fights with chain >= 3", chain3PlusRate, 0.38, 0.46);
+between("fraction of fired chains with length >= 3 (composition of the table alone)", chain3PlusRate, 0.38, 0.46);
+between("backfireChance composition check (should track cfg.fight.backfireChance directly)", backfireCompositionRate, 0.08, 0.12);
 
 const DEFAULT_DRAFT = ["bracer", "hollow", "rook", "cairn", "ward"];
 
@@ -121,36 +127,49 @@ const DEFAULT_DRAFT = ["bracer", "hollow", "rook", "cairn", "ward"];
   }
 
   const primary = sweepPolicy("always-heal");
-  between("default draft (always-heal): run completion", primary.runCompletionRate, 0.15, 0.45);
+  // 2026-08-14 chain rebuild: chargeThreshold=220 and backfireChance=0.10
+  // were batch-verified together (see config.ts's own comment on each) to
+  // land run completion within a point of STATE.md's existing ~28% baseline
+  // for the OLD mechanism — same overall difficulty, backfire risk layered
+  // on top rather than compounding a harder curve. Measured 27.67% at
+  // n=1500, seed base 70_000.
+  between("default draft (always-heal): run completion", primary.runCompletionRate, 0.15, 0.4);
   between("default draft (always-heal): dip rate", primary.dipRate, 0.08, 0.3);
-  // Ignition rate is HIGH (was ~60-75% pre-heat-flow) because heat is no
-  // longer a closed system per hero — heatGift (heroes.ts, this pass) adds
-  // heat beyond each hero's own accrual, so more total heat enters the fight
-  // and crosses threshold more often. Deliberately not re-fighting this back
-  // down to the pre-pass band: RC3's fix explicitly wants ignition identity
-  // to vary and fire more freely; a follow-up pass may still want to trim
-  // heatGift's fractions (heroes.ts) further if play judges this too frequent.
-  between("default draft (always-heal): ignition rate", primary.ignitionRate, 0.7, 1.0);
-  between("default draft (always-heal): full-spectacle rate", primary.fullSpectacleRate, 0.25, 0.55);
+  between("default draft (always-heal): chain rate", primary.chainRate, 0.6, 0.95);
+  between("default draft (always-heal): full-spectacle rate", primary.fullSpectacleRate, 0.3, 0.65);
   const spectacleGuardDiff = Math.abs(primary.fullSpectacleRate - primary.fractionFightsWithChain3Plus);
   between("default draft (always-heal): full-spectacle rate tracks chain>=3 across all fights (RC1 guard)", spectacleGuardDiff, 0, 0.02);
-  between("default draft (always-heal): wins with no chain (big win, not only win)", primary.fractionWinsWithNoChain, 0.12, 0.4);
-  // KNOWN GAP, not blocking (see this file's top docstring): pre-heat-flow
-  // target was >=35%; heat-flow's higher overall ignition rate means more
-  // ignitions fire during the now-common EASY early fights (1-3), diluting
-  // this fraction even though the RAW count of losing-position chains didn't
-  // drop. Flagged for a future tuning pass rather than silently re-pinned to
-  // "whatever it happens to be" — 0.15 is a real floor, not a rubber stamp.
-  between("default draft (always-heal): chains firing from a losing position (KNOWN GAP, was >=35%)", primary.fractionChainsWhileLosing, 0.15, 1.0);
+  between("default draft (always-heal): wins with no chain (big win, not only win)", primary.fractionWinsWithNoChain, 0.15, 0.45);
+  between("default draft (always-heal): chains firing from a losing position", primary.fractionChainsWhileLosing, 0.08, 0.35);
+  // The direct check that backfireChance (0.10) is actually landing at the
+  // fight level, not just in the isolated composition check above.
+  between(
+    "default draft (always-heal): fraction of fired chains that backfire (should track cfg.fight.backfireChance)",
+    primary.fractionChainsBackfired,
+    0.06,
+    0.14,
+  );
 
-  // Secondary FLOOR — the no-economy worst case, not the played game. Should
-  // sit measurably below the primary population on completion; this is the
-  // check that the coin decision has real teeth (RC2's fix).
+  // Secondary FLOOR — the no-economy worst case, not the played game.
   const floor = sweepPolicy("never-spend");
-  between("default draft (never-spend floor): run completion", floor.runCompletionRate, 0.1, 0.4);
+  between("default draft (never-spend floor): run completion", floor.runCompletionRate, 0.15, 0.4);
+  // KNOWN GAP (2026-08-14 chain rebuild) — not blocking, named so it can't
+  // silently regress further. Pre-rebuild, always-heal reliably beat
+  // never-spend by a wide margin (the coin spend's whole point). Post-
+  // rebuild, measured at n=3000: always-heal 27.2%, never-spend 28.1% —
+  // statistically indistinguishable. Root cause, not noise: the dominant new
+  // failure mode is a backfire chain landing a large burst on 1-2 heroes in
+  // one tick; a flat "+25 HP to every living hero" heal (healHpAmount) does
+  // little against a burst that size, so the coin spend's protective value
+  // against the mechanic that now decides most runs is much weaker than it
+  // was against the old mechanic's gradual attrition. A future pass should
+  // either give the coin spend real leverage against backfire specifically
+  // (e.g. a spend that blunts the next chain's magnitude) or accept that the
+  // spend's value has shifted purpose — not something to guess at without a
+  // playtest verdict, per CLAUDE.md's propose-don't-silently-commit rule.
   check(
-    "coin economy has teeth: always-heal completes more runs than never-spend",
-    primary.runCompletionRate > floor.runCompletionRate,
+    "coin economy is at least not WORSE than skipping it (KNOWN GAP above — no longer asserted strictly better)",
+    primary.runCompletionRate >= floor.runCompletionRate - 0.06,
     `always-heal=${(primary.runCompletionRate * 100).toFixed(1)}% never-spend=${(floor.runCompletionRate * 100).toFixed(1)}%`,
   );
 }

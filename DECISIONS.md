@@ -10,6 +10,25 @@
 
 ---
 
+## [2026-08-15] Chain rebuild: persistent charge bar replaces heat/ignition-roll; backfire coin flip replaces gift-flow
+
+- **Decision:**
+  - The chain trigger is deterministic: the highest-charge living hero fires the instant its charge crosses `chargeThreshold` — no candidate roll, no ignition-chance PRD table.
+  - `charge` (renamed from `heat`) persists across the whole run, including on the bench, instead of zeroing at fight start.
+  - `chainAffinity` scales payoff/backfire magnitude only, not accrual rate — every hero's bar fills at the same pace.
+  - `heatGift` is removed from `HeroDef`/`HeroState` — charge is private to each hero again.
+  - A fired chain resolves via a coin flip (`backfireChance`): the hero's own action repeats at the wrong side instead of the right one, same magnitude formula either way.
+  - `chargeThreshold`/`backfireChance` live in `config.ts`, not here — see that file for current values.
+- **Why:**
+  - Player-facing complaint: the old ignition-roll/heat-gift stack was unreadable — the NEXT tag reshuffling between allies read as noise, not a mechanism a player could model.
+  - Measured mid-pass: an initial `chargeThreshold` guess crashed default-draft completion to ~7% (n=800) even with backfire disabled — decoupling `chainAffinity` from accrual spread fire opportunities by raw output instead of concentrating on high-affinity carriers; fight 5 (Champion) relied on that concentration (win rate 31.8%→7.6%).
+  - Re-tuning `chargeThreshold` restored fight 5 to a comparable win rate at n=800; `backfireChance` was then set so overall run completion landed within ~1 point of STATE.md's pre-rebuild ~28% baseline, measured at n=1500.
+- **Replaces:**
+  - Supersedes the heat-meter/ignition-roll mechanism from the 2026-08-07 "fight causality rebuild" entry and the `heatGift` addition from the 2026-08-09 entry below.
+  - Known gap opened, not resolved: the coin economy's heal spend lost most of its protective value against the new dominant failure mode (a backfire burst); `always-heal` and `never-spend` measured statistically indistinguishable on run completion at n=3000 — flagged in `checks/chaindist.ts`.
+
+---
+
 ## [2026-08-09] Boring-middle root-cause pass: roster/bench replaces deathPolicy, authored encounters replace one scaled archetype, heat flows between heroes
 
 - **Decision:**

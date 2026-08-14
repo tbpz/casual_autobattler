@@ -76,56 +76,48 @@ export interface FightConfig {
   tankRecoverFraction: number;
 
   /**
-   * 2026-08-07 rebuild (see DECISIONS.md's "fight causality rebuild" entry
-   * and STATE.md's Next up #1 replay verdict): the old pity-gate — ignition
-   * only reachable from a broken/losing tank line — is gone. It made the
-   * cascade structurally unreachable on a winning path, and *inverted*:
-   * the fastest/riskiest squad had the LOWEST spectacle rate because it
-   * killed before its pool could fall to the gate (batch-verified: 0.5-0.9%
-   * full-spectacle for the two builds the player actually played). Ignition
-   * eligibility is now a per-hero HEAT meter, driven by each hero doing the
-   * job it was picked for (damage dealt, damage soaked, healing restored),
-   * each weighted a second time by that hero's own chainAffinity (heroes.ts)
-   * — see heatWeightDealt/Soaked/Restored and heatThreshold below.
+   * 2026-08-14 chain rebuild (see DECISIONS.md) — replaces the 2026-08-07/08
+   * "heat" mechanism wholesale. That system stacked three RNG layers (who
+   * becomes the candidate, whether ignition fires at all, how long the chain
+   * runs) plus heat silently flowing between allies via heatGift — the
+   * player could not form a model of it and the NEXT tag reshuffling read as
+   * noise, not tension (playtest verdict).
    *
-   * 2026-08-08 follow-up (player verdict: squad choice moved the cascade's
-   * odds by ~4 points across all 20 possible squads — there was no steering
-   * wheel, and the cascade fired just as often on a fight that was already
-   * won as on one that wasn't). Two changes on top of the heat mechanism
-   * above:
-   *  - The heat-crossed hero is no longer just the FIRST living hero over
-   *    threshold in array order (which always favored the tank) — it's the
-   *    HIGHEST-heat living hero, so the player's intended carrier actually
-   *    gets the shot.
-   *  - Heat is SPENT on the roll, win or lose, not latched to one attempt
-   *    per fight forever (see fight.ts: the old heatFired flag is gone). The
-   *    candidate's heat resets to 0 immediately after every roll, so it has
-   *    to rebuild before it can roll again. Because heat also accrues from
-   *    damage SOAKED, a squad taking a beating rebuilds heat fast and gets
-   *    multiple attempts in one fight; a fast clean win gets one. This is
-   *    what ties the cascade to danger as an emergent consequence, rather
-   *    than a scripted "if losing, then buff" rule — see ignitionChanceBy
-   *    AttemptsSinceIgnition below, which now persists per-attempt (not
-   *    per-fight) to match.
+   * The rule now fits one sentence: every hero has a charge meter that fills
+   * from doing its own job (dealt/soaked/restored, weighted by
+   * chargeWeightDealt/Soaked/Restored below); the instant it crosses
+   * chargeThreshold, THAT hero fires — no contest, no roll on whether it
+   * happens. `chainAffinity` no longer touches accrual rate (every hero
+   * charges at the same pace, so two bars at 80% mean the same thing), only
+   * payoff size. There is no heatGift — charge is private to each hero. And
+   * charge PERSISTS across the whole run (see types.ts's HeroState.charge
+   * and roster.ts) instead of zeroing every fight, so a near-full bar is a
+   * real strategic asset at field-pick time, not a coin flip.
+   *
+   * What fires is still a coin flip: see backfireChance below.
    */
-  heatWeightDealt: number;
-  heatWeightSoaked: number;
-  heatWeightRestored: number;
-  /** The highest-heat living hero ignites once its heat crosses this —
-   * repeatably; see the heatWeightDealt docstring above for why this is no
-   * longer a once-per-fight latch. */
-  heatThreshold: number;
-  /** Render-only throttle (2026-08-14 chain-legibility pass) — has zero
-   * effect on ignition or chain outcomes. A heatGift fires on nearly every
-   * beat (soaked/dealt/healed/chainHit), so a render event per gift would
-   * out-noise the very chain it exists to explain — Rook's chainHit gift
-   * would otherwise fire a tell alongside every single chain hit. fight.ts
-   * accumulates gifted heat per (giver, receiver) pair and only emits a
-   * heatGift event once the running total crosses this fraction of a full
-   * heatThreshold meter, then resets. 0.12 ≈ 8 tells per pair per full bar —
-   * frequent enough to read as a flow, sparse enough not to compete with
-   * combat's own tracers. */
-  heatGiftTellFraction: number;
+  chargeWeightDealt: number;
+  chargeWeightSoaked: number;
+  chargeWeightRestored: number;
+  /** The highest-charge living hero fires the instant its charge crosses
+   * this. Higher than the old heatThreshold (110) — firing is no longer
+   * gated behind a separate ignition roll, and charge now persists between
+   * fights rather than resetting, both of which push toward more total
+   * fires unless the bar itself asks for more. See the default value's own
+   * comment (below, DEFAULT_FIGHT_CONFIG) for the batch-measured reasoning
+   * behind landing at 220 specifically, not the initially-guessed 330. */
+  chargeThreshold: number;
+  /** The coin flip at the moment a chain fires (2026-08-14 chain rebuild):
+   * this fraction of the time the chain aims at the wrong side instead of
+   * the right one — an attacker's escalating hits land on its OWN team, a
+   * healer's escalating heal restores the ENEMY. Same mechanic, same
+   * magnitude formula (hero.chainAffinity scales a backfire exactly as it
+   * scales a real payoff), just aimed backwards — see fight.ts's chain
+   * resolution. The single knob for "how much does a full bar feel like
+   * dread." No advance telegraph; the player finds out which way it went
+   * only when it fires (colour reads instantly — gold burst vs red
+   * implosion). */
+  backfireChance: number;
 
   /**
    * The enemy bruiser's telegraphed heavy hit (2026-08-07 rebuild) — the
@@ -171,24 +163,16 @@ export interface FightConfig {
    */
   enrageFromEnemyHpLostFactor: number;
 
-  /** Ignition PRD by failed-ATTEMPTS-since-last-ignition (renamed and
-   * re-scoped 2026-08-08 from "fights since" — see heatWeightDealt's
-   * docstring above: since heat is now spent per-roll rather than latched
-   * per-fight, the countable unit is a roll, and several can happen inside
-   * one fight). Index 0 = 0 attempts since, last entry repeats (capped) for
-   * any higher count. Lowered at index 0 from the pre-2026-08-08 0.5, since
-   * attempts are now repeatable within a fight rather than one-shot. */
-  ignitionChanceByAttemptsSinceIgnition: number[];
-
   /** Chain PRD by bonus-hits-so-far: index 0 = chance the *first* bonus hit
    * after ignition lands, last entry repeats (capped) beyond that. */
   chainChanceByHitsSoFar: number[];
-  /** Bonus hit N damage = round(hotHero.damage * chainHitMultiplier * N *
-   * hero.chainAffinity) — multiplicative off the hot hero's OWN damage stat
-   * (2026-08-07 rebuild) AND its own chainAffinity (2026-08-08, see
-   * heroes.ts), so a Vex chain is explosive, a Rook chain is frequent but
-   * modest, and a Bracer chain is a near-total damp squib — squad choice
-   * sets both whether the ceiling is reachable and how big it is. */
+  /** Bonus hit N magnitude = round(base * chainHitMultiplier * N *
+   * hero.chainAffinity), where base is the hot hero's own damage stat for an
+   * attacker or its own healPerBeat for a healer — multiplicative off the
+   * hero's OWN throughput stat AND its own chainAffinity, so a Vex chain is
+   * explosive, a Bracer chain is a damp squib. Applies identically whether
+   * the chain is aimed right or backfiring (2026-08-14 chain rebuild) — a
+   * high-affinity hero's backfire is exactly as loud as its payoff. */
   chainHitMultiplier: number;
   /** Hard cap on chain length — added after the first batch pass found
    * chains running to 15-16 hits: chainChanceByHitsSoFar's last entry (0.9)
@@ -205,10 +189,13 @@ export interface FightConfig {
    * visibly accelerates the hot hero's cadence. */
   hotBeatIntervalFactor: number;
 
-  /** Chain length (bonusHitsLanded) at/above which the render layer shows
-   * the small tell (glow + quiet callout). Below this, a chain hit gets only
-   * a slightly bigger damage number — see DECISIONS.md's "spectacle gated
-   * on payoff" entry. */
+  /** Chain length (bonusHitsLanded) at/above which the render layer shows a
+   * quiet callout on top of the base hit. Below this, a chain hit gets only
+   * a slightly bigger damage number. Unlike before the 2026-08-14 chain
+   * rebuild, this no longer gates WHETHER a chain glows or attributes — a
+   * hero going hot, and whether it's a backfire, is loud from hit 1 (see
+   * events.ts's TickSnapshot.chainBackfire) — this only gates the callout's
+   * escalating LOUDNESS tier. */
   chainTellThreshold: number;
   /** Chain length at/above which the render layer shows the FULL spectacle
    * (shake, escalating font, loud callout). This is deliberately the same
@@ -319,19 +306,43 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   tankBreakFraction: 0.03,
   tankRecoverFraction: 0.2,
 
-  // Heat (2026-08-07 rebuild, replaces the old pity-gate — see this file's
-  // FightConfig docstring and DECISIONS.md's "fight causality rebuild"
-  // entry). Weighted 1/0.5/1.5 so a hero's OWN job fills its meter at a rate
-  // that tracks its actual DPS/HPS, not a flat counter: soaked is weighted
-  // down because a tank's damage share is large but slow-accumulating,
-  // restored is weighted up because heal-per-beat amounts are small. Strawman
-  // values — meant to move by the batch harness (npm run batch --squad <x>),
-  // same as everywhere else in this file.
-  heatWeightDealt: 1,
-  heatWeightSoaked: 0.5,
-  heatWeightRestored: 1.5,
-  heatThreshold: 110,
-  heatGiftTellFraction: 0.12,
+  // Charge (2026-08-14 chain rebuild — see this file's FightConfig
+  // docstring). Weighted 1/0.5/1.5 so a hero's OWN job fills its meter at a
+  // rate that tracks its actual DPS/HPS, not a flat counter: soaked is
+  // weighted down because a tank's damage share is large but
+  // slow-accumulating, restored is weighted up because heal-per-beat amounts
+  // are small. Carried over unchanged from the old heatWeight* values — only
+  // the threshold needed to move, since accrual itself is unaffected by this
+  // rebuild (chainAffinity no longer multiplies it, but the base weights
+  // still do).
+  chargeWeightDealt: 1,
+  chargeWeightSoaked: 0.5,
+  chargeWeightRestored: 1.5,
+  // 220 (2x the old heatThreshold of 110) — batch-verified via
+  // `npm run batch --squad default --policy always-heal --n 800`. First
+  // strawman (330, 3x) crashed default-draft run completion to ~7% even with
+  // backfireChance at 0 — root cause: decoupling chainAffinity from accrual
+  // (see chargeThreshold's docstring above) means fire opportunities spread
+  // more evenly across low- and high-affinity heroes by RAW output instead of
+  // concentrating on high-affinity carriers the way the old heat mechanism
+  // did, so the average chain's payoff dropped — fine for fights 1-4's
+  // generous margins, but fight 5 (Champion) relied on that concentration and
+  // collapsed (win rate 31.8% -> 7.6%, deaths in fight 5 alone rose from 3.15
+  // to 4.37 out of a 5-hero roster). 220 restores fight 5 to ~35% at
+  // backfireChance=0 — comparable to the old mechanism's 31.8% — while still
+  // meaningfully higher than the old 110 (charge now persists across fights
+  // rather than resetting, so a lower threshold would make fight 1 fire
+  // almost immediately, undercutting the "earned across the run" arc).
+  chargeThreshold: 220,
+  // 0.10 — batch-verified alongside chargeThreshold above: at 220/0.10, the
+  // default draft (always-heal, n=800) lands run completion at ~28%, close to
+  // STATE.md's existing ~28% baseline for the OLD mechanism — same overall
+  // difficulty, with a genuinely new backfire risk layered on top rather than
+  // compounding on top of an already-harder curve. Higher values (0.15-0.25)
+  // were tested and erode completion roughly linearly (26% / 22% / 18%) with
+  // no cliff — a legitimate further-tuning knob once this lands in front of a
+  // player, not a value chosen to avoid a bug.
+  backfireChance: 0.1,
 
   // Wind-up (2026-08-07 rebuild, retuned twice after batch passes — see
   // DECISIONS.md's "fight causality rebuild" entry): the initial strawman
@@ -363,13 +374,6 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // comp still feels real pressure it didn't used to, without re-punishing
   // the already-slower squads harder than the fast ones it targets.
   enrageFromEnemyHpLostFactor: 0.25,
-
-  // 2026-08-08: lower start (0.5 -> 0.2) and a longer ramp than the
-  // pre-2026-08-08 table, because attempts are now repeatable within a
-  // single fight (see heatWeightDealt's docstring) rather than one shot per
-  // fight — a flatter, lower-starting curve is what keeps a single dangerous
-  // fight from being ~guaranteed to ignite on its first heat-cross.
-  ignitionChanceByAttemptsSinceIgnition: [0.2, 0.3, 0.42, 0.55, 0.7, 0.85],
 
   chainChanceByHitsSoFar: [0.7, 0.75, 0.8, 0.85, 0.9],
   // Multiplicative off the hot hero's own damage (2026-08-07 rebuild,

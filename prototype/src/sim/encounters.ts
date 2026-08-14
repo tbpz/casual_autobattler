@@ -162,9 +162,10 @@ export function makeEncounterEnemySide(cfg: RunConfig, fightIndex: number): Side
       restored: 0,
       hitsTaken: 0,
       holding: false,
-      heat: 0,
-      // Enemies never ignite (fight.ts only scans the player side) — inert,
-      // set to 1 (a no-op multiplier) so nothing downstream divides by zero.
+      charge: 0,
+      // Enemies never chain (fight.ts only scans the player side for a
+      // fire-ready hero) — inert, set to 1 (a no-op multiplier) so nothing
+      // downstream divides by zero.
       chainAffinity: 1,
       nextWindupT: windupIntervalSec * (1 - phase),
       windupTargeting: b.windupTargeting,
@@ -187,7 +188,7 @@ export function makeEncounterEnemySide(cfg: RunConfig, fightIndex: number): Side
       restored: 0,
       hitsTaken: 0,
       holding: false,
-      heat: 0,
+      charge: 0,
       chainAffinity: 1,
     });
   }

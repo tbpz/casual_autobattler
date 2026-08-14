@@ -61,16 +61,12 @@ function formatEvent(e: FightEvent): string {
       return `[t=${t}] ${e.side} ${e.attackerId} attacks ${e.targetId}: ${e.damage} dmg`;
     case "heal":
       return `[t=${t}] ${e.side} ${e.healerId} heals ${e.targetId}: +${e.amount}`;
-    case "heatFull":
-      return `[t=${t}] ${e.heroId} is HOT (heat threshold crossed) — ignition roll follows`;
-    case "ignitionRoll":
-      return `[t=${t}] ignition roll (${e.heroId}): ${e.fired ? "FIRED, goes hot" : "fizzled"}`;
-    case "heatGift":
-      return `[t=${t}] ${e.fromId} gifts ${e.amount.toFixed(1)} heat -> ${e.toId}`;
+    case "chainStart":
+      return `[t=${t}] ${e.heroId} ${e.backfire ? "BACKFIRES" : "IGNITES"} (charge threshold crossed)`;
     case "chainHit":
-      return `[t=${t}] chain hit #${e.hitIndex}: ${e.damage} dmg -> ${e.targetId}`;
+      return `[t=${t}] chain hit #${e.hitIndex} (${e.kind}${e.backfire ? ", backfire" : ""}) from ${e.sourceId}: ${e.damage} -> ${e.targetId}`;
     case "chainEnd":
-      return `[t=${t}] ${e.heroId}'s chain ends, length=${e.chainLength}, total=${e.totalDamage}${e.killedIds.length ? `, killed=${e.killedIds.join(",")}` : ""}`;
+      return `[t=${t}] ${e.heroId}'s ${e.backfire ? "backfire" : "chain"} ends, length=${e.chainLength}, total=${e.totalDamage}${e.killedIds.length ? `, killed=${e.killedIds.join(",")}` : ""}`;
     case "heroDown":
       return `[t=${t}] ${e.side} hero ${e.heroId} falls`;
     case "tankBreak":
@@ -97,7 +93,7 @@ function printFightLog(result: FightResult, label: string): void {
       `duration=${result.durationSec.toFixed(2)}s | dip=${result.dipOccurred}`,
   );
   console.log("  per-hero: " + result.finalPlayerHeroes
-    .map((h) => `${h.name}(${h.role}) dealt=${h.dealt} soaked=${h.soaked} restored=${h.restored} hits=${h.hitsTaken} heat=${h.heat.toFixed(0)}`)
+    .map((h) => `${h.name}(${h.role}) dealt=${h.dealt} soaked=${h.soaked} restored=${h.restored} hits=${h.hitsTaken} charge=${h.charge.toFixed(0)}`)
     .join("  "));
 }
 
@@ -142,11 +138,7 @@ switch (cmd) {
     // A single ad-hoc fight, no roster/attrition — --squad takes exactly
     // cfg.playerN (3) ids (or a named SQUAD_PRESETS entry).
     const squad = resolveSquad(args.squad, SQUAD_PRESETS);
-    const setup = {
-      player: makePlayerSide(squad),
-      enemy: makeEnemySide(cfg, 0),
-      attemptsSinceIgnition: args.attemptsSince ? Number(args.attemptsSince) : 0,
-    };
+    const setup = { player: makePlayerSide(squad), enemy: makeEnemySide(cfg, 0) };
     const result = runFight(setup, cfg.fight, new Rng(seed), seed);
     printFightLog(result, "single fight");
     break;
@@ -189,7 +181,7 @@ switch (cmd) {
   }
   default:
     console.error(
-      `Usage: tsx src/batch/cli.ts <fight|run|batch> [--seed N] [--n N] [--policy name] [--squad comfortable|tight|greedy|default|burst|thin|id,id,id...] [--attemptsSince N]`,
+      `Usage: tsx src/batch/cli.ts <fight|run|batch> [--seed N] [--n N] [--policy name] [--squad comfortable|tight|greedy|default|burst|thin|id,id,id...]`,
     );
     process.exit(1);
 }

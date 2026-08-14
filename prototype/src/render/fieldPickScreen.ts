@@ -1,14 +1,9 @@
 import type { RunConfig } from "../sim/config.js";
-import { MAX_CHAIN_AFFINITY } from "../sim/heroes.js";
 import type { HeroState } from "../sim/types.js";
 import { defaultFieldPick, fieldSquad, livingRosterHeroes, type RosterState } from "../sim/roster.js";
 import { makeEnemySide } from "../sim/run.js";
 import { project } from "../sim/projection.js";
-
-function chainAffinityPips(affinity: number): string {
-  const filled = Math.max(1, Math.round((affinity / MAX_CHAIN_AFFINITY) * 5));
-  return "●".repeat(filled) + "○".repeat(5 - filled);
-}
+import { chainAffinityPips, chargeBarHtml } from "./heroPickShared.js";
 
 /**
  * Per-fight FIELD pick (2026-08-09 roster/bench pass — see config.ts's
@@ -98,10 +93,11 @@ export function renderFieldPickScreen(
       <span class="hero-pick-info">
         <span class="hero-pick-name">${h.name}</span>
         <span class="hero-pick-role">${h.role} — ${hpFrac}% hp</span>
+        ${chargeBarHtml(h.charge, cfg.fight.chargeThreshold)}
       </span>
       <span class="hero-pick-stats">
         <span class="hero-pick-numbers">${Math.round(h.hp)}/${Math.round(h.maxHp)}hp / ${h.damage}dmg / ${h.attackIntervalSec}s${h.healPerBeat ? ` +${h.healPerBeat}heal` : ""}${h.attacksWhileHealing ? " +atk" : ""}</span>
-        <span class="hero-pick-chain" title="Chain affinity — how often and how big this hero's cascade lands">CHAIN ${chainAffinityPips(h.chainAffinity)}</span>
+        <span class="hero-pick-chain" title="Chain affinity — how big this hero's chain lands, good or backfired">CHAIN ${chainAffinityPips(h.chainAffinity)}</span>
       </span>
     `;
   }

@@ -13,8 +13,8 @@ export interface HeroState {
   role: Role;
   maxHp: number;
   hp: number;
-  /** Set the instant hp hits 0 mid-fight. Whether this becomes a permanent
-   * run-level death is decided by RunConfig.deathPolicy, not here. */
+  /** Set the instant hp hits 0 mid-fight. Death is permanent at the roster
+   * level — see roster.ts's applyFightResultToRoster. */
   alive: boolean;
   /** Damage dealt by this hero's normal attack. Support heroes still carry a
    * (small) damage value but act as a healer on their beat instead — see
@@ -33,30 +33,15 @@ export interface HeroState {
    * heroes.ts). Meaningless without healPerBeat set. */
   attacksWhileHealing?: boolean;
 
-  /** Multiplies both how fast this hero's own heat accrues and how big its
-   * chain hits land (see fight.ts's chain-damage formula and config.ts's
-   * heatWeight* constants) — the squad-pick lever for "how often do I get a
-   * shot at the cascade, and how big is it when it lands." See heroes.ts's
-   * PLAYER_HERO_POOL for why each hero's value differs. */
+  /** 2026-08-14 (chain-rebuild pass — see DECISIONS.md): affects only PAYOFF
+   * magnitude now, in both directions — how big this hero's chain lands when
+   * aimed right, and how big it backfires when aimed wrong (fight.ts's
+   * chain-damage/heal formula). It no longer scales how fast `charge`
+   * accrues — every hero fills at the same rate, so two heroes' bars read as
+   * directly comparable at field-pick time. See heroes.ts's PLAYER_HERO_POOL
+   * for why each hero's value differs: this is "how loud is this hero, both
+   * ways." */
   chainAffinity: number;
-
-  /** 2026-08-09 (boring-middle root-cause pass, RC3's deep cause): heat was
-   * strictly PRIVATE per hero before this — measured over 60 fights per
-   * squad, whoever had the highest heat/sec ignited every single time (Rook
-   * 34/34, Vex 13/13, Hollow 24/24), making ignition identity a deterministic
-   * one-bit choice locked in at squad-pick, with zero in-fight variance. This
-   * makes heat a currency that can flow between allies: when this hero does
-   * the named thing (`on`), a fraction of that event's raw amount is
-   * credited to another living ally's heat too (`to`), scaled by the
-   * RECIPIENT's own chainAffinity, not the giver's — so who actually ignites
-   * becomes squad-dependent and can shift mid-fight, not a fixed pick. See
-   * heroes.ts's PLAYER_HERO_POOL for each hero's specific gift and
-   * fight.ts's applyHeatGift for where each `on` site fires from. */
-  heatGift?: {
-    on: "dealt" | "soaked" | "healed" | "chainHit" | "break";
-    to: "target" | "lowestHeat" | "highestAffinity" | "all";
-    fraction: number;
-  };
 
   /** Per-fight job counters (2026-08-06 legibility pass) — zeroed at fight
    * start by cloneHeroes, never carried between fights. These are the
@@ -71,13 +56,15 @@ export interface HeroState {
    * enemy's targeting weight (fight.ts) and the "broken" visual tell. */
   holding: boolean;
 
-  /** Ignition eligibility meter (2026-08-07 rebuild, replaces the old
-   * pity-gate — see config.ts's FightConfig docstring). Accrues from this
-   * hero's own job (dealt/soaked/restored, weighted by config.ts's
-   * heatWeightDealt/Soaked/Restored); the first living hero to cross
-   * heatThreshold triggers an ignition roll. Zeroed at fight start by
-   * cloneHeroes, same as the other per-fight job counters. */
-  heat: number;
+  /** The chain meter (2026-08-14 chain-rebuild pass — see DECISIONS.md).
+   * Accrues from this hero's own job (dealt/soaked/restored, weighted by
+   * config.ts's chargeWeightDealt/Soaked/Restored). The instant it crosses
+   * chargeThreshold, THIS hero fires — no candidate contest, no roll on
+   * whether it happens. Unlike every other field on this list, `charge`
+   * PERSISTS across the whole run (roster.ts carries it forward for both
+   * fielded and benched heroes) and is reset to 0 only when this hero fires
+   * a chain. cloneHeroes deliberately does not zero it. */
+  charge: number;
 
   /** Enemy bruiser only: sim-clock time of this hero's next wind-up charge
    * start. Undefined for every other role. */
@@ -120,15 +107,11 @@ export function sideLivingCount(side: SideState): number {
   return side.heroes.filter((h) => h.alive).length;
 }
 
-/** A fight's starting setup. Both sides carry whatever HP/deaths attrition left them with. */
+/** A fight's starting setup. Both sides carry whatever HP/deaths attrition
+ * left them with; the player side also carries each hero's `charge` in from
+ * the roster (2026-08-14 chain-rebuild pass) — there is no separate
+ * cross-fight counter anymore, since charge itself is the persisted state. */
 export interface FightSetup {
   player: SideState;
   enemy: SideState;
-  /** Failed ignition attempts since the player side last ignited, going into
-   * this fight (PRD counter). As of the heat-is-spent rebuild an "attempt" is
-   * a single roll, not a fight — a fight can contain several (heat resets
-   * and rebuilds after every roll), so this can advance mid-fight too; see
-   * fight.ts and FightResult.attemptsSinceIgnition, which carries the
-   * counter's value at fight-end forward into the next fight's setup. */
-  attemptsSinceIgnition: number;
 }

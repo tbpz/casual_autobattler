@@ -98,12 +98,14 @@ check(
   `got ${underpowered.band} (margin=${underpowered.margin.toFixed(2)})`,
 );
 
-// killSec should roughly predict actual fight duration once variance and
-// both PRD tables are zeroed out, isolating the mean-value trajectory.
-const zeroedCfg = { ...cfg.fight, damageVariance: 0, ignitionChanceByAttemptsSinceIgnition: [0], chainChanceByHitsSoFar: [0] };
+// killSec should roughly predict actual fight duration once variance and the
+// chain-length table are zeroed out, isolating the mean-value trajectory.
+// 2026-08-14 chain rebuild: no more ignitionChanceByAttemptsSinceIgnition to
+// zero — firing itself is deterministic on threshold-cross now, not a roll.
+const zeroedCfg = { ...cfg.fight, damageVariance: 0, chainChanceByHitsSoFar: [0] };
 const player = makePlayerSide();
 const proj = project(player, enemy, zeroedCfg);
-const result = runFight({ player, enemy, attemptsSinceIgnition: 0 }, zeroedCfg, new Rng(1), 1);
+const result = runFight({ player, enemy }, zeroedCfg, new Rng(1), 1);
 const errFrac = Math.abs(result.durationSec - proj.killSec) / proj.killSec;
 check(
   "projected killSec tracks actual fight duration within 20%",

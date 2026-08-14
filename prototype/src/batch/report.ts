@@ -38,15 +38,11 @@ import type { RunResult } from "../sim/run.js";
  *    win. Once real losses became common the two populations diverged by
  *    construction, independent of any actual bug.)
  *
- * Three more added for the 2026-08-07 causality rebuild (see DECISIONS.md's
+ * Two more added for the 2026-08-07 causality rebuild (see DECISIONS.md's
  * "fight causality rebuild" entry) — the old build's per-fight win rates sat
  * at 89-100% for every squad the player tried, so one 5-fight playthrough
  * could never surface a difference; these exist to catch that regression
  * before a playtest has to:
- *  - heatCrossRate: fraction of fights where some hero's heat crossed
- *    heatThreshold (replaces gateCrossRate — the old pity-gate is gone, this
- *    is its heat-based successor: how often a fight becomes ELIGIBLE for an
- *    ignition roll at all).
  *  - fightDurationStdDevSec: spread of fight length, not just its mean — a
  *    system with real contingency should show fights resolving at visibly
  *    different lengths, not clustering tightly around the mean the way a
@@ -56,13 +52,25 @@ import type { RunResult } from "../sim/run.js";
  *    most direct check that the wind-up mechanic is actually doing its job
  *    (punishing fragility) rather than just being visual noise.
  *
- * One more added for the 2026-08-08 "heat is spent" rebuild — the direct
- * measurement of the player's own complaint ("the cascade fires when the
- * fight's already decided, not when I'm in danger"):
- *  - fractionChainsWhileLosing: of all successful ignition rolls, what
- *    fraction fired while the player's pool was below 40% of its fight-start
- *    max. Pre-rebuild this was ≈0 (winning comps took 0.00 deaths per run,
- *    so danger and the cascade never co-occurred) — target ≥35%.
+ * One more added for the 2026-08-08 "heat is spent" rebuild, still relevant
+ * post-2026-08-14 chain rebuild — the direct measurement of the player's own
+ * complaint ("the cascade fires when the fight's already decided, not when
+ * I'm in danger"):
+ *  - fractionChainsWhileLosing: of all fired chains, what fraction fired
+ *    while the player's pool was below 40% of its fight-start max.
+ *
+ * Two more added for the 2026-08-14 chain rebuild (see DECISIONS.md) —
+ * `heatCrossRate` is GONE: firing is now deterministic the instant a hero's
+ * charge crosses chargeThreshold (no separate roll), so "charge crossed" and
+ * "a chain fired" (chainRate, renamed from ignitionRate) are now the same
+ * fact — keeping both would just print the same number twice:
+ *  - chainRate (renamed from ignitionRate): fraction of fights where some
+ *    hero's charge crossed chargeThreshold and fired.
+ *  - backfireRate: fraction of ALL fights where at least one fired chain was
+ *    a backfire.
+ *  - fractionChainsBackfired: of all fired chains, what fraction backfired —
+ *    should track cfg.fight.backfireChance directly; the number to watch
+ *    while tuning that knob.
  *
  * meanDeathsPerRun's aggregation fixed 2026-08-09 (boring-middle root-cause
  * pass): it used to read ONLY r.fights[r.fights.length-1].livingHeroesAfter
@@ -92,9 +100,8 @@ export interface BatchReport {
   chainLengthHistogram: Record<number, number>;
   fractionWinsWithChain3Plus: number;
   fractionWinsWithNoChain: number;
-  heatCrossRate: number;
   failsafeRate: number;
-  ignitionRate: number;
+  chainRate: number;
   dipRate: number;
   fullSpectacleRate: number;
   meanFightDurationSec: number;
@@ -109,6 +116,9 @@ export interface BatchReport {
   deathsByFightIndex: number[];
   fractionChainsWhileLosing: number;
   fractionFightsWithChain3Plus: number;
+  /** See this file's top docstring, 2026-08-14 chain rebuild entry. */
+  backfireRate: number;
+  fractionChainsBackfired: number;
 }
 
 /**
@@ -126,7 +136,6 @@ export class BatchAggregator {
   private winsTotal = 0;
   private winsWithChain3Plus = 0;
   private winsWithNoChain = 0;
-  private heatCrossedFights = 0;
   private failsafeFights = 0;
   private ignitedFights = 0;
   private dipFights = 0;
@@ -139,6 +148,8 @@ export class BatchAggregator {
   private deathsByFightIndex: number[];
   private chainsFired = 0;
   private chainsWhileLosing = 0;
+  private chainsBackfired = 0;
+  private backfireFights = 0;
   private fightsWithChain3Plus = 0;
   private cfg: RunConfig;
 
@@ -167,7 +178,6 @@ export class BatchAggregator {
       this.totalFights++;
       if (fr.ignited) this.ignitedFights++;
       if (fr.endReason === "failsafe") this.failsafeFights++;
-      if (fr.events.some((e) => e.type === "heatFull")) this.heatCrossedFights++;
       if (fr.dipOccurred) this.dipFights++;
       if (fr.chainLength >= this.cfg.fight.chainFullTellThreshold) this.fullSpectacleFights++;
       if (fr.chainLength >= 3) this.fightsWithChain3Plus++;
@@ -193,19 +203,27 @@ export class BatchAggregator {
     }
   }
 
-  /** For every successful ignition roll in this fight, looks up the tick
-   * snapshot at that moment and checks whether the player's pool was below
-   * 40% of its fight-start max (snapshot.playerMaxHp doesn't change within a
-   * fight — sideMaxHp sums maxHp regardless of alive, so it's exactly the
-   * fight-start figure) — the direct measurement of "did the cascade fire
-   * from a losing position," the player's own cherished-moment description. */
+  /** For every chainStart in this fight (2026-08-14 chain rebuild — every
+   * one is a real fire now, no separate roll to filter on), looks up the
+   * tick snapshot at that moment and checks whether the player's pool was
+   * below 40% of its fight-start max (snapshot.playerMaxHp doesn't change
+   * within a fight — sideMaxHp sums maxHp regardless of alive, so it's
+   * exactly the fight-start figure) — the direct measurement of "did the
+   * cascade fire from a losing position." Also tallies backfires here,
+   * same event, same loop. */
   private countChainsWhileLosing(fr: RunResult["fightResults"][number]): void {
+    let sawBackfire = false;
     for (const e of fr.events) {
-      if (e.type !== "ignitionRoll" || !e.fired) continue;
+      if (e.type !== "chainStart") continue;
       this.chainsFired++;
+      if (e.backfire) {
+        this.chainsBackfired++;
+        sawBackfire = true;
+      }
       const snap = fr.snapshots.find((s) => Math.abs(s.t - e.t) < 1e-9);
       if (snap && snap.playerMaxHp > 0 && snap.playerHp / snap.playerMaxHp < 0.4) this.chainsWhileLosing++;
     }
+    if (sawBackfire) this.backfireFights++;
   }
 
   /** True if some player hero's death (a heroDown event) landed on the same
@@ -230,9 +248,8 @@ export class BatchAggregator {
       chainLengthHistogram: this.chainHist,
       fractionWinsWithChain3Plus: this.winsTotal > 0 ? this.winsWithChain3Plus / this.winsTotal : 0,
       fractionWinsWithNoChain: this.winsTotal > 0 ? this.winsWithNoChain / this.winsTotal : 0,
-      heatCrossRate: this.totalFights > 0 ? this.heatCrossedFights / this.totalFights : 0,
       failsafeRate: this.totalFights > 0 ? this.failsafeFights / this.totalFights : 0,
-      ignitionRate: this.totalFights > 0 ? this.ignitedFights / this.totalFights : 0,
+      chainRate: this.totalFights > 0 ? this.ignitedFights / this.totalFights : 0,
       dipRate: this.totalFights > 0 ? this.dipFights / this.totalFights : 0,
       fullSpectacleRate: this.totalFights > 0 ? this.fullSpectacleFights / this.totalFights : 0,
       meanFightDurationSec: meanDuration,
@@ -242,6 +259,8 @@ export class BatchAggregator {
       deathsByFightIndex: this.deathsByFightIndex.map((d) => d / this.n),
       fractionChainsWhileLosing: this.chainsFired > 0 ? this.chainsWhileLosing / this.chainsFired : 0,
       fractionFightsWithChain3Plus: this.totalFights > 0 ? this.fightsWithChain3Plus / this.totalFights : 0,
+      backfireRate: this.totalFights > 0 ? this.backfireFights / this.totalFights : 0,
+      fractionChainsBackfired: this.chainsFired > 0 ? this.chainsBackfired / this.chainsFired : 0,
     };
   }
 }
@@ -257,8 +276,7 @@ export function formatReport(report: BatchReport, label: string): string {
       .map((w, i) => `f${i + 1}=${(w * 100).toFixed(1)}%`)
       .join("  ")}`,
     `  dip rate:              ${(report.dipRate * 100).toFixed(1)}%  (tank line ever broke, or no tank)`,
-    `  ignition rate:         ${(report.ignitionRate * 100).toFixed(1)}%`,
-    `  heat-cross rate:       ${(report.heatCrossRate * 100).toFixed(1)}%  (some hero's heat crossed threshold)`,
+    `  chain rate:            ${(report.chainRate * 100).toFixed(1)}%  (fraction of fights a chain fired)`,
     `  full-spectacle rate:   ${(report.fullSpectacleRate * 100).toFixed(1)}%  (should track wins-with-chain>=3, below)`,
     `  windup death rate:     ${(report.windupDeathRate * 100).toFixed(1)}%  (a wind-up was the killing blow)`,
     `  failsafe rate:         ${(report.failsafeRate * 100).toFixed(1)}%  (target: 0%)`,
@@ -268,7 +286,9 @@ export function formatReport(report: BatchReport, label: string): string {
     `  mean fight duration:   ${report.meanFightDurationSec.toFixed(2)}s  (stddev ${report.fightDurationStdDevSec.toFixed(2)}s)`,
     `  mean deaths per run:   ${report.meanDeathsPerRun.toFixed(2)}`,
     `  deaths by fight:       ${report.deathsByFightIndex.map((d, i) => `f${i + 1}=${d.toFixed(2)}`).join("  ")}`,
-    `  chains while losing:   ${(report.fractionChainsWhileLosing * 100).toFixed(1)}%  (<40% pool at ignition — target >=35%)`,
+    `  chains while losing:   ${(report.fractionChainsWhileLosing * 100).toFixed(1)}%  (<40% pool when fired)`,
+    `  backfire rate:         ${(report.backfireRate * 100).toFixed(1)}%  (fraction of fights with >=1 backfire)`,
+    `  chains backfired:      ${(report.fractionChainsBackfired * 100).toFixed(1)}%  (should track cfg.fight.backfireChance)`,
   ];
   return lines.join("\n");
 }

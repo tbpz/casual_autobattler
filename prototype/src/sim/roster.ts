@@ -89,12 +89,16 @@ export function fieldSquad(roster: RosterState, fieldedIds: string[]): SideState
 /**
  * Folds a fight's outcome back into the persisted roster (only called after
  * a WIN — a loss ends the run before this runs, same convention the old
- * applyFightResultToPlayer used). HP/alive come from the fight for whoever
- * was fielded; a hero that wasn't fielded this fight is untouched by the
- * fight itself. THEN recovery applies asymmetrically: a fielded hero gets
- * cfg.autoRecoverFraction, a living benched hero gets the higher
+ * applyFightResultToPlayer used). HP/alive/charge come from the fight for
+ * whoever was fielded; a hero that wasn't fielded this fight is untouched by
+ * the fight itself. THEN recovery applies asymmetrically to HP: a fielded
+ * hero gets cfg.autoRecoverFraction, a living benched hero gets the higher
  * cfg.benchedRecoverFraction — the rotation pressure that makes the bench a
- * real decision (see config.ts's benchedRecoverFraction docstring).
+ * real decision (see config.ts's benchedRecoverFraction docstring). `charge`
+ * is untouched by the recovery tick — it isn't HP, it's a run-long resource
+ * (2026-08-14 chain rebuild): a fielded hero keeps whatever charge the fight
+ * left it with, and a benched hero keeps exactly what it went in with,
+ * unchanged, since it never fought.
  *
  * Death stays permanent — a roster hero whose hp hit 0 is marked !alive here
  * and never revives, exactly as the pre-2026-08-09 downAtFightEnd policy
@@ -114,7 +118,7 @@ export function applyFightResultToRoster(
     if (!h.alive) return h; // already permanently dead — no-op, never revives
     const wasFielded = fieldedIds.has(h.id);
     const final = wasFielded ? finalById.get(h.id) : undefined;
-    const afterFight: HeroState = final ? { ...h, hp: final.hp, alive: final.alive } : h;
+    const afterFight: HeroState = final ? { ...h, hp: final.hp, alive: final.alive, charge: final.charge } : h;
     if (!afterFight.alive) return afterFight; // just died this fight — no recovery tick
     const fraction = wasFielded ? cfg.autoRecoverFraction : cfg.benchedRecoverFraction;
     return { ...afterFight, hp: Math.min(afterFight.maxHp, afterFight.hp + afterFight.maxHp * fraction) };

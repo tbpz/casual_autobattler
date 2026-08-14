@@ -18,18 +18,17 @@ interface HeroSlot {
   hpLabel: HTMLElement;
   counter: HTMLElement;
   status: HTMLElement;
-  /** Heat meter fill (2026-08-07 rebuild) — player-side only; built for
-   * every slot for simplicity, styled to collapse on the enemy side (see
-   * style.css). Filling this IS the anticipation the old pity-gate never
-   * gave the player: you watch it approach the threshold instead of being
-   * handed the payoff (or not) with no warning. */
-  heatFill: HTMLElement;
-  /** "NEXT" tag on the CHAIN bar (2026-08-14 chain-legibility pass) — the
-   * living, eligible player hero closest to heatThreshold. Answers "who's
-   * about to get a shot" before heatFull/ignitionRoll ever fires; suppressed
-   * while a chain is already live (see updateSide) since no new candidate
-   * can be checked mid-chain. */
-  nextTag: HTMLElement;
+  /** The charge (CHAIN) bar fill — player-side only; built for every slot
+   * for simplicity, styled to collapse on the enemy side (see style.css).
+   * Persists and reads like an HP bar: it carries across fights (2026-08-14
+   * chain rebuild — see sim/types.ts's HeroState.charge), so a near-full bar
+   * is real information at field-pick time, not just mid-fight suspense. */
+  chargeFill: HTMLElement;
+  /** Lags behind chargeFill via a longer, delayed CSS transition — same
+   * device as hpGhostFill above. The one moment this matters is the chain
+   * FIRING: chargeFill snaps to 0 instantly while the ghost drains behind
+   * it, so the reset reads as a visible drain rather than a silent jump. */
+  chargeGhostFill: HTMLElement;
   /** This hero's stable identity colour — the attribution channel (see the
    * "make attacks and heals attributable" plan). Distinct from the side's
    * blue/red body fill, which stays reserved for the who's-winning read. */
@@ -47,13 +46,6 @@ interface HeroSlot {
  * the damage number appears. Keep in sync with .tracer's transition
  * duration in style.css. */
 const TRACER_MS = 200;
-
-/** A heat-gift tracer (2026-08-14 chain-legibility pass) flies slower than a
- * combat tracer and lands on the receiver's CHAIN bar, not its body — ally-
- * to-ally, unhurried, deliberately reading as a different KIND of motion
- * than combat traffic. Keep in sync with .tracer.gift's transition duration
- * in style.css. */
-const GIFT_TRACER_MS = 450;
 
 /** Heals share one colour regardless of healer identity — green reads as
  * "restoration" on sight, and a healer's own accent ring already carries
@@ -77,16 +69,18 @@ function accentFor(index: number): string {
 }
 
 /**
- * Renders one fight's replay. As of the 2026-08-14 chain-legibility pass,
- * the cascade is attributed at every beat rather than only once it earns its
- * spectacle tell: an ignition beat names who just went hot, a persistent
- * chain HUD tracks the running hit count and damage while a hero is hot, the
- * heat economy (heroes.ts's heatGift) that decides WHO ignites finally
- * renders instead of moving silently, and the arena dims its ambient combat
- * traffic while a chain is live so the moment doesn't have to compete with
- * six bodies swinging at once. See DECISIONS.md and this pass's own root-
- * cause writeup for why: attribution ("who, why, what did it buy the team")
- * was previously carried by nothing but a same-coloured damage number.
+ * Renders one fight's replay. As of the 2026-08-14 chain rebuild (see
+ * DECISIONS.md), the CHAIN bar reads like an HP bar — it fills gradually,
+ * carries across fights, and there is no more hidden candidate contest: the
+ * hero whose bar fills simply fires. What the player can't predict is which
+ * WAY it fires — chainStart decides good vs. backfire once, at the moment of
+ * firing, and every beat after that (the hot hero's glow colour, every
+ * chainHit tracer/popup, the chain HUD, the payoff callout) reads that same
+ * flag so gold-burst-vs-red-implosion is legible instantly, with zero
+ * advance telegraph. A backfire repeats the hero's own action at the WRONG
+ * side — an attacker hits its own team, a healer heals the enemy — rather
+ * than doing something different, so the reversed tracer direction alone
+ * carries most of the read.
  *
  * Everything below that pass — per-hero proportional HP bars, job counters,
  * damage/heal numbers, the "broken" tank tell, and the tiered chain
@@ -125,12 +119,6 @@ export class FightView {
    * happened to fire. */
   private chainHud: HTMLElement;
   private built = false;
-  /** The hero currently hot (sim-facing truth, from the snapshot just
-   * rendered) — used to attribute a chainHit event's tracer/popup to its
-   * source. Independent of visibleChainHeroId, which only gates the glow
-   * tell once a chain has earned it; every chain hit is attributable, even
-   * a fizzled one below that threshold. */
-  private currentHotHeroId: string | null = null;
   /** Cycles a small vertical jitter across popups so near-simultaneous
    * numbers on the same target don't land on the exact same baseline. */
   private popupSeq = 0;
@@ -186,18 +174,20 @@ export class FightView {
       snapshot.enrageMultiplier > 1
         ? `t = ${snapshot.t.toFixed(1)}s · ENRAGED ×${snapshot.enrageMultiplier.toFixed(2)}`
         : `t = ${snapshot.t.toFixed(1)}s`;
-    this.currentHotHeroId = snapshot.hotHeroId;
 
     // Ambient dimming (2026-08-14, chain pacing) — while a hero is hot, the
     // arena's own combat traffic (ordinary tracers/popups, non-participant
     // bodies) fades via the .chain-live class in style.css; the chain's own
     // tracers/popups/callout/HUD are excluded from that rule and stay at
-    // full strength. Render-only: no timing change, no Playback change.
+    // full strength. .chain-backfire additionally tints that dim red so a
+    // backfire reads as dangerous even in peripheral vision, not just at the
+    // hot hero's own body. Render-only: no timing change, no Playback change.
     this.arena.classList.toggle("chain-live", snapshot.hotHeroId !== null);
+    this.arena.classList.toggle("chain-backfire", snapshot.hotHeroId !== null && snapshot.chainBackfire);
 
     this.updateChainHud(snapshot);
-    this.updateSide(this.playerHeroes, snapshot.playerHeroes, snapshot, true);
-    this.updateSide(this.enemyHeroes, snapshot.enemyHeroes, snapshot, false);
+    this.updateSide(this.playerHeroes, snapshot.playerHeroes, snapshot);
+    this.updateSide(this.enemyHeroes, snapshot.enemyHeroes, snapshot);
 
     for (const e of eventsThisTick) {
       this.handleEvent(e);
@@ -214,12 +204,11 @@ export class FightView {
     this.chainHud.textContent = "";
     this.popupLayer.innerHTML = "";
     this.tracerLayer.innerHTML = "";
-    this.arena.classList.remove("shake", "chain-live");
-    for (const { body, status, nextTag } of [...this.playerHeroes.values(), ...this.enemyHeroes.values()]) {
-      body.classList.remove("down", "hot", "igniting", "lunge", "flinch", "healed", "broken", "charging");
+    this.arena.classList.remove("shake", "chain-live", "chain-backfire");
+    for (const { body, status } of [...this.playerHeroes.values(), ...this.enemyHeroes.values()]) {
+      body.classList.remove("down", "hot", "lunge", "flinch", "healed", "broken", "charging");
       body.querySelectorAll(".impact-flash").forEach((el) => el.remove());
       status.classList.remove("show");
-      nextTag.classList.remove("show");
     }
   }
 
@@ -242,12 +231,11 @@ export class FightView {
     });
   }
 
-  /** Drives the persistent chain HUD (2026-08-14) purely off the snapshot —
-   * owner, hit count, running damage — so it stays correct under
-   * pause/step/scrub, same discipline as every other snapshot-driven tell.
-   * Deliberately NOT gated by chainTellThreshold: attribution ("who's doing
-   * this right now") is the baseline read, not the reward — only the
-   * glow/callout spectacle is gated (see updateSide/showChainHit). */
+  /** Drives the persistent chain HUD purely off the snapshot — owner, hit
+   * count, running total — so it stays correct under pause/step/scrub, same
+   * discipline as every other snapshot-driven tell. Backfire flips both the
+   * label and the colour so a glance mid-chain reads "is this working"
+   * without waiting for the next chainHit event. */
   private updateChainHud(snapshot: TickSnapshot): void {
     if (!snapshot.hotHeroId) {
       this.chainHud.classList.remove("show");
@@ -255,34 +243,13 @@ export class FightView {
     }
     const name = this.nameOf(snapshot.hotHeroId);
     const refs = this.slotFor(snapshot.hotHeroId);
-    this.chainHud.textContent = `${name} — CHAIN ×${snapshot.visibleChainLength} · ${Math.round(snapshot.chainDamageSoFar)}`;
-    this.chainHud.style.color = refs?.accent ?? "var(--ignite)";
+    const label = snapshot.chainBackfire ? "BACKFIRE" : "CHAIN";
+    this.chainHud.textContent = `${name} — ${label} ×${snapshot.visibleChainLength} · ${Math.round(snapshot.chainDamageSoFar)}`;
+    this.chainHud.style.color = snapshot.chainBackfire ? "var(--backfire)" : (refs?.accent ?? "var(--ignite)");
     this.chainHud.classList.add("show");
   }
 
-  private updateSide(
-    map: Map<string, HeroSlot>,
-    heroes: HeroSnapshot[],
-    snapshot: TickSnapshot,
-    isPlayerSide: boolean,
-  ): void {
-    // "Who's next" (2026-08-14): the living, eligible player hero closest to
-    // heatThreshold — mirrors fight.ts's own candidacy rule (canIgnite
-    // excludes a pure healer, same as the sim's ignition-eligibility loop)
-    // instead of approximating it from role alone. Suppressed while a chain
-    // is already live, since the sim doesn't even check for a new candidate
-    // until hotHeroId clears — showing NEXT mid-chain would promise a shot
-    // that isn't actually being rolled for yet.
-    let nextId: string | null = null;
-    if (isPlayerSide && snapshot.hotHeroId === null) {
-      let best: HeroSnapshot | undefined;
-      for (const h of heroes) {
-        if (!h.alive || !h.canIgnite) continue;
-        if (!best || h.heat > best.heat) best = h;
-      }
-      if (best && best.heat > 0) nextId = best.id;
-    }
-
+  private updateSide(map: Map<string, HeroSlot>, heroes: HeroSnapshot[], snapshot: TickSnapshot): void {
     for (const hero of heroes) {
       const refs = map.get(hero.id);
       if (!refs) continue;
@@ -291,27 +258,28 @@ export class FightView {
       refs.hpGhostFill.style.width = `${(fraction * 100).toFixed(1)}%`;
       refs.hpLabel.textContent = `${Math.round(Math.max(hero.hp, 0))}/${Math.round(hero.maxHp)}`;
       refs.body.classList.toggle("down", !hero.alive);
-      // .igniting (attribution, ungated) vs .hot (spectacle, gated at
-      // chainTellThreshold — see events.ts's visibleChainHeroId docstring):
-      // a hero goes hot at hit 0, but visibleChainHeroId only turns non-null
-      // once the chain has earned its glow. Both classes can be present at
-      // once; .hot's box-shadow rule is declared after .igniting's in
-      // style.css so it wins the moment a chain earns full spectacle.
-      refs.body.classList.toggle("igniting", hero.id === snapshot.hotHeroId);
-      refs.body.classList.toggle("hot", hero.id === snapshot.visibleChainHeroId);
+      // .hot (2026-08-14 chain rebuild): a single, immediate glow — there is
+      // no more "earn the glow" delay. Its colour is driven by --chain-color
+      // (set below), gold for a real chain, red for a backfire, so the
+      // WHICH-WAY read is instant, not just the fact that someone's hot.
+      const isHot = hero.id === snapshot.hotHeroId;
+      refs.body.classList.toggle("hot", isHot);
+      refs.body.style.setProperty("--chain-color", isHot && snapshot.chainBackfire ? "var(--backfire)" : refs.accent);
       refs.body.classList.toggle("broken", hero.role === "tank" && hero.alive && !hero.holding);
       // Wind-up telegraph (2026-08-07): snapshot-driven, like hot/broken
       // above, so it stays correct under pause/step/scrub rather than
       // depending on a timer racing the wall clock.
       refs.body.classList.toggle("charging", hero.alive && hero.id === snapshot.windupTargetId);
-      // Heat meter (2026-08-07): the anticipation the old pity-gate never
-      // gave the player — you watch this fill toward the threshold instead
-      // of the payoff (or not) landing with no warning. Enemies also carry
-      // a heat field but it's never read for ignition, so their bar stays
-      // empty; CSS collapses it on the enemy side regardless.
-      const heatFraction = this.cfg.heatThreshold > 0 ? Math.min(hero.heat / this.cfg.heatThreshold, 1) : 0;
-      refs.heatFill.style.width = `${(heatFraction * 100).toFixed(1)}%`;
-      refs.nextTag.classList.toggle("show", hero.id === nextId);
+      // Charge (CHAIN) bar (2026-08-14 chain rebuild) — reads like an HP bar
+      // and persists across fights (see sim/types.ts's HeroState.charge).
+      // Enemies also carry a charge field but it's never read for firing, so
+      // their bar stays empty; CSS collapses it on the enemy side regardless.
+      const chargeFraction = this.cfg.chargeThreshold > 0 ? Math.min(hero.charge / this.cfg.chargeThreshold, 1) : 0;
+      refs.chargeFill.style.width = `${(chargeFraction * 100).toFixed(1)}%`;
+      refs.chargeGhostFill.style.width = `${(chargeFraction * 100).toFixed(1)}%`;
+      // Near-full pulse (2026-08-14) — the dread beat: the player feels the
+      // bar closing in on firing without knowing which way it'll go.
+      refs.chargeFill.classList.toggle("near-full", chargeFraction >= 0.85 && chargeFraction < 1);
       refs.counter.textContent = counterText(hero);
     }
   }
@@ -330,11 +298,14 @@ export class FightView {
       case "tankRecover":
         this.showTankTransition(e.heroId, "holding", `${this.nameOf(e.heroId)} HOLDS`);
         break;
+      case "chainStart":
+        this.showChainStart(e.heroId, e.backfire);
+        break;
       case "chainHit":
-        this.showChainHit(e.hitIndex, e.damage, e.targetId);
+        this.showChainHit(e.hitIndex, e.damage, e.targetId, e.kind, e.backfire, e.sourceId);
         break;
       case "chainEnd":
-        this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.killedIds);
+        this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.killedIds, e.backfire);
         break;
       case "windupStart":
         this.showWindupStart(e.targetId);
@@ -348,21 +319,6 @@ export class FightView {
       case "resolve":
         this.showResolve(e.outcome);
         break;
-      case "ignitionRoll":
-        // 2026-08-14: a FIRED roll now gets its own named beat (showIgnition)
-        // instead of relying purely on the chain that follows — attribution
-        // shouldn't have to wait for the first bonus hit to land. A FAILED
-        // roll (2026-08-08) keeps its quiet, named tell: the heat bar
-        // already visibly drains (it's reset to 0 in the sim), but without
-        // this a miss and "nothing happened yet" look identical.
-        if (e.fired) this.showIgnition(e.heroId);
-        else this.showIgnitionMiss(e.heroId);
-        break;
-      case "heatGift":
-        this.showHeatGift(e.fromId, e.toId);
-        break;
-      // heatFull deliberately has no visual of its own — the heat bar
-      // filling already carries the anticipation.
       default:
         break;
     }
@@ -512,41 +468,17 @@ export class FightView {
     }
   }
 
-  /** A named hero's ignition roll missed (2026-08-08) — the roll's odds
-   * start at 20%, common enough to be a normal beat, not the rare payoff. */
-  private showIgnitionMiss(heroId: string): void {
-    this.showHeroStatusTell(heroId, "not yet");
-  }
-
-  /** A named hero's ignition roll FIRED (2026-08-14) — previously silent by
-   * design ("the chain itself carries it"), but that meant the instant a
-   * hero went hot, nothing happened on screen: the glow was gated behind
-   * chainTellThreshold and the first bonus-hit tracer was indistinguishable
-   * from an ordinary attack. This is the loud, named beat that establishes
-   * "it's THIS hero, starting NOW" before a single bonus hit has landed. */
-  private showIgnition(heroId: string): void {
+  /** A named hero's bar fills and fires (2026-08-14 chain rebuild) — the
+   * loud, named beat that establishes "it's THIS hero, starting NOW, and
+   * it's going THIS way" before a single bonus hit has landed. No advance
+   * telegraph exists before this moment (see config.ts's backfireChance
+   * docstring) — this callout and burst ARE the reveal. */
+  private showChainStart(heroId: string, backfire: boolean): void {
     const refs = this.slotFor(heroId);
     if (!refs) return;
-    this.showCallout(`${this.nameOf(heroId)} IGNITES`, false, refs.accent);
-    pulseClass(refs.body, "ignite-burst", 500);
-  }
-
-  /** Heat flowing from one ally to another via heroes.ts's heatGift
-   * (2026-08-14) — previously invisible: applyHeatGift moved the receiver's
-   * meter with zero render-facing trace, so "who ignites can vary fight to
-   * fight" read as pure randomness rather than a mechanism the player could
-   * come to recognise. A slow tracer (GIFT_TRACER_MS, well past a combat
-   * tracer's TRACER_MS) flies ally-to-body, landing on the receiver's own
-   * CHAIN bar rather than its body, so it reads as "heat moving into that
-   * meter" and not as a second kind of attack. Already throttled at the sim
-   * level (fight.ts's heatGiftAccumFor) to one tell per meaningful slice of
-   * a bar, not one per underlying hit. */
-  private showHeatGift(fromId: string, toId: string): void {
-    const from = this.slotFor(fromId);
-    const to = this.slotFor(toId);
-    if (!from || !to) return;
-    this.fireTracer(from.body, to.heatFill, "var(--ignite)", 4, "gift", GIFT_TRACER_MS);
-    setTimeout(() => pulseClass(to.heatFill, "gift-pulse", 400), GIFT_TRACER_MS);
+    const label = backfire ? "BACKFIRES" : "IGNITES";
+    this.showCallout(`${this.nameOf(heroId)} ${label}`, false, backfire ? "var(--backfire)" : refs.accent);
+    pulseClass(refs.body, backfire ? "backfire-burst" : "ignite-burst", 500);
   }
 
   /** The wind-up resolves — a heavier version of a normal attack: bigger
@@ -572,73 +504,86 @@ export class FightView {
     this.showCallout("SLAM", false);
   }
 
-  /** Tiered per DECISIONS.md's 2026-08-06 "spectacle gated on payoff" entry:
-   * a length-1 chain hit gets a bigger damage number and nothing else; at
-   * chainTellThreshold the hero starts glowing with a small callout; at
+  /** Tiered per DECISIONS.md's 2026-08-06 "spectacle gated on payoff" entry
+   * for callout LOUDNESS only — a length-1 hit gets a bigger number and
+   * nothing else; at chainTellThreshold a quiet callout joins it; at
    * chainFullTellThreshold the full show (shake, escalating font, loud
-   * callout) fires. Every chain hit is now also a tracer from the hot hero
-   * to its target, so the source reads even on a fizzled, sub-threshold
-   * chain — attribution and spectacle are gated independently.
+   * callout) fires. Attribution and direction are NOT gated (2026-08-14
+   * chain rebuild) — `sourceId`/`kind`/`backfire` ride the event itself,
+   * so even a length-1 hit reads who did it and which way immediately.
    *
-   * 2026-08-14: the callout now names its owner and renders in that hero's
-   * accent instead of a bare, anonymous "CHAIN x3" in the shared ignite
-   * colour — the loudest beat in the fight used to carry the LEAST identity
-   * of anything on screen. The damage popup keeps the tier-escalating
-   * ignite/orange colour (still the size/magnitude channel) and adds the
-   * owner's accent as a border rather than overriding it — both channels on
-   * one number instead of one or the other. */
-  private showChainHit(hitIndex: number, damage: number, targetId: string): void {
-    const target = this.enemyHeroes.get(targetId);
-    const attacker = this.currentHotHeroId ? this.playerHeroes.get(this.currentHotHeroId) : undefined;
+   * `kind`/`backfire` together decide who actually gets hit: an attacker's
+   * good hit lands on the enemy, its backfire lands on an ally; a healer's
+   * good hit lands on the lowest-HP ally, its backfire lands on the enemy
+   * (targetId is already resolved to the right side by fight.ts's
+   * resolveChainHit — this only has to pick which MAP to look the id up in). */
+  private showChainHit(
+    hitIndex: number,
+    amount: number,
+    targetId: string,
+    kind: "damage" | "heal",
+    backfire: boolean,
+    sourceId: string,
+  ): void {
+    const targetIsEnemy = (kind === "damage") !== backfire;
+    const targetMap = targetIsEnemy ? this.enemyHeroes : this.playerHeroes;
+    const attacker = this.playerHeroes.get(sourceId);
+    const target = targetMap.get(targetId);
     const scale = Math.min(1 + hitIndex * 0.25, 3);
+    const chainColor = backfire ? "var(--backfire)" : kind === "heal" ? HEAL_ACCENT : (attacker?.accent ?? "var(--ignite)");
 
     if (attacker && target) {
       this.lungeToward(attacker.body, target.body, 14);
-      this.fireTracer(attacker.body, target.body, attacker.accent, 8, "chain-tracer");
+      this.fireTracer(attacker.body, target.body, chainColor, 8, "chain-tracer");
     }
 
     const land = () => {
       if (target) {
         const maxHp = this.heroMaxHp.get(targetId) ?? 1;
-        const frac = Math.max(0.15, Math.min(1, damage / maxHp));
-        target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
-        pulseClass(target.body, "flinch", 300);
-        this.showImpactFlash(target.body, frac);
-        const popup = this.showPopup(target.body, `-${damage}`, "chain", scale, Math.min(hitIndex, 5));
-        if (attacker && popup) popup.style.setProperty("--owner-accent", attacker.accent);
+        const frac = Math.max(0.15, Math.min(1, amount / maxHp));
+        if (kind === "heal") {
+          pulseClass(target.body, "healed", 500);
+        } else {
+          target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
+          pulseClass(target.body, "flinch", 300);
+          this.showImpactFlash(target.body, frac);
+        }
+        const sign = kind === "heal" ? "+" : "-";
+        const popupColor = kind === "heal" || backfire ? chainColor : undefined;
+        const popup = this.showPopup(target.body, `${sign}${Math.round(amount)}`, "chain", scale, Math.min(hitIndex, 5), popupColor);
+        if (attacker && popup) popup.style.setProperty("--owner-accent", chainColor);
       }
-      const ownerName = this.currentHotHeroId ? this.nameOf(this.currentHotHeroId) : "";
+      const ownerName = this.nameOf(sourceId);
+      const label = backfire ? "BACKFIRE" : "CHAIN";
       if (hitIndex >= this.cfg.chainFullTellThreshold) {
         this.arena.classList.remove("shake");
         void this.arena.offsetWidth;
         this.arena.classList.add("shake");
-        this.showCallout(`${ownerName} · CHAIN ×${hitIndex}`, false, attacker?.accent);
+        this.showCallout(`${ownerName} · ${label} ×${hitIndex}`, false, chainColor);
       } else if (hitIndex >= this.cfg.chainTellThreshold) {
-        this.showCallout(`${ownerName} · CHAIN ×${hitIndex}`, true, attacker?.accent);
+        this.showCallout(`${ownerName} · ${label} ×${hitIndex}`, true, chainColor);
       }
     };
     if (attacker && target) setTimeout(land, TRACER_MS);
     else land();
   }
 
-  /** The chain's payoff summary (2026-08-14) — previously chainEnd was
-   * dropped on the floor entirely (no case in this switch), so a cascade
-   * simply stopped with no beat answering "what did that just buy the
-   * team." Quiet for a fizzle (below chainFullTellThreshold, same register
-   * as a tank transition or an ignition miss); loud with a kill line for a
-   * real payoff. Uses the event's own heroId/totalDamage/killedIds rather
-   * than this.currentHotHeroId, which the snapshot has usually already
-   * cleared by the time this event is processed (hotHeroId nulls out in the
-   * SAME tick a fizzle is detected — see fight.ts). */
-  private showChainEnd(heroId: string, chainLength: number, totalDamage: number, killedIds: string[]): void {
-    if (chainLength === 0) return; // ignited but never landed a single bonus hit — nothing to summarize
+  /** The chain's payoff summary. Quiet for a fizzle (below
+   * chainFullTellThreshold, same register as a tank transition); loud with a
+   * kill line for a real payoff. `backfire` flips both the label
+   * (CHAIN/BACKFIRE) and the colour so the summary reads consistently with
+   * every beat that led up to it. */
+  private showChainEnd(heroId: string, chainLength: number, totalDamage: number, killedIds: string[], backfire: boolean): void {
+    if (chainLength === 0) return; // fired but never landed a single bonus hit — nothing to summarize
     const refs = this.slotFor(heroId);
     const name = this.nameOf(heroId);
+    const label = backfire ? "BACKFIRE" : "CHAIN";
+    const color = backfire ? "var(--backfire)" : refs?.accent;
     const killNote = killedIds.length > 0 ? ` — ${killedIds.map((id) => this.nameOf(id)).join(", ")} DOWN` : "";
     if (chainLength >= this.cfg.chainFullTellThreshold) {
-      this.showCallout(`${name}'S CHAIN — ${chainLength} HITS, ${Math.round(totalDamage)}${killNote}`, false, refs?.accent);
+      this.showCallout(`${name}'S ${label} — ${chainLength} HITS, ${Math.round(totalDamage)}${killNote}`, false, color);
     } else {
-      this.showHeroStatusTell(heroId, `chain ×${chainLength}, ${Math.round(totalDamage)}${killNote}`);
+      this.showHeroStatusTell(heroId, `${label.toLowerCase()} ×${chainLength}, ${Math.round(totalDamage)}${killNote}`);
     }
   }
 
@@ -682,7 +627,7 @@ export class FightView {
     this.resolveOverlay.textContent = outcome === "win" ? "VICTORY" : "DEFEAT";
     this.resolveOverlay.className = `resolve-overlay show ${outcome}`;
     for (const { body } of this.playerHeroes.values()) {
-      body.classList.remove("hot", "igniting");
+      body.classList.remove("hot");
     }
   }
 }
@@ -731,35 +676,35 @@ function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: stri
   const counter = document.createElement("div");
   counter.className = "job-counter";
 
-  // Heat meter (2026-08-07 rebuild) — built for every slot for simplicity;
-  // style.css collapses it on the enemy side, since only the player's heat
-  // ever drives ignition. Labelled CHAIN as of 2026-08-08 (see style.css) —
-  // the word "heat" never appeared anywhere the player could see it before.
-  const heatRow = document.createElement("div");
-  heatRow.className = "heat-row";
-  const heatLabel = document.createElement("span");
-  heatLabel.className = "heat-label";
-  heatLabel.textContent = "CHAIN";
-  const nextTag = document.createElement("span");
-  nextTag.className = "next-tag";
-  nextTag.textContent = "NEXT";
-  const heatTrack = document.createElement("div");
-  heatTrack.className = "heat-track";
-  const heatFill = document.createElement("div");
-  heatFill.className = "heat-fill";
-  heatTrack.appendChild(heatFill);
-  heatRow.appendChild(heatLabel);
-  heatRow.appendChild(nextTag);
-  heatRow.appendChild(heatTrack);
+  // Charge (CHAIN) bar (2026-08-14 chain rebuild) — built for every slot for
+  // simplicity; style.css collapses it on the enemy side, since only the
+  // player's charge ever fires a chain. Reads like the HP bar above: a real
+  // fill on top of a delayed ghost fill, so the reset-to-zero on firing
+  // drains visibly instead of snapping.
+  const chargeRow = document.createElement("div");
+  chargeRow.className = "charge-row";
+  const chargeLabel = document.createElement("span");
+  chargeLabel.className = "charge-label";
+  chargeLabel.textContent = "CHAIN";
+  const chargeTrack = document.createElement("div");
+  chargeTrack.className = "charge-track";
+  const chargeGhostFill = document.createElement("div");
+  chargeGhostFill.className = "charge-ghost-fill";
+  chargeTrack.appendChild(chargeGhostFill);
+  const chargeFill = document.createElement("div");
+  chargeFill.className = "charge-fill";
+  chargeTrack.appendChild(chargeFill);
+  chargeRow.appendChild(chargeLabel);
+  chargeRow.appendChild(chargeTrack);
 
   slot.appendChild(body);
   slot.appendChild(name);
   slot.appendChild(hpTrack);
   slot.appendChild(hpLabel);
-  slot.appendChild(heatRow);
+  slot.appendChild(chargeRow);
   slot.appendChild(counter);
 
-  return { slot, body, hpFill, hpGhostFill, hpLabel, heatFill, nextTag, counter, status, accent, offsetIndex };
+  return { slot, body, hpFill, hpGhostFill, hpLabel, chargeFill, chargeGhostFill, counter, status, accent, offsetIndex };
 }
 
 /** Adds `className` to `el`, then removes it after `ms` — restarting the

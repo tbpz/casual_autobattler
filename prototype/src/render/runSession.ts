@@ -43,7 +43,6 @@ export class RunSession {
   private rng: Rng;
   private seed: number;
   private roster: RosterState;
-  private attemptsSinceIgnition = 0;
   private coin = 0;
   private fightIndex = 0;
   private fieldedThisFight: string[] = [];
@@ -128,7 +127,7 @@ export class RunSession {
     // actually shown on the pre-fight screen, not a value derived after the
     // fact from the outcome.
     this.lastProjection = project(player, enemy, this.cfg.fight);
-    const setup: FightSetup = { player, enemy, attemptsSinceIgnition: this.attemptsSinceIgnition };
+    const setup: FightSetup = { player, enemy };
     const result = runFight(setup, this.cfg.fight, this.rng, this.seed);
     this.lastFightResult = result;
 
@@ -139,9 +138,6 @@ export class RunSession {
       return result;
     }
 
-    // See sim/run.ts's runRun for why this carries the sim's own final
-    // counter forward rather than re-deriving it from result.ignited.
-    this.attemptsSinceIgnition = result.attemptsSinceIgnition;
     this.pendingCoinAwarded = coinAwardFor(this.cfg, result);
     this.roster = applyFightResultToRoster(this.roster, player, result, this.cfg);
     this.coin += this.pendingCoinAwarded;

@@ -1,18 +1,9 @@
 import type { RunConfig } from "../sim/config.js";
-import { DEFAULT_DRAFT_ROSTER_IDS, MAX_CHAIN_AFFINITY, PLAYER_HERO_POOL, makePlayerSide } from "../sim/heroes.js";
+import { DEFAULT_DRAFT_ROSTER_IDS, PLAYER_HERO_POOL, makePlayerSide } from "../sim/heroes.js";
 import { defaultFieldPick, fieldSquad } from "../sim/roster.js";
 import { makeEnemySide } from "../sim/run.js";
 import { project } from "../sim/projection.js";
-
-/** Renders a hero's chainAffinity as filled/empty pips, normalized against
- * the pool's own highest value (2026-08-08 — the player's complaint was that
- * squad choice had no visible connection to the cascade; this is that
- * connection, made literal at pick time, the way a Dota player reads an
- * item's stats before deciding to build it). */
-function chainAffinityPips(affinity: number): string {
-  const filled = Math.max(1, Math.round((affinity / MAX_CHAIN_AFFINITY) * 5));
-  return "●".repeat(filled) + "○".repeat(5 - filled);
-}
+import { chainAffinityPips } from "./heroPickShared.js";
 
 /**
  * Run-start DRAFT: 5 of 6, pre-checked with the default draft and a
@@ -117,7 +108,7 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
       </span>
       <span class="hero-pick-stats">
         <span class="hero-pick-numbers">${def.maxHp}hp / ${def.damage}dmg / ${def.attackIntervalSec}s${def.healPerBeat ? ` +${def.healPerBeat}heal` : ""}${def.attacksWhileHealing ? " +atk" : ""}</span>
-        <span class="hero-pick-chain" title="Chain affinity — how often and how big this hero's cascade lands">CHAIN ${chainAffinityPips(def.chainAffinity)}</span>
+        <span class="hero-pick-chain" title="Chain affinity — how big this hero's chain lands, good or backfired">CHAIN ${chainAffinityPips(def.chainAffinity)}</span>
       </span>
     `;
     row.addEventListener("click", () => {

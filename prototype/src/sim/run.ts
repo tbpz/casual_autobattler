@@ -173,7 +173,6 @@ export function summarizeWin(
  * player can override the fielding choice. */
 export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number, initialRoster: RosterState): RunResult {
   let roster = initialRoster;
-  let attemptsSinceIgnition = 0;
   let coin = 0;
 
   const fights: FightSummary[] = [];
@@ -188,7 +187,7 @@ export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number
     const player = fieldSquad(roster, fieldedIds);
     const enemy = makeEncounterEnemySide(cfg, i);
 
-    const setup: FightSetup = { player, enemy, attemptsSinceIgnition };
+    const setup: FightSetup = { player, enemy };
     const result = runFight(setup, cfg.fight, rng, seed);
     fightResults.push(result);
 
@@ -196,12 +195,6 @@ export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number
       fights.push(summarizeLoss(i, result, sideMaxHp(roster), fieldedIds));
       return { seed, fights, fightResults, outcome: "over", overReason: "loss", fightsWon: i, finalCoin: 0 };
     }
-
-    // Carries the sim's own final counter forward (2026-08-08) rather than
-    // re-deriving it from result.ignited here — a fight can now contain
-    // several attempts (heat resets and rebuilds mid-fight), so the value at
-    // fight-end isn't simply "0 if ignited, else +1" anymore.
-    attemptsSinceIgnition = result.attemptsSinceIgnition;
 
     const coinAwarded = coinAwardFor(cfg, result);
     coin += coinAwarded;

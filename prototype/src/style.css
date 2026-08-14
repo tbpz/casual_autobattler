@@ -5,6 +5,14 @@
   --player: #4da6ff;
   --enemy: #ff5d5d;
   --ignite: #ffcf4d;
+  /* The chain's own token (2026-08-14 chain rebuild) — split off from
+     --ignite, which stays reserved for unrelated UI (coin, the projection's
+     "tight" band) so changing the chain's colour never leaks into those. */
+  --chain: #ffcf4d;
+  /* A backfire's colour — distinct from --enemy (the enemy body's own red)
+     so "my chain just backfired" reads as its own category of danger, not
+     as the enemy's colour bleeding onto my own side. */
+  --backfire: #ff4d4d;
   --text: #e8e8ee;
   --muted: #8a8fa3;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -221,93 +229,80 @@ body {
   max-width: 100%;
 }
 
-/* Heat meter (2026-08-07 rebuild) — the anticipation the old pity-gate never
-   gave the player: filling toward ignition instead of the payoff landing
-   with no warning. Player-only; collapsed on the enemy side below, since
-   only the player's heat ever drives ignition.
-   2026-08-08: labelled CHAIN — the word "heat" never appeared anywhere the
-   player could see it, and this bar now visibly DRAINS on a miss (heat is
-   spent on every roll, win or lose — see sim/fight.ts), which is the thing
-   that teaches the whole mechanism without a tutorial.
-   2026-08-14: bumped from 4px and a 0.6em muted label — the mechanism that
-   decides WHO ignites was the least prominent element in the whole slot,
-   bottom of a six-element stack. Brighter label, taller track, room for the
-   NEXT tag below. */
-.heat-row {
+/* The charge (CHAIN) bar (2026-08-14 chain rebuild) — reads like the HP bar
+   above: fills gradually from a hero's own actions, PERSISTS across fights
+   (see sim/types.ts's HeroState.charge), and drains visibly (not just
+   snaps) the instant it fires. Player-only; collapsed on the enemy side
+   below, since only the player's charge ever fires a chain. There is no
+   "who's next" indicator anymore — a full bar IS the signal, and it's the
+   same hero every time (no candidate contest), so nothing needs pointing at
+   in advance. */
+.charge-row {
   display: flex;
   align-items: center;
   gap: 4px;
   position: relative;
 }
 
-.heat-label {
+.charge-label {
   font-size: 0.62em;
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: var(--ignite);
+  color: var(--chain);
   opacity: 0.75;
   flex-shrink: 0;
 }
 
-/* "Who's next" (2026-08-14) — the living, eligible player hero closest to
-   heatThreshold (fightView.ts's updateSide, mirroring fight.ts's own
-   candidacy rule). Sits right after the label so it reads as part of the
-   same line, not a separate callout. */
-.next-tag {
-  font-size: 0.55em;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  color: var(--bg);
-  background: var(--ignite);
-  border-radius: 3px;
-  padding: 0 3px;
-  flex-shrink: 0;
-  opacity: 0;
-  transform: scale(0.85);
-  transition:
-    opacity 0.2s ease-out,
-    transform 0.2s ease-out;
-}
-
-.next-tag.show {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.heat-track {
+.charge-track {
+  position: relative;
   width: 100%;
-  height: 7px;
-  border-radius: 3px;
+  height: 8px;
+  border-radius: 4px;
   background: #2a2e3a;
   overflow: hidden;
 }
 
-.heat-fill {
+/* Same two-layer trick as .hp-fill/.hp-ghost-fill: the real fill snaps to 0
+   the instant the chain fires, while the ghost drains behind it over a
+   longer, delayed transition — so firing reads as a visible drain, not a
+   silent jump. */
+.charge-fill,
+.charge-ghost-fill {
+  position: absolute;
+  inset: 0;
   height: 100%;
   width: 0%;
-  background: var(--ignite);
+}
+
+.charge-fill {
+  background: var(--chain);
   transition: width 0.15s linear;
 }
 
-/* A heat-gift landing (2026-08-14, see fightView.ts's showHeatGift) — a
-   brief brightness flash on the RECEIVING bar so "that tracer just arrived
-   here" reads as a discrete event, not just a slightly-faster fill. */
-.heat-fill.gift-pulse {
-  animation: giftPulse 0.4s ease-out;
+.charge-ghost-fill {
+  background: var(--chain);
+  opacity: 0.4;
+  transition: width 0.6s ease-out 0.45s;
 }
 
-@keyframes giftPulse {
-  0% {
-    filter: brightness(1.8);
-    box-shadow: 0 0 6px 2px var(--ignite);
-  }
-  100% {
+/* The dread beat (2026-08-14): once the bar crosses ~85% full, it pulses —
+   the player feels the chain closing in on firing without knowing, yet,
+   which way it'll go. */
+.charge-fill.near-full {
+  animation: chargeNearFull 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes chargeNearFull {
+  from {
     filter: brightness(1);
-    box-shadow: none;
+  }
+  to {
+    filter: brightness(1.6);
+    box-shadow: 0 0 6px 1px var(--chain);
   }
 }
 
-.enemy-side .heat-row {
+.enemy-side .charge-row {
   display: none;
 }
 
@@ -376,35 +371,14 @@ body {
   outline-offset: 2px;
 }
 
-/* Attribution, ungated (2026-08-14) — driven straight off snapshot.hotHeroId
-   from hit 0, unlike .hot below which only appears once the chain has
-   earned its chainTellThreshold glow. A steady owner-accent ring, no pulse:
-   this answers "who" the instant ignition fires, not once the spectacle has
-   caught up. Declared BEFORE .hot so .hot's own box-shadow (same
-   specificity, later in the cascade) wins the moment a chain earns full
-   spectacle — both classes can be present on the same body at once. */
-.body.igniting {
-  box-shadow: 0 0 0 4px var(--accent, var(--ignite)), 0 0 10px 2px var(--accent, var(--ignite));
-}
-
-/* One-shot ring burst on the exact tick a hero ignites (2026-08-14, see
-   fightView.ts's showIgnition) — distinct from .igniting's steady ring
-   above, which persists for the chain's whole duration. */
-.body.ignite-burst {
-  animation: igniteBurst 0.5s ease-out;
-}
-
-@keyframes igniteBurst {
-  0% {
-    box-shadow: 0 0 0 4px var(--accent, var(--ignite)), 0 0 0 4px var(--accent, var(--ignite));
-  }
-  100% {
-    box-shadow: 0 0 0 4px var(--accent, var(--ignite)), 0 0 0 22px transparent;
-  }
-}
-
+/* The hot glow (2026-08-14 chain rebuild) — a single, IMMEDIATE tell from
+   the instant a hero's bar fires, no more "earn the glow" delay. Its colour
+   comes from --chain-color, set inline per-tick by fightView.ts's
+   updateSide: the hero's own accent for a real chain, --backfire for one
+   that's gone wrong — so gold-vs-red reads on sight, not just "someone's
+   glowing." */
 .body.hot {
-  box-shadow: 0 0 0 4px var(--ignite), 0 0 18px 4px var(--ignite);
+  box-shadow: 0 0 0 4px var(--chain-color, var(--chain)), 0 0 18px 4px var(--chain-color, var(--chain));
   animation: pulse 0.5s ease-in-out infinite alternate;
 }
 
@@ -417,12 +391,65 @@ body {
   }
 }
 
-/* Ambient dimming while a chain is live (2026-08-14, pacing pass) — the
+/* One-shot ring burst on the exact tick a chain FIRES good (see
+   fightView.ts's showChainStart) — expands outward and fades, a burst of
+   the hero's own accent. */
+.body.ignite-burst {
+  animation: igniteBurst 0.5s ease-out;
+}
+
+@keyframes igniteBurst {
+  0% {
+    box-shadow: 0 0 0 4px var(--accent, var(--chain)), 0 0 0 4px var(--accent, var(--chain));
+  }
+  100% {
+    box-shadow: 0 0 0 4px var(--accent, var(--chain)), 0 0 0 22px transparent;
+  }
+}
+
+/* The mirror-image beat for a backfire (2026-08-14) — a ring that collapses
+   INWARD and lands solid, rather than expanding and fading, so the two
+   outcomes read as opposites at a glance: outward-and-gone vs.
+   inward-and-landed. */
+.body.backfire-burst {
+  animation: backfireBurst 0.5s ease-out;
+}
+
+@keyframes backfireBurst {
+  0% {
+    box-shadow: 0 0 0 22px var(--backfire), 0 0 0 22px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 4px var(--backfire), 0 0 0 4px var(--backfire);
+  }
+}
+
+/* The wind-up telegraph (2026-08-07) — previously toggled by fightView.ts
+   with no matching rule at all, so a charge-locked target rendered nothing.
+   A pulsing outline in the enemy's own colour: this body is what the
+   bruiser is about to hit. */
+.body.charging {
+  outline: 3px solid var(--enemy);
+  outline-offset: 3px;
+  animation: chargeTelegraph 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes chargeTelegraph {
+  from {
+    filter: brightness(1);
+  }
+  to {
+    filter: brightness(1.4);
+  }
+}
+
+/* Ambient dimming while a chain is live (2026-08-14 pacing pass) — the
    arena's OWN combat traffic fades so the chain doesn't have to compete
-   with six bodies swinging at once; the chain's own tracers (.chain-tracer),
-   the gift tracers (.gift), and the HUD/callout are excluded. Render-only:
-   driven by fightView.ts toggling this class off snapshot.hotHeroId, no
-   Playback/timing change. */
+   with six bodies swinging at once; the chain's own tracers
+   (.chain-tracer) and the HUD/callout are excluded. Render-only: driven by
+   fightView.ts toggling these classes off the snapshot, no Playback/timing
+   change. .chain-backfire layers a red vignette on top so a backfire reads
+   as dangerous in peripheral vision, not only at the hot hero's own body. */
 .arena.chain-live .tracer.ambient {
   opacity: 0.25;
 }
@@ -431,9 +458,13 @@ body {
   opacity: 0.2;
 }
 
-.arena.chain-live .player-side .body:not(.igniting) {
+.arena.chain-live .player-side .body:not(.hot) {
   filter: saturate(0.5) brightness(0.85);
   transition: filter 0.3s ease-out;
+}
+
+.arena.chain-backfire {
+  box-shadow: inset 0 0 40px 6px rgba(255, 77, 77, 0.25);
 }
 
 .body.down {
@@ -526,15 +557,13 @@ body {
     opacity 0.2s ease-out;
 }
 
-/* A heat-gift tracer (2026-08-14 — see fightView.ts's showHeatGift and
-   GIFT_TRACER_MS) flies noticeably slower and softer than a combat tracer —
-   ally-to-ally, unhurried — so it reads as a different KIND of motion, not
-   an extra attack. Keep the transform duration in sync with GIFT_TRACER_MS. */
-.tracer.gift {
-  opacity: 0.8;
-  transition:
-    transform 0.45s ease-in-out,
-    opacity 0.45s ease-in-out;
+/* A chain tracer (see fightView.ts's showChainHit) — bigger and glowier
+   than an ordinary attack tracer, coloured gold for a real chain or
+   --backfire for one gone wrong. Deliberately lacks .ambient, so it's
+   excluded from the chain-live dim rule above — the chain's own traffic
+   never fades while it's the thing happening. */
+.tracer.chain-tracer {
+  filter: drop-shadow(0 0 4px currentColor);
 }
 
 @keyframes healPulse {
@@ -582,7 +611,7 @@ body {
   transform: translate(-50%, -8px);
   font-weight: 700;
   font-size: 1.1em;
-  color: var(--ignite);
+  color: var(--chain);
   letter-spacing: 0.04em;
   opacity: 0;
   pointer-events: none;
@@ -647,15 +676,15 @@ body {
   color: #6ee7a0;
 }
 
-/* --owner-accent (2026-08-14, set inline by fightView.ts's showChainHit) is
-   the identity channel; the text colour below stays the tier-escalating
-   ignite/orange magnitude channel — both on one number instead of the
-   attacker's accent overriding it outright, which used to erase identity
-   from the loudest element in the fight. Defaults to --ignite so a popup
-   with no owner (shouldn't happen, but see showChainHit's fallback) still
-   renders sanely. */
+/* --owner-accent (set inline by fightView.ts's showChainHit) is the
+   identity/direction channel — a hero's own accent for a real chain,
+   --backfire for one gone wrong, HEAL_ACCENT for a heal-chain hit — carried
+   as both a border and (for heal/backfire) the text colour itself, on top
+   of the tier-escalating magnitude channel below. Defaults to --chain so a
+   popup with no owner (shouldn't happen, but see showChainHit's fallback)
+   still renders sanely. */
 .damage-popup.chain {
-  color: var(--ignite);
+  color: var(--chain);
   text-shadow:
     0 1px 3px rgba(0, 0, 0, 0.6),
     0 0 6px var(--owner-accent, transparent);
@@ -899,11 +928,39 @@ button:disabled {
   white-space: nowrap;
 }
 
-/* Chain affinity pips (2026-08-08) — the cascade lever, visible at pick
- * time. Ignite-yellow so it reads as the same "payoff" channel as the
- * in-fight heat bar (see .heat-fill), not just another stat. */
+/* A hero-pick row's mini charge bar (2026-08-14 chain rebuild) —
+ * fieldPickScreen.ts's chargeBarHtml, reusing the same .charge-track/
+ * .charge-fill classes as the in-fight bar (style.css above) at a fixed
+ * small width so it drops into the pick row's info column cleanly. This is
+ * what makes charge's persistence across fights actually visible at the one
+ * moment a player can act on it: field a near-full hero to cash in, or bench
+ * them to hold the charge. */
+.hero-pick-charge-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.hero-pick-charge-row .charge-track {
+  width: 56px;
+  height: 6px;
+  flex-shrink: 0;
+}
+
+.hero-pick-charge-label,
+.hero-pick-charge-pct {
+  font-size: 0.6em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Chain affinity pips (2026-08-08) — payoff/backfire magnitude, visible at
+ * pick time (2026-08-14: no longer accrual speed — see heroes.ts). Uses the
+ * chain's own colour token so it reads as the same channel as the in-fight
+ * charge bar (see .charge-fill), not just another stat. */
 .hero-pick-chain {
-  color: var(--ignite);
+  color: var(--chain);
   letter-spacing: 1px;
   font-size: 0.9em;
 }
@@ -989,10 +1046,14 @@ button:disabled {
   font-size: 0.9em;
 }
 
-/* 2026-08-14: the chain's attributed recap line — the opposite register
- * from .recap-miss above, since this IS the rare payoff. See
- * runScreens.ts's chainRecapLine. */
+/* The chain's attributed recap line — the opposite register from
+ * .recap-miss above, since this IS the payoff (or the backfire — see
+ * runScreens.ts's chainRecapLine, which recolors this red for one). */
 .recap-chain {
-  color: var(--ignite);
+  color: var(--chain);
   font-weight: 700;
+}
+
+.recap-chain.backfire {
+  color: var(--backfire);
 }

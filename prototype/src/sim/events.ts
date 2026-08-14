@@ -11,26 +11,38 @@ export type Side = "player" | "enemy";
 export type FightEvent =
   | { type: "attack"; t: number; side: Side; attackerId: string; targetId: string; damage: number }
   | { type: "heal"; t: number; side: Side; healerId: string; targetId: string; amount: number }
-  | { type: "heatFull"; t: number; heroId: string }
-  // heroId is always the candidate that rolled, win or lose (2026-08-08 —
-  // needed so a miss can be attributed to a named hero, not just discarded;
-  // see fightView.ts's showIgnitionMiss and runScreens.ts's recap line).
-  | { type: "ignitionRoll"; t: number; fired: boolean; heroId: string }
-  /** Heat flowing from one ally to another via a heatGift (2026-08-09 pass —
-   * see heroes.ts's PLAYER_HERO_POOL). Previously silent: applyHeatGift moved
-   * the receiver's meter with no render-facing trace at all, so "who ignites
-   * can vary fight to fight" read as pure randomness instead of a mechanism.
-   * `amount` is the accumulated, already-throttled quantity (see fight.ts's
-   * heatGiftAccumFor) — one tell per pair means "a legible slice of someone's
-   * bar just moved," not one event per underlying hit. */
-  | { type: "heatGift"; t: number; fromId: string; toId: string; amount: number }
-  | { type: "chainHit"; t: number; hitIndex: number; damage: number; targetId: string }
-  /** heroId is the hero who was hot during this chain (2026-08-14
-   * chain-legibility pass — previously chainEnd carried no owner, so the
-   * payoff summary couldn't be attributed without cross-referencing the
-   * ignitionRoll that started it). totalDamage/killedIds are what the chain
-   * actually bought the squad — see fight.ts's chain-hit branch, which
-   * accumulates both alongside the existing bonusHitsLanded counter. */
+  /** The moment a hero's charge bar fills and it fires (2026-08-14 chain
+   * rebuild — replaces heatFull/ignitionRoll/heatGift wholesale: there is no
+   * candidate contest and no roll on whether it happens anymore, only the
+   * backfire coin flip carried on this event). `backfire` is decided once,
+   * here, and every chainHit/chainEnd for this chain repeats it — the
+   * renderer reads it to pick gold burst vs. red implosion immediately,
+   * with no advance telegraph. */
+  | { type: "chainStart"; t: number; heroId: string; backfire: boolean }
+  /** `kind` distinguishes an attacker's escalating damage hit from a
+   * healer's escalating heal (2026-08-14 chain rebuild — the chain always
+   * repeats the hero's OWN action). `backfire` mirrors the owning
+   * chainStart's flag, carried per-hit so the renderer doesn't have to track
+   * chain state itself. `sourceId` is the hot hero (2026-08-14 — replaces
+   * fightView.ts's currentHotHeroId back-channel; attribution now rides the
+   * event instead of a renderer-side field). `targetId` is whoever the hit
+   * or heal actually landed on — the enemy on a good damage chain, an ALLY
+   * on a backfired one; the lowest-HP ally on a good heal chain, the enemy
+   * on a backfired one. */
+  | {
+      type: "chainHit";
+      t: number;
+      hitIndex: number;
+      damage: number;
+      targetId: string;
+      kind: "damage" | "heal";
+      backfire: boolean;
+      sourceId: string;
+    }
+  /** heroId is the hero who was hot during this chain. totalDamage/killedIds
+   * are what the chain actually bought (or cost) the squad — see fight.ts's
+   * chain-hit branch, which accumulates both alongside bonusHitsLanded.
+   * `backfire` mirrors chainStart's flag. */
   | {
       type: "chainEnd";
       t: number;
@@ -38,6 +50,7 @@ export type FightEvent =
       heroId: string;
       totalDamage: number;
       killedIds: string[];
+      backfire: boolean;
     }
   | { type: "heroDown"; t: number; side: Side; heroId: string }
   | { type: "tankBreak"; t: number; side: Side; heroId: string }
@@ -67,15 +80,10 @@ export interface HeroSnapshot {
   hitsTaken: number;
   /** Tank-only: still holding aggro (not broken). Always false off-role. */
   holding: boolean;
-  /** Ignition eligibility meter as of this instant — see types.ts's
-   * HeroState docstring. Render-facing so a heat bar can fill visibly. */
-  heat: number;
-  /** Mirrors fight.ts's ignition-candidacy guard (a pure healer — healPerBeat
-   * set, attacksWhileHealing not — can win the heat roll but can never land
-   * a chain hit, so the sim excludes it from candidacy entirely). Render-
-   * facing (2026-08-14 chain-legibility pass) so the "who's next" marker can
-   * match the sim's own rule instead of approximating it from role alone. */
-  canIgnite: boolean;
+  /** The chain meter as of this instant — see types.ts's HeroState.charge
+   * docstring. Render-facing so the charge bar can fill visibly, including
+   * across fights (it's the same persisted value the roster carries). */
+  charge: number;
 }
 
 export interface TickSnapshot {
@@ -86,24 +94,18 @@ export interface TickSnapshot {
   enemyMaxHp: number;
   playerHeroes: HeroSnapshot[];
   enemyHeroes: HeroSnapshot[];
-  /** The hero currently hot (mid-chain), if any. Sim-facing truth, consumed
-   * by checks/batch — the renderer reads visibleChainHeroId instead, so a
-   * chain that hasn't yet earned its tell (see chainTellThreshold) never
-   * glows. */
+  /** The hero currently hot (mid-chain), if any. */
   hotHeroId: string | null;
-  /** Render-facing chain state (2026-08-06): non-null only once the current
-   * chain has landed cfg.chainTellThreshold+ hits, so a fizzled 0/1-length
-   * chain never triggers the glow/callout tell. See DECISIONS.md's
-   * "spectacle gated on payoff" entry. */
-  visibleChainHeroId: string | null;
+  /** Whether the CURRENT chain (hotHeroId) is a backfire — meaningless when
+   * hotHeroId is null. 2026-08-14 chain rebuild: with an explicit good/bad
+   * identity decided at chainStart, the chain reads loud from hit 1 — there
+   * is no more delayed "earn the glow" gating (the old visibleChainHeroId/
+   * chainTellThreshold gate is gone; see DECISIONS.md). */
+  chainBackfire: boolean;
   visibleChainLength: number;
-  /** Running damage total for the CURRENT chain (2026-08-14, chain-legibility
-   * pass) — 0 whenever hotHeroId is null. Snapshot-driven, not
-   * renderer-accumulated, so a persistent chain HUD stays correct under
-   * pause/step/scrub, same reasoning as visibleChainHeroId. Unlike
-   * visibleChainHeroId this is NOT gated by chainTellThreshold — the running
-   * total is attribution, not spectacle, so it's always accurate once a
-   * chain is live even before the glow earns its tell. */
+  /** Running damage/heal total for the CURRENT chain — 0 whenever hotHeroId
+   * is null. Snapshot-driven, not renderer-accumulated, so a persistent
+   * chain HUD stays correct under pause/step/scrub. */
   chainDamageSoFar: number;
   /** Current enemy damage multiplier from the enrage clock (2026-08-07
    * rebuild) — 1 before enrageStartSec, ramping after. Render-facing so a
@@ -131,10 +133,4 @@ export interface FightResult {
    * living tank — i.e. this fight had a real dip. See DECISIONS.md
    * 2026-08-06 and batch/report.ts's dipRate metric. */
   dipOccurred: boolean;
-  /** Failed-attempts-since-last-ignition counter's value at fight end (2026-
-   * 08-08 "heat is spent" rebuild) — the run wrapper carries this into the
-   * next fight's FightSetup.attemptsSinceIgnition. Can differ from what the
-   * fight started with even on a loss-free run, since heat resets and
-   * rebuilds after every roll, so one fight can contain several attempts. */
-  attemptsSinceIgnition: number;
 }

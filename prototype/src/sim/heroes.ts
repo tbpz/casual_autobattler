@@ -17,8 +17,6 @@ export interface HeroDef {
   attacksWhileHealing?: boolean;
   /** See types.ts's HeroState docstring — the squad-pick cascade lever. */
   chainAffinity: number;
-  /** See types.ts's HeroState docstring — the 2026-08-09 heat-flow pass. */
-  heatGift?: HeroState["heatGift"];
   /** One line for the squad-pick screen — what picking this hero buys you,
    * beyond its raw numbers. */
   identity: string;
@@ -45,71 +43,64 @@ export interface HeroDef {
  * The operative principle as of 2026-08-08: within a role, every hero gets
  * roughly the SAME throughput budget (DPS for damage, heal-per-second for
  * support), and differs only in SHAPE — burst size vs. cadence, fragility,
- * and `chainAffinity`. Only once throughput is equalized does `chainAffinity`
- * become a real, standalone lever rather than a rounding error riding on top
- * of a raw stat-block gap:
- *  - tank: Bracer is the wall (low affinity, rarely chains); Hollow is
- *    fragile but chains hard (high affinity) — a real HP-for-ceiling trade.
- *  - damage: Rook is the heat engine — frequent, modest chains (highest
- *    affinity in the pool). Vex is burst — rare but bigger chains, now at
- *    near-parity DPS with Rook (was 17.14 vs 6.67, then a first pass claimed
- *    ~7.2 vs 6.67 without the stat block actually landing there — it was
- *    still 8.67 vs 6.67, a real +30%, verified 2026-08-09 by re-deriving DPS
- *    from the stat block rather than trusting this comment. Re-cut to
- *    damage:11/attackIntervalSec:1.5 = 7.33 vs 6.67, trimming per-hit damage
- *    this time rather than cadence, so the burst identity survives the nerf
- *    without also softening the chain multiplier, which reads off the same
- *    per-hit damage stat).
- *  - support: Cairn is the pure safety net (lowest affinity — it almost
- *    never chains, by design, and has the pool's highest heal throughput).
- *    Ward attacks AND heals on the same beat (attacksWhileHealing), so a
- *    two-support comp is still viable, but its healPerBeat is cut so that
- *    hybrid flexibility and its own moderate affinity cost something instead
- *    of beating Cairn on every axis for free.
+ * and `chainAffinity`.
+ *  - tank: Bracer is the wall (low affinity — a quiet chain either way);
+ *    Hollow is fragile but chains hard (high affinity) — a real
+ *    HP-for-ceiling trade, in both directions now.
+ *  - damage: Rook has the pool's highest affinity — reliably escalating
+ *    chains. Vex is burst, at near-parity DPS with Rook (was 17.14 vs 6.67,
+ *    then a first pass claimed ~7.2 vs 6.67 without the stat block actually
+ *    landing there — it was still 8.67 vs 6.67, a real +30%, verified
+ *    2026-08-09 by re-deriving DPS from the stat block rather than trusting
+ *    this comment. Re-cut to damage:11/attackIntervalSec:1.5 = 7.33 vs 6.67,
+ *    trimming per-hit damage this time rather than cadence, so the burst
+ *    identity survives the nerf without also softening the chain
+ *    multiplier, which reads off the same per-hit damage stat).
+ *  - support: Cairn is the pure safety net (lowest affinity — its heal
+ *    chain is the mildest in the pool, good or bad) with the pool's highest
+ *    heal throughput. Ward attacks AND heals on the same beat
+ *    (attacksWhileHealing), so a two-support comp is still viable, but its
+ *    healPerBeat is cut so that hybrid flexibility and its own moderate
+ *    affinity cost something instead of beating Cairn on every axis for
+ *    free.
  * Values are strawmen for the batch harness (npm run batch --squad <combo>)
- * to move, same as everywhere else in this file. See DECISIONS.md's
- * housekeeping note for the 2026-08-07 heat rebuild this pool sits on top of.
+ * to move, same as everywhere else in this file.
+ *
+ * 2026-08-14 chain rebuild (see DECISIONS.md): heatGift is gone — charge is
+ * private to each hero — and `chainAffinity` now scales ONLY payoff/backfire
+ * magnitude, not accrual speed (every hero's meter fills at the same rate).
+ * See config.ts's FightConfig docstring and types.ts's HeroState.chainAffinity.
  */
 export const PLAYER_HERO_POOL: HeroDef[] = [
   {
     id: "bracer", name: "Bracer", role: "tank", maxHp: 195, damage: 7, attackIntervalSec: 1.4,
-    chainAffinity: 0.4, identity: "The wall. Steady, unglamorous, rarely chains — but every hit it soaks feeds someone else's chain.",
-    // The wall converts punishment into someone ELSE's cascade — the
-    // cascade role Bracer otherwise has none of, on its own.
-    heatGift: { on: "soaked", to: "highestAffinity", fraction: 0.35 },
+    chainAffinity: 0.4,
+    identity: "The wall. Steady, unglamorous — a chain from Bracer, good or bad, is always a small one.",
   },
   {
     id: "hollow", name: "Hollow", role: "tank", maxHp: 180, damage: 6, attackIntervalSec: 1.1,
-    chainAffinity: 1.4, identity: "Fragile — but chains hard when it connects, and its line breaking ignites the squad.",
-    // When Hollow's line breaks it dumps heat to the whole squad — the dip
-    // literally causes the ignition. See fight.ts's updateTankHolding.
-    heatGift: { on: "break", to: "all", fraction: 0.3 },
+    chainAffinity: 1.4,
+    identity: "Fragile — but chains hard when it fires, for better or worse.",
   },
   {
     id: "rook", name: "Rook", role: "damage", maxHp: 85, damage: 6, attackIntervalSec: 0.9,
-    chainAffinity: 1.6, identity: "The heat engine. Frequent, modest chains that seed the next one.",
-    // Chain-into-chain: Rook's own chain hits feed whoever's coldest.
-    heatGift: { on: "chainHit", to: "lowestHeat", fraction: 0.3 },
+    chainAffinity: 1.6,
+    identity: "The pool's loudest chain. Highest affinity — the biggest payoff, and the biggest backfire.",
   },
   {
     id: "vex", name: "Vex", role: "damage", maxHp: 70, damage: 11, attackIntervalSec: 1.5,
-    chainAffinity: 0.9, identity: "Explosive burst. Rare, enormous chains — and the pool's only pure heat sink.",
-    // No gift: Vex converts everyone ELSE's gifted heat into the single
-    // biggest chain instead of spreading its own around.
+    chainAffinity: 0.9,
+    identity: "Explosive burst damage, moderate chain volatility on top.",
   },
   {
     id: "cairn", name: "Cairn", role: "support", maxHp: 110, damage: 1, attackIntervalSec: 1.2, healPerBeat: 7,
-    chainAffinity: 0.3, identity: "The safety net. Almost never chains itself — but whoever it heals does.",
-    // The chain battery: can't chain on its own low affinity, but makes
-    // whoever's hurting (and being healed) ignite instead.
-    heatGift: { on: "healed", to: "target", fraction: 0.6 },
+    chainAffinity: 0.3,
+    identity: "The safety net. Chains a heal instead of an attack — lowest affinity, so even a backfire (healing the enemy) stings the least.",
   },
   {
     id: "ward", name: "Ward", role: "support", maxHp: 92, damage: 3, attackIntervalSec: 1.0, healPerBeat: 3,
-    attacksWhileHealing: true, chainAffinity: 1.1, identity: "Heals AND swings — a hybrid pick that spreads the squad's heat evenly.",
-    // The spreader — evens the squad out so ignition identity varies fight
-    // to fight rather than always landing on one fixed carrier.
-    heatGift: { on: "dealt", to: "lowestHeat", fraction: 0.3 },
+    attacksWhileHealing: true, chainAffinity: 1.1,
+    identity: "Heals AND swings on the same beat — its chain is a heal, moderate affinity either way.",
   },
 ];
 
@@ -159,13 +150,12 @@ export function makeHeroState(def: HeroDef, instanceId: string, phase = 0): Hero
     healPerBeat: def.healPerBeat,
     attacksWhileHealing: def.attacksWhileHealing,
     chainAffinity: def.chainAffinity,
-    heatGift: def.heatGift,
     dealt: 0,
     soaked: 0,
     restored: 0,
     hitsTaken: 0,
     holding: def.role === "tank",
-    heat: 0,
+    charge: 0,
   };
 }
 
