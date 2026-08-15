@@ -84,6 +84,12 @@ export interface HeroSnapshot {
    * docstring. Render-facing so the charge bar can fill visibly, including
    * across fights (it's the same persisted value the roster carries). */
   charge: number;
+  /** This hero's chainAffinity (2026-08-15, chain-payoff-axis pass) —
+   * render-facing so an ignition tell can scale its own intensity to this
+   * hero's expected magnitude (see render/fightView.ts's showChainStart)
+   * without the renderer importing the static hero pool. Inert (1) for
+   * enemies, who never chain — see sim/encounters.ts. */
+  chainAffinity: number;
 }
 
 export interface TickSnapshot {

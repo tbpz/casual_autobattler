@@ -26,16 +26,26 @@ import type { RunResult } from "../sim/run.js";
  *    there was no tank to break).
  *  - fullSpectacleRate: fraction of ALL fights (win or loss) that hit
  *    chainFullTellThreshold+ (the shake/loud-callout tier).
- *  - fractionFightsWithChain3Plus (2026-08-08): fraction of ALL fights
- *    (same population as fullSpectacleRate, hardcoded at 3 rather than the
- *    configurable chainFullTellThreshold) that reached chain length >= 3.
- *    These two MUST match whenever chainFullTellThreshold is 3 — the metric
- *    exists so a future change to the tell threshold can't silently
- *    reintroduce the RC1 bug (spectacle firing far more often than the
- *    payoff it advertises) without a batch number catching it. (Compared
- *    against fractionWinsWithChain3Plus — a WINS-only figure — before
- *    2026-08-08; that comparison only worked while nearly every fight was a
- *    win. Once real losses became common the two populations diverged by
+ *  - fractionFightsWithChain5Plus (2026-08-08, hardcoded value moved 3->5 on
+ *    2026-08-15 alongside chainFullTellThreshold itself — see DECISIONS.md's
+ *    chain-payoff-axis entry): fraction of ALL fights (same population as
+ *    fullSpectacleRate, hardcoded rather than reading the configurable
+ *    chainFullTellThreshold) that reached this hardcoded chain length. These
+ *    two MUST match whenever the hardcoded length above equals
+ *    chainFullTellThreshold's current value — the metric exists so a future
+ *    change to the tell threshold can't silently reintroduce the RC1 bug
+ *    (spectacle firing far more often than the payoff it advertises)
+ *    without a batch number catching it. Being hardcoded rather than
+ *    cfg-driven is the whole point: it catches the renderer's actual
+ *    spectacle trigger silently decoupling from cfg.chainFullTellThreshold,
+ *    which a cfg-driven metric could never detect. Update the hardcoded
+ *    value here (and its literal name) whenever chainFullTellThreshold's
+ *    OWN default moves, same as this pass did going 3->5 — the guard's
+ *    value is being pinned to the current design threshold, not to any
+ *    particular number for its own sake. (Compared against
+ *    fractionWinsWithChain3Plus — a WINS-only figure — before 2026-08-08;
+ *    that comparison only worked while nearly every fight was a win. Once
+ *    real losses became common the two populations diverged by
  *    construction, independent of any actual bug.)
  *
  * Two more added for the 2026-08-07 causality rebuild (see DECISIONS.md's
@@ -115,7 +125,7 @@ export interface BatchReport {
    * See this file's top docstring, 2026-08-09 entry. */
   deathsByFightIndex: number[];
   fractionChainsWhileLosing: number;
-  fractionFightsWithChain3Plus: number;
+  fractionFightsWithChain5Plus: number;
   /** See this file's top docstring, 2026-08-14 chain rebuild entry. */
   backfireRate: number;
   fractionChainsBackfired: number;
@@ -150,7 +160,7 @@ export class BatchAggregator {
   private chainsWhileLosing = 0;
   private chainsBackfired = 0;
   private backfireFights = 0;
-  private fightsWithChain3Plus = 0;
+  private fightsWithChain5Plus = 0;
   private cfg: RunConfig;
 
   constructor(cfg: RunConfig) {
@@ -180,7 +190,7 @@ export class BatchAggregator {
       if (fr.endReason === "failsafe") this.failsafeFights++;
       if (fr.dipOccurred) this.dipFights++;
       if (fr.chainLength >= this.cfg.fight.chainFullTellThreshold) this.fullSpectacleFights++;
-      if (fr.chainLength >= 3) this.fightsWithChain3Plus++;
+      if (fr.chainLength >= 5) this.fightsWithChain5Plus++;
       if (this.hasWindupDeath(fr.events)) this.windupDeathFights++;
       this.totalDuration += fr.durationSec;
       this.totalDurationSq += fr.durationSec * fr.durationSec;
@@ -258,7 +268,7 @@ export class BatchAggregator {
       meanDeathsPerRun: this.totalDeaths / this.n,
       deathsByFightIndex: this.deathsByFightIndex.map((d) => d / this.n),
       fractionChainsWhileLosing: this.chainsFired > 0 ? this.chainsWhileLosing / this.chainsFired : 0,
-      fractionFightsWithChain3Plus: this.totalFights > 0 ? this.fightsWithChain3Plus / this.totalFights : 0,
+      fractionFightsWithChain5Plus: this.totalFights > 0 ? this.fightsWithChain5Plus / this.totalFights : 0,
       backfireRate: this.totalFights > 0 ? this.backfireFights / this.totalFights : 0,
       fractionChainsBackfired: this.chainsFired > 0 ? this.chainsBackfired / this.chainsFired : 0,
     };

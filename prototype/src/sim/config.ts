@@ -166,14 +166,35 @@ export interface FightConfig {
   /** Chain PRD by bonus-hits-so-far: index 0 = chance the *first* bonus hit
    * after ignition lands, last entry repeats (capped) beyond that. */
   chainChanceByHitsSoFar: number[];
-  /** Bonus hit N magnitude = round(base * chainHitMultiplier * N *
-   * hero.chainAffinity), where base is the hot hero's own damage stat for an
-   * attacker or its own healPerBeat for a healer — multiplicative off the
-   * hero's OWN throughput stat AND its own chainAffinity, so a Vex chain is
-   * explosive, a Bracer chain is a damp squib. Applies identically whether
-   * the chain is aimed right or backfiring (2026-08-14 chain rebuild) — a
-   * high-affinity hero's backfire is exactly as loud as its payoff. */
+  /** Bonus hit N magnitude = round(base * chainHitMultiplier *
+   * chainEscalationFactor(N) * hero.chainAffinity), where base is the hot
+   * hero's own damage stat for an attacker or its own healPerBeat for a
+   * healer. Applies identically whether the chain is aimed right or
+   * backfiring (2026-08-14 chain rebuild) — a high-affinity hero's backfire
+   * is exactly as loud as its payoff.
+   *
+   * 2026-08-15 (chain-payoff-axis pass): N was replaced by
+   * chainEscalationFactor(N) — see chainEscalationKneeHit/StepMultiplier
+   * below and config.ts's chainEscalationFactor() — so the payoff's
+   * unpredictable spread now comes from how LONG a chain runs (decided live,
+   * hit by hit) rather than from chainAffinity (known at draft time,
+   * compressed 0.3-1.6 -> 0.7-1.4 in heroes.ts for exactly this reason). */
   chainHitMultiplier: number;
+  /** Hits 1..chainEscalationKneeHit escalate linearly (factor = hitIndex,
+   * unchanged from the pre-2026-08-15 formula). Beyond the knee, each
+   * additional hit adds chainEscalationStepMultiplier instead of 1 — see
+   * chainEscalationFactor() below. Deliberately the same hit count as
+   * chainFullTellThreshold (5) so the mechanical jump and the visual jump
+   * (fightView.ts's chain spectacle ladder) land on the same hit. */
+  chainEscalationKneeHit: number;
+  /** See chainEscalationKneeHit above. 3 means a chain that reaches hit 7
+   * escalates to knee + (7-knee)*3 = 4 + 9 = 13, vs. a pre-2026-08-15 flat 7
+   * — the length axis now carries roughly a 40x spread between a 1-hit and a
+   * 7-hit chain (sum of the escalation curve across a full chain, divided by
+   * the first hit's own factor), which is what makes chain LENGTH — not
+   * which hero fired it — the thing a player genuinely cannot call in
+   * advance. See checks/chaindist.ts's escalation-vs-identity assertion. */
+  chainEscalationStepMultiplier: number;
   /** Hard cap on chain length — added after the first batch pass found
    * chains running to 15-16 hits: chainChanceByHitsSoFar's last entry (0.9)
    * repeats forever once past the table, so the geometric tail averages 10
@@ -232,6 +253,18 @@ export interface FightConfig {
    * Deliberately leaves tank-healing (large maxHp) close to unaffected.
    */
   healMaxFractionOfTargetMaxHp: number;
+  /** Same idea as healMaxFractionOfTargetMaxHp, but for a CHAIN heal hit
+   * specifically (2026-08-15, chain-payoff-axis pass) — deliberately much
+   * higher. At the old shared 0.06 cap, Cairn's chain (lowest affinity, and
+   * the mechanic's most literal "is this a dud" test) restored single
+   * digits at ANY chain length against a normal-sized body — a length-7
+   * chain and a length-1 chain were nearly indistinguishable, which is a
+   * worse version of the exact problem this whole pass exists to fix. A
+   * normal heal beat still caps at healMaxFractionOfTargetMaxHp (erasing
+   * fragility for free is still the thing that field guards against); a
+   * chain heal is a rare, escalating event and gets real room to matter.
+   */
+  chainHealMaxFractionOfTargetMaxHp: number;
 }
 
 export interface RunConfig {
@@ -335,14 +368,25 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // almost immediately, undercutting the "earned across the run" arc).
   chargeThreshold: 220,
   // 0.10 — batch-verified alongside chargeThreshold above: at 220/0.10, the
-  // default draft (always-heal, n=800) lands run completion at ~28%, close to
-  // STATE.md's existing ~28% baseline for the OLD mechanism — same overall
-  // difficulty, with a genuinely new backfire risk layered on top rather than
-  // compounding on top of an already-harder curve. Higher values (0.15-0.25)
-  // were tested and erode completion roughly linearly (26% / 22% / 18%) with
-  // no cliff — a legitimate further-tuning knob once this lands in front of a
-  // player, not a value chosen to avoid a bug.
-  backfireChance: 0.1,
+  // default draft (always-heal, n=800) landed run completion at ~28%, close
+  // to STATE.md's existing ~28% baseline for the OLD (pre-2026-08-15) chain
+  // mechanic. Higher values (0.15-0.25) were tested and eroded completion
+  // roughly linearly (26% / 22% / 18%) with no cliff — a legitimate
+  // further-tuning knob, not a value chosen to avoid a bug.
+  //
+  // Re-tuned 0.10 -> 0.12 (2026-08-15, chain-payoff-axis pass): moving a
+  // chain's payoff spread onto length (steeper escalation past
+  // chainEscalationKneeHit — see heroes.ts's chainAffinity docstring for
+  // the full rationale) pushed always-heal completion up to ~30.9% at
+  // backfireChance=0.10, n=1500 — the escalation curve makes both a real
+  // payoff AND a backfire bigger equally, but a losing fight is more likely
+  // to end (by wipe) before a chain reaches the steep part of the curve,
+  // while a winning one can ride a long chain further, so the net effect
+  // skewed the game slightly easier. 0.12 lands back at ~29.6%, within a
+  // point of the ~28% baseline — re-batch (`npm run check:chaindist`)
+  // before trusting this number again if any of chainEscalationKneeHit/
+  // StepMultiplier/chainAffinity move further.
+  backfireChance: 0.12,
 
   // Wind-up (2026-08-07 rebuild, retuned twice after batch passes — see
   // DECISIONS.md's "fight causality rebuild" entry): the initial strawman
@@ -383,8 +427,21 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   chainMaxHits: 7,
   hotBeatIntervalFactor: 0.6,
 
-  chainTellThreshold: 2,
-  chainFullTellThreshold: 3,
+  // 2026-08-15 chain-payoff-axis pass — see chainEscalationKneeHit/
+  // StepMultiplier's own docstrings above.
+  chainEscalationKneeHit: 4,
+  chainEscalationStepMultiplier: 3,
+
+  // 2026-08-15 chain-payoff-axis pass: raised from 2/3 to 3/5, matching the
+  // escalation knee above so the mechanical jump (hit 5 starts escalating 3x
+  // as fast) and the visual jump (fightView.ts's spectacle ladder) land on
+  // the same hit — a player should be able to tell a cascade from a good
+  // chain without reading the number. Below chainTellThreshold (hits 1-2), a
+  // chain hit is legible (tracer, popup, HUD) but gets no callout at all —
+  // deliberately, per the "no chain is silent but escalation is back-loaded"
+  // rule this pass is built around.
+  chainTellThreshold: 3,
+  chainFullTellThreshold: 5,
 
   tankTargetWeight: 3,
   brokenTankTargetWeight: 1,
@@ -401,6 +458,11 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // 4.2, not 7), which is the small-body case this exists to fix. See this
   // file's FightConfig docstring.
   healMaxFractionOfTargetMaxHp: 0.06,
+  // 2026-08-15 chain-payoff-axis pass — see this field's own docstring
+  // above. ~3.3x the normal-beat cap: high enough that a long Cairn/Ward
+  // chain reads as a real event (up to a fifth of a body's own maxHp in one
+  // hit) without letting a single chain hit fully top up a squishy ally.
+  chainHealMaxFractionOfTargetMaxHp: 0.2,
 };
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {
@@ -474,4 +536,16 @@ export function prdLookup(table: number[], countSoFar: number): number {
     throw new Error("prdLookup: table must be non-empty");
   }
   return value;
+}
+
+/** A chain bonus hit's escalation factor at `hitIndex` (1-based) — replaces
+ * the pre-2026-08-15 formula's raw `hitIndex` (see FightConfig's
+ * chainHitMultiplier/chainEscalationKneeHit/StepMultiplier docstrings and
+ * fight.ts's chainAttackMagnitude/resolveChainHit, the two call sites).
+ * Linear through the knee, then steeper by stepMultiplier per hit beyond it
+ * — pure and hero-agnostic, so the same curve applies to every hero's own
+ * base stat and chainAffinity multiplicatively. */
+export function chainEscalationFactor(cfg: FightConfig, hitIndex: number): number {
+  if (hitIndex <= cfg.chainEscalationKneeHit) return hitIndex;
+  return cfg.chainEscalationKneeHit + (hitIndex - cfg.chainEscalationKneeHit) * cfg.chainEscalationStepMultiplier;
 }

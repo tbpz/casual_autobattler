@@ -414,7 +414,12 @@ body {
 
 /* One-shot ring burst on the exact tick a chain FIRES good (see
    fightView.ts's showChainStart) — expands outward and fades, a burst of
-   the hero's own accent. */
+   the hero's own accent. --ignite-scale (2026-08-15, chain-payoff-axis
+   pass) is set inline per-ignition, normalized to this hero's chainAffinity
+   against the pool's range (0.6-1.0) — a low-affinity hero's ignition is a
+   visibly smaller ring than a high-affinity one's, so the tell stops
+   over-promising for the heroes whose chains used to be a dud. Never below
+   0.6: every ignition still gets a real, visible burst. */
 .body.ignite-burst {
   animation: igniteBurst 0.5s ease-out;
 }
@@ -424,21 +429,24 @@ body {
     box-shadow: 0 0 0 4px var(--accent, var(--chain)), 0 0 0 4px var(--accent, var(--chain));
   }
   100% {
-    box-shadow: 0 0 0 4px var(--accent, var(--chain)), 0 0 0 22px transparent;
+    box-shadow: 0 0 0 4px var(--accent, var(--chain)),
+      0 0 0 calc(4px + 18px * var(--ignite-scale, 1)) transparent;
   }
 }
 
 /* The mirror-image beat for a backfire (2026-08-14) — a ring that collapses
    INWARD and lands solid, rather than expanding and fading, so the two
    outcomes read as opposites at a glance: outward-and-gone vs.
-   inward-and-landed. */
+   inward-and-landed. --ignite-scale scales the ring's starting radius, same
+   convention as igniteBurst above. */
 .body.backfire-burst {
   animation: backfireBurst 0.5s ease-out;
 }
 
 @keyframes backfireBurst {
   0% {
-    box-shadow: 0 0 0 22px var(--backfire), 0 0 0 22px transparent;
+    box-shadow: 0 0 0 calc(4px + 18px * var(--ignite-scale, 1)) var(--backfire),
+      0 0 0 calc(4px + 18px * var(--ignite-scale, 1)) transparent;
   }
   100% {
     box-shadow: 0 0 0 4px var(--backfire), 0 0 0 4px var(--backfire);

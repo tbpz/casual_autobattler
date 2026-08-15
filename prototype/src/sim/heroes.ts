@@ -70,36 +70,49 @@ export interface HeroDef {
  * private to each hero — and `chainAffinity` now scales ONLY payoff/backfire
  * magnitude, not accrual speed (every hero's meter fills at the same rate).
  * See config.ts's FightConfig docstring and types.ts's HeroState.chainAffinity.
+ *
+ * 2026-08-15 (chain-payoff-axis pass — see DECISIONS.md and
+ * prototype/CHAIN_AXIS_PLAN's Chunk 2): `chainAffinity` compressed from a
+ * 0.3-1.6 spread (~5.3x) to 0.7-1.4 (2x) — the old spread made "how big will
+ * this chain be" fully knowable at DRAFT time (a Cairn ignition was always a
+ * dud, a Rook ignition was always a jackpot), so the suspense was spent
+ * before the dice were even rolled. Affinity now differentiates heroes
+ * without gating the mechanic on/off; the spread that made a cascade feel
+ * unpredictable moved onto chain LENGTH instead, which is decided live (see
+ * config.ts's chainEscalationKneeHit/StepMultiplier and
+ * fight.ts's chainAttackMagnitude) — a length-7 chain now escalates roughly
+ * 40x over a length-1 chain, regardless of hero, so no chain is a dud and no
+ * hero is a guaranteed jackpot either.
  */
 export const PLAYER_HERO_POOL: HeroDef[] = [
   {
     id: "bracer", name: "Bracer", role: "tank", maxHp: 195, damage: 7, attackIntervalSec: 1.4,
-    chainAffinity: 0.4,
-    identity: "The wall. Steady, unglamorous — a chain from Bracer, good or bad, is always a small one.",
+    chainAffinity: 0.75,
+    identity: "The wall. Steady, unglamorous — even a short chain from Bracer is worth watching; a long one isn't small at all.",
   },
   {
     id: "hollow", name: "Hollow", role: "tank", maxHp: 180, damage: 6, attackIntervalSec: 1.1,
-    chainAffinity: 1.4,
+    chainAffinity: 1.3,
     identity: "Fragile — but chains hard when it fires, for better or worse.",
   },
   {
     id: "rook", name: "Rook", role: "damage", maxHp: 85, damage: 6, attackIntervalSec: 0.9,
-    chainAffinity: 1.6,
+    chainAffinity: 1.4,
     identity: "The pool's loudest chain. Highest affinity — the biggest payoff, and the biggest backfire.",
   },
   {
     id: "vex", name: "Vex", role: "damage", maxHp: 70, damage: 11, attackIntervalSec: 1.5,
-    chainAffinity: 0.9,
+    chainAffinity: 1.0,
     identity: "Explosive burst damage, moderate chain volatility on top.",
   },
   {
     id: "cairn", name: "Cairn", role: "support", maxHp: 110, damage: 1, attackIntervalSec: 1.2, healPerBeat: 7,
-    chainAffinity: 0.3,
-    identity: "The safety net. Chains a heal instead of an attack — lowest affinity, so even a backfire (healing the enemy) stings the least.",
+    chainAffinity: 0.7,
+    identity: "The safety net. Chains a heal instead of an attack — lowest affinity, but a long chain still heals for real; a backfire still stings.",
   },
   {
     id: "ward", name: "Ward", role: "support", maxHp: 92, damage: 3, attackIntervalSec: 1.0, healPerBeat: 3,
-    attacksWhileHealing: true, chainAffinity: 1.1,
+    attacksWhileHealing: true, chainAffinity: 1.15,
     identity: "Heals AND swings on the same beat — its chain is a heal, moderate affinity either way.",
   },
 ];
@@ -107,6 +120,12 @@ export const PLAYER_HERO_POOL: HeroDef[] = [
 /** The highest chainAffinity in the pool — squadPickScreen normalizes its
  * pip display against this so the pips stay correct if the pool changes. */
 export const MAX_CHAIN_AFFINITY = Math.max(...PLAYER_HERO_POOL.map((h) => h.chainAffinity));
+/** The lowest chainAffinity in the pool (2026-08-15) — paired with
+ * MAX_CHAIN_AFFINITY so the renderer can normalize an ignition tell's
+ * intensity to "how loud is this hero's ignition, relative to the pool's
+ * range" without importing the whole pool (see render/fightView.ts's
+ * showChainStart). */
+export const MIN_CHAIN_AFFINITY = Math.min(...PLAYER_HERO_POOL.map((h) => h.chainAffinity));
 
 /** The working accept-default FIELDED squad — the comfortable comp: one
  * tank, one damage, one support, none of them the greedy pick in their role.

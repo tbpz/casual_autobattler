@@ -1,5 +1,6 @@
 import type { FightConfig } from "../sim/config.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
+import { MAX_CHAIN_AFFINITY, MIN_CHAIN_AFFINITY } from "../sim/heroes.js";
 
 interface HeroSlot {
   slot: HTMLElement;
@@ -117,6 +118,12 @@ export class FightView {
    * build time so a delayed impact (post-tracer-flight) can still scale its
    * flinch/flash by damage-as-a-fraction-of-maxHp. */
   private heroMaxHp: Map<string, number> = new Map();
+  /** Fixed for the whole fight, same as heroMaxHp above — what
+   * showChainStart reads to scale an ignition's tell to that hero's own
+   * expected magnitude (2026-08-15, chain-payoff-axis pass). Enemies are
+   * inert (1) and never chain, so this is only meaningful on the player
+   * side, but is populated for both for simplicity. */
+  private heroChainAffinity: Map<string, number> = new Map();
   private arena: HTMLElement;
   private tracerLayer: HTMLElement;
   private callout: HTMLElement;
@@ -264,6 +271,7 @@ export class FightView {
       this.heroNames.set(hero.id, hero.name);
       this.heroRoles.set(hero.id, hero.role);
       this.heroMaxHp.set(hero.id, hero.maxHp);
+      this.heroChainAffinity.set(hero.id, hero.chainAffinity);
     });
   }
 
@@ -537,13 +545,26 @@ export class FightView {
    * loud, named beat that establishes "it's THIS hero, starting NOW, and
    * it's going THIS way" before a single bonus hit has landed. No advance
    * telegraph exists before this moment (see config.ts's backfireChance
-   * docstring) — this callout and burst ARE the reveal. */
+   * docstring) — this callout and burst ARE the reveal.
+   *
+   * 2026-08-15 (chain-payoff-axis pass): the burst ring's own size now
+   * scales to this hero's chainAffinity, normalized against the pool's
+   * range (--ignite-scale, read by style.css's igniteBurst/backfireBurst
+   * keyframes) — a low-affinity ignition is a visibly smaller tell than
+   * Rook's, so the callout stops over-promising for the heroes whose
+   * chains used to be a dud. Never scales below 0.6 — every ignition is
+   * still a real tell, per the same "nothing goes silent" rule the hit-by-
+   * hit spectacle ladder follows (see showChainHit). */
   private showChainStart(heroId: string, backfire: boolean): void {
     this.anyChainFiredThisFight = true;
     const refs = this.slotFor(heroId);
     if (!refs) return;
     const label = backfire ? "BACKFIRES" : "IGNITES";
     this.showCallout(`${this.nameOf(heroId)} ${label}`, false, backfire ? "var(--backfire)" : refs.accent);
+    const affinity = this.heroChainAffinity.get(heroId) ?? MAX_CHAIN_AFFINITY;
+    const range = MAX_CHAIN_AFFINITY - MIN_CHAIN_AFFINITY || 1;
+    const igniteScale = 0.6 + 0.4 * ((affinity - MIN_CHAIN_AFFINITY) / range);
+    refs.body.style.setProperty("--ignite-scale", igniteScale.toFixed(2));
     pulseClass(refs.body, backfire ? "backfire-burst" : "ignite-burst", 500);
   }
 
@@ -595,7 +616,7 @@ export class FightView {
     const targetMap = targetIsEnemy ? this.enemyHeroes : this.playerHeroes;
     const attacker = this.playerHeroes.get(sourceId);
     const target = targetMap.get(targetId);
-    const scale = Math.min(1 + hitIndex * 0.25, 3);
+    const scale = chainPopupScale(hitIndex, this.cfg.chainFullTellThreshold);
     const chainColor = backfire ? "var(--backfire)" : kind === "heal" ? HEAL_ACCENT : (attacker?.accent ?? "var(--ignite)");
 
     if (attacker && target) {
@@ -745,6 +766,21 @@ export class FightView {
     if (fraction < 0.85 || fraction >= 1) return null;
     return `${this.nameOf(closest.id)} ENDED ${Math.round(fraction * 100)}% CHARGED — SO CLOSE`;
   }
+}
+
+/** A chain hit's damage-popup scale, tiered per the same "no chain is
+ * silent, but escalation is back-loaded" rule as the callout ladder above
+ * (2026-08-15, chain-payoff-axis pass — replaces the old continuous
+ * `1 + hitIndex * 0.25` ramp). Below fullTellThreshold, growth is
+ * deliberately sublinear — a 2-hit chain reads as "something happened,"
+ * not as a scaled-down cascade. AT fullTellThreshold, the scale jumps
+ * discontinuously — paired with the arena shake and loud callout that fire
+ * at the same threshold (see showChainHit) — so a cascade is
+ * distinguishable from a good chain without reading the damage number. */
+function chainPopupScale(hitIndex: number, fullTellThreshold: number): number {
+  if (hitIndex < fullTellThreshold) return Math.min(1 + hitIndex * 0.1, 1.5);
+  const over = hitIndex - fullTellThreshold;
+  return Math.min(2.2 + over * 0.3, 3.5);
 }
 
 /** Job counter text per role — the readout the player's squad plan is

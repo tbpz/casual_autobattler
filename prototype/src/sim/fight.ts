@@ -1,6 +1,6 @@
 import type { Rng } from "./rng.js";
 import type { FightConfig } from "./config.js";
-import { prdLookup } from "./config.js";
+import { chainEscalationFactor, prdLookup } from "./config.js";
 import type { FightSetup, HeroState, SideState } from "./types.js";
 import { sideHp, sideMaxHp } from "./types.js";
 import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "./events.js";
@@ -157,6 +157,7 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
     hitsTaken: h.hitsTaken,
     holding: h.holding,
     charge: h.charge,
+    chainAffinity: h.chainAffinity,
   }));
 }
 
@@ -310,6 +311,20 @@ function handleBruiserBeat(
  * the target side is already dead, or — heal only — already full HP); the
  * caller treats that exactly like a failed continuation roll, ending the
  * chain rather than looping on a no-op. */
+/** A chain bonus hit's damage for an ATTACKING hero (tank/damage role) at
+ * `hitIndex` — the escalation curve (config.ts's chainEscalationFactor)
+ * applies multiplicatively alongside the hero's own base damage and
+ * chainAffinity, identically whether the hit is a real payoff or a
+ * backfire. Exported (2026-08-15, chain-payoff-axis pass) so
+ * checks/chaindist.ts can verify the escalation-vs-identity design
+ * invariant against the exact same formula the fight sim uses, rather than
+ * re-deriving it and risking drift. Not valid for a healer — see
+ * resolveChainHit's heal branch, which uses healPerBeat as its base and
+ * clamps against the target's own maxHp instead. */
+export function chainAttackMagnitude(cfg: FightConfig, damage: number, chainAffinity: number, hitIndex: number): number {
+  return Math.max(1, Math.round(damage * cfg.chainHitMultiplier * chainEscalationFactor(cfg, hitIndex) * chainAffinity));
+}
+
 function resolveChainHit(
   rng: Rng,
   cfg: FightConfig,
@@ -324,8 +339,13 @@ function resolveChainHit(
     if (!target) return null;
     const room = target.maxHp - target.hp;
     if (room <= 0) return null;
-    const cap = target.maxHp * cfg.healMaxFractionOfTargetMaxHp;
-    const raw = hero.healPerBeat * cfg.chainHitMultiplier * hitIndex * hero.chainAffinity;
+    // Chain heals get their own, much higher cap than a normal heal beat
+    // (2026-08-15 — see config.ts's chainHealMaxFractionOfTargetMaxHp
+    // docstring): at the shared normal-beat cap, a support's chain was
+    // capped to single digits regardless of length — the clearest version
+    // of the "some heroes' chains are always a dud" problem this pass fixes.
+    const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
+    const raw = hero.healPerBeat * cfg.chainHitMultiplier * chainEscalationFactor(cfg, hitIndex) * hero.chainAffinity;
     const amount = Math.max(1, Math.min(raw, cap, room));
     target.hp += amount;
     // Only credit the hero's OWN restored counter on a real heal — a
@@ -335,10 +355,7 @@ function resolveChainHit(
   }
   const targetId = backfire ? pickWeightedTargetId(player, rng, cfg) : frontMostAliveId(enemy);
   if (!targetId) return null;
-  const damage = Math.max(
-    1,
-    Math.round((hero.damage + player.dpsBonus) * cfg.chainHitMultiplier * hitIndex * hero.chainAffinity),
-  );
+  const damage = chainAttackMagnitude(cfg, hero.damage + player.dpsBonus, hero.chainAffinity, hitIndex);
   const { died, applied } = applyDamageFrom(backfire ? player : enemy, targetId, damage);
   hero.dealt += applied;
   return { kind: "damage", targetId, amount: applied, died };
