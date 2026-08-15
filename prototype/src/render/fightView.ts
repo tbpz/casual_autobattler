@@ -22,13 +22,24 @@ interface HeroSlot {
    * for simplicity, styled to collapse on the enemy side (see style.css).
    * Persists and reads like an HP bar: it carries across fights (2026-08-14
    * chain rebuild — see sim/types.ts's HeroState.charge), so a near-full bar
-   * is real information at field-pick time, not just mid-fight suspense. */
+   * is real information at field-pick time, not just mid-fight suspense.
+   * A direct slot child (like hpFill), not wrapped in its own row, so its
+   * width:100% resolves against the slot rather than shrink-wrapping around
+   * a label — see 2026-08-15 chain-bar-visibility fix. */
   chargeFill: HTMLElement;
   /** Lags behind chargeFill via a longer, delayed CSS transition — same
    * device as hpGhostFill above. The one moment this matters is the chain
    * FIRING: chargeFill snaps to 0 instantly while the ghost drains behind
    * it, so the reset reads as a visible drain rather than a silent jump. */
   chargeGhostFill: HTMLElement;
+  /** The CHAIN bar's own readout line, under the track — same role as
+   * hpLabel above ("132/220" vs. "75/195"). */
+  chargeLabel: HTMLElement;
+  /** The last fraction actually rendered into chargeFill's width, so
+   * updateSide can tell a rise (creep, via --charge-rise) from a fire-reset
+   * (must stay instant) without reading any chain-specific snapshot flag —
+   * see the .charge-fill.instant device in style.css. */
+  lastChargeFraction: number;
   /** This hero's stable identity colour — the attribution channel (see the
    * "make attacks and heals attributable" plan). Distinct from the side's
    * blue/red body fill, which stays reserved for the who's-winning read. */
@@ -205,10 +216,16 @@ export class FightView {
     this.popupLayer.innerHTML = "";
     this.tracerLayer.innerHTML = "";
     this.arena.classList.remove("shake", "chain-live", "chain-backfire");
-    for (const { body, status } of [...this.playerHeroes.values(), ...this.enemyHeroes.values()]) {
-      body.classList.remove("down", "hot", "lunge", "flinch", "healed", "broken", "charging");
-      body.querySelectorAll(".impact-flash").forEach((el) => el.remove());
-      status.classList.remove("show");
+    for (const refs of [...this.playerHeroes.values(), ...this.enemyHeroes.values()]) {
+      refs.body.classList.remove("down", "hot", "lunge", "flinch", "healed", "broken", "charging");
+      refs.body.querySelectorAll(".impact-flash").forEach((el) => el.remove());
+      refs.status.classList.remove("show");
+      // Drop back to 0 without animating the sweep — a restart isn't a fire,
+      // so it must skip --charge-rise entirely, not play it backwards.
+      refs.chargeFill.classList.add("instant");
+      refs.chargeFill.style.width = "0%";
+      refs.chargeGhostFill.style.width = "0%";
+      refs.lastChargeFraction = 0;
     }
   }
 
@@ -275,8 +292,16 @@ export class FightView {
       // Enemies also carry a charge field but it's never read for firing, so
       // their bar stays empty; CSS collapses it on the enemy side regardless.
       const chargeFraction = this.cfg.chargeThreshold > 0 ? Math.min(hero.charge / this.cfg.chargeThreshold, 1) : 0;
+      // 2026-08-15 chain-bar-visibility fix: a rise should CREEP (see
+      // --charge-rise in style.css) but a fire-reset must stay instant, same
+      // as HP's own ghost-gap device. Comparing against the last value we
+      // actually rendered (rather than snapshot.hotHeroId) means this also
+      // does the right thing on restart()/scrub-backwards for free.
+      refs.chargeFill.classList.toggle("instant", chargeFraction < refs.lastChargeFraction);
       refs.chargeFill.style.width = `${(chargeFraction * 100).toFixed(1)}%`;
       refs.chargeGhostFill.style.width = `${(chargeFraction * 100).toFixed(1)}%`;
+      refs.lastChargeFraction = chargeFraction;
+      refs.chargeLabel.textContent = `CHAIN ${Math.round(hero.charge)}/${Math.round(this.cfg.chargeThreshold)}`;
       // Near-full pulse (2026-08-14) — the dread beat: the player feels the
       // bar closing in on firing without knowing which way it'll go.
       refs.chargeFill.classList.toggle("near-full", chargeFraction >= 0.85 && chargeFraction < 1);
@@ -676,16 +701,14 @@ function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: stri
   const counter = document.createElement("div");
   counter.className = "job-counter";
 
-  // Charge (CHAIN) bar (2026-08-14 chain rebuild) — built for every slot for
-  // simplicity; style.css collapses it on the enemy side, since only the
-  // player's charge ever fires a chain. Reads like the HP bar above: a real
-  // fill on top of a delayed ghost fill, so the reset-to-zero on firing
-  // drains visibly instead of snapping.
-  const chargeRow = document.createElement("div");
-  chargeRow.className = "charge-row";
-  const chargeLabel = document.createElement("span");
-  chargeLabel.className = "charge-label";
-  chargeLabel.textContent = "CHAIN";
+  // Charge (CHAIN) bar (2026-08-14 chain rebuild, restructured 2026-08-15 for
+  // visibility) — built for every slot for simplicity; style.css collapses
+  // it on the enemy side, since only the player's charge ever fires a chain.
+  // A direct slot child, same shape as hpTrack/hpLabel above (NOT wrapped in
+  // a row with its label — a shrink-to-fit row squeezed width:100% to zero,
+  // which is why this bar previously rendered invisibly). Reads like the HP
+  // bar: a real fill on top of a delayed ghost fill, so the reset-to-zero on
+  // firing drains visibly instead of snapping.
   const chargeTrack = document.createElement("div");
   chargeTrack.className = "charge-track";
   const chargeGhostFill = document.createElement("div");
@@ -694,17 +717,34 @@ function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: stri
   const chargeFill = document.createElement("div");
   chargeFill.className = "charge-fill";
   chargeTrack.appendChild(chargeFill);
-  chargeRow.appendChild(chargeLabel);
-  chargeRow.appendChild(chargeTrack);
+
+  const chargeLabel = document.createElement("div");
+  chargeLabel.className = "charge-label";
+  chargeLabel.textContent = "CHAIN";
 
   slot.appendChild(body);
   slot.appendChild(name);
   slot.appendChild(hpTrack);
   slot.appendChild(hpLabel);
-  slot.appendChild(chargeRow);
+  slot.appendChild(chargeTrack);
+  slot.appendChild(chargeLabel);
   slot.appendChild(counter);
 
-  return { slot, body, hpFill, hpGhostFill, hpLabel, chargeFill, chargeGhostFill, counter, status, accent, offsetIndex };
+  return {
+    slot,
+    body,
+    hpFill,
+    hpGhostFill,
+    hpLabel,
+    chargeFill,
+    chargeGhostFill,
+    chargeLabel,
+    lastChargeFraction: 0,
+    counter,
+    status,
+    accent,
+    offsetIndex,
+  };
 }
 
 /** Adds `className` to `el`, then removes it after `ms` — restarting the

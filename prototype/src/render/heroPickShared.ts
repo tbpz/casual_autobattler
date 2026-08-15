@@ -19,7 +19,11 @@ export function chainAffinityPips(affinity: number): string {
  * .charge-track/.charge-fill in style.css), so a player recognizes it
  * instantly. Only meaningful where live `charge` exists (fieldPickScreen —
  * charge persists across fights, see sim/types.ts's HeroState.charge); the
- * run-start draft has no charge yet, so squadPickScreen doesn't use this. */
+ * run-start draft has no charge yet, so squadPickScreen doesn't use this.
+ * Unlike the in-fight bar, this one is static — built once via innerHTML at
+ * its final width, no transition ever plays (see .hero-pick-charge-row's
+ * fixed-width override in style.css) — a pick row doesn't need to animate a
+ * value that was already true before the screen opened. */
 export function chargeBarHtml(charge: number, threshold: number): string {
   const pct = threshold > 0 ? Math.max(0, Math.min(100, Math.round((charge / threshold) * 100))) : 0;
   return `
