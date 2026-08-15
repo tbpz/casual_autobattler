@@ -10,6 +10,87 @@
 
 ---
 
+## [2026-08-15] Run-to-run depth comes from an expanding option pool, not a difficulty ladder
+
+- **Decision:**
+  - The answer to "nothing left to explore after a few runs" is widening the space a run draws from, not re-posing fixed content as a harder question.
+  - Three depth sources are endorsed, in order: encounters (the question), offers/modifiers (the tools), heroes (the pieces).
+  - A difficulty ladder (Ascension/stakes/Heat-style) is deferred, not rejected — reconsidered once the space beneath it is wide.
+  - Tiered, magnitude-scaled feedback is adopted alongside it in its surgical form only, never as the primary answer.
+  - This build is scoped to encounters, the chain's payoff axis, and the feedback defects; an offer system is a separate future build.
+- **Why:**
+  - Diagnosed cause: only 6 distinct drafts existed and the fight order was fixed, so two runs where the player makes the same 11 taps differed only by the seed.
+  - The 2026-07-24 entry already established that dread arrives when the decision space is fully mapped, not when the dice go quiet.
+  - A ladder needs a large space beneath it: Ascension works in Slay the Spire because 350+ cards sit underneath, and over a space mapped in 6 runs it only yields the same solved run played tighter.
+  - Expanding the pool passes the 2026-07-26 fake-decision filter on all three counts.
+  - Tu re-derived the pattern himself ("offer only tokens never seen at setup, capped to 3, revealed gradually").
+- **Caveat:**
+  - Pre-play. Verified only that the first widening builds and measures (`npm run check`, `npm run batch`); nothing is judged against prototype #1's completion criteria.
+  - This records a direction chosen from a diagnosis, not a result confirmed by play.
+
+---
+
+## [2026-08-15] The run's fights are drawn from a tiered encounter deck, not a fixed sequence
+
+- **Decision:**
+  - A run draws its fights from an authored pool tiered early/mid/finale, instead of playing one fixed order every time.
+  - The pool is wider than a single run: six new encounters join the original five — contents live in `sim/encounters.ts`.
+  - `encounterOrderFor(seed, fightsPerRun)` samples without replacement within each tier.
+  - The draw runs on its own RNG stream (`seed ^ 0x9e3779b9`), separate from the run's fight-resolution stream.
+  - The drawn order threads through `RunSession`, the headless `runRun`, and both previews, so batch measures the real distribution and what is previewed is what is fought.
+  - An encounter may override the wind-up interval and give the enemy a per-beat heal, so a new shape asks a different question instead of restating an old one bigger.
+- **Why:**
+  - A fixed order is memorizable — the field pick stops being a live read once the answer is known in advance.
+  - Tiering is structural, not cosmetic: an untiered shuffle can open a run on the finale, making the difficulty ramp meaningless.
+  - The separate stream is deliberate — drawing from the run's shared stream would shift every downstream roll and make existing seeds and prior tuning incomparable.
+  - Shipped in `b0c78a1`.
+- **Replaces:**
+  - Supersedes the fixed `encounterFor(fightIndex)` lookup from the 2026-08-09 authored-encounters entry; that pass's authored shapes stand, only the order becomes drawn.
+- **Caveat:**
+  - Pre-play. Verified: `npm run check`, `npm run build`, `npm run batch`, and one live click-through where fights 1 and 2 drew two different early-tier encounters with the preview matching the enemy fought.
+  - Not verified: any played run, or the criterion this pass exists to satisfy — "after 6 runs, is there still something you haven't tried?"
+
+---
+
+## [2026-08-15] The chain's payoff spread moves from hero identity to chain length
+
+- **Decision:**
+  - How long a chain runs — decided live, hit by hit — is the dominant source of payoff spread.
+  - Hero identity (`chainAffinity`) is compressed to a tilt on magnitude, not the deciding factor.
+  - Escalation is back-loaded: linear early, steepening past a knee hit (`chainEscalationFactor`, `chainEscalationKneeHit`, `chainEscalationStepMultiplier` in `sim/config.ts`).
+  - Chain frequency is untouched — this pass moves where a chain's size is decided, not how often one fires.
+  - A chain heal gets its own higher cap than a normal heal beat, so a long support chain reads as a real event rather than a slightly bigger tick.
+- **Why:**
+  - Measured pre-pass: a 7-hit chain was 269 damage for Rook and single digits for Cairn — payoff was knowable at draft time, so the suspense was spent before the dice were rolled.
+  - Verified analytically after the pass (`checks/chaindist.ts`): worst-case per-hero length ratio 39x, against an identity ratio of only 2.1x at fixed length.
+  - The escalation change alone pushed run completion to ~30.9%; retuning backfire chance held completion within about a point of the pre-pass ~28-30% baseline, measured at n=1500.
+  - Shipped in `5ebdbff`.
+- **Replaces:**
+  - Supersedes the flat, `hitIndex`-linear chain-damage formula from the 2026-08-07 fight-causality-rebuild entry, which did not separate identity spread from length spread.
+- **Caveat:**
+  - Pre-play. Verified: the in-fight chain HUD's math against hand-calculated escalation values, plus one observed chain-saved-the-fight moment in a partial session.
+  - Not verified: a full played run judged against prototype #1's completion criteria — whether a long chain *feels* categorically bigger is untested.
+
+---
+
+## [2026-08-15] Chain spectacle gets an intermediate tier, and scales to the firing hero
+
+- **Decision:**
+  - A chain hit below the tell threshold still gets only a slightly bigger number — no callout, same as before this pass.
+  - A new intermediate tier now exists: a callout starts at a lower chain-length threshold than the full shake-and-loud-callout spectacle, so a short-but-real chain reads as more than nothing without triggering the full show.
+  - The full-spectacle threshold itself moves up to match the length axis's own escalation knee, so the mechanical jump and the visual jump land on the same hit — current value lives in `sim/config.ts`.
+  - The ignition callout's visual intensity now scales continuously to the firing hero's own `chainAffinity` — new; the pre-pass tell was uniform regardless of which hero ignited.
+- **Why:**
+  - Once chain length carries the payoff spread (see the entry above), a single binary spectacle gate can't distinguish a modest chain from a huge one — an intermediate tier and a hero-scaled tell are what let a short chain read as something without overselling it.
+  - The full-spectacle trigger stays pinned to the same length a batch metric already tracks (`batch/report.ts`'s chain-length-5-plus fraction) — a self-consistency guard carried forward from the 2026-08-06 pass at the new threshold, so a future retune can't silently let the visual claim drift from the measured reality.
+- **Replaces:**
+  - Extends, not reverses, the 2026-08-06 "spectacle gated on chain length" entry — that entry established one length gate (3+ hits) for full spectacle with no intermediate tier and no per-hero scaling; this pass adds both and moves the gate to match the new payoff-axis escalation knee.
+- **Caveat:**
+  - Pre-play. Verified mechanically only — the thresholds fire in code and the batch metric tracks the same length.
+  - Not verified: whether the two registers actually read as distinct to a player, which is the entire claim this pass makes.
+
+---
+
 ## [2026-08-15] Chain rebuild: persistent charge bar replaces heat/ignition-roll; backfire coin flip replaces gift-flow
 
 - **Decision:**
