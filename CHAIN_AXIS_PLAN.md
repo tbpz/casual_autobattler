@@ -4,7 +4,7 @@
 > *"Read `CHAIN_AXIS_PLAN.md` and execute it, starting from Chunk 3."*
 > Then read `STATE.md` per `CLAUDE.md`'s READ protocol before touching code.
 >
-> **Status as of 2026-08-15:** Chunks 1 and 2 are done and committed (`b560ed5`, `5ebdbff` on `main`). Chunk 1 is pushed to `origin/main`; Chunk 2 is committed locally but **not yet pushed** — check `git status`/`git log origin/main..main` before assuming otherwise. Chunk 3 (the encounter deck) has not been started. Working tree was clean at last check except an untracked `prototype/image.png`, unrelated to this build — leave it alone unless asked.
+> **Status as of 2026-08-15:** Chunks 1 and 2 are done, committed, and pushed to `origin/main` (`b560ed5`, `5ebdbff`) — confirm with `git log origin/main..main` before assuming otherwise. Chunk 3 (the encounter deck) has not been started. Working tree was clean at last check except an untracked `prototype/image.png`, unrelated to this build — leave it alone unless asked.
 
 ## Context
 
