@@ -4,7 +4,7 @@
 > *"Read `CHAIN_AXIS_PLAN.md` and execute it, starting from Chunk 3."*
 > Then read `STATE.md` per `CLAUDE.md`'s READ protocol before touching code.
 >
-> **Status as of 2026-08-15:** Chunks 1 and 2 are done, committed, and pushed to `origin/main` (`b560ed5`, `5ebdbff`) — confirm with `git log origin/main..main` before assuming otherwise. Chunk 3 (the encounter deck) has not been started. Working tree was clean at last check except an untracked `prototype/image.png`, unrelated to this build — leave it alone unless asked.
+> **Status as of 2026-08-15:** All three chunks are done and committed on `main` (`b560ed5`, `5ebdbff`, `b0c78a1`) — confirm with `git log origin/main..main` before assuming otherwise, since push status isn't tracked here. Chunk 3 (the encounter deck) shipped as an 11-encounter tiered pool (5 original + 6 new: Anvil, Ambush, Duelist, Warden, Glass Pair, Vanguard), drawn per run via `encounterOrderFor`. Not yet played/judged in this form — see this file's "Verify" step and the decision-protocol candidates at the bottom, still open pending a played verdict.
 
 ## Context
 
@@ -67,7 +67,7 @@ Sequenced for **interruption safety**, not design priority — each chunk ends w
 |---|---|---|---|
 | **1** | Feedback defects | **DONE** | `b560ed5` (pushed) |
 | **2** | Chain payoff axis + spectacle curve | **DONE** | `5ebdbff` (local only — not pushed as of 2026-08-15) |
-| **3** | Encounter deck | **NOT STARTED** | — |
+| **3** | Encounter deck | **DONE** | `b0c78a1` |
 
 Chunk 3 is the largest and the worst one to be interrupted inside — item 3.5 changes a signature used by five files. Start it only with quota headroom; if unsure, do 3.1–3.3 (additive, nothing breaks) and stop before 3.4. **Commit after finishing, or after 3.1–3.3 if stopping early.**
 
