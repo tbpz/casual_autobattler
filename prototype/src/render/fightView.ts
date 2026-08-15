@@ -133,6 +133,19 @@ export class FightView {
   /** Cycles a small vertical jitter across popups so near-simultaneous
    * numbers on the same target don't land on the exact same baseline. */
   private popupSeq = 0;
+  /** Player-side HP fraction as of the last tick rendered — the margin
+   * signal showResolve tiers a win by (2026-08-15). Updated every render()
+   * call rather than read off the resolve event itself, since `resolve`
+   * only carries outcome/reason (sim/events.ts), not a margin. */
+  private lastPlayerHpFraction = 1;
+  /** The most recent tick's player hero snapshots — what showResolve's
+   * near-miss check reads to find whoever ended closest to a chain without
+   * firing one (2026-08-15). */
+  private lastPlayerHeroes: HeroSnapshot[] = [];
+  /** True once any chain has fired this fight (2026-08-15) — gates the
+   * near-miss beat so it never competes with a chain that actually landed;
+   * "so close" only means something when nothing else already happened. */
+  private anyChainFiredThisFight = false;
 
   constructor(container: HTMLElement, cfg: FightConfig) {
     this.cfg = cfg;
@@ -200,6 +213,9 @@ export class FightView {
     this.updateSide(this.playerHeroes, snapshot.playerHeroes, snapshot);
     this.updateSide(this.enemyHeroes, snapshot.enemyHeroes, snapshot);
 
+    this.lastPlayerHpFraction = snapshot.playerMaxHp > 0 ? snapshot.playerHp / snapshot.playerMaxHp : 0;
+    this.lastPlayerHeroes = snapshot.playerHeroes;
+
     for (const e of eventsThisTick) {
       this.handleEvent(e);
     }
@@ -216,6 +232,9 @@ export class FightView {
     this.popupLayer.innerHTML = "";
     this.tracerLayer.innerHTML = "";
     this.arena.classList.remove("shake", "chain-live", "chain-backfire");
+    this.lastPlayerHpFraction = 1;
+    this.lastPlayerHeroes = [];
+    this.anyChainFiredThisFight = false;
     for (const refs of [...this.playerHeroes.values(), ...this.enemyHeroes.values()]) {
       refs.body.classList.remove("down", "hot", "lunge", "flinch", "healed", "broken", "charging");
       refs.body.querySelectorAll(".impact-flash").forEach((el) => el.remove());
@@ -331,6 +350,9 @@ export class FightView {
         break;
       case "chainEnd":
         this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.killedIds, e.backfire);
+        break;
+      case "heroDown":
+        this.showHeroDown(e.heroId);
         break;
       case "windupStart":
         this.showWindupStart(e.targetId);
@@ -493,12 +515,31 @@ export class FightView {
     }
   }
 
+  /** A hero's death — the moment, not just the ongoing `.down` dim that
+   * updateSide applies every tick once !alive (2026-08-15). In a game whose
+   * whole stake is permanent death, a death that produces no callout reads
+   * as if it didn't matter. Deliberately quieter than a chain payoff (muted
+   * callout, no shake) but louder than a tank-break status line (the shared
+   * arena callout, not just that hero's own row) — a death is common enough
+   * to need its own register, distinct from both. */
+  private showHeroDown(heroId: string): void {
+    const refs = this.slotFor(heroId);
+    const name = this.nameOf(heroId);
+    this.showCallout(`${name} FALLS`, true, "var(--muted)");
+    if (refs) {
+      refs.body.style.setProperty("--flinch-scale", "1");
+      pulseClass(refs.body, "flinch", 300);
+      this.showImpactFlash(refs.body, 1);
+    }
+  }
+
   /** A named hero's bar fills and fires (2026-08-14 chain rebuild) — the
    * loud, named beat that establishes "it's THIS hero, starting NOW, and
    * it's going THIS way" before a single bonus hit has landed. No advance
    * telegraph exists before this moment (see config.ts's backfireChance
    * docstring) — this callout and burst ARE the reveal. */
   private showChainStart(heroId: string, backfire: boolean): void {
+    this.anyChainFiredThisFight = true;
     const refs = this.slotFor(heroId);
     if (!refs) return;
     const label = backfire ? "BACKFIRES" : "IGNITES";
@@ -648,12 +689,61 @@ export class FightView {
     return popup;
   }
 
+  /** Tiers a WIN by remaining player HP fraction as of the final tick
+   * (2026-08-15) — "flawless" and "narrow" are both real information: a win
+   * that cost nothing and a win that nearly wasn't are different outcomes,
+   * and the old binary overlay showed them identically. A loss stays
+   * untiered — the runOverScreen recap (runScreens.ts) is where a lost
+   * fight gets its account, not this overlay. Also fires the near-miss beat
+   * (a hero who ended charged but never fired) into the same overlay via a
+   * `.margin-note` line, since the fight is definitively over at this point
+   * and nothing later in the fight view will show it. */
   private showResolve(outcome: "win" | "loss"): void {
-    this.resolveOverlay.textContent = outcome === "win" ? "VICTORY" : "DEFEAT";
-    this.resolveOverlay.className = `resolve-overlay show ${outcome}`;
+    const tier = outcome === "win" ? this.winMarginTier() : null;
+    const label = tier === "flawless" ? "FLAWLESS VICTORY" : outcome === "win" ? "VICTORY" : "DEFEAT";
+    this.resolveOverlay.innerHTML = label;
+    const note = this.nearMissNote();
+    if (note) {
+      const noteEl = document.createElement("span");
+      noteEl.className = "margin-note";
+      noteEl.textContent = note;
+      this.resolveOverlay.appendChild(noteEl);
+    } else if (tier === "narrow") {
+      const noteEl = document.createElement("span");
+      noteEl.className = "margin-note";
+      noteEl.textContent = `WON WITH ${Math.round(this.lastPlayerHpFraction * 100)}% OF THE SQUAD'S HP LEFT`;
+      this.resolveOverlay.appendChild(noteEl);
+    }
+    this.resolveOverlay.className = `resolve-overlay show ${outcome}${tier ? ` ${tier}` : ""}`;
     for (const { body } of this.playerHeroes.values()) {
       body.classList.remove("hot");
     }
+  }
+
+  private winMarginTier(): "flawless" | "narrow" | null {
+    if (this.lastPlayerHpFraction >= 0.85) return "flawless";
+    if (this.lastPlayerHpFraction < 0.25) return "narrow";
+    return null;
+  }
+
+  /** Whoever ended the fight closest to firing without doing so, if they
+   * were above ~85% charged and no chain fired at all this fight — the
+   * dread beat's unresolved half. Silent once any chain fired (a real
+   * payoff already happened; a second hero's near-miss would only compete
+   * with it) or if nobody got close. */
+  private nearMissNote(): string | null {
+    if (this.anyChainFiredThisFight) return null;
+    const threshold = this.cfg.chargeThreshold;
+    if (threshold <= 0) return null;
+    let closest: HeroSnapshot | undefined;
+    for (const hero of this.lastPlayerHeroes) {
+      if (!hero.alive) continue;
+      if (!closest || hero.charge > closest.charge) closest = hero;
+    }
+    if (!closest) return null;
+    const fraction = closest.charge / threshold;
+    if (fraction < 0.85 || fraction >= 1) return null;
+    return `${this.nameOf(closest.id)} ENDED ${Math.round(fraction * 100)}% CHARGED — SO CLOSE`;
   }
 }
 

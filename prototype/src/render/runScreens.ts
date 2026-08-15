@@ -184,11 +184,25 @@ export function renderSpendScreen(
  * outright, or the living roster falling below cfg.playerN so the next
  * fight can't even be fielded. They read very differently to a player
  * ("we got wiped" vs. "we ran out of people to send"), so the copy splits
- * on it rather than lumping both under one generic message. */
+ * on it rather than lumping both under one generic message.
+ *
+ * 2026-08-15: on a "loss" over-reason, `lastFightResult`/`lastProjection`
+ * are the fight that was actually lost — RunSession.playNextFight stashes
+ * both before it can know the outcome, so they're populated the same way a
+ * won fight's spend screen already gets them. Reused here via the same
+ * fightRecap/chainRecapLine/noChainRecapLine/spareLine helpers so a lost
+ * run explains itself instead of ending on one flat sentence — the
+ * loser-friendly pattern this project's research on run-to-run thinness
+ * named directly. Not shown for "rosterExhausted": that reason follows a
+ * WIN (the last fight's own recap already played on its spend screen), so
+ * there's nothing to explain about the roster running dry beyond the
+ * existing sentence. */
 export function renderRunOverScreen(
   container: HTMLElement,
   fightsWon: number,
   overReason: "loss" | "rosterExhausted" | null,
+  lastFightResult: FightResult | null,
+  lastProjection: Projection | null,
   onRetry: () => void,
 ): void {
   container.innerHTML = "";
@@ -200,6 +214,40 @@ export function renderRunOverScreen(
       ? `Your roster couldn't field a full squad ${wonNote} — too many fallen. All coin is lost.`
       : `Your fielded squad was wiped ${wonNote}. All coin is lost.`;
   screen.innerHTML = `<h1>Run over</h1><p>${body}</p>`;
+
+  if (overReason === "loss" && lastFightResult) {
+    const recap = document.createElement("div");
+    recap.className = "recap";
+    for (const line of fightRecap(lastFightResult)) {
+      const p = document.createElement("p");
+      p.textContent = line;
+      recap.appendChild(p);
+    }
+    const spare = document.createElement("p");
+    spare.className = "recap-spare";
+    spare.textContent = spareLine(lastFightResult, lastProjection);
+    recap.appendChild(spare);
+    screen.appendChild(recap);
+
+    if (lastFightResult.ignited) {
+      const chainLine = chainRecapLine(lastFightResult);
+      if (chainLine) {
+        const tag = document.createElement("p");
+        tag.className = chainLine.backfire ? "recap-chain backfire" : "recap-chain";
+        tag.textContent = chainLine.text;
+        screen.appendChild(tag);
+      }
+    } else {
+      const missLine = noChainRecapLine(lastFightResult);
+      if (missLine) {
+        const tag = document.createElement("p");
+        tag.className = "recap-miss";
+        tag.textContent = missLine;
+        screen.appendChild(tag);
+      }
+    }
+  }
+
   const retry = document.createElement("button");
   retry.textContent = "New run";
   retry.addEventListener("click", onRetry);

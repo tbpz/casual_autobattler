@@ -88,7 +88,14 @@ export function mountApp(root: HTMLElement): void {
     // before the screen changes underneath it.
     setTimeout(() => {
       if (session.status === "over") {
-        renderRunOverScreen(root, session.fights.length, session.overReason, startNewRun);
+        renderRunOverScreen(
+          root,
+          session.fights.length,
+          session.overReason,
+          session.lastFightResult,
+          session.lastProjection,
+          startNewRun,
+        );
         return;
       }
       renderSpendScreen(
@@ -116,7 +123,14 @@ export function mountApp(root: HTMLElement): void {
     // sim/run.ts's runRun does). Distinct from a fight LOSS, which
     // onFightEnd already caught before the spend screen was ever shown.
     if (session.status === "over") {
-      renderRunOverScreen(root, session.fights.length, session.overReason, startNewRun);
+      renderRunOverScreen(
+        root,
+        session.fights.length,
+        session.overReason,
+        session.lastFightResult,
+        session.lastProjection,
+        startNewRun,
+      );
       return;
     }
     showFieldPickScreen();

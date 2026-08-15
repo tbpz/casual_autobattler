@@ -763,6 +763,26 @@ body {
   color: var(--enemy);
 }
 
+/* Margin tiers on a win (2026-08-15) — deliberately subtle: a bigger font
+   and a soft glow for flawless, nothing louder than that, so the resolve
+   overlay never competes with a 5+ chain's own shake/callout tier (see
+   fightView.ts's chain spectacle ladder). A narrow win gets no visual
+   change here — the near-miss/margin story belongs to the text ("N HP left")
+   showResolve appends, not a second font size. */
+.resolve-overlay.flawless {
+  font-size: 2.7em;
+  text-shadow: 0 0 18px currentColor;
+}
+
+.resolve-overlay .margin-note {
+  display: block;
+  margin-top: 0.3em;
+  font-size: 0.42em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+
 .resolve-overlay.hidden {
   display: none;
 }
