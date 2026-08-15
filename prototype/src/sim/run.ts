@@ -5,7 +5,7 @@ import { sideHp, sideMaxHp } from "./types.js";
 import { runFight } from "./fight.js";
 import type { FightResult } from "./events.js";
 import { applyFightResultToRoster, canFieldSquad, defaultFieldPick, fieldSquad, type RosterState } from "./roster.js";
-import { makeEncounterEnemySide } from "./encounters.js";
+import { encounterOrderFor, makeEncounterEnemySide } from "./encounters.js";
 
 export type SpendChoice = "heal" | "upgrade" | "skip";
 
@@ -177,6 +177,12 @@ export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number
 
   const fights: FightSummary[] = [];
   const fightResults: FightResult[] = [];
+  // 2026-08-15 (encounter-deck pass): the headless driver draws the same
+  // fight order an interactive run would (render/runSession.ts) — see
+  // encounterOrderFor's own docstring for why this uses a separate RNG
+  // stream, keyed off the same seed — so a batch sweep measures the real
+  // drawn distribution, not the old fixed 5-fight sequence.
+  const encounterOrder = encounterOrderFor(seed, cfg.fightsPerRun);
 
   for (let i = 0; i < cfg.fightsPerRun; i++) {
     if (!canFieldSquad(roster, cfg.playerN)) {
@@ -185,7 +191,7 @@ export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number
 
     const fieldedIds = defaultFieldPick(roster, cfg.playerN);
     const player = fieldSquad(roster, fieldedIds);
-    const enemy = makeEncounterEnemySide(cfg, i);
+    const enemy = makeEncounterEnemySide(cfg, i, encounterOrder[i]);
 
     const setup: FightSetup = { player, enemy };
     const result = runFight(setup, cfg.fight, rng, seed);

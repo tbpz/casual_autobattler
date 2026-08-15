@@ -8,6 +8,7 @@ import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
 import { runFight } from "../sim/fight.js";
 import { makePlayerSide } from "../sim/heroes.js";
 import { makePolicy, makeEnemySide, runRun } from "../sim/run.js";
+import { encounterOrderFor } from "../sim/encounters.js";
 
 let failed = false;
 
@@ -57,6 +58,27 @@ check(
   JSON.stringify(runA.fights) === JSON.stringify(runB.fights),
 );
 check("run: same seed -> identical outcome", runA.outcome === runB.outcome && runA.finalCoin === runB.finalCoin);
+
+// Encounter-order determinism (2026-08-15, encounter-deck pass — see
+// sim/encounters.ts's encounterOrderFor docstring): the draw is new
+// same-seed state runRun and RunSession both depend on, so it needs its own
+// direct pin rather than relying only on the run-level checks above to catch
+// a regression indirectly.
+const orderA = encounterOrderFor(seed, cfg.fightsPerRun);
+const orderB = encounterOrderFor(seed, cfg.fightsPerRun);
+check("encounter order: same seed -> identical draw", JSON.stringify(orderA) === JSON.stringify(orderB));
+check("encounter order: draws fightsPerRun indices", orderA.length === cfg.fightsPerRun);
+
+let orderDivergence = false;
+for (let i = 0; i < 10; i++) {
+  const a = encounterOrderFor(1000 + i, cfg.fightsPerRun);
+  const b = encounterOrderFor(2000 + i, cfg.fightsPerRun);
+  if (JSON.stringify(a) !== JSON.stringify(b)) {
+    orderDivergence = true;
+    break;
+  }
+}
+check("encounter order: different seeds -> at least one pair diverges", orderDivergence);
 
 if (failed) {
   console.error("\ndeterminism check FAILED");

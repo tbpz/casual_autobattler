@@ -204,10 +204,26 @@ const DEFAULT_DRAFT = ["bracer", "hollow", "rook", "cairn", "ward"];
   // comment on that field for why completion drifted up in the first
   // place). Measured 29.60% at n=1500, seed base 70_000 — within a point
   // and a half of the same ~28% baseline.
+  //
+  // 2026-08-15 (encounter-deck pass, CHAIN_AXIS_PLAN.md Chunk 3): this fixed
+  // seed range now draws from the wider 11-encounter pool (encounterOrderFor)
+  // instead of the fixed 5-fight sequence — completion moved to 23.80%,
+  // still inside this band, so left as-is. The band itself stays a
+  // batch-tuning knob, not a value to defend for its own sake — see this
+  // file's own "not asserted from memory" discipline above.
   between("default draft (always-heal): run completion", primary.runCompletionRate, 0.15, 0.4);
   between("default draft (always-heal): dip rate", primary.dipRate, 0.08, 0.3);
   between("default draft (always-heal): chain rate", primary.chainRate, 0.6, 0.95);
-  between("default draft (always-heal): full-spectacle rate", primary.fullSpectacleRate, 0.3, 0.65);
+  // Lower bound moved 0.3 -> 0.2 (2026-08-15, encounter-deck pass): measured
+  // 27.82% at n=1500, seed base 70_000, once fights draw from the wider pool
+  // — the RC1 guard directly above/below (fullSpectacleRate tracks
+  // fractionFightsWithChain5Plus) still holds at 0.00% diff, so this is a
+  // real population shift (a wider mix of fight shapes, including gentler
+  // ones like Anvil, changes how often a chain reaches the full-spectacle
+  // tier), not a broken spectacle trigger. Same discipline as the run-
+  // completion comment above: move the band to match reality, don't paper
+  // over a real measurement.
+  between("default draft (always-heal): full-spectacle rate", primary.fullSpectacleRate, 0.2, 0.65);
   const spectacleGuardDiff = Math.abs(primary.fullSpectacleRate - primary.fractionFightsWithChain5Plus);
   between("default draft (always-heal): full-spectacle rate tracks chain>=5 across all fights (RC1 guard)", spectacleGuardDiff, 0, 0.02);
   between("default draft (always-heal): wins with no chain (big win, not only win)", primary.fractionWinsWithNoChain, 0.15, 0.45);
@@ -357,11 +373,20 @@ const DEFAULT_DRAFT = ["bracer", "hollow", "rook", "cairn", "ward"];
 
   between(`no dominant draft: max completion (${maxDraft})`, maxRate, 0, 0.45);
   between(`no trap pick: floor across the other 4 drafts (${minNonTrapDraft})`, minNonTrapRate, 0.05, 1.0);
+  // Threshold moved 0.1 -> 0.15 (2026-08-15, encounter-deck pass): drawing
+  // from the wider pool nudged leave-out=bracer up to 11.5% (was comfortably
+  // under 10% against the fixed 5-fight sequence) — still clearly "extreme"
+  // against the ~19-24% floor the other 4 drafts clear (see the "no trap
+  // pick" band above), just not under the old hard 10% cutoff. Per this
+  // check's own docstring, the real trigger for revisiting the trap-draft
+  // finding is rising "well above ~10%", not crossing exactly 10% by a
+  // point — 0.15 keeps the check meaningful without asserting a precision
+  // this measurement doesn't have.
   for (const leaveOut of TRAP_DRAFTS) {
     check(
       `known extreme-risk draft stays extreme (leave-out=${leaveOut}, single tank)`,
-      (trapRates[leaveOut] ?? 1) < 0.1,
-      `completion=${((trapRates[leaveOut] ?? 1) * 100).toFixed(1)}% — if this rises well above ~10%, its docstring note above needs revisiting`,
+      (trapRates[leaveOut] ?? 1) < 0.15,
+      `completion=${((trapRates[leaveOut] ?? 1) * 100).toFixed(1)}% — if this rises well above ~15%, its docstring note above needs revisiting`,
     );
   }
 }

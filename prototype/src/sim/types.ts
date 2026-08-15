@@ -69,6 +69,13 @@ export interface HeroState {
   /** Enemy bruiser only: sim-clock time of this hero's next wind-up charge
    * start. Undefined for every other role. */
   nextWindupT?: number;
+  /** Enemy bruiser only (2026-08-15, encounter-deck pass — see
+   * sim/encounters.ts's EncounterBruiser.windupIntervalSec): per-bruiser
+   * override of cfg.fight.windupIntervalSec, read by fight.ts's
+   * handleBruiserBeat when it reschedules nextWindupT after a charge
+   * resolves. Undefined falls back to the shared cfg value, so every
+   * pre-existing bruiser (no override authored) behaves exactly as before. */
+  windupIntervalSec?: number;
   /** Set only while charging (telegraphed) — the sim-clock time the wind-up
    * fires. Undefined when not charging. */
   windupFireT?: number;

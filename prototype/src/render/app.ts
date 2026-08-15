@@ -1,7 +1,6 @@
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
 import type { SpendChoice } from "../sim/run.js";
 import { fieldSquad } from "../sim/roster.js";
-import { encounterNameFor } from "../sim/encounters.js";
 import { FightView } from "./fightView.js";
 import { Playback } from "./playback.js";
 import { RunSession } from "./runSession.js";
@@ -31,16 +30,24 @@ export function mountApp(root: HTMLElement): void {
   }
 
   function showFieldPickScreen(): void {
-    const encounterName = encounterNameFor(session.currentFightIndex);
-    renderFieldPickScreen(root, cfg, session.currentFightIndex, session.currentRoster, encounterName, (fieldedIds) => {
-      pendingFieldedIds = fieldedIds;
-      showPreFightScreen();
-    });
+    renderFieldPickScreen(
+      root,
+      cfg,
+      session.currentFightIndex,
+      session.currentEncounterIndex,
+      session.currentRoster,
+      session.currentEncounterName,
+      session.currentEncounterBlurb,
+      (fieldedIds) => {
+        pendingFieldedIds = fieldedIds;
+        showPreFightScreen();
+      },
+    );
   }
 
   function showPreFightScreen(): void {
     const player = fieldSquad(session.currentRoster, pendingFieldedIds);
-    renderPreFightScreen(root, cfg, session.currentFightIndex, player, playCurrentFight);
+    renderPreFightScreen(root, cfg, session.currentFightIndex, session.currentEncounterIndex, player, playCurrentFight);
   }
 
   function playCurrentFight(): void {

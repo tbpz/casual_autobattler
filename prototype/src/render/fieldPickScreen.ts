@@ -25,8 +25,10 @@ export function renderFieldPickScreen(
   container: HTMLElement,
   cfg: RunConfig,
   fightIndex: number,
+  encounterIndex: number,
   roster: RosterState,
   encounterName: string | null,
+  encounterBlurb: string | null,
   onField: (fieldedIds: string[]) => void,
 ): void {
   container.innerHTML = "";
@@ -36,6 +38,18 @@ export function renderFieldPickScreen(
   const h1 = document.createElement("h1");
   h1.textContent = `Field for fight ${fightIndex + 1}${encounterName ? ` — ${encounterName}` : ""}`;
   screen.appendChild(h1);
+
+  // 2026-08-15 (encounter-deck pass, Chunk 3.6): the "question it asks" line
+  // — written since the original 5-encounter table but never rendered
+  // anywhere until now (see sim/encounters.ts's EncounterDef.blurb
+  // docstring) — is what makes a DRAWN encounter readable rather than just a
+  // name the player hasn't learned yet.
+  if (encounterBlurb) {
+    const blurb = document.createElement("p");
+    blurb.className = "hint encounter-blurb";
+    blurb.textContent = encounterBlurb;
+    screen.appendChild(blurb);
+  }
 
   const fieldSize = cfg.playerN;
   const hint = document.createElement("p");
@@ -58,7 +72,7 @@ export function renderFieldPickScreen(
   const playBtn = document.createElement("button");
   playBtn.className = "play-btn";
 
-  const enemyPreview = makeEnemySide(cfg, fightIndex);
+  const enemyPreview = makeEnemySide(cfg, fightIndex, encounterIndex);
 
   function refreshPlayState(): void {
     const ready = selected.size === fieldSize;

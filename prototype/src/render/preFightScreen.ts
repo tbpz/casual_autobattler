@@ -29,6 +29,7 @@ export function renderPreFightScreen(
   container: HTMLElement,
   cfg: RunConfig,
   fightIndex: number,
+  encounterIndex: number,
   player: SideState,
   onPlay: () => void,
 ): void {
@@ -40,7 +41,7 @@ export function renderPreFightScreen(
   h1.textContent = `Fight ${fightIndex + 1} of ${cfg.fightsPerRun}`;
   screen.appendChild(h1);
 
-  const enemy = makeEnemySide(cfg, fightIndex);
+  const enemy = makeEnemySide(cfg, fightIndex, encounterIndex);
 
   const compare = document.createElement("div");
   compare.className = "pre-fight-compare";

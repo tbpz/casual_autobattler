@@ -272,7 +272,7 @@ function handleBruiserBeat(
     const targetId = lockedAlive ? (hero.windupTargetId as string) : pickWindupTargetId(hero, player, rng, cfg);
     hero.windupFireT = undefined;
     hero.windupTargetId = undefined;
-    hero.nextWindupT = t + cfg.windupIntervalSec;
+    hero.nextWindupT = t + (hero.windupIntervalSec ?? cfg.windupIntervalSec);
     hero.nextAttackT = t + hero.attackIntervalSec;
     if (!targetId) return false;
     const damage = Math.max(1, Math.round(hero.damage * cfg.windupDamageMultiplier * enrageMult));

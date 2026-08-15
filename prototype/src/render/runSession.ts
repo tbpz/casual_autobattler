@@ -3,6 +3,7 @@ import type { RunConfig } from "../sim/config.js";
 import type { FightSetup, SideState } from "../sim/types.js";
 import { sideHp, sideMaxHp } from "../sim/types.js";
 import { makePlayerSide, DEFAULT_DRAFT_ROSTER_IDS } from "../sim/heroes.js";
+import { encounterAt, encounterOrderFor } from "../sim/encounters.js";
 import { runFight } from "../sim/fight.js";
 import type { FightResult } from "../sim/events.js";
 import { project, type Projection } from "../sim/projection.js";
@@ -46,6 +47,12 @@ export class RunSession {
   private coin = 0;
   private fightIndex = 0;
   private fieldedThisFight: string[] = [];
+  /** This run's drawn fight order (2026-08-15, encounter-deck pass) — indices
+   * into sim/encounters.ts's ENCOUNTERS, one per fight. Built once at
+   * construction from the run's own seed via a separate RNG stream (see
+   * encounterOrderFor's docstring), so it's stable for the whole run and
+   * reproducible from the seed alone, same as every other run-level draw. */
+  private encounterOrder: number[];
 
   fights: FightSummary[] = [];
   lastFightResult: FightResult | null = null;
@@ -67,10 +74,26 @@ export class RunSession {
     this.seed = seed;
     this.rng = new Rng(seed);
     this.roster = makePlayerSide(draftIds ?? DEFAULT_DRAFT_ROSTER_IDS);
+    this.encounterOrder = encounterOrderFor(seed, cfg.fightsPerRun);
   }
 
   get currentFightIndex(): number {
     return this.fightIndex;
+  }
+
+  /** This fight's drawn ENCOUNTERS index — what actually gets fought, as
+   * opposed to currentFightIndex (which only drives the difficulty ramp now
+   * — see sim/encounters.ts's makeEncounterEnemySide). */
+  get currentEncounterIndex(): number {
+    return this.encounterOrder[this.fightIndex] ?? this.fightIndex;
+  }
+
+  get currentEncounterName(): string | null {
+    return encounterAt(this.currentEncounterIndex)?.name ?? null;
+  }
+
+  get currentEncounterBlurb(): string | null {
+    return encounterAt(this.currentEncounterIndex)?.blurb ?? null;
   }
 
   get coinBalance(): number {
@@ -122,7 +145,7 @@ export class RunSession {
     const ids = fieldedIds ?? this.defaultFielding;
     this.fieldedThisFight = ids;
     const player = fieldSquad(this.roster, ids);
-    const enemy = makeEnemySide(this.cfg, this.fightIndex);
+    const enemy = makeEnemySide(this.cfg, this.fightIndex, this.currentEncounterIndex);
     // Computed BEFORE runFight so the recap compares against what was
     // actually shown on the pre-fight screen, not a value derived after the
     // fact from the outcome.

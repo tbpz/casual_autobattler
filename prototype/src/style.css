@@ -910,6 +910,12 @@ button:disabled {
   margin-top: -8px;
 }
 
+.encounter-blurb {
+  font-style: italic;
+  margin-top: -4px;
+  margin-bottom: 4px;
+}
+
 .hero-pick-list {
   display: flex;
   flex-direction: column;
