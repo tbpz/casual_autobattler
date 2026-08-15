@@ -2,8 +2,8 @@ import type { RunConfig } from "../sim/config.js";
 import type { RunResult } from "../sim/run.js";
 
 /**
- * Aggregates N runs into the distribution report PROTOTYPE_PLAN.md's Phase 2
- * calls for: win rate per fight index, run-completion rate, chain-length
+ * Aggregates N runs into the distribution report archive/PROTOTYPE_PLAN.md's
+ * Phase 2 called for: win rate per fight index, run-completion rate, chain-length
  * histogram, fraction of wins decided by a 3+ chain, plus a few extras
  * (ignition rate, mean duration, deaths/run) useful for spotting *why* a
  * target is missed, not just that it is.

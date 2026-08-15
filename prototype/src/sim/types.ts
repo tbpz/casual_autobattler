@@ -1,6 +1,6 @@
 /**
  * Fight-sim state types. A "side" is a list of heroes — no hardcoded slots,
- * so squad size N stays a parameter (FIGHT_SCRIPT.md "parameterized" section).
+ * so squad size N stays a parameter (archive/FIGHT_SCRIPT.md "parameterized" section).
  * Heroes are ordered front-to-back; a normal attack targets the front-most
  * living hero on the opposing side (see fight.ts's targeting helpers).
  */

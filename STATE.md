@@ -40,14 +40,14 @@ The current state of each piece — the single source of truth for it.
 | Enemies — shape | 5 authored encounters (`sim/encounters.ts`), each its own shape: Pack, The Wall, Twins, Executioner, Champion. |
 | Optional layer — concept | Validated by the emergence-only probe; must stay fully optional — forcing it failed 4/4 in testing. |
 | Optional layer — contents | The run-start draft (5 of 6), a fresh field pick each fight (now showing carried-in charge), one coin-spend decision per fight — all accept-default. |
-| Prototype #1 — scope | A vehicle, not the real game. Batch-tuned, not yet played/judged in its current (post-chain-rebuild) form. `PROTOTYPE_PLAN.md`. |
+| Prototype #1 — scope | A vehicle, not the real game — its job is to make the lead moment real enough to judge, not to pass a stated test. **Two completion criteria:** it must produce *specific, differentiated* reactions ("the chain ended flat"), never just "seems fine"; and it must be able to *surprise its makers* — if it can only show what the docs specify, it's a rendering, not an instrument. Batch-tuned, not yet played/judged post-chain-rebuild. |
 | Stakes — shape | Run-scoped, never permanent. **Default draft, always-heal, n=1500:** completion ~28% (re-tuned to the pre-rebuild baseline); chain fires in ~79% of fights, ~10% backfire; fights 1–3 stay risk-free for a double-tank draft (known gap). |
 | Stakes — concrete devices | Coin, earned per win (more on a fired chain), lost on a run loss, spent on healing or a damage upgrade. **New gap:** heal's protection against a backfire loss is weak — `always-heal`/`never-spend` now complete an indistinguishable share of runs. Bank-or-push and a rival scoreboard remain open. |
 | Real game build | Not started — gated behind Next up #1. |
 
 ## Next up
 
-1. **Play the rebuilt chain and judge it**, against `PROTOTYPE_PLAN.md`'s two completion criteria: does a near-full charge bar create legible dread without knowing which way it'll go; does a backfire read instantly as "wrong" vs. a real chain; does carried-in charge change what gets fielded. `npm run dev` in `prototype/`.
+1. **Play the rebuilt chain and judge it**, against the two completion criteria above: does a near-full charge bar create legible dread without knowing which way it'll go; does a backfire read instantly as "wrong" vs. a real chain; does carried-in charge change what gets fielded. `npm run dev` in `prototype/`. **Pre-registered (2026-07-30):** the core loop is the friend/casual half, so finding it thin on repeat play is the expected result, not a failure signal — judge *does the shape land and read*, not *do I want to keep playing*.
 2. **Give the coin spend real teeth against backfire**, or accept its purpose has shifted — the heal spend no longer measurably outperforms skipping it (`checks/chaindist.ts`'s known gap). Needs a played verdict before guessing at a fix.
 3. **Tune fights 1–3 for real risk against a double-tank draft** — still close to 100% regardless of the rebuild.
 4. **Keep tuning `chargeThreshold`/`backfireChance`** by playing and the batch harness — both are freshly re-set strawmen, batch-verified only.
@@ -117,8 +117,6 @@ The current state of each piece — the single source of truth for it.
 ## Related files
 
 - [DECISIONS.md](DECISIONS.md) — why things are the way they are.
-- [FIGHT_SCRIPT.md](FIGHT_SCRIPT.md) — original fight draft; beat-sheet sequence still current, mechanics superseded.
-- [PROTOTYPE_PLAN.md](PROTOTYPE_PLAN.md) — build doc: scope, stack, constants, phases, play/judge criteria.
-- [DESIGN_QUESTIONS.md](DESIGN_QUESTIONS.md) — the question set that turned one fight into a full run.
-- `STRATEGY.md` — deprecated, not current.
+- [CHAIN_AXIS_PLAN.md](CHAIN_AXIS_PLAN.md) — the live build plan (encounter deck + chain payoff axis); Chunks 1–2 done, Chunk 3 not started.
+- `archive/` — retired working docs (`FIGHT_SCRIPT.md`, `PROTOTYPE_PLAN.md`, `DESIGN_QUESTIONS.md`), kept for `DECISIONS.md`'s append-only references. History only, not current — see each file's retirement header.
 - `prototype/` — the code: `src/sim/` (`roster.ts` — draft/field; `encounters.ts` — the 5 fights), `src/render/`, `src/batch/` (tuning harness), `src/checks/` (`npm run check`). Run via `npm run dev`.

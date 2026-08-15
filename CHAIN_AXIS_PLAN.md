@@ -10,7 +10,7 @@
 
 **The problem.** The chain genuinely surprises and is fun, but the rest of a run doesn't hold attention. After several runs there's no reason to press Play again — "it has nothing more to explore."
 
-**This is a known, pre-registered gap.** `DECISIONS.md` 2026-07-24 logs Tu saying near-verbatim *"there's not much more to explore,"* and concludes: *"Tu is pulled by an open space of decisions, and dread/boredom is what happens once that space is fully mapped."* `PROTOTYPE_PLAN.md:18` pre-registered that prototype #1 would feel thin on repeat play and that this is *"the expected result, not a failure signal."* So this is confirmation of a known gap, not a failure of the chain rebuild.
+**This is a known, pre-registered gap.** `DECISIONS.md` 2026-07-24 logs Tu saying near-verbatim *"there's not much more to explore,"* and concludes: *"Tu is pulled by an open space of decisions, and dread/boredom is what happens once that space is fully mapped."* `STATE.md`'s Next up #1 carries the pre-registered expectation (originally `PROTOTYPE_PLAN.md`, now archived) that prototype #1 would feel thin on repeat play and that this is *"the expected result, not a failure signal."* So this is confirmation of a known gap, not a failure of the chain rebuild.
 
 ### Cause 1 — the space is closed after ~6 runs (Chunk 3 targets this — still open)
 

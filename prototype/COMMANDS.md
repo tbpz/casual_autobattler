@@ -13,5 +13,6 @@ npm run batch -- --n 1000 --policy always-upgrade --death onlyOnLoss
 npm run build                      # tsc + vite production build
 ```
 
-See `../PROTOTYPE_PLAN.md` for what each phase/command is for, and
-`src/sim/config.ts` for every tunable constant in one place.
+See `../STATE.md` for current status and `../DECISIONS.md` for why things are
+the way they are; `src/sim/config.ts` holds every tunable constant in one
+place.

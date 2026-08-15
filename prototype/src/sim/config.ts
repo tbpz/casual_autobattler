@@ -1,13 +1,17 @@
 /**
  * Every tunable constant for the fight and run sims, in one place.
- * Source of truth: FIGHT_SCRIPT.md (§1-4) for the beat sheet and the two PRD
- * tables, PROTOTYPE_PLAN.md for run constants. Per-hero stats (damage, HP,
- * attack cadence) superseded the old side-level DPS budgets — see
- * STATE_REWRITE plan (2026-08-04): the fight now has actors, not a curve, so
- * "HP and DPS as side-level budgets divided among N" (FIGHT_SCRIPT.md §1) is
- * superseded by per-hero stat blocks in sim/heroes.ts and here. Values here
- * are strawmen meant to move by playing and by the batch harness (npm run
- * batch) — see PROTOTYPE_PLAN.md Phase 2.
+ * Source of truth: this file and sim/heroes.ts are the sole authority for
+ * current tuning constants (DECISIONS.md 2026-08-08); DECISIONS.md explains
+ * why a value is what it is, but a number inside a DECISIONS.md entry is
+ * evidence as of that entry's date only, never a current setting. The
+ * original beat-sheet/PRD-table draft (archive/FIGHT_SCRIPT.md) and the
+ * original build doc (archive/PROTOTYPE_PLAN.md) are both retired — see
+ * their retirement headers for what superseded each. Per-hero stats (damage,
+ * HP, attack cadence) superseded the old side-level DPS budgets (2026-08-04
+ * legibility rewrite, DECISIONS.md): the fight now has actors, not a curve,
+ * so "HP and DPS as side-level budgets divided among N" is superseded by
+ * per-hero stat blocks in sim/heroes.ts and here. Values here are strawmen
+ * meant to move by playing and by the batch harness (npm run batch).
  *
  * Readings this file fixes that the docs left implicit:
  *  1. A normal attack is single-target. The attacking side's hero targets the
@@ -21,8 +25,8 @@
  *     drains at a fixed, tunable rate (so the dip and the eligibility gate
  *     stay predictable), while WHO specifically falls stays genuinely
  *     unpredictable fight to fight. Chain bonus hits keep the old
- *     concentrated-with-retarget rule (FIGHT_SCRIPT.md §3 is explicit that a
- *     bonus hit is focused and retargets on a kill).
+ *     concentrated-with-retarget rule (archive/FIGHT_SCRIPT.md §3 is
+ *     explicit that a bonus hit is focused and retargets on a kill).
  *  2. Support heroes act on their own attack beat like everyone else, but
  *     heal their lowest-HP living ally instead of attacking — unless
  *     attacksWhileHealing is set (Ward), in which case the heal and the
@@ -57,8 +61,9 @@
 // structurally could not.
 
 export interface FightConfig {
-  /** Ticks per second. FIGHT_SCRIPT.md doesn't specify a tick rate; 20/s gives
-   * smooth meter motion without over-resolving hero attack cadences below. */
+  /** Ticks per second. archive/FIGHT_SCRIPT.md doesn't specify a tick rate;
+   * 20/s gives smooth meter motion without over-resolving hero attack
+   * cadences below. */
   tickRate: number;
   /** Failsafe only — fights resolve by wipe, not by this clock. If a fight
    * somehow runs this long (should not happen given the stat blocks below),
