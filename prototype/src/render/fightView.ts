@@ -59,6 +59,20 @@ interface HeroSlot {
  * duration in style.css. */
 const TRACER_MS = 200;
 
+/** How long the miss/cap flourish holds before handing off to the end card
+ * (2026-08-19, chain-ending pass) — long enough to read as its own beat
+ * ("it just broke" / "it just maxed"), short enough that a fast chain
+ * doesn't feel like it's dragging. Tune here, not by hunting the call site;
+ * see playback.ts's own tail-window constant, which this should stay
+ * roughly under.  */
+const CHAIN_FAILURE_HOLD_MS = 600;
+
+/** How long the end card itself is held onscreen before chainTeardown hides
+ * the HUD and drains the callout queue — matches .chain-end-card's own
+ * chainEndPop animation (1.6s, style.css) plus a small buffer so teardown
+ * never clips the card mid-animation. */
+const CHAIN_END_CARD_HOLD_MS = 1700;
+
 /** Heals share one colour regardless of healer identity — green reads as
  * "restoration" on sight, and a healer's own accent ring already carries
  * their identity once the tracer lands on them. */
@@ -87,7 +101,7 @@ function accentFor(index: number): string {
  * hero whose bar fills simply fires. What the player can't predict is which
  * WAY it fires — chainStart decides good vs. backfire once, at the moment of
  * firing, and every beat after that (the hot hero's glow colour, every
- * chainHit tracer/popup, the chain HUD, the payoff callout) reads that same
+ * chainHit tracer/popup, the chain HUD, the end card) reads that same
  * flag so gold-burst-vs-red-implosion is legible instantly, with zero
  * advance telegraph. A backfire repeats the hero's own action at the WRONG
  * side — an attacker hits its own team, a healer heals the enemy — rather
@@ -126,16 +140,80 @@ export class FightView {
   private heroChainAffinity: Map<string, number> = new Map();
   private arena: HTMLElement;
   private tracerLayer: HTMLElement;
+  private calloutBand: HTMLElement;
   private callout: HTMLElement;
+  /** Routine-event callouts (enrage, a hero falling, a bruiser telegraph) go
+   * through this queue instead of stomping the shared .callout element
+   * directly (2026-08-17 legibility pass). Before this queue existed, two
+   * events landing close together — or a chain hit retriggering the SAME
+   * element faster than its own ~1.1s pop-fade could finish — silently cut
+   * each other off; a played session reported exactly this ("the chain
+   * announcement overlapped the enrage line and vanished quickly"). The
+   * chain no longer uses this element at all (see chainHud/chainEndCard
+   * below), so this queue now only has to arbitrate between routine events.
+   *
+   * 2026-08-19 (chain-ending pass): gated by chainPhase now too, not just
+   * self-collision — a routine callout co-occurring with a live chain still
+   * won the eye even after the 2026-08-17 pass split them into separate
+   * elements, because the collision was temporal (motion beats position),
+   * not spatial. `keepIfDeferred` marks which held entries are worth
+   * replaying once the chain hands the stage back (enrage, a death not
+   * already named in the chain's own kill note); beat-local ones (a
+   * bruiser's telegraph, its slam) are dropped as stale — their damage is
+   * already visible on the HP bars by the time a chain lets go. `heroId`
+   * lets chainTeardown drop a held death that the chain's own end card
+   * already announced. */
+  private calloutQueue: { text: string; muted: boolean; color?: string; keepIfDeferred: boolean; heroId?: string }[] = [];
+  private calloutShowing = false;
   private popupLayer: HTMLElement;
   private resolveOverlay: HTMLElement;
-  private clock: HTMLElement;
-  /** Persistent "what is happening right now" readout (2026-08-14) — unlike
-   * .callout, which pops and fades after ~1.1s, this stays up for the whole
-   * duration of a chain and updates every tick, so a glance mid-chain always
-   * finds owner/hits/damage rather than only catching the instant a callout
-   * happened to fire. */
+  /** Persistent "what is happening right now" readout (2026-08-14, rebuilt
+   * 2026-08-17). Unlike .callout, this stays up for the whole duration of a
+   * chain and updates every tick, so a glance mid-chain always finds
+   * owner/hits/damage rather than only catching the instant a callout
+   * happened to fire. As of the 2026-08-17 legibility pass this is the
+   * ONLY channel a chain writes to while it's live — it owns a title line, a
+   * per-hit pip row (filled = landed, pulsing = the continuation roll that's
+   * currently pending — the "is it still going?" state a player reported as
+   * invisible), and a running total, none of which are gated by
+   * chainTellThreshold anymore: a chain is visible from hit 1, not hit 3. */
   private chainHud: HTMLElement;
+  private chainHudTitle: HTMLElement;
+  private chainHudPips: HTMLElement;
+  private chainHudPipEls: HTMLElement[] = [];
+  private chainHudTotal: HTMLElement;
+  /** The chain's resolution beat (2026-08-17) — every chain gets one, not
+   * just a cascade-tier one, since "did it just stop?" was as illegible as
+   * "is it still going?". Decomposes the payoff into length (luck, the
+   * dominant axis) and this hero's own chainAffinity (the ~2x the player
+   * actually chose), so the recap states honestly how much of the number on
+   * screen the player's own pick bought. */
+  private chainEndCard: HTMLElement;
+  /** Presentation-only state machine for the chain's OWN lifecycle across
+   * ticks (2026-08-19, chain-ending pass) — deliberately NOT read off
+   * snapshot.hotHeroId. fight.ts nulls hotHeroId the instant a chain ends,
+   * on the SAME tick it emits chainEnd (see events.ts's docstring), and
+   * render() calls updateChainHud — which used to hide the HUD the moment
+   * hotHeroId went null — before the event loop ever reaches showChainEnd
+   * on that tick. There was no frame left for a resolution beat to happen
+   * in. Owning the HUD's visibility here instead — "live" while a chain is
+   * actually firing, "resolving" while its miss/cap/end beat plays out on a
+   * wall-clock timer, "idle" otherwise — gives the ending room to happen.
+   * updateChainHud now only ever WRITES while snapshot.hotHeroId is set; it
+   * never hides anything. Hiding is chainTeardown's job alone, once the
+   * resolution beat below has actually been seen. */
+  private chainPhase: "idle" | "live" | "resolving" = "idle";
+  /** Invalidates any in-flight chain-ending timers (the miss/cap failure
+   * hold, the card, the final teardown — showChainEnd chains up to three
+   * wall-clock setTimeouts) when a NEW chain fires before the old one's
+   * presentation finished. fight.ts only ever has one hero hot at a time,
+   * but nothing stops a second hero crossing chargeThreshold moments after
+   * the first chain's own chainEnd — see showChainStart. Bumped there (and
+   * on reset()); every deferred callback below captures the generation it
+   * was scheduled under and no-ops if it's since gone stale, rather than
+   * trying to track and cancel three separate setTimeout handles across a
+   * multi-step callback chain. */
+  private chainGen = 0;
   private built = false;
   /** Cycles a small vertical jitter across popups so near-simultaneous
    * numbers on the same target don't land on the exact same baseline. */
@@ -159,10 +237,6 @@ export class FightView {
     container.innerHTML = "";
     container.classList.add("fight-view");
 
-    this.clock = document.createElement("div");
-    this.clock.className = "fight-clock";
-    container.appendChild(this.clock);
-
     this.arena = document.createElement("div");
     this.arena.className = "arena";
     this.playerSlots = document.createElement("div");
@@ -175,11 +249,50 @@ export class FightView {
 
     this.chainHud = document.createElement("div");
     this.chainHud.className = "chain-hud";
+    this.chainHudTitle = document.createElement("div");
+    this.chainHudTitle.className = "chain-hud-title";
+    this.chainHudPips = document.createElement("div");
+    this.chainHudPips.className = "chain-hud-pips";
+    for (let i = 0; i < cfg.chainMaxHits; i++) {
+      const pip = document.createElement("span");
+      // The LAST pip is a hard ceiling, not just another slot (2026-08-19 —
+      // tagged here, off the same cfg.chainMaxHits the sim enforces the cap
+      // with, so the marker can never drift from the real cap). Styled
+      // distinctly in style.css so reaching it reads as "the maximum
+      // possible," not as an ordinary hit landing that happens to be last.
+      pip.className = i === cfg.chainMaxHits - 1 ? "chain-pip cap" : "chain-pip";
+      this.chainHudPips.appendChild(pip);
+      this.chainHudPipEls.push(pip);
+    }
+    this.chainHudTotal = document.createElement("div");
+    this.chainHudTotal.className = "chain-hud-total";
+    this.chainHud.appendChild(this.chainHudTitle);
+    this.chainHud.appendChild(this.chainHudPips);
+    this.chainHud.appendChild(this.chainHudTotal);
     this.arena.appendChild(this.chainHud);
 
+    this.chainEndCard = document.createElement("div");
+    this.chainEndCard.className = "chain-end-card";
+    this.arena.appendChild(this.chainEndCard);
+
+    // 2026-08-19 (chain-ending pass): the callout band is now a SIBLING of
+    // .arena, below it, not an overlay inside .arena's own top band — the
+    // arena's top overlay strip belongs exclusively to .chain-hud/
+    // .chain-end-card now. Fixed min-height (style.css) so an empty band
+    // never causes a layout jump. This is the spatial half of the fix; the
+    // temporal half (holding the queue while a chain is live) is
+    // advanceCalloutQueue/chainTeardown below.
+    this.calloutBand = document.createElement("div");
+    this.calloutBand.className = "callout-band";
     this.callout = document.createElement("div");
     this.callout.className = "callout";
-    this.arena.appendChild(this.callout);
+    // Advances the routine-callout queue on natural completion only (see
+    // calloutQueue's docstring) — programmatic class removal during
+    // advanceCalloutQueue's own restart does NOT fire animationend, so this
+    // can't self-trigger a loop.
+    this.callout.addEventListener("animationend", () => this.advanceCalloutQueue());
+    this.calloutBand.appendChild(this.callout);
+    container.appendChild(this.calloutBand);
 
     this.tracerLayer = document.createElement("div");
     this.tracerLayer.className = "tracer-layer";
@@ -201,20 +314,23 @@ export class FightView {
       this.built = true;
     }
 
-    this.clock.textContent =
-      snapshot.enrageMultiplier > 1
-        ? `t = ${snapshot.t.toFixed(1)}s · ENRAGED ×${snapshot.enrageMultiplier.toFixed(2)}`
-        : `t = ${snapshot.t.toFixed(1)}s`;
-
     // Ambient dimming (2026-08-14, chain pacing) — while a hero is hot, the
     // arena's own combat traffic (ordinary tracers/popups, non-participant
     // bodies) fades via the .chain-live class in style.css; the chain's own
     // tracers/popups/callout/HUD are excluded from that rule and stay at
     // full strength. .chain-backfire additionally tints that dim red so a
     // backfire reads as dangerous even in peripheral vision, not just at the
-    // hot hero's own body. Render-only: no timing change, no Playback change.
-    this.arena.classList.toggle("chain-live", snapshot.hotHeroId !== null);
-    this.arena.classList.toggle("chain-backfire", snapshot.hotHeroId !== null && snapshot.chainBackfire);
+    // hot hero's own body.
+    //
+    // 2026-08-19 (chain-ending pass): driven by chainPhase, not
+    // snapshot.hotHeroId directly, so the dim stays through the "resolving"
+    // beat too — the miss/cap tell and the end card are still the thing
+    // happening on screen even after hotHeroId itself has gone null, and the
+    // hero's OWN next normal-cadence attack (which the sim fires on the same
+    // tick a chain breaks — see fight.ts's per-hero action ordering) should
+    // render as ambient background, not as equally loud as what just ended.
+    this.arena.classList.toggle("chain-live", this.chainPhase !== "idle");
+    this.arena.classList.toggle("chain-backfire", this.chainPhase !== "idle" && snapshot.chainBackfire);
 
     this.updateChainHud(snapshot);
     this.updateSide(this.playerHeroes, snapshot.playerHeroes, snapshot);
@@ -231,11 +347,22 @@ export class FightView {
   reset(): void {
     this.resolveOverlay.classList.add("hidden");
     this.resolveOverlay.textContent = "";
+    this.calloutQueue = [];
+    this.calloutShowing = false;
     this.callout.textContent = "";
     this.callout.classList.remove("show", "muted");
     this.callout.style.color = "";
-    this.chainHud.classList.remove("show");
-    this.chainHud.textContent = "";
+    // Invalidates any in-flight chain-ending timers (see chainGen's own
+    // docstring) — a reset mid-resolution shouldn't let a stale failure
+    // hold/card/teardown callback fire into this torn-down view later.
+    this.chainGen++;
+    this.chainPhase = "idle";
+    this.chainHud.classList.remove("show", "emphasize");
+    this.chainHudTitle.textContent = "";
+    this.chainHudTotal.textContent = "";
+    for (const pip of this.chainHudPipEls) pip.classList.remove("filled", "rolling", "landed", "missed", "capped-flare");
+    this.chainEndCard.classList.remove("show", "big");
+    this.chainEndCard.innerHTML = "";
     this.popupLayer.innerHTML = "";
     this.tracerLayer.innerHTML = "";
     this.arena.classList.remove("shake", "chain-live", "chain-backfire");
@@ -275,21 +402,46 @@ export class FightView {
     });
   }
 
-  /** Drives the persistent chain HUD purely off the snapshot — owner, hit
-   * count, running total — so it stays correct under pause/step/scrub, same
-   * discipline as every other snapshot-driven tell. Backfire flips both the
-   * label and the colour so a glance mid-chain reads "is this working"
-   * without waiting for the next chainHit event. */
+  /** Drives the persistent chain HUD purely off the snapshot — owner, a pip
+   * per hit, running total — so it stays correct under pause/step/scrub,
+   * same discipline as every other snapshot-driven tell. Backfire flips both
+   * the label and the colour so a glance mid-chain reads "is this working"
+   * without waiting for the next chainHit event.
+   *
+   * Visible from the ignition tick itself (visibleChainLength === 0), not
+   * gated by chainTellThreshold — a played session reported never seeing a
+   * chain begin because hits 1-2 used to be entirely silent. One pip beyond
+   * the landed count pulses ("rolling") for as long as hotHeroId stays set —
+   * the continuation-roll beat that previously had no rendered state at all.
+   *
+   * 2026-08-19 (chain-ending pass): no longer HIDES on `!snapshot.hotHeroId`
+   * — that used to fire on the exact same tick fight.ts nulls hotHeroId to
+   * emit chainEnd, deleting the HUD before the event loop (later in the same
+   * render() call) ever reached showChainEnd. Hiding is chainTeardown's job
+   * now, once the resolution beat has actually held onscreen. This function
+   * only ever WRITES fresh content while a chain is truly live, and skips
+   * entirely while `resolving` so it can't stomp the miss/cap/end beat
+   * showChainEnd is presenting. */
   private updateChainHud(snapshot: TickSnapshot): void {
-    if (!snapshot.hotHeroId) {
-      this.chainHud.classList.remove("show");
-      return;
-    }
+    if (!snapshot.hotHeroId || this.chainPhase === "resolving") return;
+    this.chainPhase = "live";
     const name = this.nameOf(snapshot.hotHeroId);
     const refs = this.slotFor(snapshot.hotHeroId);
-    const label = snapshot.chainBackfire ? "BACKFIRE" : "CHAIN";
-    this.chainHud.textContent = `${name} — ${label} ×${snapshot.visibleChainLength} · ${Math.round(snapshot.chainDamageSoFar)}`;
-    this.chainHud.style.color = snapshot.chainBackfire ? "var(--backfire)" : (refs?.accent ?? "var(--ignite)");
+    const backfire = snapshot.chainBackfire;
+    const color = backfire ? "var(--backfire)" : (refs?.accent ?? "var(--chain)");
+    const startedLabel = backfire ? "BACKFIRES" : "IGNITES";
+    const runningLabel = backfire ? "BACKFIRE" : "CHAIN";
+    this.chainHudTitle.textContent =
+      snapshot.visibleChainLength === 0 ? `${name} — ${startedLabel}` : `${name} — ${runningLabel} ×${snapshot.visibleChainLength}`;
+    this.chainHudTitle.style.color = color;
+    this.chainHud.style.setProperty("--chain-hud-color", color);
+    for (let i = 0; i < this.chainHudPipEls.length; i++) {
+      const idx = i + 1;
+      const pip = this.chainHudPipEls[i] as HTMLElement;
+      pip.classList.toggle("filled", idx <= snapshot.visibleChainLength);
+      pip.classList.toggle("rolling", idx === snapshot.visibleChainLength + 1);
+    }
+    this.chainHudTotal.textContent = snapshot.chainDamageSoFar > 0 ? String(Math.round(snapshot.chainDamageSoFar)) : "";
     this.chainHud.classList.add("show");
   }
 
@@ -357,7 +509,7 @@ export class FightView {
         this.showChainHit(e.hitIndex, e.damage, e.targetId, e.kind, e.backfire, e.sourceId);
         break;
       case "chainEnd":
-        this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.killedIds, e.backfire);
+        this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.killedIds, e.backfire, e.reason);
         break;
       case "heroDown":
         this.showHeroDown(e.heroId);
@@ -369,7 +521,9 @@ export class FightView {
         this.showWindupHit(e.targetId, e.damage);
         break;
       case "enrageStart":
-        this.showCallout("ENEMY ENRAGES", true);
+        // keepIfDeferred: true — worth replaying after a chain hands the
+        // stage back; it's a once-per-fight fact, not a beat-local one.
+        this.showCallout("ENEMY ENRAGES", true, undefined, true);
         break;
       case "resolve":
         this.showResolve(e.outcome);
@@ -533,7 +687,11 @@ export class FightView {
   private showHeroDown(heroId: string): void {
     const refs = this.slotFor(heroId);
     const name = this.nameOf(heroId);
-    this.showCallout(`${name} FALLS`, true, "var(--muted)");
+    // keepIfDeferred: true, heroId attached — worth replaying after a chain
+    // if this death wasn't the chain's OWN kill (chainTeardown drops any
+    // held death already named in the chain's end-card killNote, so the
+    // same fall isn't announced twice).
+    this.showCallout(`${name} FALLS`, true, "var(--muted)", true, heroId);
     if (refs) {
       refs.body.style.setProperty("--flinch-scale", "1");
       pulseClass(refs.body, "flinch", 300);
@@ -545,22 +703,39 @@ export class FightView {
    * loud, named beat that establishes "it's THIS hero, starting NOW, and
    * it's going THIS way" before a single bonus hit has landed. No advance
    * telegraph exists before this moment (see config.ts's backfireChance
-   * docstring) — this callout and burst ARE the reveal.
+   * docstring) — the chainHud (title text, driven by updateChainHud) and
+   * this burst ARE the reveal.
    *
    * 2026-08-15 (chain-payoff-axis pass): the burst ring's own size now
    * scales to this hero's chainAffinity, normalized against the pool's
    * range (--ignite-scale, read by style.css's igniteBurst/backfireBurst
    * keyframes) — a low-affinity ignition is a visibly smaller tell than
-   * Rook's, so the callout stops over-promising for the heroes whose
+   * Rook's, so the ignition stops over-promising for the heroes whose
    * chains used to be a dud. Never scales below 0.6 — every ignition is
    * still a real tell, per the same "nothing goes silent" rule the hit-by-
    * hit spectacle ladder follows (see showChainHit). */
   private showChainStart(heroId: string, backfire: boolean): void {
     this.anyChainFiredThisFight = true;
+    // A new chain firing is the authoritative "the stage is live again"
+    // signal (2026-08-19) — handles the rare back-to-back case where a
+    // SECOND hero crosses chargeThreshold before the first chain's
+    // resolving beat has finished its wall-clock hold (fight.ts only ever
+    // has one hero hot at a time, but nothing stops a new fire from landing
+    // moments after the last one's chainEnd). Bumping chainGen invalidates
+    // any of that old chain's still-pending failure-hold/card/teardown
+    // callbacks (see chainGen's own docstring); clearing the pip/card marks
+    // here stops the previous chain's state bleeding into this one's row.
+    this.chainGen++;
+    this.chainPhase = "live";
+    this.chainEndCard.classList.remove("show", "big");
+    for (const pip of this.chainHudPipEls) pip.classList.remove("filled", "rolling", "landed", "missed", "capped-flare");
     const refs = this.slotFor(heroId);
     if (!refs) return;
-    const label = backfire ? "BACKFIRES" : "IGNITES";
-    this.showCallout(`${this.nameOf(heroId)} ${label}`, false, backfire ? "var(--backfire)" : refs.accent);
+    // The title text itself comes from updateChainHud (snapshot-driven, same
+    // tick) — this only adds the one-shot flourish, since ignition fires
+    // once per chain and can't collide with itself the way a rapid chainHit
+    // stream used to collide with the old shared .callout.
+    pulseClass(this.chainHud, "emphasize", 600);
     const affinity = this.heroChainAffinity.get(heroId) ?? MAX_CHAIN_AFFINITY;
     const range = MAX_CHAIN_AFFINITY - MIN_CHAIN_AFFINITY || 1;
     const igniteScale = 0.6 + 0.4 * ((affinity - MIN_CHAIN_AFFINITY) / range);
@@ -592,12 +767,17 @@ export class FightView {
   }
 
   /** Tiered per DECISIONS.md's 2026-08-06 "spectacle gated on payoff" entry
-   * for callout LOUDNESS only — a length-1 hit gets a bigger number and
-   * nothing else; at chainTellThreshold a quiet callout joins it; at
-   * chainFullTellThreshold the full show (shake, escalating font, loud
-   * callout) fires. Attribution and direction are NOT gated (2026-08-14
-   * chain rebuild) — `sourceId`/`kind`/`backfire` ride the event itself,
-   * so even a length-1 hit reads who did it and which way immediately.
+   * for ESCALATION only — a length-1 hit gets a bigger number and its own
+   * pip filling in the chain HUD, nothing more; at chainFullTellThreshold the
+   * full show (shake, escalating font, an emphasis pulse on the HUD) joins
+   * it. 2026-08-17: the per-hit tell moved off the shared .callout entirely
+   * (see this.chainHudPipEls) — the hot hero's OWN beat runs faster than
+   * normal (hotBeatIntervalFactor, sim/config.ts), so a chain could retrigger
+   * that shared element faster than its own pop-fade finished, cutting a hit
+   * off before a player ever read it; a per-hit pip can't collide with
+   * anything. Attribution and direction are NOT gated (2026-08-14 chain
+   * rebuild) — `sourceId`/`kind`/`backfire` ride the event itself, so even a
+   * length-1 hit reads who did it and which way immediately.
    *
    * `kind`/`backfire` together decide who actually gets hit: an attacker's
    * good hit lands on the enemy, its backfire lands on an ally; a healer's
@@ -640,47 +820,205 @@ export class FightView {
         const popup = this.showPopup(target.body, `${sign}${Math.round(amount)}`, "chain", scale, Math.min(hitIndex, 5), popupColor);
         if (attacker && popup) popup.style.setProperty("--owner-accent", chainColor);
       }
-      const ownerName = this.nameOf(sourceId);
-      const label = backfire ? "BACKFIRE" : "CHAIN";
+      // 2026-08-17: the per-hit tell moved off the shared .callout (which a
+      // fast chain — hits fire on the hot hero's own accelerated beat, see
+      // sim/config.ts's hotBeatIntervalFactor — could retrigger faster than
+      // its own pop-fade could finish, cutting itself off) onto this hit's
+      // own pip in the chain HUD, which can't collide with anything. The
+      // escalating-loudness ladder itself is unchanged: nothing below this
+      // threshold, an emphasis pulse + arena shake at/above it.
+      const pipEl = this.chainHudPipEls[hitIndex - 1];
+      if (pipEl) pulseClass(pipEl, "landed", 400);
       if (hitIndex >= this.cfg.chainFullTellThreshold) {
         this.arena.classList.remove("shake");
         void this.arena.offsetWidth;
         this.arena.classList.add("shake");
-        this.showCallout(`${ownerName} · ${label} ×${hitIndex}`, false, chainColor);
-      } else if (hitIndex >= this.cfg.chainTellThreshold) {
-        this.showCallout(`${ownerName} · ${label} ×${hitIndex}`, true, chainColor);
+        pulseClass(this.chainHud, "emphasize", 500);
       }
     };
     if (attacker && target) setTimeout(land, TRACER_MS);
     else land();
   }
 
-  /** The chain's payoff summary. Quiet for a fizzle (below
-   * chainFullTellThreshold, same register as a tank transition); loud with a
-   * kill line for a real payoff. `backfire` flips both the label
-   * (CHAIN/BACKFIRE) and the colour so the summary reads consistently with
-   * every beat that led up to it. */
-  private showChainEnd(heroId: string, chainLength: number, totalDamage: number, killedIds: string[], backfire: boolean): void {
-    if (chainLength === 0) return; // fired but never landed a single bonus hit — nothing to summarize
+  /** The chain's ending, owning the handoff from "live" through an optional
+   * failure/cap beat to the resolution card and finally back to idle
+   * (2026-08-19, chain-ending pass — replaces the old direct-to-card
+   * showChainEnd). Four root causes, four different presentations:
+   *
+   *  - "miss"/"capped" get their own beat first — the pip that was pending
+   *    resolves visibly (broken, or the cap flaring) and the HUD title
+   *    states what just happened, held for CHAIN_FAILURE_HOLD_MS — before
+   *    the played-session complaint this answers ("it just cancels
+   *    immediately to normal"), there was no such frame at all.
+   *  - "noTarget" (a real but unglamorous ending — everyone left to hit was
+   *    already dead or full) and "fightEnd" (the fight itself resolving is
+   *    the bigger moment; app.ts's own 900ms hold covers it) skip straight
+   *    to the card — a failure tell on either would be a lie or a
+   *    distraction, not a beat.
+   *
+   * No `chainLength === 0` early return anymore (2026-08-17 shipped one,
+   * gated on "fired but never landed a single bonus hit"): a first-roll miss
+   * is ~30% of all chains at the default table and used to render nothing
+   * at all — the single largest source of "it just vanished." */
+  private showChainEnd(
+    heroId: string,
+    chainLength: number,
+    totalDamage: number,
+    killedIds: string[],
+    backfire: boolean,
+    reason: "miss" | "capped" | "noTarget" | "fightEnd",
+  ): void {
+    this.chainPhase = "resolving";
+    // Captured now, checked inside every deferred callback below — see
+    // chainGen's own docstring for why this beats tracking individual
+    // setTimeout handles across a multi-step (fail-beat -> card ->
+    // teardown) callback chain.
+    const gen = this.chainGen;
+
+    const showCard = () => {
+      if (gen !== this.chainGen) return; // superseded by a new chain firing first
+      // The HUD and the end card share the exact same anchor (top:-54px in
+      // style.css), deliberately — the handoff is meant to read as one
+      // element changing state, not two things overlapping. Hide the HUD
+      // right here, at the moment the card actually takes over, whether or
+      // not a failure beat played first — this is the ONLY line that hides
+      // it now (chainTeardown's own removal below is a defensive no-op).
+      this.chainHud.classList.remove("show");
+      this.renderChainEndCard(heroId, chainLength, totalDamage, killedIds, backfire, reason);
+      setTimeout(() => this.chainTeardown(gen, killedIds), CHAIN_END_CARD_HOLD_MS);
+    };
+
+    if (reason === "miss" || reason === "capped") {
+      const runningLabel = backfire ? "BACKFIRE" : "CHAIN";
+      if (reason === "miss") {
+        // The pip that was "rolling" (the pending continuation roll) is at
+        // 0-based index `chainLength` — see updateChainHud's own indexing.
+        const pipEl = this.chainHudPipEls[chainLength];
+        if (pipEl) {
+          pipEl.classList.remove("rolling");
+          pipEl.classList.add("missed");
+        }
+        this.chainHudTitle.textContent = `${this.nameOf(heroId)} — ${runningLabel} BROKEN`;
+        this.chainHudTitle.style.color = "var(--muted)";
+      } else {
+        // "capped": there is no pending pip past the last one (the sim
+        // forces the continuation chance to 0 the instant chainMaxHits is
+        // reached — see fight.ts — so the roll never actually happens);
+        // flare the cap pip itself instead of a pip that doesn't exist.
+        const pipEl = this.chainHudPipEls[this.cfg.chainMaxHits - 1];
+        if (pipEl) pulseClass(pipEl, "capped-flare", CHAIN_FAILURE_HOLD_MS);
+        this.chainHudTitle.textContent = `${this.nameOf(heroId)} — MAXED`;
+        this.chainHudTitle.style.color = this.slotFor(heroId)?.accent ?? "var(--chain)";
+      }
+      setTimeout(showCard, CHAIN_FAILURE_HOLD_MS);
+      return;
+    }
+
+    showCard();
+  }
+
+  /** Builds and shows the resolution card itself — split out from
+   * showChainEnd (2026-08-19) so the miss/capped beats above can hold their
+   * own moment first and call this once that hold finishes, rather than the
+   * failure tell and the card competing for the same frame.
+   *
+   * 2026-08-17: every chain gets this card, not just one at/above
+   * chainFullTellThreshold — a played session reported never knowing a
+   * chain had stopped, since below that threshold the only account was a
+   * per-hero status line easy to miss. `.big` keeps the old cascade-tier
+   * distinction as a size bump rather than a presence/absence gate — the
+   * escalating-loudness ladder stays, only the silent floor goes.
+   *
+   * The detail line is Phase 2's attribution decomposition: chainLength is
+   * the dominant payoff axis (2026-08-15 measured it ~39x) and carries zero
+   * player input; this hero's own chainAffinity is the ~2x axis the
+   * draft/field pick actually bought. Stating both honestly, every time, is
+   * what lets a player judge how much of the number on screen was theirs. */
+  private renderChainEndCard(
+    heroId: string,
+    chainLength: number,
+    totalDamage: number,
+    killedIds: string[],
+    backfire: boolean,
+    reason: "miss" | "capped" | "noTarget" | "fightEnd",
+  ): void {
     const refs = this.slotFor(heroId);
     const name = this.nameOf(heroId);
     const label = backfire ? "BACKFIRE" : "CHAIN";
-    const color = backfire ? "var(--backfire)" : refs?.accent;
+    const color = backfire ? "var(--backfire)" : (refs?.accent ?? "var(--chain)");
     const killNote = killedIds.length > 0 ? ` — ${killedIds.map((id) => this.nameOf(id)).join(", ")} DOWN` : "";
-    if (chainLength >= this.cfg.chainFullTellThreshold) {
-      this.showCallout(`${name}'S ${label} — ${chainLength} HITS, ${Math.round(totalDamage)}${killNote}`, false, color);
-    } else {
-      this.showHeroStatusTell(heroId, `${label.toLowerCase()} ×${chainLength}, ${Math.round(totalDamage)}${killNote}`);
-    }
+    const affinity = this.heroChainAffinity.get(heroId) ?? 1;
+    const hitWord = chainLength === 1 ? "hit" : "hits";
+    const maxedNote = reason === "capped" ? " — MAXED" : "";
+
+    this.chainEndCard.innerHTML = "";
+    const headline = document.createElement("div");
+    headline.className = "chain-end-headline";
+    headline.textContent =
+      chainLength === 0
+        ? `${name}'S ${label} FIZZLED`
+        : `${name}'S ${label} — ${chainLength} ${hitWord.toUpperCase()}, ${Math.round(totalDamage)}${killNote}${maxedNote}`;
+    const detail = document.createElement("div");
+    detail.className = "chain-end-detail";
+    detail.textContent = `${chainLength} ${hitWord} rolled · ${name}'s affinity carried ×${affinity.toFixed(1)}`;
+    this.chainEndCard.appendChild(headline);
+    this.chainEndCard.appendChild(detail);
+    this.chainEndCard.style.color = color;
+    this.chainEndCard.classList.toggle("big", chainLength >= this.cfg.chainFullTellThreshold);
+    this.chainEndCard.classList.remove("show");
+    void this.chainEndCard.offsetWidth;
+    this.chainEndCard.classList.add("show");
   }
 
-  private showCallout(text: string, muted: boolean, color?: string): void {
-    this.callout.textContent = text;
+  /** Hands the stage back once the end card has actually been seen
+   * (2026-08-19) — the HUD-hide here is a defensive no-op (showCard above
+   * already hid it the moment the card appeared); this call's real job is
+   * returning to "idle" so the callout queue can drain again, and dropping
+   * whatever routine events don't deserve a stale replay: `keepIfDeferred:
+   * false` entries (a bruiser telegraph, its slam — beat-local, and their
+   * damage already landed on the HP bars), and any held hero-death callout
+   * for someone THIS chain's own card already named in its kill note (no
+   * need to announce the same fall twice). */
+  private chainTeardown(gen: number, killedIds: string[]): void {
+    if (gen !== this.chainGen) return; // superseded by a new chain firing first
+    this.chainPhase = "idle";
+    this.chainHud.classList.remove("show");
+    const killedSet = new Set(killedIds);
+    this.calloutQueue = this.calloutQueue.filter((entry) => entry.keepIfDeferred && !(entry.heroId && killedSet.has(entry.heroId)));
+    this.advanceCalloutQueue();
+  }
+
+  private showCallout(text: string, muted: boolean, color?: string, keepIfDeferred = false, heroId?: string): void {
+    this.calloutQueue.push({ text, muted, color, keepIfDeferred, heroId });
+    if (!this.calloutShowing) this.advanceCalloutQueue();
+  }
+
+  /** 2026-08-19 (chain-ending pass): holds the ENTIRE queue while a chain is
+   * live or resolving, rather than only serializing routine events against
+   * each other. Splitting .callout off from .chain-hud (2026-08-17) put them
+   * in separate elements but didn't stop them competing for attention — a
+   * callout at full brightness, animating, next to a mostly-static HUD wins
+   * the eye regardless of where either sits; the collision was always
+   * temporal, not spatial. chainTeardown calls this once the chain has
+   * fully handed the stage back, after filtering the queue down to what's
+   * still worth replaying (see calloutQueue's own docstring). */
+  private advanceCalloutQueue(): void {
+    if (this.chainPhase !== "idle") {
+      this.calloutShowing = false;
+      return;
+    }
+    const next = this.calloutQueue.shift();
+    if (!next) {
+      this.calloutShowing = false;
+      return;
+    }
+    this.calloutShowing = true;
+    this.callout.textContent = next.text;
     this.callout.classList.remove("show", "muted");
-    this.callout.style.color = color ?? "";
+    this.callout.style.color = next.color ?? "";
     void this.callout.offsetWidth;
     this.callout.classList.add("show");
-    if (muted) this.callout.classList.add("muted");
+    if (next.muted) this.callout.classList.add("muted");
   }
 
   private showPopup(

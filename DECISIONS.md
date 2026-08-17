@@ -10,6 +10,39 @@
 
 ---
 
+## [2026-08-17] Prototype #1 played and judged: the shape lands, the read fails on perception and attribution
+
+- **Decision:**
+  - Prototype #1 was played and judged by Tu for the first time, resolving STATE.md's "Next up #1" gate.
+  - Verdict: the shape lands — chains ran unexpectedly long in both directions, and both the payoff and the backfire were genuinely surprising and fun.
+  - The shape does not read, on two separate axes: perception and attribution.
+  - Perception failed for three causes: `hotBeatIntervalFactor` (`sim/config.ts`) makes the chain the most rushed moment in the fight; every callout (enrage, death, wind-up, chain) shared one DOM element in `render/fightView.ts`, so a chain hit's own tell could be overwritten before it was read; hits below `chainTellThreshold` were silent, with no rendered state at all for "is a continuation roll pending."
+  - Attribution failed because chain length is the dominant payoff axis (measured ~39x vs. `chainAffinity`'s ~2x, see the 2026-08-15 payoff-axis entry) and takes zero player input.
+  - That's a regression against the 2026-07-26 friend-validation finding that RNG-alone fails "claim as mine," not a newly-excused result — STATE's pre-registration excused only thinness on repeat play, and names attribution as Tu's own need.
+- **Why:**
+  - Both failures were traced to code (`sim/fight.ts`, `sim/config.ts`, `render/fightView.ts`) and confirmed live in a played session.
+- **Replaces:**
+  - Resolves STATE.md's "Next up #1." Does not resolve attribution itself — deferred pending a re-judged session once the perception fix (see entry below) has been played.
+
+---
+
+## [2026-08-17] Chain perception fix: dilated inter-hit gaps, a dedicated chain HUD, an end card on every chain
+
+- **Decision:**
+  - `render/playback.ts` now advances sim-time at a dilated rate during a chain's inter-hit gaps only; impacts stay at normal wall-clock speed, since their tracer/flinch/popup timing was already decoupled from sim-time.
+  - Dilation deepens past the escalation knee and is capped analytically per chain so a long chain can't stall the fight's pace — see `playback.ts` for the mechanism.
+  - The chain now renders to its own persistent HUD (title plus a per-hit pip row, visible from hit 1) instead of sharing the single callout element routine events use.
+  - Every chain, not only a cascade-tier one, now resolves with an explicit end card that also states the firing hero's own `chainAffinity` multiplier next to the hit count.
+  - Routine callouts (enrage, death, wind-up) now queue instead of overwriting each other.
+- **Why:**
+  - Directly answers the three perception causes named in the entry above.
+  - `npm run check` and the chain-length-vs-identity-spread invariant are unchanged after this pass, confirming it is render-only with zero sim impact.
+  - Verified live in-browser through a full run, win and loss.
+- **Replaces:**
+  - Nothing structural — implements the project's existing "chain must read" intent; does not touch the 2026-08-15 payoff-axis decision.
+
+---
+
 ## [2026-08-16] STATE.md is sized by a reader framework, not a word budget
 
 - **Decision:**

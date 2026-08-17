@@ -42,7 +42,13 @@ export type FightEvent =
   /** heroId is the hero who was hot during this chain. totalDamage/killedIds
    * are what the chain actually bought (or cost) the squad — see fight.ts's
    * chain-hit branch, which accumulates both alongside bonusHitsLanded.
-   * `backfire` mirrors chainStart's flag. */
+   * `backfire` mirrors chainStart's flag.
+   *
+   * `reason` (2026-08-19 chain-ending pass) distinguishes the four causes
+   * that used to collapse into one identical event — a played session
+   * couldn't tell a chain that hit the cap from one that just missed, and
+   * a chain that WON the fight rendered the same "broken" beat as one that
+   * fizzled. See fight.ts's two emission sites. */
   | {
       type: "chainEnd";
       t: number;
@@ -51,6 +57,7 @@ export type FightEvent =
       totalDamage: number;
       killedIds: string[];
       backfire: boolean;
+      reason: "miss" | "capped" | "noTarget" | "fightEnd";
     }
   | { type: "heroDown"; t: number; side: Side; heroId: string }
   | { type: "tankBreak"; t: number; side: Side; heroId: string }

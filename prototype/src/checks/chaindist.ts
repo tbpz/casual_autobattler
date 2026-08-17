@@ -174,6 +174,55 @@ between("backfireChance composition check (should track cfg.fight.backfireChance
 
 const DEFAULT_DRAFT = ["bracer", "hollow", "rook", "cairn", "ward"];
 
+// --- Every chainEnd carries an honest `reason`, and "capped" implies the
+// chain actually reached the cap (2026-08-19, chain-ending pass — see
+// DECISIONS.md and render/fightView.ts's showChainEnd, which now branches
+// presentation on this field: a miss gets a broken-pip beat, a cap gets a
+// MAXED beat, and a chain that ended some other way — no valid target, or
+// the fight itself ending mid-chain — gets neither). Sweeps full RUNS, not
+// isolated fights — a single fight rarely accrues enough charge to fire at
+// all (see beatsheet.ts's persistence-check docstring; charge is a run-long
+// resource) — reading fightResults' raw event logs, so this exercises the
+// same event stream a played session sees.
+//
+// The implication is ONE-WAY, not "iff": a chain's very last landed hit can
+// itself wipe the enemy (or the ally side, on a backfire) on the same tick
+// it reaches chainMaxHits — the fight ends before the forced-0 continuation
+// roll that would otherwise tag it "capped", so fight.ts's force-close path
+// correctly reports "fightEnd" even though chainLength === chainMaxHits.
+// First measured here, not assumed: this is real and not rare (~4% of ends
+// at n=300 runs), so the render side's MAXED beat (gated on reason ===
+// "capped") deliberately does NOT fire for a max-length chain that also won
+// the fight — the resolve overlay is the bigger moment on that tick.
+{
+  const policy = makePolicy("always-heal", DEFAULT_RUN_CONFIG);
+  const seenReasons = new Set<string>();
+  let cappedButNotMaxLength = 0;
+  let checkedEnds = 0;
+  for (let i = 0; i < 300; i++) {
+    const seed = 50_000 + i;
+    const runResult = runRun(DEFAULT_RUN_CONFIG, new Rng(seed), policy, seed, makePlayerSide(DEFAULT_DRAFT));
+    for (const fightResult of runResult.fightResults) {
+      for (const e of fightResult.events) {
+        if (e.type !== "chainEnd") continue;
+        checkedEnds++;
+        seenReasons.add(e.reason);
+        if (e.reason === "capped" && e.chainLength !== cfg.chainMaxHits) cappedButNotMaxLength++;
+      }
+    }
+  }
+  check(`chainEnd.reason: at least one end observed across ${checkedEnds} chains`, checkedEnds > 0);
+  check(
+    `chainEnd.reason "capped" implies chainLength === chainMaxHits (${cfg.chainMaxHits})`,
+    cappedButNotMaxLength === 0,
+    `${cappedButNotMaxLength} counter-examples out of ${checkedEnds}`,
+  );
+  check(
+    `chainEnd.reason: saw at least "miss" and "capped" (miss/capped/noTarget/fightEnd are the full set) — got {${[...seenReasons].join(", ")}}`,
+    seenReasons.has("miss") && seenReasons.has("capped"),
+  );
+}
+
 // --- Target-funnel check for the default DRAFT, PRIMARY population
 // (always-heal — see this file's top docstring). Batch-verified via
 // `npm run batch --squad default --policy always-heal --n 1500`.

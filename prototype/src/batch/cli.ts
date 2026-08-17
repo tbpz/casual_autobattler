@@ -66,7 +66,7 @@ function formatEvent(e: FightEvent): string {
     case "chainHit":
       return `[t=${t}] chain hit #${e.hitIndex} (${e.kind}${e.backfire ? ", backfire" : ""}) from ${e.sourceId}: ${e.damage} -> ${e.targetId}`;
     case "chainEnd":
-      return `[t=${t}] ${e.heroId}'s ${e.backfire ? "backfire" : "chain"} ends, length=${e.chainLength}, total=${e.totalDamage}${e.killedIds.length ? `, killed=${e.killedIds.join(",")}` : ""}`;
+      return `[t=${t}] ${e.heroId}'s ${e.backfire ? "backfire" : "chain"} ends (${e.reason}), length=${e.chainLength}, total=${e.totalDamage}${e.killedIds.length ? `, killed=${e.killedIds.join(",")}` : ""}`;
     case "heroDown":
       return `[t=${t}] ${e.side} hero ${e.heroId} falls`;
     case "tankBreak":

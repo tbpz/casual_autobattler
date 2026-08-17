@@ -66,6 +66,7 @@ export function mountApp(root: HTMLElement): void {
       result,
       (snapshot, events) => view.render(snapshot, events),
       () => onFightEnd(result),
+      cfg.fight.chainEscalationKneeHit,
     );
 
     const pauseBtn = document.createElement("button");

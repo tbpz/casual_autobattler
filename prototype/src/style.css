@@ -55,13 +55,6 @@ body {
   overflow: hidden;
 }
 
-.fight-clock {
-  text-align: center;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-  margin-bottom: 12px;
-}
-
 .arena {
   position: relative;
   display: flex;
@@ -70,6 +63,12 @@ body {
   gap: 16px;
   min-height: 160px;
   padding: 12px 12px 0;
+  /* Headroom for .chain-hud/.chain-end-card, which sit well above this box
+     (see their own negative top offsets) — .fight-view's overflow:hidden
+     would otherwise clip their multi-line content. 2026-08-19: .callout
+     moved out of this band entirely (see .callout-band below), so this is
+     now purely about the clipping edge, not a collision with .callout. */
+  margin-top: 46px;
 }
 
 .arena.shake {
@@ -475,10 +474,14 @@ body {
 /* Ambient dimming while a chain is live (2026-08-14 pacing pass) — the
    arena's OWN combat traffic fades so the chain doesn't have to compete
    with six bodies swinging at once; the chain's own tracers
-   (.chain-tracer) and the HUD/callout are excluded. Render-only: driven by
-   fightView.ts toggling these classes off the snapshot, no Playback/timing
-   change. .chain-backfire layers a red vignette on top so a backfire reads
-   as dangerous in peripheral vision, not only at the hot hero's own body. */
+   (.chain-tracer) and the HUD/callout are excluded. Driven by fightView.ts
+   toggling these classes off its own chainPhase (2026-08-19 — was the raw
+   snapshot before; phase also covers the "resolving" beat after hotHeroId
+   itself has gone null, so the miss/cap tell and the end card stay the
+   loudest thing on screen through their own hold, not just while a chain is
+   technically still firing). .chain-backfire layers a red vignette on top
+   so a backfire reads as dangerous in peripheral vision, not only at the
+   hot hero's own body. */
 .arena.chain-live .tracer.ambient {
   opacity: 0.25;
 }
@@ -608,34 +611,211 @@ body {
   animation: healPulse 0.5s ease-out;
 }
 
-/* The persistent chain HUD (2026-08-14) — unlike .callout below, which pops
-   for ~1.1s and fades, this stays up and updates every tick for the whole
-   duration of a chain (see fightView.ts's updateChainHud), so "what is that
-   hero doing right now" has an answer at any glance, not only the instant a
-   callout happened to fire. Anchored opposite the clock so it never
-   overlaps the transient callout beneath it. */
+/* The persistent chain HUD (2026-08-14, rebuilt 2026-08-17). Unlike .callout
+   below, which pops for ~1.1s and fades, this stays up and updates every
+   tick for the whole duration of a chain (see fightView.ts's
+   updateChainHud), so "what is that hero doing right now" has an answer at
+   any glance. As of the 2026-08-17 legibility pass it's also the ONLY
+   channel a chain writes to while live — a played session reported a chain's
+   text getting stomped by a routine callout (enrage, a death) sharing the
+   same element; this one is structurally exempt from that collision since
+   routine events never touch it. Anchored clear of .fight-view's
+   overflow:hidden edge — .arena's margin-top reserves the headroom this
+   needs. 2026-08-19: .callout moved out of .arena's own top band entirely
+   (see .callout-band below) and the queue now holds while a chain is live —
+   this element owns that whole band alone now, but stays snapshot-driven
+   and un-stompable regardless. */
 .chain-hud {
   position: absolute;
-  top: -22px;
+  top: -54px;
   left: 50%;
   transform: translateX(-50%);
-  font-weight: 700;
-  font-size: 0.85em;
-  letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease-out;
+  --chain-hud-color: var(--chain);
 }
 
 .chain-hud.show {
   opacity: 1;
 }
 
+/* A one-shot flourish on ignition and on a full-spectacle-tier hit
+   (fightView.ts's showChainStart/showChainHit) — the persistent HUD's own
+   equivalent of the old callout's "loud" tier, now layered onto an element
+   that can't be knocked out by anything else. */
+.chain-hud.emphasize {
+  animation: chainHudEmphasize 0.5s ease-out;
+}
+
+@keyframes chainHudEmphasize {
+  0% {
+    transform: translateX(-50%) scale(1);
+  }
+  30% {
+    transform: translateX(-50%) scale(1.15);
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+.chain-hud-title {
+  font-weight: 700;
+  font-size: 0.95em;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.chain-hud-total {
+  font-size: 0.65em;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  min-height: 1em;
+}
+
+/* One pip per possible hit, up to chainMaxHits (built once in the
+   constructor, toggled every tick — see fightView.ts's updateChainHud).
+   `.filled` = landed; `.rolling` = the continuation roll currently pending —
+   the "is it still going?" state a played session reported as having no
+   visible answer at all. */
+.chain-hud-pips {
+  display: flex;
+  gap: 4px;
+}
+
+.chain-pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #2a2e3a;
+  border: 1px solid #3a3f4e;
+  transition:
+    background 0.15s ease-out,
+    border-color 0.15s ease-out;
+}
+
+.chain-pip.filled {
+  background: var(--chain-hud-color);
+  border-color: var(--chain-hud-color);
+}
+
+.chain-pip.rolling {
+  border-color: var(--chain-hud-color);
+  animation: chainPipRoll 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes chainPipRoll {
+  from {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.chain-pip.landed {
+  animation: chainPipLand 0.4s ease-out;
+}
+
+@keyframes chainPipLand {
+  0% {
+    transform: scale(1.7);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* The chain's failure beat (2026-08-19, chain-ending pass) — the pip that
+   was `.rolling` (the pending continuation roll) resolves HERE instead of
+   just vanishing when hotHeroId goes null (see fightView.ts's showChainEnd,
+   "reason: miss"). Hollow + red so it reads as a clear stop, distinct from
+   an ordinary unfilled pip (which never had a roll attempted against it at
+   all) and from --backfire's danger-red used elsewhere (this is a fizzle,
+   not an active threat — the HUD title goes muted grey for the same reason,
+   only the pip itself carries the red). */
+.chain-pip.missed {
+  background: transparent;
+  border-color: var(--backfire);
+  animation: chainPipMiss 0.5s ease-out;
+}
+
+@keyframes chainPipMiss {
+  0% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+}
+
+/* The LAST pip is a hard ceiling, not just another slot (chainMaxHits — see
+   sim/config.ts; tagged at build time in fightView.ts off that same value,
+   so the marker can never drift from the real cap). A ring, not a dot, so
+   reaching it reads as "the maximum possible" on sight rather than as an
+   ordinary hit that happens to be last. */
+.chain-pip.cap {
+  border-radius: 3px;
+  width: 10px;
+  height: 10px;
+}
+
+.chain-pip.cap.filled {
+  box-shadow: 0 0 4px 1px var(--chain-hud-color);
+}
+
+/* The chain's OTHER ending — reaching the cap itself (fightView.ts's
+   showChainEnd, "reason: capped"). There is no pending pip past chainMaxHits
+   to resolve (the sim forces the continuation chance to 0 the instant the
+   cap is reached, so that roll never actually happens — see fight.ts) — this
+   flares the cap pip itself instead, a peak rather than a stop. */
+.chain-pip.capped-flare {
+  animation: chainPipCapFlare 0.6s ease-out;
+}
+
+@keyframes chainPipCapFlare {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 4px 1px var(--chain-hud-color);
+  }
+  40% {
+    transform: scale(1.8);
+    box-shadow: 0 0 12px 4px var(--chain-hud-color);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 4px 1px var(--chain-hud-color);
+  }
+}
+
+/* Routine-event callout band (2026-08-19, chain-ending pass) — moved out of
+   .arena's own top overlay strip, which is now reserved exclusively for
+   .chain-hud/.chain-end-card. This is the SPATIAL half of "chains and
+   routine events shouldn't compete for the eye"; on its own it wasn't
+   enough — the real collision was TEMPORAL (an animating callout beats a
+   mostly-static HUD regardless of where either sits), fixed by
+   fightView.ts's advanceCalloutQueue holding the whole queue while
+   chainPhase !== "idle". Fixed min-height so an empty band never causes a
+   layout jump when nothing is queued; a normal in-flow block (not an arena
+   overlay) below .arena. */
+.callout-band {
+  position: relative;
+  min-height: 26px;
+  margin-top: 6px;
+}
+
 .callout {
   position: absolute;
-  top: -6px;
+  top: 0;
   left: 50%;
   transform: translate(-50%, -8px);
   font-weight: 700;
@@ -650,9 +830,12 @@ body {
   animation: calloutPop 1.1s ease-out forwards;
 }
 
-/* Quiet tier — tank break/recover and a length-2 (not yet full) chain use
-   this: smaller, dimmer, no urgency implied. The loud, un-muted callout is
-   reserved for the chain>=3 spectacle (see fightView.ts's showChainHit). */
+/* Quiet tier — tank break/recover and a hero falling use this: smaller,
+   dimmer, no urgency implied. Chain beats no longer route through .callout
+   at all as of 2026-08-17 (see .chain-hud/.chain-end-card above/below) — this
+   element is routine-events-only now, queued (fightView.ts's
+   calloutQueue/advanceCalloutQueue) rather than stomped, so two routine
+   events landing close together both get seen. */
 .callout.muted {
   font-size: 0.85em;
   color: var(--muted);
@@ -673,6 +856,66 @@ body {
   100% {
     opacity: 0;
     transform: translate(-50%, -16px) scale(1);
+  }
+}
+
+/* The chain's resolution beat (2026-08-17) — every chain gets this, not just
+   a cascade-tier one; see fightView.ts's showChainEnd. Positioned where the
+   HUD was — fightView.ts's showCard hides the HUD at the exact moment this
+   card appears (2026-08-19: after any miss/cap failure beat has held its own
+   moment first, not on the same tick chainEnd fires) so the handoff reads as
+   one continuous element changing state, not two things overlapping. */
+.chain-end-card {
+  position: absolute;
+  top: -54px;
+  left: 50%;
+  transform: translate(-50%, -6px);
+  text-align: center;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chain-end-card.show {
+  animation: chainEndPop 1.6s ease-out forwards;
+}
+
+.chain-end-headline {
+  font-weight: 700;
+  font-size: 1em;
+  letter-spacing: 0.03em;
+}
+
+.chain-end-card.big .chain-end-headline {
+  font-size: 1.2em;
+}
+
+/* Phase 2's attribution decomposition (2026-08-17) — length (the axis a
+   player has zero input into) vs. this hero's own chainAffinity (the axis
+   the draft/field pick actually bought), stated every time so the player can
+   judge how much of the headline number was theirs. */
+.chain-end-detail {
+  font-size: 0.6em;
+  font-weight: 600;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+@keyframes chainEndPop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 4px) scale(0.92);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, -6px) scale(1.05);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -14px) scale(1);
   }
 }
 

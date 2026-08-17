@@ -431,8 +431,15 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         continue;
       }
       if (isHot) {
-        const chance = bonusHitsLanded >= cfg.chainMaxHits ? 0 : prdLookup(cfg.chainChanceByHitsSoFar, bonusHitsLanded);
-        const hit = rng.chance(chance) ? resolveChainHit(rng, cfg, player, enemy, hero, bonusHitsLanded + 1, chainBackfire) : null;
+        // capped/rolled kept separate from `hit` (2026-08-19 chain-ending
+        // pass) so the miss branch below can report WHY the chain ended —
+        // continuation roll failed, the hard cap forced it, or the roll
+        // passed but resolveChainHit found no valid target — instead of
+        // collapsing all three into one identical event.
+        const capped = bonusHitsLanded >= cfg.chainMaxHits;
+        const chance = capped ? 0 : prdLookup(cfg.chainChanceByHitsSoFar, bonusHitsLanded);
+        const rolled = rng.chance(chance);
+        const hit = rolled ? resolveChainHit(rng, cfg, player, enemy, hero, bonusHitsLanded + 1, chainBackfire) : null;
         if (hit) {
           const hitIndex = bonusHitsLanded + 1;
           events.push({
@@ -456,6 +463,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
             outcome = "win";
           }
         } else {
+          const reason: "miss" | "capped" | "noTarget" = capped ? "capped" : rolled ? "noTarget" : "miss";
           events.push({
             type: "chainEnd",
             t,
@@ -467,6 +475,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
             totalDamage: chainDamageSoFar,
             killedIds: chainKillIds,
             backfire: chainBackfire,
+            reason,
           });
           finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
           hotHeroId = null;
@@ -570,6 +579,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       totalDamage: chainDamageSoFar,
       killedIds: chainKillIds,
       backfire: chainBackfire,
+      reason: "fightEnd",
     });
     finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
   }
