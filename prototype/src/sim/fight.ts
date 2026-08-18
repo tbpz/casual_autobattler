@@ -1,6 +1,6 @@
 import type { Rng } from "./rng.js";
 import type { FightConfig } from "./config.js";
-import { chainEscalationFactor, prdLookup } from "./config.js";
+import { backfireChanceFor, chainEscalationFactor, prdLookup } from "./config.js";
 import type { FightSetup, HeroState, SideState } from "./types.js";
 import { sideHp, sideMaxHp } from "./types.js";
 import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "./events.js";
@@ -379,8 +379,10 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   let ignited = false;
   let hotHeroId: string | null = null;
   // Whether the CURRENT chain (hotHeroId) is a backfire — decided once, at
-  // fire time, by cfg.backfireChance (2026-08-14 chain rebuild). Meaningless
-  // while hotHeroId is null.
+  // fire time, by backfireChanceFor(cfg, firing hero's chainAffinity)
+  // (2026-08-14 chain rebuild; per-hero since the 2026-08-19 affinity-as-risk
+  // pass — see config.ts's backfireChanceBase docstring). Meaningless while
+  // hotHeroId is null.
   let chainBackfire = false;
   let bonusHitsLanded = 0;
   let finalChainLength = 0;
@@ -531,7 +533,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         ready.charge = 0;
         ignited = true;
         hotHeroId = ready.id;
-        chainBackfire = rng.chance(cfg.backfireChance);
+        chainBackfire = rng.chance(backfireChanceFor(cfg, ready.chainAffinity));
         bonusHitsLanded = 0;
         chainDamageSoFar = 0;
         chainKillIds = [];

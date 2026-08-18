@@ -10,6 +10,23 @@
 
 ---
 
+## [2026-08-19] Attribution fix scope: honest CHAIN pips + price chainAffinity as backfire risk, not a full rebalance
+
+- **Decision:**
+  - The CHAIN pip meter (squad/field pick) now ranks heroes by chain-output coefficient (damage or healPerBeat x chainAffinity), not raw chainAffinity.
+  - `backfireChance` is no longer flat — it scales with the firing hero's own chainAffinity (`backfireChanceFor`, `sim/config.ts`), so higher affinity is a real gamble, not free EV.
+  - Rebalancing hero stats to fix Cairn beating Ward is explicitly deferred.
+- **Why:**
+  - A measurement sweep (n=3000, three designs) found chainAffinity's LEVEL is mechanically real: scaling every hero's affinity 0.6x-1.4x moved completion monotonically ~6.5 points.
+  - The CHOICE between heroes on affinity is not real: flattening the spread didn't hurt completion, and swapping only the support (tank/damage held fixed) had Cairn beat Ward in all four pairings despite lower affinity.
+  - chainAffinity was unpriced — flat 0.12 backfireChance made more affinity strictly more EV, never a tradeoff (Hollow vs Bracer was +73% affinity, +9% DPS, for only -7.7% maxHp).
+  - Chosen over a UI-only fix (no risk pricing) and a full rebalance (also fixes Cairn/Ward) via direct user choice — the rebalance touches every pinned balance check and needs its own played verdict.
+- **Replaces:**
+  - Resolves STATE.md's Next-up #2 "pick an ownership lever" — chosen and shipped, batch-verified, not yet played.
+  - Does not resolve Cairn-beats-Ward, left open (named in `sim/heroes.ts`'s pool docstring).
+
+---
+
 ## [2026-08-17] Prototype #1 played and judged: the shape lands, the read fails on perception and attribution
 
 - **Decision:**

@@ -702,9 +702,9 @@ export class FightView {
   /** A named hero's bar fills and fires (2026-08-14 chain rebuild) — the
    * loud, named beat that establishes "it's THIS hero, starting NOW, and
    * it's going THIS way" before a single bonus hit has landed. No advance
-   * telegraph exists before this moment (see config.ts's backfireChance
-   * docstring) — the chainHud (title text, driven by updateChainHud) and
-   * this burst ARE the reveal.
+   * telegraph exists before this moment (see config.ts's
+   * backfireChanceBase/backfireChanceFor docstrings) — the chainHud (title
+   * text, driven by updateChainHud) and this burst ARE the reveal.
    *
    * 2026-08-15 (chain-payoff-axis pass): the burst ring's own size now
    * scales to this hero's chainAffinity, normalized against the pool's
@@ -713,7 +713,16 @@ export class FightView {
    * Rook's, so the ignition stops over-promising for the heroes whose
    * chains used to be a dud. Never scales below 0.6 — every ignition is
    * still a real tell, per the same "nothing goes silent" rule the hit-by-
-   * hit spectacle ladder follows (see showChainHit). */
+   * hit spectacle ladder follows (see showChainHit).
+   *
+   * KNOWN GAP (2026-08-19, affinity-as-risk pass): this still scales off raw
+   * chainAffinity, not the true chain-output coefficient (see
+   * sim/heroes.ts's chainCoefficient) the pick-screen pips were corrected to
+   * use — a low-affinity, high-damage hero (Vex) still gets a visibly
+   * smaller ignition tell than its real payoff deserves. Not fixed here:
+   * HeroSnapshot doesn't carry damage/healPerBeat (only chainAffinity), so
+   * computing the coefficient here needs a small sim-level schema addition,
+   * out of scope for that pass. */
   private showChainStart(heroId: string, backfire: boolean): void {
     this.anyChainFiredThisFight = true;
     // A new chain firing is the authoritative "the stage is live again"

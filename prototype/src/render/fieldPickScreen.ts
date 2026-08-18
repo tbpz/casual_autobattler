@@ -1,9 +1,10 @@
 import type { RunConfig } from "../sim/config.js";
 import type { HeroState } from "../sim/types.js";
+import { chainCoefficient } from "../sim/heroes.js";
 import { defaultFieldPick, fieldSquad, livingRosterHeroes, type RosterState } from "../sim/roster.js";
 import { makeEnemySide } from "../sim/run.js";
 import { project } from "../sim/projection.js";
-import { chainAffinityPips, chargeBarHtml } from "./heroPickShared.js";
+import { chainOutputPips, chargeBarHtml } from "./heroPickShared.js";
 
 /**
  * Per-fight FIELD pick (2026-08-09 roster/bench pass — see config.ts's
@@ -111,7 +112,7 @@ export function renderFieldPickScreen(
       </span>
       <span class="hero-pick-stats">
         <span class="hero-pick-numbers">${Math.round(h.hp)}/${Math.round(h.maxHp)}hp / ${h.damage}dmg / ${h.attackIntervalSec}s${h.healPerBeat ? ` +${h.healPerBeat}heal` : ""}${h.attacksWhileHealing ? " +atk" : ""}</span>
-        <span class="hero-pick-chain" title="Chain affinity — how big this hero's chain lands, good or backfired">CHAIN ${chainAffinityPips(h.chainAffinity)}</span>
+        <span class="hero-pick-chain" title="Chain — bigger pips land a bigger payoff AND carry a bigger backfire risk">CHAIN ${chainOutputPips(chainCoefficient(h))}</span>
       </span>
     `;
   }

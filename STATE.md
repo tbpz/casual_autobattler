@@ -2,7 +2,7 @@
 
 > **What this file is:** where the project stands right now, and what to do next. Present tense only.
 > **Read this first** in every session. Layer 1 ends at the rule — that's the 60-second read. Layer 2 is the working index.
-> **Last synced:** 2026-08-17
+> **Last synced:** 2026-08-19
 
 ## What this is
 
@@ -22,12 +22,12 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 ## Where it stands
 
-Prototype #1 plays end to end and has now been played and judged for the first time: the shape lands — both the payoff and the backfire genuinely surprise — but the read failed, on perception and on attribution. A render-only pass fixes perception (dilated inter-hit pacing, a dedicated chain HUD, an end card on every chain) and adds a first attribution-transparency step; both are mechanically verified but not yet replayed by a maker. Attribution itself — real player influence over the chain's dominant payoff axis — is still open, gated on that replay. Depth against run-to-run thinness still waits on the same verdict before widening the pool further.
+Prototype #1 plays end to end and was played and judged once: the shape lands, but the read failed on perception and on attribution. A perception fix (dilated pacing, a dedicated chain HUD, an end card on every chain) is built and batch-verified. An attribution lever is also built and batch-verified: choosing a hero for its chain now carries real backfire risk, priced in `sim/config.ts` and `sim/heroes.ts`, not a free upgrade. Neither fix has been played yet — Next up #1 judges both together.
 
 ## Next up
 
-1. **Replay the fixed build and re-judge** — `npm run dev` in `prototype/`. Judge the two split questions separately: does the chain read now, and is attribution still absent?
-2. If attribution still fails: pick an ownership lever. Any candidate must not reopen the payoff-axis or fake-decision-filter constraints — grep `DECISIONS.md` for both.
+1. **Replay the fixed build and re-judge** — `npm run dev` in `prototype/`. Does the chain read now, and does the shipped pip/backfire lever feel like a real choice, or does chain length's ~40x swing still swamp it?
+2. If attribution still fails: the hero-affinity lever is now priced, not open — the remaining candidate is chain length itself (loaded continuation odds, the escalation knee, charge-as-choice).
 3. Widen the pool beyond encounters — offers/modifiers next, heroes after; waits on #1's repeat-play verdict.
 4. Give the coin spend real teeth against backfire, or accept its purpose has shifted — needs a played verdict.
 5. Tune fights 1–3 for real risk against a double-tank draft.
@@ -40,18 +40,19 @@ Prototype #1 plays end to end and has now been played and judged for the first t
 |---|---|---|
 | Fight mechanics — charge, chain, backfire | batch-verified | `sim/fight.ts`, `sim/config.ts` |
 | Chain legibility — pacing, HUD, pips, end card | built | `render/playback.ts`, `render/fightView.ts` |
+| Attribution lever — honest chain pips, affinity-priced backfire | batch-verified | `sim/heroes.ts`, `sim/config.ts`, `render/heroPickShared.ts` |
 | The run — draft, field pick, attrition | batch-verified | `sim/roster.ts`, `sim/run.ts` |
 | Enemies — the 11-encounter tiered pool | batch-verified | `sim/encounters.ts` |
 | Optional layer — draft, field pick, coin spend | built | `render/squadPickScreen.ts`, `fieldPickScreen.ts` |
 | Stakes — run-scoped coin economy | built | `sim/run.ts`, `sim/config.ts` |
 | Difficulty — ~23% completion at n=1500 | batch-verified | `checks/chaindist.ts` |
-| Prototype #1 — re-judged after the legibility fix | not started | Next up #1 |
+| Prototype #1 — re-judged after the legibility + attribution fixes | not started | Next up #1 |
 | Real game build | not started | — |
 
 ## Unverified bets
 
-- Combat is watch-only — the first played session found attribution absent under it; unresolved until a lever is chosen.
-- Chain length, not hero identity, carries the payoff — the surprise lands on a first play, but the same session found it takes zero player input.
+- Combat is watch-only — the first played session found attribution absent under it; unresolved until the lever below is played.
+- Chain length remains the dominant payoff axis by a wide margin; the new hero-affinity lever is priced but modest by comparison — unverified whether that's enough to feel like attribution.
 - A no-telegraph backfire flip reads as dread rather than confusion — tangled with the same perception issues the legibility fix targets, needs its own re-judge.
 - A drawn encounter keeps the field pick a live read rather than a memorised answer.
 - The draft/field split keeps attrition from spiralling without erasing it.
@@ -60,7 +61,7 @@ Prototype #1 plays end to end and has now been played and judged for the first t
 
 - Is the encounter pool wide enough to keep a run unsolved, or are offers/heroes needed next?
 - Does the coin spend need new leverage against a backfire, or has its purpose shifted?
-- Which lever should carry player influence over the chain — loaded continuation odds, the escalation knee, charge-as-choice, backfire risk, or an in-fight beat that revises watch-only?
+- Is the priced-affinity lever enough to read as attribution, or does chain length's dominance need its own lever next — loaded continuation odds, the escalation knee, or charge-as-choice?
 - How much further to retune fights 1–3 against a double-tank draft?
 
 ## How to work here

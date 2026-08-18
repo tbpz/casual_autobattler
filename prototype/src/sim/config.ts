@@ -118,11 +118,27 @@ export interface FightConfig {
    * healer's escalating heal restores the ENEMY. Same mechanic, same
    * magnitude formula (hero.chainAffinity scales a backfire exactly as it
    * scales a real payoff), just aimed backwards — see fight.ts's chain
-   * resolution. The single knob for "how much does a full bar feel like
-   * dread." No advance telegraph; the player finds out which way it went
-   * only when it fires (colour reads instantly — gold burst vs red
-   * implosion). */
-  backfireChance: number;
+   * resolution. No advance telegraph; the player finds out which way it
+   * went only when it fires (colour reads instantly — gold burst vs red
+   * implosion).
+   *
+   * 2026-08-19 (affinity-as-risk pass — see DECISIONS.md/STATE.md's
+   * attribution investigation): no longer a flat constant. Before this pass,
+   * chainAffinity scaled payoff/backfire MAGNITUDE symmetrically while every
+   * hero shared this same flat chance — at those odds, symmetric magnitude
+   * is NET POSITIVE expected value, so more affinity was strictly more EV,
+   * never a real tradeoff (clearest case: Hollow vs Bracer was +73%
+   * affinity, +9% DPS, for only -7.7% maxHp — an upgrade, not a choice). Use
+   * backfireChanceFor(cfg, chainAffinity) below instead of reading this
+   * field directly. */
+  backfireChanceBase: number;
+  /** See backfireChanceFor below — the risk half of "more affinity, more
+   * volatility." Additional backfire chance per +1.0 of chainAffinity above
+   * (or below) 1.0. Positive: more affinity means more real risk. Anchored
+   * at 1.0 rather than the pool's actual min/max so this file stays
+   * pool-agnostic (sim/config.ts must not import sim/heroes.ts's specific
+   * stat block). */
+  backfireChanceAffinitySlope: number;
 
   /**
    * The enemy bruiser's telegraphed heavy hit (2026-08-07 rebuild) — the
@@ -388,10 +404,19 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // to end (by wipe) before a chain reaches the steep part of the curve,
   // while a winning one can ride a long chain further, so the net effect
   // skewed the game slightly easier. 0.12 lands back at ~29.6%, within a
-  // point of the ~28% baseline — re-batch (`npm run check:chaindist`)
-  // before trusting this number again if any of chainEscalationKneeHit/
-  // StepMultiplier/chainAffinity move further.
-  backfireChance: 0.12,
+  // point of the ~28% baseline.
+  //
+  // Restructured flat -> per-hero (2026-08-19, affinity-as-risk pass): this
+  // value becomes backfireChanceBase, the rate at chainAffinity===1.0 (Vex
+  // exactly — sees zero change from the flat-0.12 era). Strawman
+  // (unverified against a played session, only batch-measured — same as
+  // every value in this file): backfireChanceAffinitySlope=0.15 spreads real
+  // backfire risk ~7.5% (Cairn, 0.7 affinity) to ~18% (Rook, 1.4 affinity)
+  // across the pool's current range. Re-batch (`npm run check:chaindist`)
+  // before trusting either number again if chainAffinity's own pool range
+  // moves.
+  backfireChanceBase: 0.12,
+  backfireChanceAffinitySlope: 0.15,
 
   // Wind-up (2026-08-07 rebuild, retuned twice after batch passes — see
   // DECISIONS.md's "fight causality rebuild" entry): the initial strawman
@@ -553,4 +578,17 @@ export function prdLookup(table: number[], countSoFar: number): number {
 export function chainEscalationFactor(cfg: FightConfig, hitIndex: number): number {
   if (hitIndex <= cfg.chainEscalationKneeHit) return hitIndex;
   return cfg.chainEscalationKneeHit + (hitIndex - cfg.chainEscalationKneeHit) * cfg.chainEscalationStepMultiplier;
+}
+
+/** The chance a firing chain backfires, as a function of the firing hero's
+ * own chainAffinity (2026-08-19, affinity-as-risk pass — see
+ * backfireChanceBase/backfireChanceAffinitySlope's docstrings above). Pure
+ * and hero-agnostic, same convention as chainEscalationFactor: this file
+ * never imports the specific hero pool, so the formula is anchored at
+ * chainAffinity === 1.0 rather than the pool's actual min/max. Clamped to
+ * [0, 1] defensively — the pool's current range (0.7-1.4) never approaches
+ * either bound at the current base/slope, but a future hero or a retuned
+ * slope shouldn't be able to produce a nonsense probability. */
+export function backfireChanceFor(cfg: FightConfig, chainAffinity: number): number {
+  return Math.max(0, Math.min(1, cfg.backfireChanceBase + cfg.backfireChanceAffinitySlope * (chainAffinity - 1)));
 }

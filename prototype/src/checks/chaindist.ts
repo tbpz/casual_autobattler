@@ -56,9 +56,22 @@
  * to a comparable ~31-35%. See config.ts's chargeThreshold comment for the
  * full writeup — this is exactly the kind of thing CLAUDE.md's evidence-
  * over-memory discipline exists to catch.
+ *
+ * 2026-08-19 (affinity-as-risk pass — see DECISIONS.md/STATE.md's
+ * attribution investigation): backfireChance is no longer a flat constant
+ * pinned by RNG sampling. A measurement pass proved the pick-screen's CHAIN
+ * pips ranked heroes on the wrong number (raw chainAffinity, not
+ * damage*chainAffinity) AND that chainAffinity was unpriced — flat backfire
+ * odds meant more affinity was strictly more expected value, never a real
+ * tradeoff. Fixed by making backfireChance a function of the firing hero's
+ * own chainAffinity (config.ts's backfireChanceFor) — see this file's
+ * analytical invariant below (no RNG sampling needed; it's a pure function
+ * now) replacing the old flat composition check, and the DEFAULT_DRAFT
+ * funnel check's backfire band re-measured and re-centered for the new
+ * per-hero mechanism.
  */
 import { Rng } from "../sim/rng.js";
-import { DEFAULT_RUN_CONFIG, prdLookup } from "../sim/config.js";
+import { DEFAULT_RUN_CONFIG, backfireChanceFor, prdLookup } from "../sim/config.js";
 import { makePlayerSide, PLAYER_HERO_POOL } from "../sim/heroes.js";
 import { makePolicy, runRun } from "../sim/run.js";
 import { chainAttackMagnitude } from "../sim/fight.js";
@@ -83,16 +96,6 @@ for (let i = 0; i < N; i++) {
 }
 const chain3PlusRate = chain3Plus / N;
 
-// How often a fire goes bad (backfireChance) — a straight coin flip, not a
-// PRD table, but worth pinning as a composition sanity check: N=100k keeps
-// sampling error tiny (std error ~0.0014 at p=0.25), so a real drift in the
-// constant shows up immediately rather than hiding in noise.
-let backfires = 0;
-for (let i = 0; i < N; i++) {
-  if (rng.chance(cfg.backfireChance)) backfires++;
-}
-const backfireCompositionRate = backfires / N;
-
 let failed = false;
 
 function between(name: string, actual: number, lo: number, hi: number): void {
@@ -107,11 +110,37 @@ function check(name: string, condition: boolean, detail = ""): void {
 }
 
 between("fraction of fired chains with length >= 3 (composition of the table alone)", chain3PlusRate, 0.38, 0.46);
-// Band re-centered 2026-08-15 (chain-payoff-axis pass) around
-// backfireChance's new value (0.10 -> 0.12, re-tuned after the escalation
-// curve moved run completion up ~3pts — see this file's DEFAULT_DRAFT
-// funnel check below), same +/-0.02 tolerance as before.
-between("backfireChance composition check (should track cfg.fight.backfireChance directly)", backfireCompositionRate, 0.1, 0.14);
+
+// --- backfireChanceFor design invariant (2026-08-19, affinity-as-risk
+// pass — see DECISIONS.md/STATE.md's attribution investigation). Before
+// this pass, backfireChance was a flat coin flip, pinned here by RNG
+// sampling at N=100k. It is now a pure function of the firing hero's own
+// chainAffinity (config.ts's backfireChanceFor) — deterministic, so this is
+// an analytical assertion instead of a sampled composition check, same
+// style as the escalation-vs-identity invariant below: no RNG, just the
+// exact function fight.ts's chain-fire site calls.
+{
+  const cfg = DEFAULT_RUN_CONFIG.fight;
+  const byAffinity = [...PLAYER_HERO_POOL].sort((a, b) => a.chainAffinity - b.chainAffinity);
+  const rates = byAffinity.map((h) => ({ id: h.id, affinity: h.chainAffinity, rate: backfireChanceFor(cfg, h.chainAffinity) }));
+
+  let monotone = true;
+  for (let i = 1; i < rates.length; i++) {
+    if (rates[i]!.rate < rates[i - 1]!.rate) monotone = false;
+  }
+  check(
+    "backfireChanceFor is monotone non-decreasing in chainAffinity (more affinity -> more real risk, never a free upgrade)",
+    monotone,
+    rates.map((r) => `${r.id}=${(r.rate * 100).toFixed(1)}%`).join(" "),
+  );
+
+  const anchorRate = backfireChanceFor(cfg, 1.0);
+  check(
+    "backfireChanceFor(cfg, 1.0) === backfireChanceBase (the anchor point, e.g. Vex, is unaffected by the affinity slope)",
+    anchorRate === cfg.backfireChanceBase,
+    `got ${(anchorRate * 100).toFixed(1)}%, expected ${(cfg.backfireChanceBase * 100).toFixed(1)}%`,
+  );
+}
 
 // --- Escalation-vs-identity design invariant (2026-08-15, chain-payoff-axis
 // pass — see prototype/CHAIN_AXIS_PLAN's Chunk 2 and heroes.ts's
@@ -277,13 +306,21 @@ const DEFAULT_DRAFT = ["bracer", "hollow", "rook", "cairn", "ward"];
   between("default draft (always-heal): full-spectacle rate tracks chain>=5 across all fights (RC1 guard)", spectacleGuardDiff, 0, 0.02);
   between("default draft (always-heal): wins with no chain (big win, not only win)", primary.fractionWinsWithNoChain, 0.15, 0.45);
   between("default draft (always-heal): chains firing from a losing position", primary.fractionChainsWhileLosing, 0.08, 0.35);
-  // The direct check that backfireChance (0.10) is actually landing at the
-  // fight level, not just in the isolated composition check above.
+  // The direct check that backfire risk is actually landing at the fight
+  // level, not just in the isolated per-hero invariant above. Band re-
+  // centered 2026-08-19 (affinity-as-risk pass): backfireChance is no longer
+  // a flat constant, so this population figure is now the DEFAULT_DRAFT's
+  // chain-count-weighted mean across each hero's own backfireChanceFor
+  // (7.5%-18.0% per hero, see the invariant above) — measured 13.27% at
+  // n=1500, seed base 70_000, close to the hand-computed weighted mean
+  // (~12.9%) from each hero's actual chain-fire frequency. Same discipline
+  // as every other band in this file: move it to match reality, don't paper
+  // over a real measurement.
   between(
-    "default draft (always-heal): fraction of fired chains that backfire (should track cfg.fight.backfireChance)",
+    "default draft (always-heal): fraction of fired chains that backfire (tracks the draft's chain-weighted mean backfireChanceFor)",
     primary.fractionChainsBackfired,
-    0.06,
-    0.14,
+    0.08,
+    0.18,
   );
 
   // Secondary FLOOR — the no-economy worst case, not the played game.

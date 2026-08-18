@@ -56,6 +56,17 @@ export interface HeroDef {
  *    trimming per-hit damage this time rather than cadence, so the burst
  *    identity survives the nerf without also softening the chain
  *    multiplier, which reads off the same per-hit damage stat).
+ *
+ *    2026-08-19 correction (affinity-as-risk pass, same discipline as the
+ *    2026-08-09 note above — verified by re-deriving from the stat block,
+ *    not trusted from memory): "Rook has the pool's highest affinity —
+ *    reliably escalating chains" does NOT mean Rook has the pool's biggest
+ *    chain. Chain magnitude is damage*chainAffinity (see chainCoefficient
+ *    below), and Vex's higher damage (11 vs 6) wins out over Rook's higher
+ *    affinity (1.0 vs 1.4): Vex 11.0 > Rook 8.4, a ~31% gap in Vex's favor.
+ *    Rook's real distinguishing trait is backfire RISK (highest affinity =
+ *    highest backfireChanceFor, config.ts), not payoff size — its identity
+ *    string below was corrected to match.
  *  - support: Cairn is the pure safety net (lowest affinity — its heal
  *    chain is the mildest in the pool, good or bad) with the pool's highest
  *    heal throughput. Ward attacks AND heals on the same beat
@@ -63,6 +74,15 @@ export interface HeroDef {
  *    healPerBeat is cut so that hybrid flexibility and its own moderate
  *    affinity cost something instead of beating Cairn on every axis for
  *    free.
+ *
+ *    2026-08-19 finding, NOT yet acted on (out of scope for the
+ *    affinity-as-risk pass — a throughput/HP rebalance, not a pricing fix):
+ *    batch-measured (n=3000, 4 matched pairs holding tank+damage fixed,
+ *    swapping only the support) that Cairn beats Ward in every pairing
+ *    despite Cairn's lower affinity — the intended "costs something instead
+ *    of beating Cairn for free" trade does not currently hold either
+ *    direction; Ward is strictly behind, not a real tradeoff. Left as a
+ *    named, deferred gap — see the affinity-as-risk plan's Context section.
  * Values are strawmen for the batch harness (npm run batch --squad <combo>)
  * to move, same as everywhere else in this file.
  *
@@ -98,12 +118,12 @@ export const PLAYER_HERO_POOL: HeroDef[] = [
   {
     id: "rook", name: "Rook", role: "damage", maxHp: 85, damage: 6, attackIntervalSec: 0.9,
     chainAffinity: 1.4,
-    identity: "The pool's loudest chain. Highest affinity — the biggest payoff, and the biggest backfire.",
+    identity: "Highest affinity in the pool — a real gamble: it fires often, and when it goes wrong it goes wrong loud.",
   },
   {
     id: "vex", name: "Vex", role: "damage", maxHp: 70, damage: 11, attackIntervalSec: 1.5,
     chainAffinity: 1.0,
-    identity: "Explosive burst damage, moderate chain volatility on top.",
+    identity: "Explosive burst damage — its chain hits harder than its middling affinity suggests, at a middling backfire risk to match.",
   },
   {
     id: "cairn", name: "Cairn", role: "support", maxHp: 110, damage: 1, attackIntervalSec: 1.2, healPerBeat: 7,
@@ -117,8 +137,35 @@ export const PLAYER_HERO_POOL: HeroDef[] = [
   },
 ];
 
-/** The highest chainAffinity in the pool — squadPickScreen normalizes its
- * pip display against this so the pips stay correct if the pool changes. */
+/** The actual chain-output magnitude for one hero: damage*chainAffinity for
+ * an attacker, healPerBeat*chainAffinity for a healer — the exact terms
+ * fight.ts's chainAttackMagnitude/resolveChainHit multiply against the
+ * escalation curve (2026-08-19, affinity-as-risk pass — see
+ * DECISIONS.md/STATE.md's attribution investigation). chainAffinity ALONE is
+ * NOT this number: Vex (11 dmg x 1.0 = 11.0) truly out-chains Rook (6 dmg x
+ * 1.4 = 8.4) by ~31%, which is exactly what the pre-2026-08-19 pip meter
+ * (normalized against raw affinity) got backwards — see
+ * render/heroPickShared.ts's chainOutputPips, the fix. Healer and attacker
+ * coefficients are NOT directly comparable to each other (damage vs HP
+ * restored are different units) — this function exists to rank heroes
+ * WITHIN their own kind, same convention the pip meter already follows. */
+export function chainCoefficient(h: Pick<HeroDef, "damage" | "healPerBeat" | "chainAffinity">): number {
+  return (h.healPerBeat ?? h.damage) * h.chainAffinity;
+}
+
+/** The highest chain-output coefficient in the pool (see chainCoefficient
+ * above) — heroPickShared.ts's chainOutputPips normalizes its pip display
+ * against this so the pips stay correct if the pool changes. Supersedes the
+ * pre-2026-08-19 MAX_CHAIN_AFFINITY-normalized pip display, which ranked
+ * heroes on the wrong number. */
+export const MAX_CHAIN_COEFFICIENT = Math.max(...PLAYER_HERO_POOL.map(chainCoefficient));
+
+/** The highest chainAffinity in the pool — still used by fightView.ts's
+ * ignition-burst visual scale (a KNOWN GAP, not yet switched to the
+ * coefficient above — see the affinity-as-risk plan's "deliberately out of
+ * scope" note: HeroSnapshot doesn't carry damage/healPerBeat, so that visual
+ * can't compute the coefficient without a small sim-level schema change).
+ * NOT used for the pick-screen pips anymore — see MAX_CHAIN_COEFFICIENT. */
 export const MAX_CHAIN_AFFINITY = Math.max(...PLAYER_HERO_POOL.map((h) => h.chainAffinity));
 /** The lowest chainAffinity in the pool (2026-08-15) — paired with
  * MAX_CHAIN_AFFINITY so the renderer can normalize an ignition tell's

@@ -1,16 +1,25 @@
-import { MAX_CHAIN_AFFINITY } from "../sim/heroes.js";
+import { MAX_CHAIN_COEFFICIENT } from "../sim/heroes.js";
 
-/** Renders a hero's chainAffinity as filled/empty pips, normalized against
- * the pool's own highest value (2026-08-08 — the player's complaint was that
- * squad choice had no visible connection to the cascade; this is that
- * connection, made literal at pick time). 2026-08-14 chain rebuild:
- * chainAffinity now scales payoff/backfire MAGNITUDE only, not how fast a
- * hero's bar fills — every hero charges at the same rate, so this pip meter
- * reads as "how loud is this hero, both ways," not "how often does it chain."
- * Shared by squadPickScreen (pool defs, no live state yet) and
- * fieldPickScreen (live HeroState) so the two copies can never drift. */
-export function chainAffinityPips(affinity: number): string {
-  const filled = Math.max(1, Math.round((affinity / MAX_CHAIN_AFFINITY) * 5));
+/** Renders a hero's chain-output COEFFICIENT (see sim/heroes.ts's
+ * chainCoefficient — damage*chainAffinity for an attacker,
+ * healPerBeat*chainAffinity for a healer) as filled/empty pips, normalized
+ * against the pool's own highest coefficient (2026-08-08 — the player's
+ * complaint was that squad choice had no visible connection to the cascade;
+ * this is that connection, made literal at pick time).
+ *
+ * 2026-08-19 (affinity-as-risk pass — see DECISIONS.md/STATE.md's
+ * attribution investigation): renamed from chainAffinityPips and switched
+ * from raw chainAffinity to the true coefficient. The old version ranked
+ * heroes on the wrong number — Vex (11 dmg x 1.0 affinity = 11.0) truly
+ * out-chains Rook (6 dmg x 1.4 affinity = 8.4) by ~31%, while the old
+ * affinity-only pips showed Vex with FEWER pips than Rook. Now that
+ * backfireChance also scales with the firing hero's own chainAffinity
+ * (config.ts's backfireChanceFor), more pips means "bigger payoff, and a
+ * bigger backfire when it goes wrong" — a real tradeoff, not a strictly-
+ * better upgrade. Shared by squadPickScreen (pool defs, no live state yet)
+ * and fieldPickScreen (live HeroState) so the two copies can never drift. */
+export function chainOutputPips(coefficient: number): string {
+  const filled = Math.max(1, Math.round((coefficient / MAX_CHAIN_COEFFICIENT) * 5));
   return "●".repeat(filled) + "○".repeat(5 - filled);
 }
 

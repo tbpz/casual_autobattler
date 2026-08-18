@@ -8,6 +8,7 @@ import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
 import { runFight } from "../sim/fight.js";
 import { makePlayerSide } from "../sim/heroes.js";
 import { makePolicy, makeEnemySide, runRun } from "../sim/run.js";
+import { defaultFieldPick } from "../sim/roster.js";
 import { encounterOrderFor } from "../sim/encounters.js";
 
 let failed = false;
@@ -58,6 +59,18 @@ check(
   JSON.stringify(runA.fights) === JSON.stringify(runB.fights),
 );
 check("run: same seed -> identical outcome", runA.outcome === runB.outcome && runA.finalCoin === runB.finalCoin);
+
+// 2026-08-19 (affinity-measurement pass — see batch/affinity.ts): runRun
+// gained an optional opts.fieldPick, defaulted to roster.ts's
+// defaultFieldPick. This pin locks that inertness in permanently — an
+// explicit opts.fieldPick=defaultFieldPick must produce byte-identical
+// output to passing no opts at all, or every measurement arm built on this
+// override is invalid.
+const runC = runRun(cfg, new Rng(seed), policy, seed, makePlayerSide(), { fieldPick: defaultFieldPick });
+check(
+  "run: explicit opts.fieldPick=defaultFieldPick matches the implicit default",
+  JSON.stringify(runA.fights) === JSON.stringify(runC.fights),
+);
 
 // Encounter-order determinism (2026-08-15, encounter-deck pass — see
 // sim/encounters.ts's encounterOrderFor docstring): the draw is new

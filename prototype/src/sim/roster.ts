@@ -23,6 +23,24 @@ import { ROLE_SORT_PRIORITY } from "./heroes.js";
  */
 export type RosterState = SideState;
 
+/** Per-fight context handed to a FieldPick alongside the roster (2026-08-19,
+ * affinity-measurement pass — see DECISIONS.md/STATE.md's attribution
+ * investigation). Nothing today reads it; it exists so a future fielding
+ * policy CAN key off which fight/encounter is next without another signature
+ * change. */
+export interface FieldPickContext {
+  fightIndex: number;
+  encounterIndex: number;
+}
+
+/** A fielding policy: given the living roster and how many slots to fill,
+ * returns the chosen hero ids. defaultFieldPick (below) is one instance of
+ * this shape — its existing (roster, fieldSize) signature is structurally
+ * assignable, since TS ignores an unused trailing parameter. Introduced so
+ * run.ts's runRun can be handed an alternate policy for measurement (see
+ * batch/fieldPolicies.ts) without touching the shipped accept-default path. */
+export type FieldPick = (roster: RosterState, fieldSize: number, ctx: FieldPickContext) => string[];
+
 const FIELD_ROLE_ORDER: Role[] = ["tank", "damage", "support"];
 
 export function livingRosterHeroes(roster: RosterState): HeroState[] {

@@ -4,7 +4,14 @@ import type { FightSetup, SideState } from "./types.js";
 import { sideHp, sideMaxHp } from "./types.js";
 import { runFight } from "./fight.js";
 import type { FightResult } from "./events.js";
-import { applyFightResultToRoster, canFieldSquad, defaultFieldPick, fieldSquad, type RosterState } from "./roster.js";
+import {
+  applyFightResultToRoster,
+  canFieldSquad,
+  defaultFieldPick,
+  fieldSquad,
+  type FieldPick,
+  type RosterState,
+} from "./roster.js";
 import { encounterOrderFor, makeEncounterEnemySide } from "./encounters.js";
 
 export type SpendChoice = "heal" | "upgrade" | "skip";
@@ -161,17 +168,37 @@ export function summarizeWin(
   };
 }
 
+export interface RunOptions {
+  /** Overrides the accept-default fielding (roster.ts's defaultFieldPick) —
+   * added for the affinity-measurement harness (batch/affinity.ts) so a
+   * sweep can ask "what if fielding favored chainAffinity/charge instead."
+   * MUST be pure and MUST NOT consume `rng`: doing so would shift the fight
+   * RNG stream and break every seed-pinned check in checks/. No Rng is
+   * passed into a FieldPick, so the type itself makes that constraint
+   * unrepresentable rather than relying on a comment alone. */
+  fieldPick?: FieldPick;
+}
+
 /** Runs one full 5-fight run to completion. Pure given (cfg, rng, policy,
- * initialRoster). 2026-08-09 (roster/bench pass): initialRoster can be any
- * size >= cfg.playerN — passing exactly cfg.playerN ids degrades gracefully
- * to "no bench" (every fight fields the whole roster), which is how the old
- * downAtFightEnd model's behavior is still reachable for comparison. Each
- * fight fields the ACCEPT-DEFAULT pick (roster.ts's defaultFieldPick) — this
- * is the headless/batch driver, which has always measured the accept-default
- * path (same convention as the coin-spend `policy` argument); an interactive
- * UI drives the equivalent steps itself (see render/runSession.ts) so a real
- * player can override the fielding choice. */
-export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number, initialRoster: RosterState): RunResult {
+ * initialRoster, opts). 2026-08-09 (roster/bench pass): initialRoster can be
+ * any size >= cfg.playerN — passing exactly cfg.playerN ids degrades
+ * gracefully to "no bench" (every fight fields the whole roster), which is
+ * how the old downAtFightEnd model's behavior is still reachable for
+ * comparison. Each fight fields the ACCEPT-DEFAULT pick (roster.ts's
+ * defaultFieldPick) unless opts.fieldPick overrides it — this is the
+ * headless/batch driver, which has always measured the accept-default path
+ * by default (same convention as the coin-spend `policy` argument); an
+ * interactive UI drives the equivalent steps itself (see
+ * render/runSession.ts) so a real player can override the fielding choice. */
+export function runRun(
+  cfg: RunConfig,
+  rng: Rng,
+  policy: RunPolicy,
+  seed: number,
+  initialRoster: RosterState,
+  opts?: RunOptions,
+): RunResult {
+  const fieldPick = opts?.fieldPick ?? defaultFieldPick;
   let roster = initialRoster;
   let coin = 0;
 
@@ -189,7 +216,7 @@ export function runRun(cfg: RunConfig, rng: Rng, policy: RunPolicy, seed: number
       return { seed, fights, fightResults, outcome: "over", overReason: "rosterExhausted", fightsWon: i, finalCoin: 0 };
     }
 
-    const fieldedIds = defaultFieldPick(roster, cfg.playerN);
+    const fieldedIds = fieldPick(roster, cfg.playerN, { fightIndex: i, encounterIndex: encounterOrder[i]! });
     const player = fieldSquad(roster, fieldedIds);
     const enemy = makeEncounterEnemySide(cfg, i, encounterOrder[i]);
 

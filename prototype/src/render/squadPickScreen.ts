@@ -1,9 +1,9 @@
 import type { RunConfig } from "../sim/config.js";
-import { DEFAULT_DRAFT_ROSTER_IDS, PLAYER_HERO_POOL, makePlayerSide } from "../sim/heroes.js";
+import { DEFAULT_DRAFT_ROSTER_IDS, PLAYER_HERO_POOL, chainCoefficient, makePlayerSide } from "../sim/heroes.js";
 import { defaultFieldPick, fieldSquad } from "../sim/roster.js";
 import { makeEnemySide } from "../sim/run.js";
 import { project } from "../sim/projection.js";
-import { chainAffinityPips } from "./heroPickShared.js";
+import { chainOutputPips } from "./heroPickShared.js";
 
 /**
  * Run-start DRAFT: 5 of 6, pre-checked with the default draft and a
@@ -108,7 +108,7 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
       </span>
       <span class="hero-pick-stats">
         <span class="hero-pick-numbers">${def.maxHp}hp / ${def.damage}dmg / ${def.attackIntervalSec}s${def.healPerBeat ? ` +${def.healPerBeat}heal` : ""}${def.attacksWhileHealing ? " +atk" : ""}</span>
-        <span class="hero-pick-chain" title="Chain affinity — how big this hero's chain lands, good or backfired">CHAIN ${chainAffinityPips(def.chainAffinity)}</span>
+        <span class="hero-pick-chain" title="Chain — bigger pips land a bigger payoff AND carry a bigger backfire risk">CHAIN ${chainOutputPips(chainCoefficient(def))}</span>
       </span>
     `;
     row.addEventListener("click", () => {

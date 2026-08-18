@@ -79,8 +79,11 @@ import type { RunResult } from "../sim/run.js";
  *  - backfireRate: fraction of ALL fights where at least one fired chain was
  *    a backfire.
  *  - fractionChainsBackfired: of all fired chains, what fraction backfired —
- *    should track cfg.fight.backfireChance directly; the number to watch
- *    while tuning that knob.
+ *    since the 2026-08-19 affinity-as-risk pass, backfireChance is per-hero
+ *    (config.ts's backfireChanceFor), so this tracks the pool's
+ *    chain-count-weighted mean backfire rate, not a single flat constant;
+ *    the number to watch while tuning backfireChanceBase/
+ *    backfireChanceAffinitySlope.
  *
  * meanDeathsPerRun's aggregation fixed 2026-08-09 (boring-middle root-cause
  * pass): it used to read ONLY r.fights[r.fights.length-1].livingHeroesAfter
@@ -298,7 +301,7 @@ export function formatReport(report: BatchReport, label: string): string {
     `  deaths by fight:       ${report.deathsByFightIndex.map((d, i) => `f${i + 1}=${d.toFixed(2)}`).join("  ")}`,
     `  chains while losing:   ${(report.fractionChainsWhileLosing * 100).toFixed(1)}%  (<40% pool when fired)`,
     `  backfire rate:         ${(report.backfireRate * 100).toFixed(1)}%  (fraction of fights with >=1 backfire)`,
-    `  chains backfired:      ${(report.fractionChainsBackfired * 100).toFixed(1)}%  (should track cfg.fight.backfireChance)`,
+    `  chains backfired:      ${(report.fractionChainsBackfired * 100).toFixed(1)}%  (tracks the pool's chain-weighted mean backfireChanceFor)`,
   ];
   return lines.join("\n");
 }
