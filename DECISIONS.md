@@ -10,6 +10,36 @@
 
 ---
 
+## [2026-08-22] Projection survival solves the real enrage ramp instead of clamping a divide-by-zero
+
+- **Decision:**
+  - `surviveSec` and `tankHoldsSec` (`sim/projection.ts`) no longer divide HP by `max(netIncoming, 0.01)` — that guard, once healing met or exceeded mean incoming DPS, was silently returned as a fabricated survival time in the tens of thousands of seconds.
+  - Both now solve a closed-form time-to-deplete against the real two-phase incoming-damage curve (flat, then linearly ramping past `enrageStartSec`) — the same ramp `fight.ts`'s `enrageMultiplierAt` applies live, not a flat mean taken only over the expected kill window.
+  - Both are clamped to `cfg.maxFightSec` — the sim's own hard tick cutoff — instead of ever surfacing `Infinity` or an unbounded number.
+- **Why:**
+  - The flat-rate model was already an approximation calibrated to the kill window; dividing by a divide-by-zero guard past that window produced numbers with no physical meaning, not just an inaccurate one.
+  - Measured as a common case (10% of realistic field-pick projections, 14 of 20 possible drafts — any draft with a healer), not an edge case — concentrated on the "Anvil" encounter, which appears in 2 of every 3 runs. Exactly reproduces the live bug: a healer draft vs Anvil read surviveSec=48500s/tankHoldsSec=18915s for a ~36s fight.
+  - A 4,800-combo sweep (fielded squads x encounters x HP fractions x dpsBonus) confirmed the fix changes zero of the four pinned band-asserting fixtures in `checks/projection.ts` — no retuning needed.
+- **Replaces:**
+  - Corrects a defect in the 2026-08-07/08 "fight causality rebuild" / root-cause-pass projection math.
+
+---
+
+## [2026-08-20] Chain magnitude becomes uniform per kind; shape (fuse length + escalation curve) becomes the pick-time axis
+
+- **Decision:**
+  - `chainAffinity` is volatility-only now (feeds `backfireChanceFor` exclusively) — no longer scales chain payoff magnitude.
+  - Every attacker's chain converges on one absolute expected-net-value target, every healer on another (`sim/heroes.ts`'s `CHAIN_EV_TARGET_DAMAGE`/`CHAIN_EV_TARGET_HEAL`).
+  - Each hero carries its own `ChainProfile` (fuse length, escalation knee/step) — the four attackers and two healers now differ in shape, not size.
+  - Pick screens show a shape sparkline + shape label + backfire-risk pips (`render/heroPickShared.ts`) in place of the old chain-output pip meter.
+- **Why:**
+  - The 2026-08-17 played session found chain length dominates payoff by ~39x versus chainAffinity's ~2x, and the old pip meter had a dominant/dominated hero in 2 of 3 role slots — the "safe" pick was strictly worse, not a real tradeoff.
+  - Equalizing net EV analytically (`sim/config.ts`'s `chainMagnitudeScaleAbsolute`) removes the dominance without removing choice, since fuse length and escalation shape still diverge widely and interact with the encounter drawn.
+- **Replaces:**
+  - Supersedes the 2026-08-19 entry's magnitude-ranking pip meter — the backfire-pricing mechanism from that entry is kept, only the payoff-ranking pip meter is replaced.
+
+---
+
 ## [2026-08-19] Attribution fix scope: honest CHAIN pips + price chainAffinity as backfire risk, not a full rebalance
 
 - **Decision:**

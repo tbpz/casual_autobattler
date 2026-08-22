@@ -49,7 +49,15 @@ const cfg = {
   // never continues past its first roll (2026-08-14 chain rebuild — no more
   // ignitionChanceByAttemptsSinceIgnition to zero, since firing itself is
   // deterministic now, not a roll).
-  fight: { ...DEFAULT_RUN_CONFIG.fight, chainChanceByHitsSoFar: [0] },
+  //
+  // chainContinuationScale: 0 (2026-08-20, per-hero-profile pass) added
+  // alongside chainChanceByHitsSoFar — once a hero's continuation odds can
+  // come from its OWN profile instead of this global table, zeroing only the
+  // global table stops being enough to disable continuation; the scale is
+  // a hard global damper applied on top of whichever table's chosen (see
+  // config.ts's FightConfig docstring), so it keeps this override working
+  // even once per-hero profiles are authored.
+  fight: { ...DEFAULT_RUN_CONFIG.fight, chainChanceByHitsSoFar: [0], chainContinuationScale: 0 },
 };
 
 // --- Comfortable comp: bracer+rook+cairn, the default roster. The tank's

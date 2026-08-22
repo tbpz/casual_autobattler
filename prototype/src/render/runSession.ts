@@ -42,7 +42,7 @@ import {
 export class RunSession {
   private cfg: RunConfig;
   private rng: Rng;
-  private seed: number;
+  private seedValue: number;
   private roster: RosterState;
   private coin = 0;
   private fightIndex = 0;
@@ -71,7 +71,7 @@ export class RunSession {
 
   constructor(cfg: RunConfig, seed: number, draftIds?: string[]) {
     this.cfg = cfg;
-    this.seed = seed;
+    this.seedValue = seed;
     this.rng = new Rng(seed);
     this.roster = makePlayerSide(draftIds ?? DEFAULT_DRAFT_ROSTER_IDS);
     this.encounterOrder = encounterOrderFor(seed, cfg.fightsPerRun);
@@ -79,6 +79,13 @@ export class RunSession {
 
   get currentFightIndex(): number {
     return this.fightIndex;
+  }
+
+  /** This run's own seed (2026-08-20, attribution-test instrumentation) —
+   * render-facing so app.ts's seed badge can display it and a specific fight
+   * can be reproduced via ?seed=N. See prototype/ATTRIBUTION_TEST.md. */
+  get seed(): number {
+    return this.seedValue;
   }
 
   /** This fight's drawn ENCOUNTERS index — what actually gets fought, as
@@ -151,7 +158,7 @@ export class RunSession {
     // fact from the outcome.
     this.lastProjection = project(player, enemy, this.cfg.fight);
     const setup: FightSetup = { player, enemy };
-    const result = runFight(setup, this.cfg.fight, this.rng, this.seed);
+    const result = runFight(setup, this.cfg.fight, this.rng, this.seedValue);
     this.lastFightResult = result;
 
     if (result.outcome === "loss") {

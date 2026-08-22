@@ -1,9 +1,15 @@
 import type { RunConfig } from "../sim/config.js";
-import { DEFAULT_DRAFT_ROSTER_IDS, PLAYER_HERO_POOL, chainCoefficient, makePlayerSide } from "../sim/heroes.js";
+import {
+  DEFAULT_DRAFT_ROSTER_IDS,
+  PLAYER_HERO_POOL,
+  makePlayerSide,
+  MIN_CHAIN_AFFINITY,
+  MAX_CHAIN_AFFINITY,
+} from "../sim/heroes.js";
 import { defaultFieldPick, fieldSquad } from "../sim/roster.js";
 import { makeEnemySide } from "../sim/run.js";
 import { project } from "../sim/projection.js";
-import { chainOutputPips } from "./heroPickShared.js";
+import { chainShapeSparkline, backfireRiskPips } from "./heroPickShared.js";
 
 /**
  * Run-start DRAFT: 5 of 6, pre-checked with the default draft and a
@@ -57,6 +63,9 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
   const projectionLine = document.createElement("p");
   projectionLine.className = "projection-line";
 
+  const chainLine = document.createElement("p");
+  chainLine.className = "projection-detail";
+
   const playBtn = document.createElement("button");
   playBtn.className = "play-btn";
 
@@ -81,6 +90,7 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
     if (selected.size !== draftSize) {
       projectionLine.textContent = "";
       projectionLine.className = "projection-line";
+      chainLine.textContent = "";
       return;
     }
     // 2026-08-09 bug fix: defaultFieldPick returns ROSTER instance ids
@@ -93,6 +103,7 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
     const proj = project(fielded, enemyPreview, cfg.fight);
     projectionLine.textContent = `Default fielding: ${proj.verdict}`;
     projectionLine.className = `projection-line band-${proj.band}`;
+    chainLine.textContent = proj.chainLine;
   }
 
   for (const def of PLAYER_HERO_POOL) {
@@ -108,7 +119,8 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
       </span>
       <span class="hero-pick-stats">
         <span class="hero-pick-numbers">${def.maxHp}hp / ${def.damage}dmg / ${def.attackIntervalSec}s${def.healPerBeat ? ` +${def.healPerBeat}heal` : ""}${def.attacksWhileHealing ? " +atk" : ""}</span>
-        <span class="hero-pick-chain" title="Chain — bigger pips land a bigger payoff AND carry a bigger backfire risk">CHAIN ${chainOutputPips(chainCoefficient(def))}</span>
+        <span class="hero-pick-chain">CHAIN ${chainShapeSparkline(def.chainProfile)} ${def.chainProfile.label}</span>
+        <span class="hero-pick-backfire">BACKFIRE ${backfireRiskPips(cfg.fight, def.chainAffinity, MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY)}</span>
       </span>
     `;
     row.addEventListener("click", () => {
@@ -136,6 +148,7 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
 
   screen.appendChild(list);
   screen.appendChild(projectionLine);
+  screen.appendChild(chainLine);
   screen.appendChild(playBtn);
   container.appendChild(screen);
 }

@@ -20,3 +20,8 @@ npm run build                      # tsc + vite production build
 See `../STATE.md` for current status and `../DECISIONS.md` for why things are
 the way they are; `src/sim/config.ts` holds every tunable constant in one
 place.
+
+`npm run dev` with `?test=1&seed=N` runs the attribution self-test protocol —
+see `ATTRIBUTION_TEST.md`. Holds each fight's recap behind a "Show what
+happened" button and pins/displays the run seed; both are no-ops without the
+query params.

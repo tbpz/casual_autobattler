@@ -11,6 +11,28 @@ import { renderPreFightScreen } from "./preFightScreen.js";
 
 const cfg = DEFAULT_RUN_CONFIG;
 
+/**
+ * Attribution self-test instrumentation (prototype/ATTRIBUTION_TEST.md) —
+ * two URL params, both no-ops when absent so ordinary play is unaffected:
+ *  - ?seed=N pins the run seed (otherwise random, as before) and displays it
+ *    in a corner badge on every screen, so a fight worth arguing about can be
+ *    reproduced exactly (checks/determinism.ts already guarantees same
+ *    seed -> same event log).
+ *  - ?test=1 flips runScreens.ts's recap panels to hold their reveal behind
+ *    a button, so moment ③ of the fight card (write your own cause before
+ *    seeing the game's) isn't contaminated by reading the recap first.
+ */
+const urlParams = new URLSearchParams(location.search);
+const testMode = urlParams.get("test") === "1";
+const pinnedSeed = urlParams.get("seed");
+
+function appendSeedBadge(root: HTMLElement, seed: number): void {
+  const badge = document.createElement("div");
+  badge.className = "seed-badge";
+  badge.textContent = `seed ${seed}`;
+  root.appendChild(badge);
+}
+
 export function mountApp(root: HTMLElement): void {
   let session: RunSession;
   let playback: Playback | null = null;
@@ -22,11 +44,12 @@ export function mountApp(root: HTMLElement): void {
   let pendingFieldedIds: string[] = [];
 
   function startNewRun(): void {
+    const seed = pinnedSeed !== null && pinnedSeed !== "" ? Number(pinnedSeed) : Math.floor(Math.random() * 1_000_000_000);
     renderSquadPickScreen(root, cfg, (draftIds) => {
-      const seed = Math.floor(Math.random() * 1_000_000_000);
       session = new RunSession(cfg, seed, draftIds);
       showFieldPickScreen();
     });
+    appendSeedBadge(root, seed);
   }
 
   function showFieldPickScreen(): void {
@@ -43,11 +66,13 @@ export function mountApp(root: HTMLElement): void {
         showPreFightScreen();
       },
     );
+    appendSeedBadge(root, session.seed);
   }
 
   function showPreFightScreen(): void {
     const player = fieldSquad(session.currentRoster, pendingFieldedIds);
     renderPreFightScreen(root, cfg, session.currentFightIndex, session.currentEncounterIndex, player, playCurrentFight);
+    appendSeedBadge(root, session.seed);
   }
 
   function playCurrentFight(): void {
@@ -89,6 +114,7 @@ export function mountApp(root: HTMLElement): void {
     controls.appendChild(stepBtn);
 
     playback.play();
+    appendSeedBadge(root, session.seed);
   }
 
   function onFightEnd(result: ReturnType<RunSession["playNextFight"]>): void {
@@ -103,7 +129,9 @@ export function mountApp(root: HTMLElement): void {
           session.lastFightResult,
           session.lastProjection,
           startNewRun,
+          testMode,
         );
+        appendSeedBadge(root, session.seed);
         return;
       }
       renderSpendScreen(
@@ -115,7 +143,9 @@ export function mountApp(root: HTMLElement): void {
         result,
         session.lastProjection,
         onSpendChoice,
+        testMode,
       );
+      appendSeedBadge(root, session.seed);
     }, 900);
   }
 
@@ -123,6 +153,7 @@ export function mountApp(root: HTMLElement): void {
     session.resolveSpend(choice);
     if (session.status === "complete") {
       renderRunCompleteScreen(root, session.coinBalance, startNewRun);
+      appendSeedBadge(root, session.seed);
       return;
     }
     // 2026-08-09 (roster/bench pass): a WIN can still end the run here — the
@@ -138,7 +169,9 @@ export function mountApp(root: HTMLElement): void {
         session.lastFightResult,
         session.lastProjection,
         startNewRun,
+        testMode,
       );
+      appendSeedBadge(root, session.seed);
       return;
     }
     showFieldPickScreen();

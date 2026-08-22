@@ -1263,6 +1263,16 @@ button:disabled {
   font-size: 0.9em;
 }
 
+/* BACKFIRE risk pips (2026-08-20, pick-screen honesty pass) — same shape as
+ * .hero-pick-chain, in the danger token, so payoff and risk read as two
+ * halves of one visible tradeoff instead of one bar plus a hover-only
+ * tooltip (see heroPickShared.ts's backfireRiskPips docstring). */
+.hero-pick-backfire {
+  color: var(--backfire);
+  letter-spacing: 1px;
+  font-size: 0.9em;
+}
+
 /* ---------- Pre-fight read ---------- */
 
 .pre-fight-compare {
@@ -1354,4 +1364,46 @@ button:disabled {
 
 .recap-chain.backfire {
   color: var(--backfire);
+}
+
+/* ---------- Attribution self-test instrumentation (2026-08-20) ----------
+ * See prototype/ATTRIBUTION_TEST.md and render/app.ts's ?seed=/?test=1
+ * handling. Both are inert outside those query params. */
+
+.seed-badge {
+  position: fixed;
+  bottom: 8px;
+  right: 10px;
+  font-size: 0.7em;
+  color: var(--muted);
+  opacity: 0.6;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.reveal-container.hidden {
+  display: none;
+}
+
+.reveal-btn {
+  display: block;
+  margin: 12px 0;
+}
+
+.answer-key {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #3a3f4e;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
+.answer-key-title {
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px !important;
+}
+
+.answer-key p {
+  margin: 2px 0;
 }

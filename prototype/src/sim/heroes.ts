@@ -1,3 +1,4 @@
+import type { ChainProfile } from "./config.js";
 import type { HeroState, Role, SideState } from "./types.js";
 
 /**
@@ -15,12 +16,134 @@ export interface HeroDef {
   healPerBeat?: number;
   /** See types.ts's HeroState docstring — Ward's hybrid identity. */
   attacksWhileHealing?: boolean;
-  /** See types.ts's HeroState docstring — the squad-pick cascade lever. */
+  /** See types.ts's HeroState docstring — now the VOLATILITY lever only
+   * (2026-08-20, Step 3): higher affinity means a bigger backfire chance
+   * (config.ts's backfireChanceFor), nothing about payoff size. */
   chainAffinity: number;
+  /** This hero's chain SHAPE (2026-08-20, Step 3 — see config.ts's
+   * ChainProfile and this file's CHAIN_PROFILES). The mechanical identity
+   * lever that replaced chainAffinity-as-magnitude: heroes differ in how
+   * long their fuse runs and how back-loaded the escalation is, not in how
+   * big any given hit lands. */
+  chainProfile: ChainProfile;
+  /** This hero's absolute expected-net-chain-value target (2026-08-20, Step
+   * 3 — see CHAIN_EV_TARGET_DAMAGE/HEAL below and config.ts's
+   * chainMagnitudeScaleAbsolute). Every attacker converges on
+   * CHAIN_EV_TARGET_DAMAGE, every healer on CHAIN_EV_TARGET_HEAL, regardless
+   * of its own damage/healPerBeat stat — this is what makes "no hero has a
+   * bigger chain" literally true, not just softened. */
+  chainMagnitudeTarget: number;
   /** One line for the squad-pick screen — what picking this hero buys you,
    * beyond its raw numbers. */
   identity: string;
 }
+
+/**
+ * Per-hero chain profiles (2026-08-20, Step 3 of the "chain choice: make the
+ * pick a shape, not a size" plan — see DECISIONS.md). Chain magnitude used to
+ * be chainAffinity times a hero's own damage/healPerBeat, which meant one
+ * pole of every pick (low affinity, or low damage) was structurally a
+ * SMALLER cascade — less of the exact thing the game promises, a tax rather
+ * than a tradeoff. These profiles replace that: every hero's chain converges
+ * on the SAME expected net value within its kind (chainMagnitudeTarget,
+ * below), so no pick is "less chain." What differs is SHAPE — how long the
+ * fuse runs (maxHits, and how fast continuation odds decay) and how
+ * back-loaded the escalation is (escalationKneeHit/StepMultiplier) — a 2x2
+ * over fuse length and escalation steepness for the four attackers:
+ *
+ *              flat escalation        steep escalation
+ *  long fuse   Bracer (grinds,        Rook (weak early, huge
+ *              many similar hits)     if it survives the length)
+ *  short fuse  Vex (few hits,         Hollow (three hits that
+ *              front-loaded)          land like six)
+ *
+ * The two healers (Cairn, Ward) are both kept LONG-FUSE AND FLAT deliberately
+ * — see chainHealMaxFractionOfTargetMaxHp's own docstring (config.ts): a
+ * chain heal is clamped against the target's own maxHp, so a short, steep
+ * healer profile would earn a large per-hit scale (to hit the shared target
+ * in fewer hits) whose late hits then clamp away, silently under-realizing
+ * its analytic EV in exactly the place the equal-EV design can't see it. A
+ * long, flat curve keeps every hit's raw magnitude well under the clamp
+ * ceiling (see checks/chaindist.ts's heal-clamp guard) so the analytic
+ * target is what actually lands. Cairn and Ward differ from each other only
+ * in degree (Cairn's odds are a touch higher, Ward's fuse a touch longer to
+ * compensate for its higher backfire chance) — their real differentiation is
+ * risk (chainAffinity), same as the rest of the pool.
+ *
+ * Values are strawmen for the batch harness to move, same as everywhere else
+ * in this file — chosen by direct computation (not hand-derived) against
+ * config.ts's expectedChainUnits/expectedNetChainUnits/
+ * chainMagnitudeScaleAbsolute, then checked against chainHealMaxFractionOfTargetMaxHp's
+ * clamp ceiling for the two healers before being locked in.
+ */
+export const CHAIN_PROFILES = {
+  longFuseFlat: {
+    id: "longFuseFlat",
+    label: "long fuse",
+    maxHits: 10,
+    escalationKneeHit: 8,
+    escalationStepMultiplier: 1.3,
+    continuation: [0.78, 0.8, 0.82, 0.84, 0.86, 0.88, 0.9, 0.9, 0.9],
+  },
+  shortFuseSteep: {
+    id: "shortFuseSteep",
+    label: "short fuse",
+    maxHits: 3,
+    escalationKneeHit: 1,
+    escalationStepMultiplier: 5,
+    continuation: [0.6, 0.55],
+  },
+  longFuseSteep: {
+    id: "longFuseSteep",
+    label: "back-loaded",
+    maxHits: 9,
+    escalationKneeHit: 5,
+    escalationStepMultiplier: 4.5,
+    continuation: [0.72, 0.76, 0.8, 0.82, 0.84, 0.85, 0.85, 0.85],
+  },
+  shortFuseFlat: {
+    id: "shortFuseFlat",
+    label: "front-loaded",
+    maxHits: 4,
+    escalationKneeHit: 4,
+    escalationStepMultiplier: 2,
+    continuation: [0.65, 0.65, 0.6],
+  },
+  healerSteady: {
+    id: "healerSteady",
+    label: "steady",
+    maxHits: 12,
+    escalationKneeHit: 12,
+    escalationStepMultiplier: 1,
+    continuation: [0.85, 0.86, 0.87, 0.88, 0.89, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9],
+  },
+  healerHybrid: {
+    id: "healerHybrid",
+    label: "hybrid",
+    maxHits: 16,
+    escalationKneeHit: 16,
+    escalationStepMultiplier: 1,
+    continuation: [0.82, 0.84, 0.85, 0.86, 0.87, 0.88, 0.89, 0.89, 0.89, 0.89, 0.89, 0.89, 0.89, 0.89, 0.89],
+  },
+} as const satisfies Record<string, ChainProfile>;
+
+/** Every attacker's chain converges on this absolute expected-net-damage
+ * value (2026-08-20, Step 3); every healer on CHAIN_EV_TARGET_HEAL below.
+ * Anchored to the POOL MEAN of the old (pre-Step-3) per-hero expected-net
+ * chain magnitude — Bracer 56.8, Hollow 67.7, Rook 69.7, Vex 108.4, mean
+ * ~75.7 — rounded, so overall difficulty starts centered near its old
+ * baseline rather than dragging every hero up to Vex's old (highest) payoff.
+ * Re-batch (npm run check:chaindist / npm run batch) before trusting this
+ * number if the pool's stat blocks or backfire tuning move. */
+export const CHAIN_EV_TARGET_DAMAGE = 76;
+/** See CHAIN_EV_TARGET_DAMAGE above. Lower than the naive old-baseline mean
+ * (~43) — capped instead by the heal-clamp guard (checks/chaindist.ts):
+ * Ward's own profile is the binding constraint (its higher backfire chance
+ * demands a bigger scale for the same net target), so this value is the
+ * largest shared heal target that still keeps BOTH healers' last-hit raw
+ * magnitude comfortably under chainHealMaxFractionOfTargetMaxHp's ceiling on
+ * a normal-sized body, not a value picked to match the old system. */
+export const CHAIN_EV_TARGET_HEAL = 28;
 
 /**
  * Re-cut 2026-08-08 (player verdict: the pool was a dominance ladder, not a
@@ -103,69 +226,84 @@ export interface HeroDef {
  * fight.ts's chainAttackMagnitude) — a length-7 chain now escalates roughly
  * 40x over a length-1 chain, regardless of hero, so no chain is a dud and no
  * hero is a guaranteed jackpot either.
+ *
+ * 2026-08-20 (Step 3 of the "chain choice: make the pick a shape, not a
+ * size" plan — see DECISIONS.md): superseded above. A played verdict found
+ * that even with chainAffinity compressed and length the dominant axis, the
+ * damage pair still had a strict winner — Vex out-pipped Rook on chain
+ * output (11 dmg x 1.0 vs 6 dmg x 1.4 = 11.0 vs 8.4) AND carried less
+ * backfire risk (12% vs 18%) AND had higher DPS, so "pick the biggest bar"
+ * was simply correct play, not a misread. `chainAffinity` no longer touches
+ * magnitude AT ALL now — see its own docstring above — and every hero's
+ * chain converges on the same absolute expected-net-value within its kind
+ * (CHAIN_EV_TARGET_DAMAGE/HEAL, chainMagnitudeTarget below). The pool's
+ * per-hero shape (CHAIN_PROFILES) is now the only thing chain choice buys:
+ * a different curve, never a bigger or smaller one. Every hero's
+ * `damage`/`healPerBeat`/DPS stat below still matters for NORMAL combat
+ * (soaking, dealing, healing outside the chain) — only the chain formula
+ * itself stopped reading them.
  */
 export const PLAYER_HERO_POOL: HeroDef[] = [
   {
     id: "bracer", name: "Bracer", role: "tank", maxHp: 195, damage: 7, attackIntervalSec: 1.4,
     chainAffinity: 0.75,
-    identity: "The wall. Steady, unglamorous — even a short chain from Bracer is worth watching; a long one isn't small at all.",
+    chainProfile: CHAIN_PROFILES.longFuseFlat,
+    chainMagnitudeTarget: CHAIN_EV_TARGET_DAMAGE,
+    identity: "The wall. Long fuse, flat growth — its chain rarely ends fast, and rarely ends small either.",
   },
   {
     id: "hollow", name: "Hollow", role: "tank", maxHp: 180, damage: 6, attackIntervalSec: 1.1,
     chainAffinity: 1.3,
-    identity: "Fragile — but chains hard when it fires, for better or worse.",
+    chainProfile: CHAIN_PROFILES.shortFuseSteep,
+    chainMagnitudeTarget: CHAIN_EV_TARGET_DAMAGE,
+    identity: "Fragile, and its chain is short — but three hits can land like six, for better or worse.",
   },
   {
     id: "rook", name: "Rook", role: "damage", maxHp: 85, damage: 6, attackIntervalSec: 0.9,
     chainAffinity: 1.4,
-    identity: "Highest affinity in the pool — a real gamble: it fires often, and when it goes wrong it goes wrong loud.",
+    chainProfile: CHAIN_PROFILES.longFuseSteep,
+    chainMagnitudeTarget: CHAIN_EV_TARGET_DAMAGE,
+    identity: "Highest affinity in the pool — a real gamble on backfire risk. Its chain is back-loaded: weak early, huge if it survives the length.",
   },
   {
     id: "vex", name: "Vex", role: "damage", maxHp: 70, damage: 11, attackIntervalSec: 1.5,
     chainAffinity: 1.0,
-    identity: "Explosive burst damage — its chain hits harder than its middling affinity suggests, at a middling backfire risk to match.",
+    chainProfile: CHAIN_PROFILES.shortFuseFlat,
+    chainMagnitudeTarget: CHAIN_EV_TARGET_DAMAGE,
+    identity: "Explosive burst damage. Front-loaded chain — fires off a few big hits fast, at a middling backfire risk to match.",
   },
   {
     id: "cairn", name: "Cairn", role: "support", maxHp: 110, damage: 1, attackIntervalSec: 1.2, healPerBeat: 7,
     chainAffinity: 0.7,
-    identity: "The safety net. Chains a heal instead of an attack — lowest affinity, but a long chain still heals for real; a backfire still stings.",
+    chainProfile: CHAIN_PROFILES.healerSteady,
+    chainMagnitudeTarget: CHAIN_EV_TARGET_HEAL,
+    identity: "The safety net. Chains a heal instead of an attack — lowest backfire risk in the pool, and a long, steady fuse.",
   },
   {
     id: "ward", name: "Ward", role: "support", maxHp: 92, damage: 3, attackIntervalSec: 1.0, healPerBeat: 3,
     attacksWhileHealing: true, chainAffinity: 1.15,
-    identity: "Heals AND swings on the same beat — its chain is a heal, moderate affinity either way.",
+    chainProfile: CHAIN_PROFILES.healerHybrid,
+    chainMagnitudeTarget: CHAIN_EV_TARGET_HEAL,
+    identity: "Heals AND swings on the same beat — its chain heal runs just as long as Cairn's, at a real backfire risk to match.",
   },
 ];
 
-/** The actual chain-output magnitude for one hero: damage*chainAffinity for
- * an attacker, healPerBeat*chainAffinity for a healer — the exact terms
- * fight.ts's chainAttackMagnitude/resolveChainHit multiply against the
- * escalation curve (2026-08-19, affinity-as-risk pass — see
- * DECISIONS.md/STATE.md's attribution investigation). chainAffinity ALONE is
- * NOT this number: Vex (11 dmg x 1.0 = 11.0) truly out-chains Rook (6 dmg x
- * 1.4 = 8.4) by ~31%, which is exactly what the pre-2026-08-19 pip meter
- * (normalized against raw affinity) got backwards — see
- * render/heroPickShared.ts's chainOutputPips, the fix. Healer and attacker
- * coefficients are NOT directly comparable to each other (damage vs HP
- * restored are different units) — this function exists to rank heroes
- * WITHIN their own kind, same convention the pip meter already follows. */
-export function chainCoefficient(h: Pick<HeroDef, "damage" | "healPerBeat" | "chainAffinity">): number {
-  return (h.healPerBeat ?? h.damage) * h.chainAffinity;
-}
-
-/** The highest chain-output coefficient in the pool (see chainCoefficient
- * above) — heroPickShared.ts's chainOutputPips normalizes its pip display
- * against this so the pips stay correct if the pool changes. Supersedes the
- * pre-2026-08-19 MAX_CHAIN_AFFINITY-normalized pip display, which ranked
- * heroes on the wrong number. */
-export const MAX_CHAIN_COEFFICIENT = Math.max(...PLAYER_HERO_POOL.map(chainCoefficient));
-
-/** The highest chainAffinity in the pool — still used by fightView.ts's
- * ignition-burst visual scale (a KNOWN GAP, not yet switched to the
- * coefficient above — see the affinity-as-risk plan's "deliberately out of
- * scope" note: HeroSnapshot doesn't carry damage/healPerBeat, so that visual
- * can't compute the coefficient without a small sim-level schema change).
- * NOT used for the pick-screen pips anymore — see MAX_CHAIN_COEFFICIENT. */
+/** The highest/lowest chainAffinity in the pool — used by fightView.ts's
+ * ignition-burst visual scale to size the ignition tell's intensity to how
+ * volatile the firing hero is.
+ *
+ * 2026-08-20 (Step 3): this used to be a KNOWN GAP — the burst scaled off
+ * raw chainAffinity while the pick-screen pips (and the sim's actual
+ * magnitude formula) had moved on to the true chain-output coefficient
+ * (damage*chainAffinity), so a low-affinity, high-damage hero's ignition
+ * visually undersold its real payoff. That gap is gone now, not patched:
+ * chainAffinity no longer touches magnitude at all — it IS volatility, full
+ * stop — so a burst sized off it is an honest read of "how big a gamble is
+ * this hero going hot," exactly what it always visually implied. The old
+ * chainCoefficient/MAX_CHAIN_COEFFICIENT_ATTACKER/HEALER pick-screen pips
+ * are gone too (heroPickShared.ts's chainShapeSparkline replaces them) —
+ * payoff is equalized now, so a pip meter ranking heroes on magnitude would
+ * be actively misleading rather than merely imprecise. */
 export const MAX_CHAIN_AFFINITY = Math.max(...PLAYER_HERO_POOL.map((h) => h.chainAffinity));
 /** The lowest chainAffinity in the pool (2026-08-15) — paired with
  * MAX_CHAIN_AFFINITY so the renderer can normalize an ignition tell's
@@ -216,6 +354,8 @@ export function makeHeroState(def: HeroDef, instanceId: string, phase = 0): Hero
     healPerBeat: def.healPerBeat,
     attacksWhileHealing: def.attacksWhileHealing,
     chainAffinity: def.chainAffinity,
+    chainProfile: def.chainProfile,
+    chainMagnitudeTarget: def.chainMagnitudeTarget,
     dealt: 0,
     soaked: 0,
     restored: 0,

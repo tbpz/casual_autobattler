@@ -4,8 +4,28 @@
  * Heroes are ordered front-to-back; a normal attack targets the front-most
  * living hero on the opposing side (see fight.ts's targeting helpers).
  */
+import type { ChainProfile } from "./config.js";
 
 export type Role = "tank" | "damage" | "support" | "bruiser" | "grunt";
+
+/** A hero's resolved chain plan for THIS fight (2026-08-20, per-hero-profile
+ * pass — see config.ts's ChainProfile/chainMagnitudeScaleFor). Sim-internal:
+ * resolved once per fight in fight.ts's cloneHeroes (from HeroState.
+ * chainProfile, falling back to baselineChainProfile(cfg) when unset) and
+ * stored back on the cloned HeroState so a chain-fire site never has to
+ * recompute it mid-fight, and so a batch-harness roster transform that
+ * changes chainAffinity without recomputing this can't silently measure an
+ * un-normalized hero — the plan is always freshly derived from whatever cfg
+ * the fight actually runs under. */
+export interface ChainPlan {
+  profile: ChainProfile;
+  /** The multiplier equalizing this profile+risk against the pool's EV
+   * anchor — see config.ts's chainMagnitudeScaleFor. */
+  magnitudeScale: number;
+  /** This hero's own backfireChanceFor(cfg, chainAffinity), cached alongside
+   * the plan it was used to derive so both travel together. */
+  backfireChance: number;
+}
 
 export interface HeroState {
   id: string;
@@ -33,15 +53,35 @@ export interface HeroState {
    * heroes.ts). Meaningless without healPerBeat set. */
   attacksWhileHealing?: boolean;
 
-  /** 2026-08-14 (chain-rebuild pass — see DECISIONS.md): affects only PAYOFF
-   * magnitude now, in both directions — how big this hero's chain lands when
-   * aimed right, and how big it backfires when aimed wrong (fight.ts's
-   * chain-damage/heal formula). It no longer scales how fast `charge`
-   * accrues — every hero fills at the same rate, so two heroes' bars read as
-   * directly comparable at field-pick time. See heroes.ts's PLAYER_HERO_POOL
-   * for why each hero's value differs: this is "how loud is this hero, both
-   * ways." */
+  /** 2026-08-14 (chain-rebuild pass) through 2026-08-19 (affinity-as-risk
+   * pass): scaled PAYOFF magnitude in both directions. 2026-08-20 (per-hero-
+   * profile pass, Step 3): magnitude moved entirely onto chainProfile/
+   * chainMagnitudeTarget below — chainAffinity is now VOLATILITY ONLY, via
+   * config.ts's backfireChanceFor (higher affinity = higher backfire chance,
+   * same payoff size as every other hero of its kind). It still doesn't
+   * scale how fast `charge` accrues — every hero fills at the same rate, so
+   * two heroes' bars read as directly comparable at field-pick time. See
+   * heroes.ts's PLAYER_HERO_POOL for why each hero's value differs: this is
+   * now "how much of a gamble is this hero to have go hot," nothing else. */
   chainAffinity: number;
+
+  /** This hero's own chain SHAPE (2026-08-20, per-hero-profile pass — see
+   * config.ts's ChainProfile). Undefined falls back to
+   * baselineChainProfile(cfg) — the identity transform that kept every
+   * hero's behavior unchanged through Step 1/Step 2, before Step 3 actually
+   * authored per-hero shapes (see heroes.ts's PLAYER_HERO_POOL). Set on
+   * HeroDef/HeroState alike, same as chainAffinity. */
+  chainProfile?: ChainProfile;
+  /** This hero's absolute expected-net-chain-value target (2026-08-20, Step
+   * 3 — see config.ts's chainMagnitudeScaleAbsolute and heroes.ts's
+   * CHAIN_EV_TARGET_DAMAGE/HEAL). Undefined falls back to a value that
+   * reproduces chainMagnitudeScaleFor's pool-agnostic behavior (Variant A) —
+   * see fight.ts's resolveChainPlan for the exact fallback formula. */
+  chainMagnitudeTarget?: number;
+  /** This hero's chain plan, RESOLVED for the current fight — see this
+   * file's ChainPlan docstring. Undefined until fight.ts's cloneHeroes sets
+   * it; enemies never get one (they never chain). */
+  chainPlan?: ChainPlan;
 
   /** Per-fight job counters (2026-08-06 legibility pass) — zeroed at fight
    * start by cloneHeroes, never carried between fights. These are the

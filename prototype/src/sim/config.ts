@@ -226,6 +226,17 @@ export interface FightConfig {
    * without touching the PRD table's shape (still easier to extend once a
    * chain is going — see chainChanceByHitsSoFar). */
   chainMaxHits: number;
+  /** Global multiplier applied on top of whichever continuation table is in
+   * play — cfg.chainChanceByHitsSoFar for a hero with no profile, or a
+   * per-hero ChainProfile's own table once one is authored (2026-08-20,
+   * per-hero-profile pass — see config.ts's ChainProfile/
+   * chainContinuationChance). Default 1 (inert). Exists so a check that
+   * wants to disable continuation entirely (checks/beatsheet.ts,
+   * checks/projection.ts — both zero this alongside chainChanceByHitsSoFar)
+   * has one knob that keeps working regardless of which table a given hero
+   * is reading, instead of that override silently becoming a per-hero-profile
+   * no-op. */
+  chainContinuationScale: number;
   /** While a hero is hot, its next-beat advance is multiplied by this
    * (< 1 = faster) instead of the full attackIntervalSec — the chain
    * visibly accelerates the hot hero's cadence. */
@@ -455,6 +466,7 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // FightConfig docstring.
   chainHitMultiplier: 1,
   chainMaxHits: 7,
+  chainContinuationScale: 1,
   hotBeatIntervalFactor: 0.6,
 
   // 2026-08-15 chain-payoff-axis pass — see chainEscalationKneeHit/
@@ -591,4 +603,186 @@ export function chainEscalationFactor(cfg: FightConfig, hitIndex: number): numbe
  * slope shouldn't be able to produce a nonsense probability. */
 export function backfireChanceFor(cfg: FightConfig, chainAffinity: number): number {
   return Math.max(0, Math.min(1, cfg.backfireChanceBase + cfg.backfireChanceAffinitySlope * (chainAffinity - 1)));
+}
+
+/**
+ * Per-hero chain SHAPE (2026-08-20, per-hero-profile pass — see DECISIONS.md
+ * and the "chain choice: make the pick a shape, not a size" plan). Pure
+ * data, no hero stats: everything that used to be a single global on
+ * FightConfig (chainChanceByHitsSoFar, chainEscalationKneeHit/
+ * StepMultiplier, chainMaxHits) becomes per-hero here instead. The
+ * multiplier that equalizes expected value across profiles depends on the
+ * hero's own backfire chance too, so it is NOT authored on the profile —
+ * see chainMagnitudeScaleFor below, computed per-hero at fight start.
+ *
+ * Step 0 of the per-hero-profile pass: this file adds the type and the pure
+ * analytic math below it, but nothing in the sim reads a profile yet — every
+ * hero still runs off the global FightConfig fields via baselineChainProfile
+ * (Step 1 threads it through as a proven identity transform; Step 3 is the
+ * first step that actually authors non-baseline profiles).
+ */
+export interface ChainProfile {
+  /** Debug/label id — e.g. "baseline", "longFuse". */
+  id: string;
+  /** Two-word pick-screen label, e.g. "long fuse" (2026-08-20, Step 3) —
+   * render-facing, but kept on the profile itself (not re-derived) so the
+   * pick screen and any debug output can never disagree about what a shape
+   * is called. */
+  label: string;
+  /** This profile's own hard cap — replaces cfg.chainMaxHits wherever the
+   * sim or renderer used the global field. */
+  maxHits: number;
+  escalationKneeHit: number;
+  escalationStepMultiplier: number;
+  /** PRD by bonus-hits-so-far, same clamp-to-last convention as
+   * cfg.chainChanceByHitsSoFar / prdLookup. */
+  continuation: number[];
+}
+
+/** The profile built from cfg's own existing global chain fields — the EV
+ * anchor every other profile is normalized against (see
+ * chainMagnitudeScaleFor), and the fallback for any hero with no profile
+ * authored (identity transform through Step 1 and Step 2). */
+export function baselineChainProfile(cfg: FightConfig): ChainProfile {
+  return {
+    id: "baseline",
+    label: "baseline",
+    maxHits: cfg.chainMaxHits,
+    escalationKneeHit: cfg.chainEscalationKneeHit,
+    escalationStepMultiplier: cfg.chainEscalationStepMultiplier,
+    continuation: cfg.chainChanceByHitsSoFar,
+  };
+}
+
+/** chainEscalationFactor, reading a profile instead of cfg directly — same
+ * formula, so a profile built by baselineChainProfile(cfg) agrees with
+ * chainEscalationFactor(cfg, n) for every n (asserted in checks/chaindist.ts
+ * as the Step 0 validation that this new math is correct before anything
+ * depends on it). */
+export function chainEscalationFactorFromProfile(profile: ChainProfile, hitIndex: number): number {
+  if (hitIndex <= profile.escalationKneeHit) return hitIndex;
+  return profile.escalationKneeHit + (hitIndex - profile.escalationKneeHit) * profile.escalationStepMultiplier;
+}
+
+/** prdLookup against a profile's own continuation table, damped by
+ * cfg.chainContinuationScale (default 1, inert) — see that field's own
+ * docstring for why the scale exists as a separate global on top of a
+ * per-hero table. Clamped to [0, 1] defensively, same convention as
+ * backfireChanceFor. */
+export function chainContinuationChance(cfg: FightConfig, profile: ChainProfile, hitsSoFar: number): number {
+  const raw = prdLookup(profile.continuation, hitsSoFar);
+  return Math.max(0, Math.min(1, raw * cfg.chainContinuationScale));
+}
+
+/** R(1..maxHits): P(the chain reaches AT LEAST n bonus hits), for
+ * n = 1..profile.maxHits. R(n) = product of the continuation chance at every
+ * roll from 0 to n-1 — the chain's own survival function. Pure, O(maxHits),
+ * and deliberately reads the profile's own table directly (prdLookup) rather
+ * than going through chainContinuationChance: this represents the profile's
+ * TRUE odds for balancing/EV purposes, unaffected by cfg.chainContinuationScale
+ * — a test-only override that zeroes continuation in checks/beatsheet.ts and
+ * checks/projection.ts should not silently change what a profile analytically
+ * promises. */
+export function chainReachProbabilities(profile: ChainProfile): number[] {
+  const reach: number[] = [];
+  let cumulative = 1;
+  for (let n = 1; n <= profile.maxHits; n++) {
+    cumulative *= prdLookup(profile.continuation, n - 1);
+    reach.push(cumulative);
+  }
+  return reach;
+}
+
+/** p[0..maxHits]: P(chain length === k), derived from chainReachProbabilities
+ * (p[k] = R(k) - R(k+1) for k in [1, maxHits); p[maxHits] = R(maxHits), since
+ * the sim forces the continuation chance to 0 the instant the cap is
+ * reached — see fight.ts's `capped` branch — so all of R(maxHits)'s mass
+ * collapses onto length === maxHits exactly, never a further roll). Sums to
+ * 1 by construction. */
+export function chainLengthDistribution(profile: ChainProfile): number[] {
+  const reach = chainReachProbabilities(profile);
+  const dist: number[] = new Array(profile.maxHits + 1).fill(0);
+  dist[0] = 1 - (reach[0] ?? 0);
+  for (let k = 1; k < profile.maxHits; k++) {
+    dist[k] = (reach[k - 1] ?? 0) - (reach[k] ?? 0);
+  }
+  dist[profile.maxHits] = reach[profile.maxHits - 1] ?? 0;
+  return dist;
+}
+
+/** G(P): the expected GROSS chain magnitude of one fired chain, in units of
+ * (hero base stat x cfg.chainHitMultiplier) — E[sum of e(n) for n=1..length]
+ * computed via E[sum] = sum_n P(length >= n) * e(n), so no length enumeration
+ * is needed. Pure, O(maxHits). */
+export function expectedChainUnits(profile: ChainProfile): number {
+  const reach = chainReachProbabilities(profile);
+  let sum = 0;
+  for (let n = 1; n <= profile.maxHits; n++) {
+    sum += (reach[n - 1] ?? 0) * chainEscalationFactorFromProfile(profile, n);
+  }
+  return sum;
+}
+
+/** N(P,b): expected NET chain value once backfire is priced in. A backfire
+ * is the same magnitude aimed at the wrong side (fight.ts's resolveChainHit
+ * — the design's own stated symmetry), so net = gross payoff minus gross
+ * harm: N = (1 - (1+harmWeight)*b) * G. harmWeight defaults to 1 (a backfire
+ * costs exactly what an equal payoff gains) — a strawman, batch-tunable like
+ * every other value in this file, since a backfire plausibly costs MORE
+ * given that deaths are permanent and attrition carries across the run.
+ * Throws if b >= 1/(1+harmWeight): at that point net value is non-positive
+ * and a scale computed against it would be meaningless (or sign-flipped)
+ * rather than merely small — fail loud instead of returning nonsense. */
+export function expectedNetChainUnits(profile: ChainProfile, backfireChance: number, harmWeight = 1): number {
+  const threshold = 1 / (1 + harmWeight);
+  if (backfireChance >= threshold) {
+    throw new Error(
+      `expectedNetChainUnits: backfireChance ${backfireChance} >= ${threshold} makes net chain value non-positive`,
+    );
+  }
+  return (1 - (1 + harmWeight) * backfireChance) * expectedChainUnits(profile);
+}
+
+/** The multiplier that puts profile P (at the given firing hero's own
+ * backfireChance) on the same expected NET value as the baseline profile at
+ * cfg.backfireChanceBase. Anchored to a profile built from cfg's own
+ * existing global fields, not to the pool — same convention backfireChanceFor
+ * already uses (anchored at chainAffinity === 1.0, not the pool's actual
+ * min/max) — so this file stays pool-agnostic and every existing tuning
+ * value's history stays valid. A higher-volatility hero (bigger b) gets a
+ * LARGER scale to compensate, which is the volatility premium: risk and
+ * shape reinforce instead of fighting each other. */
+export function chainMagnitudeScaleFor(cfg: FightConfig, profile: ChainProfile, backfireChance: number): number {
+  const anchor = expectedNetChainUnits(baselineChainProfile(cfg), cfg.backfireChanceBase);
+  const net = expectedNetChainUnits(profile, backfireChance);
+  return anchor / net;
+}
+
+/** The ABSOLUTE version of the multiplier above (2026-08-20, Step 3 — see
+ * the "chain choice: make the pick a shape, not a size" plan's Variant A/B
+ * discussion). chainMagnitudeScaleFor (Variant A) equalizes net value in
+ * UNITS OF the hero's own base stat — so a hero with a bigger damage stat
+ * still lands a visibly bigger chain, just proportionally so; the pip meter
+ * this replaced showed exactly that ranking. Variant B removes the base
+ * stat from the equation entirely: `target` is an absolute expected-net-
+ * damage-or-heal number (heroes.ts's CHAIN_EV_TARGET_DAMAGE/HEAL — two
+ * separate targets, since damage and HP-restored are not comparable units,
+ * same convention chainCoefficient's own docstring already established),
+ * and every hero's chain converges on THAT number regardless of its own
+ * damage/healPerBeat stat. This is what makes "no hero has a bigger chain"
+ * literally true rather than merely proportionally softened — chain output
+ * stops being a function of the hero's normal-combat identity at all,
+ * leaving fuse/shape as the only axis that differs. `baseStat` is the raw
+ * stat the sim's magnitude formula multiplies against (hero.damage for an
+ * attacker, hero.healPerBeat for a healer) — passed in rather than read off
+ * a HeroDef so this file stays free of any hero-shaped type. */
+export function chainMagnitudeScaleAbsolute(
+  profile: ChainProfile,
+  backfireChance: number,
+  baseStat: number,
+  target: number,
+  harmWeight = 1,
+): number {
+  const net = expectedNetChainUnits(profile, backfireChance, harmWeight);
+  return target / (baseStat * net);
 }

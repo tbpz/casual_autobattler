@@ -102,7 +102,11 @@ check(
 // chain-length table are zeroed out, isolating the mean-value trajectory.
 // 2026-08-14 chain rebuild: no more ignitionChanceByAttemptsSinceIgnition to
 // zero — firing itself is deterministic on threshold-cross now, not a roll.
-const zeroedCfg = { ...cfg.fight, damageVariance: 0, chainChanceByHitsSoFar: [0] };
+// chainContinuationScale: 0 (2026-08-20, per-hero-profile pass) added
+// alongside chainChanceByHitsSoFar — see checks/beatsheet.ts's identical
+// override for why the global table alone stops being enough once a hero can
+// carry its own continuation odds.
+const zeroedCfg = { ...cfg.fight, damageVariance: 0, chainChanceByHitsSoFar: [0], chainContinuationScale: 0 };
 const player = makePlayerSide();
 const proj = project(player, enemy, zeroedCfg);
 const result = runFight({ player, enemy }, zeroedCfg, new Rng(1), 1);
@@ -112,6 +116,62 @@ check(
   errFrac < 0.2,
   `projected=${proj.killSec.toFixed(1)}s actual=${result.durationSec.toFixed(1)}s (${(errFrac * 100).toFixed(1)}% off)`,
 );
+
+// --- Over-heal survival regression (2026-08-22 — see DECISIONS.md). Before
+// this fix, a healer draft against the "Anvil" encounter (index 5) read
+// surviveSec=48500/tankHoldsSec=18915 for a fight that resolves in ~36s —
+// enemyDps - healPerSec clamped to the divide-by-zero GUARD (0.01), and the
+// guard got treated as a real DPS figure. Measured as a common case (10% of
+// realistic field-pick projections, 14 of 20 drafts — any draft with a
+// healer), not a rare edge case, concentrated on exactly this encounter.
+// Pins the fix directly: both figures must be finite AND stay under the
+// sim's own hard fight-length cutoff, `maxFightSec` — a number bigger than
+// that is exactly as dishonest as the old fabricated one, just smaller.
+{
+  const overhealPlayer = makePlayerSide(["bracer", "rook", "cairn"]);
+  const anvil = makeEnemySide(cfg, 0, 5); // Anvil is ENCOUNTERS[5], tier "early"
+  const overheal = project(overhealPlayer, anvil, cfg.fight);
+  check(
+    "a healer draft vs Anvil projects a finite surviveSec within maxFightSec (over-heal regression)",
+    Number.isFinite(overheal.surviveSec) && overheal.surviveSec <= cfg.fight.maxFightSec,
+    `got surviveSec=${overheal.surviveSec.toFixed(1)} (cap ${cfg.fight.maxFightSec})`,
+  );
+  check(
+    "the same draft's tankHoldsSec is finite and within maxFightSec (over-heal regression)",
+    overheal.tankHoldsSec !== null && Number.isFinite(overheal.tankHoldsSec) && overheal.tankHoldsSec <= cfg.fight.maxFightSec,
+    `got tankHoldsSec=${overheal.tankHoldsSec?.toFixed(1)} (cap ${cfg.fight.maxFightSec})`,
+  );
+}
+
+// --- Chain-expectation coverage (2026-08-20, per-hero-profile pass — Part 1
+// §6 of the "chain choice: make the pick a shape, not a size" plan). Two
+// properties: a side with real carried charge projects visibly MORE chains
+// than one starting fresh (the mechanism actually responds to input), and
+// the projection never quietly omits the line players read as the chain
+// signal.
+{
+  const fresh = makePlayerSide();
+  const freshProj = project(fresh, enemy, cfg.fight);
+  check(
+    "a fresh-charge side's chainsExpected is a finite, non-negative number",
+    Number.isFinite(freshProj.chainsExpected) && freshProj.chainsExpected >= 0,
+    `got ${freshProj.chainsExpected.toFixed(2)}`,
+  );
+
+  const charged = makePlayerSide();
+  charged.heroes[0]!.charge = cfg.fight.chargeThreshold * 0.9;
+  const chargedProj = project(charged, enemy, cfg.fight);
+  check(
+    "carried charge raises chainsExpected relative to a fresh side",
+    chargedProj.chainsExpected > freshProj.chainsExpected,
+    `fresh=${freshProj.chainsExpected.toFixed(2)} charged=${chargedProj.chainsExpected.toFixed(2)}`,
+  );
+  check(
+    "chainLine is always a non-empty player-facing string",
+    typeof chargedProj.chainLine === "string" && chargedProj.chainLine.length > 0,
+    `got ${JSON.stringify(chargedProj.chainLine)}`,
+  );
+}
 
 if (failed) {
   console.error("\nprojection check FAILED");

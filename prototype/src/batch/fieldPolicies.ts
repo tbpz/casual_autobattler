@@ -15,12 +15,18 @@ export type HeroScore = (h: HeroState) => number;
 export const scoreHpFraction: HeroScore = (h) => (h.maxHp > 0 ? h.hp / h.maxHp : 0);
 export const scoreAffinity: HeroScore = (h) => h.chainAffinity;
 export const scoreCharge: HeroScore = (h) => h.charge;
-/** The TRUE chain-output ranking — damage*affinity for an attacker,
- * heal*affinity for a healer (see fight.ts's chainAttackMagnitude/
- * resolveChainHit). Deliberately NOT unit-comparable across the
- * attacker/healer split (a healer's chain is HP restored, not damage) — used
- * here only to rank heroes against others of the same kind within a role
- * tier, never to compare a healer's number against an attacker's directly. */
+/** 2026-08-19-era ranking — was "the TRUE chain-output ranking" (damage*
+ * affinity for an attacker, heal*affinity for a healer) back when
+ * chainAffinity still scaled payoff magnitude. SUPERSEDED 2026-08-20 (Step 3
+ * of the "chain choice: make the pick a shape, not a size" plan — see
+ * heroes.ts's PLAYER_HERO_POOL docstring and config.ts's
+ * chainMagnitudeScaleAbsolute): chainAffinity no longer touches magnitude at
+ * all, only backfireChanceFor, so this quantity no longer tracks a fielded
+ * hero's actual chain payoff — every hero's chain converges on the same
+ * chainMagnitudeTarget regardless of chainAffinity or damage/healPerBeat.
+ * Kept only so batch/affinity.ts's A5 arm stays a named, historical
+ * comparison point (a fielding policy that ranks by a now-dead quantity);
+ * do not read this as a live payoff estimate. */
 export const scoreChainCoefficient: HeroScore = (h) => (h.healPerBeat ?? h.damage) * h.chainAffinity;
 
 const FIELD_ROLE_ORDER: Role[] = ["tank", "damage", "support"];

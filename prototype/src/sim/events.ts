@@ -8,6 +8,30 @@ import type { Role } from "./types.js";
 
 export type Side = "player" | "enemy";
 
+/** The firing hero's chain SHAPE, as much of it as the renderer needs
+ * (2026-08-20, per-hero-profile pass — see config.ts's ChainProfile).
+ * Deliberately NOT the whole ChainProfile: the continuation table and the
+ * magnitude-normalizer terms are sim-internal, and the render layer only
+ * ever needs "how many pips, and where does the ladder steepen." Carried on
+ * chainStart (to size the HUD's pip row and playback's per-window escalation
+ * knee) and mirrored onto TickSnapshot (see TickSnapshot.chainShape's own
+ * docstring for why a snapshot field is needed too, not just the event). */
+export interface ChainShape {
+  /** Profile id (e.g. "longFuseFlat") — debug only. */
+  profileId: string;
+  /** Two-word player-facing label (e.g. "long fuse") — the end card's Step 3
+   * replacement for "affinity carried ×N", which stopped being true the
+   * moment chainAffinity stopped touching magnitude (fightView.ts's
+   * renderChainEndCard). */
+  label: string;
+  /** This hero's own fuse length — replaces cfg.chainMaxHits everywhere the
+   * renderer used to read the global field. */
+  maxHits: number;
+  /** This hero's escalation knee — playback.ts's gap-dilation deepening
+   * point, and the HUD spectacle ladder's own reference. */
+  escalationKneeHit: number;
+}
+
 export type FightEvent =
   | { type: "attack"; t: number; side: Side; attackerId: string; targetId: string; damage: number }
   | { type: "heal"; t: number; side: Side; healerId: string; targetId: string; amount: number }
@@ -17,8 +41,9 @@ export type FightEvent =
    * backfire coin flip carried on this event). `backfire` is decided once,
    * here, and every chainHit/chainEnd for this chain repeats it — the
    * renderer reads it to pick gold burst vs. red implosion immediately,
-   * with no advance telegraph. */
-  | { type: "chainStart"; t: number; heroId: string; backfire: boolean }
+   * with no advance telegraph. `shape` (2026-08-20) is this hero's resolved
+   * chain shape for the fight — see ChainShape above. */
+  | { type: "chainStart"; t: number; heroId: string; backfire: boolean; shape: ChainShape }
   /** `kind` distinguishes an attacker's escalating damage hit from a
    * healer's escalating heal (2026-08-14 chain rebuild — the chain always
    * repeats the hero's OWN action). `backfire` mirrors the owning
@@ -58,6 +83,16 @@ export type FightEvent =
       killedIds: string[];
       backfire: boolean;
       reason: "miss" | "capped" | "noTarget" | "fightEnd";
+      /** This hero's own fuse length (2026-08-20, per-hero-profile pass) —
+       * replaces cfg.chainMaxHits for the "capped implies max length" check
+       * and the render layer's cap-pip lookup. By end time hotHeroId is
+       * already null and the snapshot's chainShape is gone, so this can't be
+       * recovered from anywhere else. */
+      maxHits: number;
+      /** This hero's own shape label (e.g. "long fuse") — same reasoning as
+       * maxHits above; the end card's showChainEnd needs it and can't read
+       * it off anything else by end time. */
+      label: string;
     }
   | { type: "heroDown"; t: number; side: Side; heroId: string }
   | { type: "tankBreak"; t: number; side: Side; heroId: string }
@@ -116,6 +151,14 @@ export interface TickSnapshot {
    * chainTellThreshold gate is gone; see DECISIONS.md). */
   chainBackfire: boolean;
   visibleChainLength: number;
+  /** The CURRENT chain's shape (2026-08-20, per-hero-profile pass) — null
+   * whenever hotHeroId is null. Carried on the snapshot, not just on
+   * chainStart, because updateChainHud is deliberately snapshot-driven (so
+   * the HUD stays correct under pause/step/scrub — see fightView.ts) and
+   * render() drains events AFTER updating the HUD from the snapshot each
+   * tick; an event-only path would paint one stale-length frame on the
+   * ignition tick itself. */
+  chainShape: ChainShape | null;
   /** Running damage/heal total for the CURRENT chain — 0 whenever hotHeroId
    * is null. Snapshot-driven, not renderer-accumulated, so a persistent
    * chain HUD stays correct under pause/step/scrub. */

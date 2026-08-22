@@ -1,10 +1,11 @@
 import type { RunConfig } from "../sim/config.js";
+import { baselineChainProfile } from "../sim/config.js";
 import type { HeroState } from "../sim/types.js";
-import { chainCoefficient } from "../sim/heroes.js";
+import { MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY } from "../sim/heroes.js";
 import { defaultFieldPick, fieldSquad, livingRosterHeroes, type RosterState } from "../sim/roster.js";
 import { makeEnemySide } from "../sim/run.js";
 import { project } from "../sim/projection.js";
-import { chainOutputPips, chargeBarHtml } from "./heroPickShared.js";
+import { chainShapeSparkline, backfireRiskPips, chargeBarHtml } from "./heroPickShared.js";
 
 /**
  * Per-fight FIELD pick (2026-08-09 roster/bench pass — see config.ts's
@@ -70,6 +71,9 @@ export function renderFieldPickScreen(
   const projectionLine = document.createElement("p");
   projectionLine.className = "projection-line";
 
+  const chainLine = document.createElement("p");
+  chainLine.className = "projection-detail";
+
   const playBtn = document.createElement("button");
   playBtn.className = "play-btn";
 
@@ -94,11 +98,13 @@ export function renderFieldPickScreen(
     if (selected.size !== fieldSize) {
       projectionLine.textContent = "";
       projectionLine.className = "projection-line";
+      chainLine.textContent = "";
       return;
     }
     const proj = project(fieldSquad(roster, [...selected]), enemyPreview, cfg.fight);
     projectionLine.textContent = proj.verdict;
     projectionLine.className = `projection-line band-${proj.band}`;
+    chainLine.textContent = proj.chainLine;
   }
 
   function heroRowHtml(h: HeroState): string {
@@ -112,7 +118,8 @@ export function renderFieldPickScreen(
       </span>
       <span class="hero-pick-stats">
         <span class="hero-pick-numbers">${Math.round(h.hp)}/${Math.round(h.maxHp)}hp / ${h.damage}dmg / ${h.attackIntervalSec}s${h.healPerBeat ? ` +${h.healPerBeat}heal` : ""}${h.attacksWhileHealing ? " +atk" : ""}</span>
-        <span class="hero-pick-chain" title="Chain — bigger pips land a bigger payoff AND carry a bigger backfire risk">CHAIN ${chainOutputPips(chainCoefficient(h))}</span>
+        <span class="hero-pick-chain">CHAIN ${chainShapeSparkline(h.chainProfile ?? baselineChainProfile(cfg.fight))} ${(h.chainProfile ?? baselineChainProfile(cfg.fight)).label}</span>
+        <span class="hero-pick-backfire">BACKFIRE ${backfireRiskPips(cfg.fight, h.chainAffinity, MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY)}</span>
       </span>
     `;
   }
@@ -147,6 +154,7 @@ export function renderFieldPickScreen(
 
   screen.appendChild(list);
   screen.appendChild(projectionLine);
+  screen.appendChild(chainLine);
 
   if (dead.length > 0) {
     const fallen = document.createElement("p");

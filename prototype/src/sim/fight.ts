@@ -1,9 +1,23 @@
 import type { Rng } from "./rng.js";
-import type { FightConfig } from "./config.js";
-import { backfireChanceFor, chainEscalationFactor, prdLookup } from "./config.js";
-import type { FightSetup, HeroState, SideState } from "./types.js";
+import type { ChainProfile, FightConfig } from "./config.js";
+import {
+  backfireChanceFor,
+  baselineChainProfile,
+  chainContinuationChance,
+  chainEscalationFactorFromProfile,
+  chainMagnitudeScaleAbsolute,
+  expectedNetChainUnits,
+} from "./config.js";
+import type { ChainPlan, FightSetup, HeroState, SideState } from "./types.js";
 import { sideHp, sideMaxHp } from "./types.js";
-import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "./events.js";
+import type { ChainShape, FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "./events.js";
+
+/** Reduces a hero's full ChainPlan.profile down to the small render-facing
+ * shape (2026-08-20, per-hero-profile pass — see events.ts's ChainShape
+ * docstring for why this is deliberately not the whole ChainProfile). */
+function toChainShape(profile: ChainProfile): ChainShape {
+  return { profileId: profile.id, label: profile.label, maxHits: profile.maxHits, escalationKneeHit: profile.escalationKneeHit };
+}
 
 /**
  * Applies `amount` damage starting at the hero with id `startId`, overflowing
@@ -161,7 +175,37 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
   }));
 }
 
-function cloneHeroes(heroes: HeroState[]): HeroState[] {
+/** Resolves a hero's ChainPlan for THIS fight (2026-08-20, per-hero-profile
+ * pass — see types.ts's ChainPlan docstring). Falls back to
+ * baselineChainProfile(cfg) when the hero carries no chainProfile of its
+ * own. Computed for EVERY hero, enemy sides included: cheap (O(maxHits)),
+ * and harmless for enemies since they never chain and nothing reads their
+ * plan.
+ *
+ * Step 3: magnitudeScale now uses chainMagnitudeScaleAbsolute (Variant B) —
+ * every hero's chain converges on its own hero.chainMagnitudeTarget in
+ * absolute expected-net-value terms, independent of its damage/healPerBeat
+ * stat (see config.ts's own docstring on that function for why). baseStat is
+ * read the same way the sim's magnitude formulas read it — healPerBeat for a
+ * healer, damage otherwise.
+ *
+ * A hero with no chainMagnitudeTarget authored (chainMagnitudeTarget
+ * undefined) falls back to `baseStat * expectedNetChainUnits(baseline,
+ * backfireChanceBase)` — algebraically this makes chainMagnitudeScaleAbsolute
+ * reduce EXACTLY to chainMagnitudeScaleFor's old Variant A formula (both
+ * anchor to the same baseline-at-backfireChanceBase net value), which is
+ * what kept Step 1/Step 2 an identity transform before any hero had a real
+ * target authored. */
+function resolveChainPlan(cfg: FightConfig, hero: HeroState): ChainPlan {
+  const profile = hero.chainProfile ?? baselineChainProfile(cfg);
+  const backfireChance = backfireChanceFor(cfg, hero.chainAffinity);
+  const baseStat = hero.healPerBeat ?? hero.damage;
+  const target = hero.chainMagnitudeTarget ?? baseStat * expectedNetChainUnits(baselineChainProfile(cfg), cfg.backfireChanceBase);
+  const magnitudeScale = chainMagnitudeScaleAbsolute(profile, backfireChance, baseStat, target);
+  return { profile, magnitudeScale, backfireChance };
+}
+
+function cloneHeroes(heroes: HeroState[], cfg: FightConfig): HeroState[] {
   return heroes.map((h) => ({
     ...h,
     dealt: 0,
@@ -172,6 +216,7 @@ function cloneHeroes(heroes: HeroState[]): HeroState[] {
     // persists across the whole run; see types.ts's HeroState.charge.
     windupFireT: undefined,
     windupTargetId: undefined,
+    chainPlan: resolveChainPlan(cfg, h),
   }));
 }
 
@@ -304,25 +349,42 @@ function handleBruiserBeat(
  * off healPerBeat regardless of attacksWhileHealing) escalates a heal.
  * `backfire` aims the SAME action at the wrong side instead of changing what
  * it does — an attacker hits its own team, a healer heals the enemy — using
- * the identical magnitude formula either way, so a high-chainAffinity hero
- * is exactly as loud in reverse as it is going forward.
+ * the identical magnitude formula either way, so a hero's backfire is
+ * exactly as loud as its payoff.
  *
  * Returns null when there's no valid target for this hit (every candidate on
  * the target side is already dead, or — heal only — already full HP); the
  * caller treats that exactly like a failed continuation roll, ending the
  * chain rather than looping on a no-op. */
 /** A chain bonus hit's damage for an ATTACKING hero (tank/damage role) at
- * `hitIndex` — the escalation curve (config.ts's chainEscalationFactor)
- * applies multiplicatively alongside the hero's own base damage and
- * chainAffinity, identically whether the hit is a real payoff or a
- * backfire. Exported (2026-08-15, chain-payoff-axis pass) so
- * checks/chaindist.ts can verify the escalation-vs-identity design
- * invariant against the exact same formula the fight sim uses, rather than
+ * `hitIndex` — the escalation curve (config.ts's
+ * chainEscalationFactorFromProfile) applies multiplicatively alongside the
+ * hero's own base damage and its resolved magnitudeScale, identically
+ * whether the hit is a real payoff or a backfire. Exported (2026-08-15,
+ * chain-payoff-axis pass) so checks/chaindist.ts can verify design
+ * invariants against the exact same formula the fight sim uses, rather than
  * re-deriving it and risking drift. Not valid for a healer — see
  * resolveChainHit's heal branch, which uses healPerBeat as its base and
- * clamps against the target's own maxHp instead. */
-export function chainAttackMagnitude(cfg: FightConfig, damage: number, chainAffinity: number, hitIndex: number): number {
-  return Math.max(1, Math.round(damage * cfg.chainHitMultiplier * chainEscalationFactor(cfg, hitIndex) * chainAffinity));
+ * clamps against the target's own maxHp instead.
+ *
+ * 2026-08-20 (per-hero-profile pass, Step 3): `magnitudeScale` replaces the
+ * old `chainAffinity` parameter — this is the actual behavior change this
+ * step makes (Steps 1-2 only moved WHERE the escalation curve came from).
+ * magnitudeScale is types.ts's ChainPlan.magnitudeScale
+ * (config.ts's chainMagnitudeScaleAbsolute), which equalizes every hero's
+ * expected NET chain value in absolute terms — chainAffinity no longer
+ * appears in this formula at all; it now drives ONLY backfireChanceFor. */
+export function chainAttackMagnitude(
+  cfg: FightConfig,
+  profile: ChainProfile,
+  damage: number,
+  magnitudeScale: number,
+  hitIndex: number,
+): number {
+  return Math.max(
+    1,
+    Math.round(damage * cfg.chainHitMultiplier * chainEscalationFactorFromProfile(profile, hitIndex) * magnitudeScale),
+  );
 }
 
 function resolveChainHit(
@@ -334,6 +396,10 @@ function resolveChainHit(
   hitIndex: number,
   backfire: boolean,
 ): { kind: "damage" | "heal"; targetId: string; amount: number; died: string[] } | null {
+  // hero.chainPlan is always set (cloneHeroes resolves it for every hero);
+  // the `?? baselineChainProfile(cfg)` / `?? 1` fallbacks below are
+  // defensive, matching this file's existing convention elsewhere.
+  const plan = hero.chainPlan;
   if (hero.healPerBeat) {
     const target = lowestHpAliveHero(backfire ? enemy : player);
     if (!target) return null;
@@ -345,7 +411,9 @@ function resolveChainHit(
     // capped to single digits regardless of length — the clearest version
     // of the "some heroes' chains are always a dud" problem this pass fixes.
     const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
-    const raw = hero.healPerBeat * cfg.chainHitMultiplier * chainEscalationFactor(cfg, hitIndex) * hero.chainAffinity;
+    const profile = plan?.profile ?? baselineChainProfile(cfg);
+    const raw =
+      hero.healPerBeat * cfg.chainHitMultiplier * chainEscalationFactorFromProfile(profile, hitIndex) * (plan?.magnitudeScale ?? 1);
     const amount = Math.max(1, Math.min(raw, cap, room));
     target.hp += amount;
     // Only credit the hero's OWN restored counter on a real heal — a
@@ -355,7 +423,17 @@ function resolveChainHit(
   }
   const targetId = backfire ? pickWeightedTargetId(player, rng, cfg) : frontMostAliveId(enemy);
   if (!targetId) return null;
-  const damage = chainAttackMagnitude(cfg, hero.damage + player.dpsBonus, hero.chainAffinity, hitIndex);
+  const attackProfile = plan?.profile ?? baselineChainProfile(cfg);
+  // 2026-08-20 (per-hero-profile pass, Step 3): player.dpsBonus (the run's
+  // flat-damage coin upgrade) is deliberately NOT added here anymore — see
+  // config.ts's chainMagnitudeScaleAbsolute docstring. magnitudeScale is
+  // solved against hero.damage alone (heroes.ts's CHAIN_EV_TARGET_DAMAGE);
+  // folding a variable, run-dependent dpsBonus into that base would make
+  // "every hero converges on the same target" untrue the moment a run
+  // banks the upgrade. The upgrade still helps every normal attack (see
+  // performHeroAction) — its effect on chains specifically is the accepted
+  // cost of chain output being an absolute, stat-independent number.
+  const damage = chainAttackMagnitude(cfg, attackProfile, hero.damage, plan?.magnitudeScale ?? 1, hitIndex);
   const { died, applied } = applyDamageFrom(backfire ? player : enemy, targetId, damage);
   hero.dealt += applied;
   return { kind: "damage", targetId, amount: applied, died };
@@ -367,8 +445,8 @@ function resolveChainHit(
  */
 export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: number): FightResult {
   // Work on private copies so the caller's setup objects aren't mutated.
-  const player: SideState = { heroes: cloneHeroes(setup.player.heroes), dpsBonus: setup.player.dpsBonus };
-  const enemy: SideState = { heroes: cloneHeroes(setup.enemy.heroes), dpsBonus: setup.enemy.dpsBonus };
+  const player: SideState = { heroes: cloneHeroes(setup.player.heroes, cfg), dpsBonus: setup.player.dpsBonus };
+  const enemy: SideState = { heroes: cloneHeroes(setup.enemy.heroes, cfg), dpsBonus: setup.enemy.dpsBonus };
 
   const events: FightEvent[] = [];
   const snapshots: TickSnapshot[] = [];
@@ -384,6 +462,11 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   // pass — see config.ts's backfireChanceBase docstring). Meaningless while
   // hotHeroId is null.
   let chainBackfire = false;
+  // The CURRENT chain's shape (2026-08-20, per-hero-profile pass) — set the
+  // instant hotHeroId is set, cleared the instant it's cleared, so the two
+  // are always in lockstep; meaningless while hotHeroId is null, same as
+  // chainBackfire above.
+  let hotChainShape: ChainShape | null = null;
   let bonusHitsLanded = 0;
   let finalChainLength = 0;
   // Running totals for the CURRENT chain — reset when a chain fires,
@@ -438,8 +521,19 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         // continuation roll failed, the hard cap forced it, or the roll
         // passed but resolveChainHit found no valid target — instead of
         // collapsing all three into one identical event.
-        const capped = bonusHitsLanded >= cfg.chainMaxHits;
-        const chance = capped ? 0 : prdLookup(cfg.chainChanceByHitsSoFar, bonusHitsLanded);
+        // 2026-08-20 (per-hero-profile pass, Step 1): reads the cap and the
+        // continuation odds off this hero's OWN resolved chainPlan.profile
+        // instead of the global cfg fields directly — for a hero with no
+        // authored profile that plan is baselineChainProfile(cfg), whose
+        // fields equal these cfg fields exactly, so this step is byte-
+        // identical until Step 3 authors real per-hero profiles.
+        // chainContinuationChance also applies cfg.chainContinuationScale, a
+        // global damper checks/beatsheet.ts and checks/projection.ts use to
+        // disable continuation entirely regardless of which table a hero
+        // reads (see that field's own docstring).
+        const chainProfile = hero.chainPlan?.profile ?? baselineChainProfile(cfg);
+        const capped = bonusHitsLanded >= chainProfile.maxHits;
+        const chance = capped ? 0 : chainContinuationChance(cfg, chainProfile, bonusHitsLanded);
         const rolled = rng.chance(chance);
         const hit = rolled ? resolveChainHit(rng, cfg, player, enemy, hero, bonusHitsLanded + 1, chainBackfire) : null;
         if (hit) {
@@ -478,9 +572,12 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
             killedIds: chainKillIds,
             backfire: chainBackfire,
             reason,
+            maxHits: chainProfile.maxHits,
+            label: chainProfile.label,
           });
           finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
           hotHeroId = null;
+          hotChainShape = null;
         }
       }
     }
@@ -534,10 +631,11 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         ignited = true;
         hotHeroId = ready.id;
         chainBackfire = rng.chance(backfireChanceFor(cfg, ready.chainAffinity));
+        hotChainShape = toChainShape(ready.chainPlan?.profile ?? baselineChainProfile(cfg));
         bonusHitsLanded = 0;
         chainDamageSoFar = 0;
         chainKillIds = [];
-        events.push({ type: "chainStart", t, heroId: ready.id, backfire: chainBackfire });
+        events.push({ type: "chainStart", t, heroId: ready.id, backfire: chainBackfire, shape: hotChainShape });
       }
     }
 
@@ -555,6 +653,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       chainBackfire,
       visibleChainLength: bonusHitsLanded,
       chainDamageSoFar: hotHeroId ? chainDamageSoFar : 0,
+      chainShape: hotHeroId ? hotChainShape : null,
       enrageMultiplier: enrageMult,
       windupTargetId: bruiser?.alive && bruiser.windupFireT !== undefined ? (bruiser.windupTargetId ?? null) : null,
     });
@@ -582,6 +681,10 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       killedIds: chainKillIds,
       backfire: chainBackfire,
       reason: "fightEnd",
+      // hotChainShape is always set in lockstep with hotHeroId (see its own
+      // declaration comment above) — non-null here by that invariant.
+      maxHits: hotChainShape!.maxHits,
+      label: hotChainShape!.label,
     });
     finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
   }

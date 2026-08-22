@@ -1,4 +1,5 @@
 import type { FightConfig } from "./config.js";
+import { baselineChainProfile } from "./config.js";
 import type { HeroState, SideState } from "./types.js";
 import { sideHp } from "./types.js";
 
@@ -20,7 +21,13 @@ export interface Projection {
   healPerSec: number;
   /** Seconds to kill the enemy side at mean player DPS. */
   killSec: number;
-  /** Seconds the player side survives the enemy's net DPS (after healing). */
+  /** Seconds the player side survives, healing credited. NOT
+   * `sideHp(player) / (enemyDps - healPerSec)` — `enemyDps` is a single
+   * flat rate meaned over the [0, killSec] window (see meanEnrageMultiplier),
+   * which has no defined meaning once you ask "how long could this run
+   * past killSec." This instead solves survivalSecUnder's closed form
+   * against the real, uncapped enrage ramp directly, clamped at
+   * cfg.maxFightSec — see that function's docstring. */
   surviveSec: number;
   /** surviveSec - killSec. Positive = expected to win with seconds to spare. */
   spareSec: number;
@@ -36,6 +43,18 @@ export interface Projection {
   lines: string[];
   /** One-sentence statement of the band, for the squad-pick screen. */
   verdict: string;
+  /** Mean-value estimate of how many chains fire over this fight — carried
+   * charge plus projected accrual (see chainProjectionFor) divided by
+   * chargeThreshold. Not a count of DISTINCT heroes chaining, just total
+   * ignitions: two different heroes each firing once and one hero firing
+   * twice both read as 2.0 here. */
+  chainsExpected: number;
+  /** One-sentence chain expectation — "chain: expect ~N this fight" plus
+   * the shape of whoever's closest to firing, so the squad/field pick reads
+   * the same chain-likelihood signal the pre-fight screen already gave a
+   * hand-rolled version of (closestChargeLine in preFightScreen.ts, now
+   * folded into this shared, checkable mechanism). */
+  chainLine: string;
 }
 
 /** Below this pool margin, the projection calls the fight an expected loss
@@ -155,6 +174,127 @@ function meanEnrageMultiplier(durationSec: number, cfg: FightConfig): number {
   return (cfg.enrageStartSec * 1 + enragedSec * meanEnragedMult) / durationSec + hpLostMeanTerm;
 }
 
+/**
+ * Closed-form time for `hpPool` to deplete under a net incoming rate that
+ * starts flat and ramps linearly past `enrageStartSec` (2026-08-22 —
+ * fixes the divide-by-zero-guard bug: see DECISIONS.md's same-dated entry).
+ *
+ * `meanEnrageMultiplier` above answers "what's the mean incoming rate over
+ * a fight of THIS length" — a single flat number, fine for comparing against
+ * a fixed `killSec`. It has no meaning for "how long could survival run past
+ * killSec," which is exactly the question a squad that out-heals mean
+ * incoming damage asks: `Math.max(enemyDps - healPerSec, 0.01)` used to
+ * answer that by dividing by the divide-by-zero GUARD itself, manufacturing
+ * a fake number in the tens of thousands of seconds (confirmed live: a
+ * healer draft against the "Anvil" encounter reads exactly 189.15/0.01 =
+ * 18915). This solves the real question instead: the sim's own enrage ramp
+ * (fight.ts's enrageMultiplierAt) is wall-clock and uncapped, so survival
+ * against it is always finite — model that ramp directly.
+ *
+ * Net incoming rate, holding the HP-lost enrage term at its existing mean
+ * approximation (`1 + enrageFromEnemyHpLostFactor * 0.5`, same convention
+ * meanEnrageMultiplier already uses — deliberately frozen, not re-derived
+ * past killSec, which makes the tail slightly optimistic and is judged not
+ * worth a kink in the curve for zero band impact):
+ *   r0 = basePreEnrageDps * (1 + enrageFromEnemyHpLostFactor*0.5) - healPerSec   [t <= enrageStartSec]
+ *   r(t) = r0 + basePreEnrageDps*enrageRampPerSec * (t - enrageStartSec)         [t > enrageStartSec]
+ * Solves cumulative damage D(T) = hpPool for T, three cases:
+ * - `hpPool <= 0`: already broken, 0 (guards an at/below-tankBreakFraction
+ *   tank — the naive formula below would otherwise invent a positive hold).
+ * - `r0 >= 0`: depletes within the flat phase if `r0*enrageStartSec >= hpPool`
+ *   (`T = hpPool/r0`); otherwise solve the phase-2 quadratic
+ *   `0.5*bk*u^2 + r0*u + (r0*S - hpPool) = 0` for `u = T - S` in the
+ *   numerically-stable (no-cancellation) form.
+ * - `r0 < 0` (net healing at the start): the naive integral would let that
+ *   early net-healing "bank" as negative cumulative damage, which then has
+ *   to be paid off once the ramp turns net-positive — inflating survival by
+ *   up to ~13% in a sweep across the pool (a hero can't actually bank spare
+ *   healing past maxHp). Instead the clock starts at `t0`, the time the net
+ *   rate crosses back to zero; continuous with the `r0 >= 0` branch at
+ *   `r0 = 0`.
+ * `bk <= 0` (no ramp configured, or an empty enemy side) falls back to a
+ * flat-rate solve. Every branch clamps to `cfg.maxFightSec` — the sim's own
+ * hard tick cutoff (fight.ts's `maxTicks`), so a real ceiling rather than
+ * `Infinity`, which would otherwise reach `Math.round`/`projectionSummary`
+ * downstream and print literally.
+ *
+ * Verified (2026-08-22): algebra checked independently twice; a 4,800-combo
+ * sweep of fielded squads x encounters x HP fractions x dpsBonus found this
+ * changes ZERO of checks/projection.ts's four band-asserting fixtures.
+ */
+function survivalSecUnder(hpPool: number, basePreEnrageDps: number, healPerSec: number, cfg: FightConfig): number {
+  if (hpPool <= 0) return 0;
+  const r0 = basePreEnrageDps * (1 + cfg.enrageFromEnemyHpLostFactor * 0.5) - healPerSec;
+  const bk = basePreEnrageDps * cfg.enrageRampPerSec;
+  const S = cfg.enrageStartSec;
+
+  if (bk <= 0) {
+    return Math.min(r0 > 0 ? hpPool / r0 : Infinity, cfg.maxFightSec);
+  }
+  if (r0 >= 0) {
+    if (r0 * S >= hpPool) return Math.min(hpPool / r0, cfg.maxFightSec);
+    const disc = r0 * r0 + 2 * bk * (hpPool - r0 * S); // provably > 0 whenever this line runs
+    const u = (2 * (hpPool - r0 * S)) / (r0 + Math.sqrt(disc));
+    return Math.min(S + u, cfg.maxFightSec);
+  }
+  // r0 < 0: don't bank the early net-healing surplus — start the clock when
+  // the still-ramping rate actually crosses back to net-damaging.
+  const t0 = S - r0 / bk;
+  const u = Math.sqrt((2 * hpPool) / bk);
+  return Math.min(t0 + u, cfg.maxFightSec);
+}
+
+/**
+ * Mean-value chain expectation (2026-08-20, per-hero-profile pass — Part 1
+ * §6 of the "chain choice: make the pick a shape, not a size" plan). Charge
+ * is per-hero and only the highest-charge hero fires on threshold-cross
+ * (fight.ts), but for a POOL-level "how many chains should I expect" this
+ * treats the side's charge as one shared pool: total charge already carried
+ * in, plus total charge generated over the projected fight length, divided
+ * by chargeThreshold. That over-counts slightly whenever two heroes would
+ * both be mid-charge at the same time (their charge isn't actually
+ * fungible — a hero can't borrow another's progress), but undercounting is
+ * the opposite failure mode (implying the fight is chain-free when several
+ * heroes are each a little charged), and this projection's whole convention
+ * (see this file's top docstring) is a mean-value estimate to be surprised
+ * relative to, not a per-tick replay.
+ *
+ * chargeRate mirrors fight.ts's three accrual paths directly: dealt scales
+ * with the side's own DPS, soaked with incoming DPS (pre-heal — soaking
+ * happens at the moment damage lands, before any heal reverses it), restored
+ * with healing throughput.
+ */
+function chainProjectionFor(
+  playerAlive: HeroState[],
+  cfg: FightConfig,
+  killSec: number,
+  playerDps: number,
+  enemyDps: number,
+  healPerSec: number,
+): { chainsExpected: number; chainLine: string } {
+  if (playerAlive.length === 0 || cfg.chargeThreshold <= 0) {
+    return { chainsExpected: 0, chainLine: "No one's fielded to chain." };
+  }
+
+  const carriedCharge = playerAlive.reduce((sum, h) => sum + h.charge, 0);
+  const chargeRate =
+    cfg.chargeWeightDealt * playerDps + cfg.chargeWeightSoaked * enemyDps + cfg.chargeWeightRestored * healPerSec;
+  const chainsExpected = (carriedCharge + chargeRate * killSec) / cfg.chargeThreshold;
+
+  let closest = playerAlive[0]!;
+  for (const h of playerAlive) if (h.charge > closest.charge) closest = h;
+  const closestProfile = closest.chainProfile ?? baselineChainProfile(cfg);
+
+  let chainLine: string;
+  if (chainsExpected < 0.5) {
+    chainLine = "Chain: unlikely this fight — charge is far off.";
+  } else {
+    const count = Math.max(1, Math.round(chainsExpected));
+    chainLine = `Chain: expect ~${count} this fight. ${closest.name}'s are ${closestProfile.label}.`;
+  }
+  return { chainsExpected, chainLine };
+}
+
 export function project(player: SideState, enemy: SideState, cfg: FightConfig): Projection {
   const playerAlive = player.heroes.filter((h) => h.alive);
   const enemyAlive = enemy.heroes.filter((h) => h.alive);
@@ -202,8 +342,14 @@ export function project(player: SideState, enemy: SideState, cfg: FightConfig): 
   const enemyDpsPreEnrage = enemyRates.dps + bruiserDpsAvg;
   const enemyDps = enemyDpsPreEnrage * meanEnrageMultiplier(killSec, cfg);
 
-  const netIncoming = Math.max(enemyDps - healPerSec, 0.01);
-  const surviveSec = sideHp(player) / netIncoming;
+  // 2026-08-22: surviveSec/tankHoldsSec solve the real enrage ramp via
+  // survivalSecUnder (see that function's docstring) instead of dividing by
+  // enemyDps — enemyDps is a flat mean over [0, killSec] and dividing HP by
+  // a divide-by-zero GUARD once healing caught up to it was the bug (see
+  // DECISIONS.md's 2026-08-22 entry). Both calls pass enemyDpsPreEnrage
+  // (the un-meaned rate), letting survivalSecUnder apply the real ramp
+  // itself rather than the killSec-anchored mean.
+  const surviveSec = survivalSecUnder(sideHp(player), enemyDpsPreEnrage, healPerSec, cfg);
   const spareSec = surviveSec - killSec;
   const margin = surviveSec / Math.max(killSec, 0.01);
 
@@ -212,12 +358,12 @@ export function project(player: SideState, enemy: SideState, cfg: FightConfig): 
   if (tank) {
     const livingCount = playerAlive.length;
     const tankShare = cfg.tankTargetWeight / (cfg.tankTargetWeight + Math.max(livingCount - 1, 0));
-    const tankNetIncoming = Math.max(enemyDps * tankShare - healPerSec, 0.01);
     const bufferHp = tank.hp - cfg.tankBreakFraction * tank.maxHp;
-    tankHoldsSec = Math.max(bufferHp, 0) / tankNetIncoming;
+    tankHoldsSec = survivalSecUnder(Math.max(bufferHp, 0), enemyDpsPreEnrage * tankShare, healPerSec, cfg);
   }
 
   const band = bandFor(margin, tankHoldsSec, killSec);
+  const { chainsExpected, chainLine } = chainProjectionFor(playerAlive, cfg, killSec, playerDps, enemyDps, healPerSec);
 
   const dealerNames = playerAlive
     .filter((h) => !h.healPerBeat || h.attacksWhileHealing)
@@ -252,6 +398,8 @@ export function project(player: SideState, enemy: SideState, cfg: FightConfig): 
     tankHoldsSec,
     lines,
     verdict: verdictFor(band, tank?.name ?? null),
+    chainsExpected,
+    chainLine,
   };
 }
 

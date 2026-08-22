@@ -17,6 +17,10 @@
  * Do not reuse seeds below 200_000 here, and do not let a future check reuse
  * seeds in [200_000, 240_000) without updating this comment.
  *
+ * 2026-08-22 (chain-leverage-measurement pass — see the "validate the
+ * feeling" plan): batch/chainLeverage.ts reserves 300_000-399_999 for its own
+ * arms/matrix/oracle sweeps, entirely clear of this file's range.
+ *
  * Honest limitation, printed with every paired comparison: runRun shares ONE
  * Rng across the whole run, so a different fielding choice diverges the
  * COMBAT dice from fight 1's first roll onward. The pairing across arms is
@@ -33,11 +37,10 @@ import {
   makePlayerSide,
   PLAYER_HERO_POOL,
 } from "../sim/heroes.js";
-import { makePolicy, runRun, type RunResult } from "../sim/run.js";
-import { defaultFieldPick, type FieldPick, type RosterState } from "../sim/roster.js";
+import { makePolicy, runRun } from "../sim/run.js";
+import { defaultFieldPick, type RosterState } from "../sim/roster.js";
 import type { HeroState } from "../sim/types.js";
-import { BatchAggregator, formatReport } from "./report.js";
-import { HeroChainAggregator, formatHeroChainReport } from "./heroChain.js";
+import { mean, runArm, printArm, type ArmResult } from "./arm.js";
 import { FIELD_POLICIES, rankedFieldPick, scoreHpFraction } from "./fieldPolicies.js";
 
 function parseArgs(argv: string[]): Record<string, string> {
@@ -61,28 +64,10 @@ function parseArgs(argv: string[]): Record<string, string> {
 const args = parseArgs(process.argv.slice(2));
 const N = args.n ? Number(args.n) : 1500;
 const BLOCK = (args.block as "A" | "B" | "C" | "all") ?? "all";
-const POLICY_NAME = "always-heal" as const;
 
 const cfg: RunConfig = DEFAULT_RUN_CONFIG;
 const HEALER_IDS = new Set(PLAYER_HERO_POOL.filter((h) => h.healPerBeat).map((h) => h.id));
 const BURST_DRAFT = ["bracer", "hollow", "rook", "vex", "ward"]; // the only draft containing Vex
-
-// --- Stats -------------------------------------------------------------
-
-function mcnemar(a: boolean[], b: boolean[]): { onlyA: number; onlyB: number; z: number } {
-  let onlyA = 0;
-  let onlyB = 0;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] && !b[i]) onlyA++;
-    else if (!a[i] && b[i]) onlyB++;
-  }
-  const z = onlyA + onlyB > 0 ? (onlyA - onlyB) / Math.sqrt(onlyA + onlyB) : 0;
-  return { onlyA, onlyB, z };
-}
-
-function mean(xs: number[]): number {
-  return xs.length > 0 ? xs.reduce((s, x) => s + x, 0) / xs.length : 0;
-}
 
 // --- Roster transforms for Block B (the affinity dial) -----------------
 // Harness-side only — never edits sim/heroes.ts. chainAffinity survives the
@@ -97,62 +82,6 @@ function scaleAffinity(roster: RosterState, factor: number): RosterState {
 
 function flattenAffinity(roster: RosterState, value: number): RosterState {
   return { ...roster, heroes: roster.heroes.map((h) => ({ ...h, chainAffinity: value })) };
-}
-
-// --- One arm: N runs of the same draft/fieldPick/roster-transform over a
-// fixed seed sequence, returning everything a comparison needs. ----------
-
-interface ArmResult {
-  label: string;
-  report: ReturnType<BatchAggregator["finalize"]>;
-  heroReport: ReturnType<HeroChainAggregator["finalize"]>;
-  completed: boolean[];
-  fightsWon: number[];
-}
-
-function runArm(
-  label: string,
-  runCfg: RunConfig,
-  draftIds: string[],
-  seeds: number[],
-  fieldPick?: FieldPick,
-  transformRoster?: (r: RosterState) => RosterState,
-): ArmResult {
-  const policy = makePolicy(POLICY_NAME, runCfg);
-  const agg = new BatchAggregator(runCfg);
-  const heroAgg = new HeroChainAggregator();
-  const completed: boolean[] = [];
-  const fightsWon: number[] = [];
-
-  for (const seed of seeds) {
-    let roster: RosterState = makePlayerSide(draftIds);
-    if (transformRoster) roster = transformRoster(roster);
-    const result: RunResult = runRun(runCfg, new Rng(seed), policy, seed, roster, fieldPick ? { fieldPick } : undefined);
-    agg.add(result);
-    heroAgg.add(result, draftIds);
-    completed.push(result.outcome === "complete");
-    fightsWon.push(result.fightsWon);
-  }
-
-  return { label, report: agg.finalize(), heroReport: heroAgg.finalize(), completed, fightsWon };
-}
-
-function printArm(arm: ArmResult, baseline?: ArmResult): void {
-  console.log(formatReport(arm.report, arm.label));
-  console.log(`  mean fights won:       ${mean(arm.fightsWon).toFixed(3)}`);
-  console.log(`  f5 win rate:           ${(arm.report.winRateByFightIndex[4]! * 100).toFixed(1)}%`);
-  if (baseline) {
-    const mfwDelta = mean(arm.fightsWon) - mean(baseline.fightsWon);
-    const complDelta = (arm.report.runCompletionRate - baseline.report.runCompletionRate) * 100;
-    const { onlyA, onlyB, z } = mcnemar(arm.completed, baseline.completed);
-    console.log(
-      `  vs ${baseline.label}: completion ${complDelta >= 0 ? "+" : ""}${complDelta.toFixed(1)}pt, ` +
-        `mean fights won ${mfwDelta >= 0 ? "+" : ""}${mfwDelta.toFixed(3)}, ` +
-        `McNemar onlyThis=${onlyA} onlyBaseline=${onlyB} z=${z.toFixed(2)}`,
-    );
-  }
-  console.log(formatHeroChainReport(arm.heroReport, arm.label, HEALER_IDS));
-  console.log("");
 }
 
 // --- Self-verification preamble — abort the sweep if either fails ------
@@ -210,15 +139,15 @@ if (BLOCK === "B" || BLOCK === "all") {
   console.log("========== BLOCK B — affinity dial (draft=default, fielding=default) ==========\n");
   const seeds = Array.from({ length: N }, (_, i) => 220_000 + i);
   const b3 = runArm(`B3 scale=1.0x n=${N}`, cfg, DEFAULT_DRAFT_ROSTER_IDS, seeds, undefined, (r) => scaleAffinity(r, 1.0));
-  printArm(b3);
+  printArm(b3, undefined, HEALER_IDS);
   const scales = [0.6, 0.8, 1.2, 1.4];
   for (const scale of scales) {
     const arm = runArm(`B scale=${scale}x n=${N}`, cfg, DEFAULT_DRAFT_ROSTER_IDS, seeds, undefined, (r) => scaleAffinity(r, scale));
-    printArm(arm, b3);
+    printArm(arm, b3, HEALER_IDS);
   }
   const b6 = runArm(`B6 flattened=1.0 n=${N}`, cfg, DEFAULT_DRAFT_ROSTER_IDS, seeds, undefined, (r) => flattenAffinity(r, 1.0));
   console.log("  B6 vs B3 isolates the SPREAD-between-heroes question (Tu's actual complaint) from the LEVEL question above:");
-  printArm(b6, b3);
+  printArm(b6, b3, HEALER_IDS);
 }
 
 // --- Block A — fielding policy (draft fixed = default) ------------------
@@ -227,7 +156,7 @@ if (BLOCK === "A" || BLOCK === "all") {
   console.log("========== BLOCK A — fielding policy (draft=default) ==========\n");
   const seeds = Array.from({ length: N }, (_, i) => 200_000 + i);
   const a1 = runArm(`A1 defaultFieldPick n=${N}`, cfg, DEFAULT_DRAFT_ROSTER_IDS, seeds);
-  printArm(a1);
+  printArm(a1, undefined, HEALER_IDS);
   const namedArms: [string, string][] = [
     ["A2 affinityFloor", "affinityFloor"],
     ["A3 affinityNaive (secondary)", "affinityNaive"],
@@ -236,16 +165,16 @@ if (BLOCK === "A" || BLOCK === "all") {
   ];
   for (const [label, key] of namedArms) {
     const arm = runArm(`${label} n=${N}`, cfg, DEFAULT_DRAFT_ROSTER_IDS, seeds, FIELD_POLICIES[key]);
-    printArm(arm, a1);
+    printArm(arm, a1, HEALER_IDS);
   }
 
   console.log("---- robustness repeat on the burst draft (the only draft containing Vex) ----\n");
   const burstSeeds = Array.from({ length: N }, (_, i) => 210_000 + i);
   const burstA1 = runArm(`A1(burst) defaultFieldPick n=${N}`, cfg, BURST_DRAFT, burstSeeds);
-  printArm(burstA1);
+  printArm(burstA1, undefined, HEALER_IDS);
   for (const [label, key] of [["A2(burst) affinityFloor", "affinityFloor"], ["A4(burst) chargeFloor", "chargeFloor"]] as [string, string][]) {
     const arm = runArm(`${label} n=${N}`, cfg, BURST_DRAFT, burstSeeds, FIELD_POLICIES[key]);
-    printArm(arm, burstA1);
+    printArm(arm, burstA1, HEALER_IDS);
   }
 }
 

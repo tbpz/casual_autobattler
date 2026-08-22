@@ -134,7 +134,9 @@ export class FightView {
   private heroMaxHp: Map<string, number> = new Map();
   /** Fixed for the whole fight, same as heroMaxHp above — what
    * showChainStart reads to scale an ignition's tell to that hero's own
-   * expected magnitude (2026-08-15, chain-payoff-axis pass). Enemies are
+   * VOLATILITY (2026-08-20, Step 3: chainAffinity no longer touches
+   * magnitude — see heroes.ts's pool docstring — so this burst now reads
+   * purely as "how big a gamble is this," not payoff size). Enemies are
    * inert (1) and never chain, so this is only meaningful on the player
    * side, but is populated for both for simplicity. */
   private heroChainAffinity: Map<string, number> = new Map();
@@ -253,17 +255,7 @@ export class FightView {
     this.chainHudTitle.className = "chain-hud-title";
     this.chainHudPips = document.createElement("div");
     this.chainHudPips.className = "chain-hud-pips";
-    for (let i = 0; i < cfg.chainMaxHits; i++) {
-      const pip = document.createElement("span");
-      // The LAST pip is a hard ceiling, not just another slot (2026-08-19 —
-      // tagged here, off the same cfg.chainMaxHits the sim enforces the cap
-      // with, so the marker can never drift from the real cap). Styled
-      // distinctly in style.css so reaching it reads as "the maximum
-      // possible," not as an ordinary hit landing that happens to be last.
-      pip.className = i === cfg.chainMaxHits - 1 ? "chain-pip cap" : "chain-pip";
-      this.chainHudPips.appendChild(pip);
-      this.chainHudPipEls.push(pip);
-    }
+    this.buildChainPips(cfg.chainMaxHits);
     this.chainHudTotal = document.createElement("div");
     this.chainHudTotal.className = "chain-hud-total";
     this.chainHud.appendChild(this.chainHudTitle);
@@ -402,6 +394,29 @@ export class FightView {
     });
   }
 
+  /** (Re)builds the chain HUD's pip row for a given fuse length (2026-08-20,
+   * per-hero-profile pass — extracted from the constructor, which used to
+   * build this once at cfg.chainMaxHits and never again). Called from the
+   * constructor at the global default, then from updateChainHud whenever the
+   * live snapshot's own chainShape.maxHits disagrees with the row currently
+   * built — i.e. once per chain, on its first tick, for a hero whose fuse
+   * differs from whatever was built before it. */
+  private buildChainPips(maxHits: number): void {
+    this.chainHudPips.innerHTML = "";
+    this.chainHudPipEls = [];
+    for (let i = 0; i < maxHits; i++) {
+      const pip = document.createElement("span");
+      // The LAST pip is a hard ceiling, not just another slot (2026-08-19 —
+      // tagged here, off the same maxHits the sim enforces the cap with, so
+      // the marker can never drift from the real cap). Styled distinctly in
+      // style.css so reaching it reads as "the maximum possible," not as an
+      // ordinary hit landing that happens to be last.
+      pip.className = i === maxHits - 1 ? "chain-pip cap" : "chain-pip";
+      this.chainHudPips.appendChild(pip);
+      this.chainHudPipEls.push(pip);
+    }
+  }
+
   /** Drives the persistent chain HUD purely off the snapshot — owner, a pip
    * per hit, running total — so it stays correct under pause/step/scrub,
    * same discipline as every other snapshot-driven tell. Backfire flips both
@@ -421,10 +436,22 @@ export class FightView {
    * now, once the resolution beat has actually held onscreen. This function
    * only ever WRITES fresh content while a chain is truly live, and skips
    * entirely while `resolving` so it can't stomp the miss/cap/end beat
-   * showChainEnd is presenting. */
+   * showChainEnd is presenting.
+   *
+   * 2026-08-20 (per-hero-profile pass): rebuilds the pip row via
+   * buildChainPips whenever the live chain's own fuse (snapshot.chainShape)
+   * disagrees with the row's current length — this is what makes the row
+   * per-chain instead of fixed at cfg.chainMaxHits forever. Snapshot-driven,
+   * not event-driven, for the same pause/step/scrub reason every other tell
+   * here is: render() updates the HUD from the snapshot BEFORE draining
+   * eventsThisTick, so an event-only rebuild would paint one stale-length
+   * frame on the ignition tick itself. */
   private updateChainHud(snapshot: TickSnapshot): void {
     if (!snapshot.hotHeroId || this.chainPhase === "resolving") return;
     this.chainPhase = "live";
+    if (snapshot.chainShape && snapshot.chainShape.maxHits !== this.chainHudPipEls.length) {
+      this.buildChainPips(snapshot.chainShape.maxHits);
+    }
     const name = this.nameOf(snapshot.hotHeroId);
     const refs = this.slotFor(snapshot.hotHeroId);
     const backfire = snapshot.chainBackfire;
@@ -509,7 +536,7 @@ export class FightView {
         this.showChainHit(e.hitIndex, e.damage, e.targetId, e.kind, e.backfire, e.sourceId);
         break;
       case "chainEnd":
-        this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.killedIds, e.backfire, e.reason);
+        this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.killedIds, e.backfire, e.reason, e.maxHits, e.label);
         break;
       case "heroDown":
         this.showHeroDown(e.heroId);
@@ -876,6 +903,13 @@ export class FightView {
     killedIds: string[],
     backfire: boolean,
     reason: "miss" | "capped" | "noTarget" | "fightEnd",
+    // 2026-08-20 (per-hero-profile pass): this hero's OWN fuse length, off
+    // the chainEnd event — replaces this.cfg.chainMaxHits below, which was
+    // only ever correct while every hero shared the one global cap.
+    maxHits: number,
+    // This hero's own shape label (e.g. "long fuse") — the end card's
+    // replacement for the old "affinity carried ×N" line (Step 3).
+    profileLabel: string,
   ): void {
     this.chainPhase = "resolving";
     // Captured now, checked inside every deferred callback below — see
@@ -893,7 +927,7 @@ export class FightView {
       // not a failure beat played first — this is the ONLY line that hides
       // it now (chainTeardown's own removal below is a defensive no-op).
       this.chainHud.classList.remove("show");
-      this.renderChainEndCard(heroId, chainLength, totalDamage, killedIds, backfire, reason);
+      this.renderChainEndCard(heroId, chainLength, totalDamage, killedIds, backfire, reason, maxHits, profileLabel);
       setTimeout(() => this.chainTeardown(gen, killedIds), CHAIN_END_CARD_HOLD_MS);
     };
 
@@ -911,10 +945,11 @@ export class FightView {
         this.chainHudTitle.style.color = "var(--muted)";
       } else {
         // "capped": there is no pending pip past the last one (the sim
-        // forces the continuation chance to 0 the instant chainMaxHits is
-        // reached — see fight.ts — so the roll never actually happens);
-        // flare the cap pip itself instead of a pip that doesn't exist.
-        const pipEl = this.chainHudPipEls[this.cfg.chainMaxHits - 1];
+        // forces the continuation chance to 0 the instant this hero's own
+        // fuse (maxHits) is reached — see fight.ts — so the roll never
+        // actually happens); flare the cap pip itself instead of a pip that
+        // doesn't exist.
+        const pipEl = this.chainHudPipEls[maxHits - 1];
         if (pipEl) pulseClass(pipEl, "capped-flare", CHAIN_FAILURE_HOLD_MS);
         this.chainHudTitle.textContent = `${this.nameOf(heroId)} — MAXED`;
         this.chainHudTitle.style.color = this.slotFor(heroId)?.accent ?? "var(--chain)";
@@ -938,11 +973,16 @@ export class FightView {
    * distinction as a size bump rather than a presence/absence gate — the
    * escalating-loudness ladder stays, only the silent floor goes.
    *
-   * The detail line is Phase 2's attribution decomposition: chainLength is
-   * the dominant payoff axis (2026-08-15 measured it ~39x) and carries zero
-   * player input; this hero's own chainAffinity is the ~2x axis the
-   * draft/field pick actually bought. Stating both honestly, every time, is
-   * what lets a player judge how much of the number on screen was theirs. */
+   * 2026-08-20 (Step 3): the detail line used to decompose payoff into
+   * chain LENGTH (the dominant, unpickable axis) vs. this hero's own
+   * chainAffinity (the ~2x axis the draft/field pick actually bought). That
+   * decomposition is gone because the thing it was decomposing is gone —
+   * chainAffinity no longer touches magnitude at all, and every hero's
+   * chain now converges on the same expected value within its kind. What's
+   * left to state honestly is SHAPE: how much of this hero's own fuse
+   * actually got used (`chainLength` of `maxHits` possible hits) and what
+   * kind of curve it was (`profileLabel`) — the thing the draft/field pick
+   * bought now that magnitude no longer varies. */
   private renderChainEndCard(
     heroId: string,
     chainLength: number,
@@ -950,13 +990,14 @@ export class FightView {
     killedIds: string[],
     backfire: boolean,
     reason: "miss" | "capped" | "noTarget" | "fightEnd",
+    maxHits: number,
+    profileLabel: string,
   ): void {
     const refs = this.slotFor(heroId);
     const name = this.nameOf(heroId);
     const label = backfire ? "BACKFIRE" : "CHAIN";
     const color = backfire ? "var(--backfire)" : (refs?.accent ?? "var(--chain)");
     const killNote = killedIds.length > 0 ? ` — ${killedIds.map((id) => this.nameOf(id)).join(", ")} DOWN` : "";
-    const affinity = this.heroChainAffinity.get(heroId) ?? 1;
     const hitWord = chainLength === 1 ? "hit" : "hits";
     const maxedNote = reason === "capped" ? " — MAXED" : "";
 
@@ -969,7 +1010,7 @@ export class FightView {
         : `${name}'S ${label} — ${chainLength} ${hitWord.toUpperCase()}, ${Math.round(totalDamage)}${killNote}${maxedNote}`;
     const detail = document.createElement("div");
     detail.className = "chain-end-detail";
-    detail.textContent = `${chainLength} ${hitWord} rolled · ${name}'s affinity carried ×${affinity.toFixed(1)}`;
+    detail.textContent = `${chainLength} of ${maxHits} hits rolled · ${profileLabel}`;
     this.chainEndCard.appendChild(headline);
     this.chainEndCard.appendChild(detail);
     this.chainEndCard.style.color = color;

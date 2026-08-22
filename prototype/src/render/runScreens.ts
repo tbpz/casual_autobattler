@@ -85,6 +85,103 @@ function spareLine(result: FightResult, projection: Projection | null): string {
   return `${actualOutcome} with ${Math.abs(Math.round(actualSpareSec))}s ${spareWord}.   (projected ${Math.abs(Math.round(projection.spareSec))}s ${projection.spareSec >= 0 ? "to spare" : "short"})`;
 }
 
+/** id -> display name, built from whichever snapshot/result data is on hand
+ * (2026-08-20, attribution-test instrumentation — see fullAnswerKey below).
+ * result.finalPlayerHeroes only covers the player side; the last snapshot's
+ * playerHeroes+enemyHeroes covers both, which fullAnswerKey needs since a
+ * heroDown event can name either side. */
+function nameLookup(result: FightResult): Map<string, string> {
+  const names = new Map<string, string>();
+  const last = result.snapshots[result.snapshots.length - 1];
+  if (last) {
+    for (const h of [...last.playerHeroes, ...last.enemyHeroes]) names.set(h.id, h.name);
+  }
+  for (const h of result.finalPlayerHeroes) names.set(h.id, h.name);
+  return names;
+}
+
+/** Every chain this fight fired (not just the longest — chainRecapLine only
+ * ever reports one), plus every death, in order — the answer key the
+ * attribution self-test (prototype/ATTRIBUTION_TEST.md) scores a written
+ * cause against. Pairs each chainStart with the next chainEnd sharing its
+ * heroId and backfire flag (chain state is per-hero and never overlaps
+ * itself — see fight.ts — so this pairing can't cross-match two different
+ * chains). Test-mode only; not shown during ordinary play. */
+function fullAnswerKey(result: FightResult): string[] {
+  const names = nameLookup(result);
+  const heroName = (id: string) => names.get(id) ?? id;
+  const lines: string[] = [];
+
+  const starts = result.events.filter((e): e is Extract<FightEvent, { type: "chainStart" }> => e.type === "chainStart");
+  const ends = result.events.filter((e): e is Extract<FightEvent, { type: "chainEnd" }> => e.type === "chainEnd");
+  const usedEnds = new Set<number>();
+  for (const start of starts) {
+    const endIdx = ends.findIndex(
+      (e, i) => !usedEnds.has(i) && e.heroId === start.heroId && e.backfire === start.backfire && e.t >= start.t,
+    );
+    const verbPrefix = start.backfire ? "backfired" : "chained";
+    if (endIdx < 0) {
+      lines.push(`${Math.round(start.t)}s — ${heroName(start.heroId)} ${verbPrefix} (${start.shape.label}) — unresolved`);
+      continue;
+    }
+    usedEnds.add(endIdx);
+    const end = ends[endIdx]!;
+    const killNote = end.killedIds.length > 0 ? `, killed ${end.killedIds.map(heroName).join(", ")}` : "";
+    lines.push(
+      `${Math.round(start.t)}s — ${heroName(start.heroId)} ${verbPrefix} ×${end.chainLength}/${end.maxHits} (${end.label}) for ${Math.round(end.totalDamage)}${killNote} [${end.reason}]`,
+    );
+  }
+
+  const deaths = result.events.filter((e): e is Extract<FightEvent, { type: "heroDown" }> => e.type === "heroDown");
+  for (const d of deaths) {
+    lines.push(`${Math.round(d.t)}s — ${heroName(d.heroId)} (${d.side}) fell`);
+  }
+
+  return lines.length > 0 ? lines : ["No chain fired, nobody fell."];
+}
+
+/** Wraps the game's own explanation (recap lines, chain/miss tag, and in
+ * test mode the full answer key) behind a "Show what happened" button when
+ * testMode is set — the attribution self-test's moment ③ requires writing a
+ * cause BEFORE seeing the game's, and painting the recap immediately (the
+ * ordinary-play behavior) would contaminate that. Returns the container to
+ * append recap content into; ordinary play (testMode false) returns it
+ * already visible and unwrapped, so this is a no-op outside test mode. */
+function makeRevealContainer(screen: HTMLElement, testMode: boolean): HTMLElement {
+  const revealContainer = document.createElement("div");
+  revealContainer.className = "reveal-container";
+  if (!testMode) {
+    screen.appendChild(revealContainer);
+    return revealContainer;
+  }
+  revealContainer.classList.add("hidden");
+  const revealBtn = document.createElement("button");
+  revealBtn.className = "reveal-btn";
+  revealBtn.textContent = "Show what happened";
+  revealBtn.addEventListener("click", () => {
+    revealContainer.classList.remove("hidden");
+    revealBtn.remove();
+  });
+  screen.appendChild(revealBtn);
+  screen.appendChild(revealContainer);
+  return revealContainer;
+}
+
+function appendAnswerKey(revealContainer: HTMLElement, result: FightResult): void {
+  const answerKey = document.createElement("div");
+  answerKey.className = "answer-key";
+  const title = document.createElement("p");
+  title.className = "answer-key-title";
+  title.textContent = "Full chain / death log:";
+  answerKey.appendChild(title);
+  for (const line of fullAnswerKey(result)) {
+    const p = document.createElement("p");
+    p.textContent = line;
+    answerKey.appendChild(p);
+  }
+  revealContainer.appendChild(answerKey);
+}
+
 /** After a won fight: what the chain did (or didn't), coin awarded, the
  * run's one decision point (heal / upgrade / skip), with skip as a working
  * accept-default. */
@@ -97,6 +194,7 @@ export function renderSpendScreen(
   result: FightResult,
   projection: Projection | null,
   onChoose: (choice: SpendChoice) => void,
+  testMode = false,
 ): void {
   container.innerHTML = "";
   const screen = document.createElement("div");
@@ -105,6 +203,13 @@ export function renderSpendScreen(
   const h1 = document.createElement("h1");
   h1.textContent = `Fight ${fightIndex + 1} — Victory`;
   screen.appendChild(h1);
+
+  // 2026-08-20 (attribution-test instrumentation — see makeRevealContainer's
+  // docstring): in test mode, everything the game claims about WHY this
+  // fight went the way it did sits behind a reveal button, so the player
+  // writes their own cause first (fight card moment ③) instead of reading
+  // this and rationalizing backwards.
+  const revealContainer = makeRevealContainer(screen, testMode);
 
   const recap = document.createElement("div");
   recap.className = "recap";
@@ -117,23 +222,25 @@ export function renderSpendScreen(
   spare.className = "recap-spare";
   spare.textContent = spareLine(result, projection);
   recap.appendChild(spare);
-  screen.appendChild(recap);
+  revealContainer.appendChild(recap);
 
   if (result.ignited) {
     const chainLine = chainRecapLine(result);
     const tag = document.createElement("p");
     tag.className = chainLine?.backfire ? "recap-chain backfire" : "recap-chain";
     tag.textContent = `${chainLine?.text ?? "A chain fired this fight."} — bonus coin.`;
-    screen.appendChild(tag);
+    revealContainer.appendChild(tag);
   } else {
     const missLine = noChainRecapLine(result);
     if (missLine) {
       const tag = document.createElement("p");
       tag.className = "recap-miss";
       tag.textContent = missLine;
-      screen.appendChild(tag);
+      revealContainer.appendChild(tag);
     }
   }
+
+  if (testMode) appendAnswerKey(revealContainer, result);
 
   const coinRow = document.createElement("p");
   coinRow.innerHTML = `+<span class="coin">${coinAwarded} coin</span> — balance: <span class="coin">${session.coinBalance}</span>`;
@@ -204,6 +311,7 @@ export function renderRunOverScreen(
   lastFightResult: FightResult | null,
   lastProjection: Projection | null,
   onRetry: () => void,
+  testMode = false,
 ): void {
   container.innerHTML = "";
   const screen = document.createElement("div");
@@ -216,6 +324,10 @@ export function renderRunOverScreen(
   screen.innerHTML = `<h1>Run over</h1><p>${body}</p>`;
 
   if (overReason === "loss" && lastFightResult) {
+    // 2026-08-20 (attribution-test instrumentation) — same reveal-behind-a-
+    // button treatment as renderSpendScreen, see makeRevealContainer.
+    const revealContainer = makeRevealContainer(screen, testMode);
+
     const recap = document.createElement("div");
     recap.className = "recap";
     for (const line of fightRecap(lastFightResult)) {
@@ -227,7 +339,7 @@ export function renderRunOverScreen(
     spare.className = "recap-spare";
     spare.textContent = spareLine(lastFightResult, lastProjection);
     recap.appendChild(spare);
-    screen.appendChild(recap);
+    revealContainer.appendChild(recap);
 
     if (lastFightResult.ignited) {
       const chainLine = chainRecapLine(lastFightResult);
@@ -235,7 +347,7 @@ export function renderRunOverScreen(
         const tag = document.createElement("p");
         tag.className = chainLine.backfire ? "recap-chain backfire" : "recap-chain";
         tag.textContent = chainLine.text;
-        screen.appendChild(tag);
+        revealContainer.appendChild(tag);
       }
     } else {
       const missLine = noChainRecapLine(lastFightResult);
@@ -243,9 +355,11 @@ export function renderRunOverScreen(
         const tag = document.createElement("p");
         tag.className = "recap-miss";
         tag.textContent = missLine;
-        screen.appendChild(tag);
+        revealContainer.appendChild(tag);
       }
     }
+
+    if (testMode) appendAnswerKey(revealContainer, lastFightResult);
   }
 
   const retry = document.createElement("button");

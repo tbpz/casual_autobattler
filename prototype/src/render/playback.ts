@@ -109,22 +109,32 @@ function buildSegments(points: number[], kneeHit: number): Segment[] {
  * inside the previous chain's tail. rateAt below returns the FIRST window
  * containing a given simT; an unclipped tail bleeding past the next chain's
  * start would shadow that chain's own (real) gap rates with the stale
- * tail's rate instead. */
-function buildChainWindows(events: FightEvent[], chainEscalationKneeHit: number): ChainWindow[] {
+ * tail's rate instead.
+ *
+ * 2026-08-20 (per-hero-profile pass): each window's knee now comes from ITS
+ * OWN chainStart event (e.shape.escalationKneeHit) — a firing hero's own
+ * fuse shape, once profiles are authored — rather than one global knee for
+ * every window. `fallbackKneeHit` (the constructor's own default-fallback
+ * param, ultimately app.ts's cfg.fight.chainEscalationKneeHit) is used only
+ * defensively, since chainStart.shape is a required field and every window
+ * is built from one. */
+function buildChainWindows(events: FightEvent[], fallbackKneeHit: number): ChainWindow[] {
   const windows: ChainWindow[] = [];
   let openStartT: number | null = null;
   let openBackfire = false;
+  let openKneeHit = fallbackKneeHit;
   let hitTs: number[] = [];
   for (const e of events) {
     if (e.type === "chainStart") {
       openStartT = e.t;
       openBackfire = e.backfire;
+      openKneeHit = e.shape.escalationKneeHit;
       hitTs = [];
     } else if (e.type === "chainHit" && openStartT !== null) {
       hitTs.push(e.t);
     } else if (e.type === "chainEnd" && openStartT !== null) {
       const points = [openStartT, ...hitTs, e.t];
-      const segments = buildSegments(points, chainEscalationKneeHit);
+      const segments = buildSegments(points, openKneeHit);
       let endT = e.t;
       if (e.reason !== "fightEnd") {
         segments.push({ from: e.t, to: e.t + TAIL_SIM_SEC, rate: TAIL_RATE });

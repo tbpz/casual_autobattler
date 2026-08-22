@@ -18,12 +18,15 @@ import { project, projectionSummary, type Projection } from "../sim/projection.j
  * etc. — in the same units render/runScreens.ts's post-fight recap uses, so
  * "bigger than I expected" has a concrete baseline to be bigger than.
  *
- * 2026-08-14 chain rebuild: also names whichever fielded hero's charge bar
- * is furthest along, since charge now carries in from prior fights (see
+ * 2026-08-14 chain rebuild through 2026-08-20 (per-hero-profile pass): also
+ * shows the chain expectation for whichever fielded hero's charge bar is
+ * furthest along, since charge carries in from prior fights (see
  * sim/types.ts's HeroState.charge) — this is the one screen before the
  * fight even starts, so it's the only place a near-full bar can be read as
  * a concrete expectation ("Rook might chain early") rather than only
- * discovered mid-fight.
+ * discovered mid-fight. Sourced from sim/projection.ts's chainLine (shared
+ * with the squad/field pick screens) rather than a hand-rolled charge-%
+ * line, so all three screens read the same chain-likelihood signal.
  */
 export function renderPreFightScreen(
   container: HTMLElement,
@@ -52,14 +55,6 @@ export function renderPreFightScreen(
   const proj = project(player, enemy, cfg.fight);
   screen.appendChild(makeProjectionBlock(proj));
 
-  const chargeLine = closestChargeLine(player, cfg.fight.chargeThreshold);
-  if (chargeLine) {
-    const p = document.createElement("p");
-    p.className = "projection-detail";
-    p.textContent = chargeLine;
-    screen.appendChild(p);
-  }
-
   const playBtn = document.createElement("button");
   playBtn.className = "play-btn";
   playBtn.textContent = "Play";
@@ -67,22 +62,6 @@ export function renderPreFightScreen(
   screen.appendChild(playBtn);
 
   container.appendChild(screen);
-}
-
-/** Names whichever fielded hero's charge bar is furthest along, going into
- * this fight (2026-08-14 chain rebuild) — the pre-fight read's one chain-
- * specific line, since charge carries in from prior fights rather than
- * starting fresh. Silent at 0% (a fresh draft, or everyone just fired) so
- * this doesn't clutter fight 1's screen with a line that says nothing. */
-function closestChargeLine(player: SideState, chargeThreshold: number): string | null {
-  let closest: SideState["heroes"][number] | undefined;
-  for (const h of player.heroes) {
-    if (!h.alive) continue;
-    if (!closest || h.charge > closest.charge) closest = h;
-  }
-  if (!closest || closest.charge <= 0) return null;
-  const pct = chargeThreshold > 0 ? Math.round((closest.charge / chargeThreshold) * 100) : 0;
-  return `${closest.name} carries in ${pct}% charged — closest to a chain.`;
 }
 
 function makeProjectionBlock(proj: Projection): HTMLElement {
@@ -100,6 +79,11 @@ function makeProjectionBlock(proj: Projection): HTMLElement {
   verdict.className = `projection-line band-${proj.band}`;
   verdict.textContent = projectionSummary(proj.spareSec);
   block.appendChild(verdict);
+
+  const chainLine = document.createElement("p");
+  chainLine.className = "projection-detail";
+  chainLine.textContent = proj.chainLine;
+  block.appendChild(chainLine);
 
   return block;
 }
