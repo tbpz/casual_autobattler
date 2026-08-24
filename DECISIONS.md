@@ -10,6 +10,34 @@
 
 ---
 
+## [2026-08-25] Attribution test played: attribution reads, but only the charge bar is a complete lever
+
+- **Decision:**
+  - `ATTRIBUTION_TEST.md` was run on the fixed build — 11 cards, the lever x link grid, both
+    probes — resolving STATE.md's Next up #1. Cards: 9 OWNED, 2 DICED, no FOOLED/BLIND/MOOT.
+  - The 2026-08-17 perception failure is resolved: no card scored BLIND or FOOLED.
+  - The grid locates the remaining break: L3 charge bar works; L2 bodies and L4 shape weak;
+    L1 draft and L5 coin broken.
+  - L3 is the only lever reaching link 5 — the session's single "next time I would" names
+    charge-bar timing.
+  - Probe A: chain shape is perceived as two shapes (long fuse vs. steep), not the five the
+    2026-08-20 rework designed for.
+  - L5 coin spend appears in none of the 12 cards' stated reasoning.
+  - The OWNED count overstates live attribution — several picks were forced by attrition, and a
+    true cause named for a forced pick still scores OWNED.
+- **Why:**
+  - Played verdict, written before each reveal under `?test=1`, so the cause was named without
+    the game's explanation available.
+  - L1's broken score matches Probe C's predicted ~3-point draft spread — a tuning fact, not a
+    legibility failure.
+  - Raw cards kept at `prototype/ATTRIBUTION_TEST_RUN_CARDS.md`.
+- **Replaces:**
+  - Resolves STATE.md's Next up #1 and its chain-shape open question.
+  - Confirms the 2026-08-20 shape rework at "see it" and "connect it", not at "change it".
+  - Partly falsifies STATE's bet that a drawn encounter keeps the field pick a live read.
+
+---
+
 ## [2026-08-22] Projection survival solves the real enrage ramp instead of clamping a divide-by-zero
 
 - **Decision:**

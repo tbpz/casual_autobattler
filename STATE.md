@@ -2,7 +2,7 @@
 
 > **What this file is:** where the project stands right now, and what to do next. Present tense only.
 > **Read this first** in every session. Layer 1 ends at the rule — that's the 60-second read. Layer 2 is the working index.
-> **Last synced:** 2026-08-22
+> **Last synced:** 2026-08-25
 
 ## What this is
 
@@ -22,15 +22,14 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 ## Where it stands
 
-Prototype #1 plays end to end and was played and judged once: the shape lands, but the read failed on perception and on attribution. Both failures now have a built, batch-verified fix: chain legibility (dilated pacing, dedicated HUD, end card) and a reworked chain lever where magnitude is equalized per kind and each hero's fuse length + escalation shape is the pick-time axis, with a pre-play chain-likelihood line now shown on every pick screen. Neither fix has been played yet. A structured re-judge protocol (`ATTRIBUTION_TEST.md`) is built and ready to run it.
+Prototype #1 is played-verified: the fight is legible and the player can name a true cause, but only the charge bar is a lever that survives to "I'd do it differently." Chain shape reads as a two-way binary rather than the designed five, the field pick collapses to a forced answer once attrition narrows the roster, and the coin spend goes unused. The next pass is a design pass — choose which lever to make real, and how.
 
 ## Next up
 
-1. **Run the `ATTRIBUTION_TEST.md` protocol on the fixed build** — `npm run dev` in `prototype/`, `?test=1`. Does the shape lever read as a real choice, or does chain length's own swing still swamp it?
-2. If attribution still fails: `ATTRIBUTION_TEST.md`'s own lever × link grid and code table name exactly which lever and which link broke — follow that, not a fresh guess.
-3. Widen the pool beyond encounters — offers/modifiers next, heroes after; waits on #1's verdict.
-4. Give the coin spend real teeth against backfire, or accept its purpose has shifted — needs a played verdict.
-5. Tune fights 1–3 for real risk against a double-tank draft.
+1. **Design the strategy for making a second lever real.** Candidates, from the played grid: chain-shape granularity (L4), live field-pick alternatives under attrition (L2), coin purpose (L5). Pick one, propose the mechanism, log it before building.
+2. Decide whether the coin spend gets teeth or is cut — it appeared in none of the 12 played cards.
+3. Widen the pool beyond encounters — offers/modifiers next, heroes after; waits on #1.
+4. Tune fights 1–3 for real risk against a double-tank draft.
 
 ---
 
@@ -38,31 +37,32 @@ Prototype #1 plays end to end and was played and judged once: the shape lands, b
 
 | Piece | State | Where it lives |
 |---|---|---|
-| Fight mechanics — charge, chain, backfire | batch-verified | `sim/fight.ts`, `sim/config.ts` |
-| Chain legibility — pacing, HUD, pips, end card | batch-verified | `render/playback.ts`, `render/fightView.ts` |
-| Chain shape lever — uniform EV per kind, fuse/escalation as the pick axis | batch-verified | `sim/heroes.ts`, `sim/config.ts`, `render/heroPickShared.ts` |
-| Pre-play chain signal — expected count + shape, on squad/field/pre-fight screens | batch-verified | `sim/projection.ts` |
-| The run — draft, field pick, attrition | batch-verified | `sim/roster.ts`, `sim/run.ts` |
+| Fight mechanics — charge, chain, backfire | played-verified | `sim/fight.ts`, `sim/config.ts` |
+| Chain legibility — pacing, HUD, pips, end card | played-verified | `render/playback.ts`, `render/fightView.ts` |
+| Charge bar — the one lever reaching "change it" | played-verified | `render/fieldPickScreen.ts` |
+| Chain shape lever — reads as 2 shapes, not the designed 5 | played-verified | `sim/heroes.ts`, `render/heroPickShared.ts` |
+| Field pick — collapses to a forced answer under attrition | played-verified | `sim/roster.ts`, `render/fieldPickScreen.ts` |
+| Coin spend — absent from all 12 played cards | played-verified | `sim/run.ts`, `render/runScreens.ts` |
+| Pre-play chain signal — expected count + shape | batch-verified | `sim/projection.ts` |
 | Enemies — the 11-encounter tiered pool | batch-verified | `sim/encounters.ts` |
-| Optional layer — draft, field pick, coin spend | built | `render/squadPickScreen.ts`, `fieldPickScreen.ts` |
-| Stakes — run-scoped coin economy | built | `sim/run.ts`, `sim/config.ts` |
 | Difficulty — ~23% completion at n=1500 | batch-verified | `checks/chaindist.ts` |
-| Prototype #1 — re-judged after the legibility + shape-lever fixes | not started | Next up #1 |
+| Strategy pass for a second real lever | not started | Next up #1 |
 | Real game build | not started | — |
 
 ## Unverified bets
 
-- Combat is watch-only — the first played session found attribution absent under it; unresolved until the fixes above are played.
-- Chain length (how far the random walk runs) is still the dominant source of raw payoff variance; whether choosing a hero's fuse/escalation shape reads as real influence over that, rather than just getting lucky, is what the next session tests.
-- A no-telegraph backfire flip reads as dread rather than confusion — tangled with the same perception issues the legibility fix targets, needs its own re-judge.
-- A drawn encounter keeps the field pick a live read rather than a memorised answer.
-- The draft/field split keeps attrition from spiralling without erasing it.
+- Chain shape can become a real pick-time axis at all, rather than a label on a random walk.
+- A no-telegraph backfire flip reads as dread rather than confusion.
+- The coin spend has a purpose worth keeping.
+- One backfire should not durably shrink the live roster — Rook sat out 8 straight fights after a single betrayal.
+- Combat stays watch-only as lever surface is added.
 
 ## Open questions
 
+- Which lever gets the next pass — shape granularity, field-pick alternatives, or coin?
+- What makes a field pick live when attrition has already forced the answer?
+- Does the coin spend need new leverage against a backfire, or should it be cut?
 - Is the encounter pool wide enough to keep a run unsolved, or are offers/heroes needed next?
-- Does the coin spend need new leverage against a backfire, or has its purpose shifted?
-- Does chain shape read as attribution now that magnitude is equalized, or does chain length's own variance still swamp it — `ATTRIBUTION_TEST.md`'s grid is built to answer this.
 - How much further to retune fights 1–3 against a double-tank draft?
 
 ## How to work here
