@@ -138,23 +138,37 @@ function rollDamage(base: number, rng: Rng, variance: number): number {
   return Math.max(1, Math.round(base * factor));
 }
 
-/** Enemy damage multiplier from the enrage clock (2026-08-07 rebuild,
- * extended 2026-08-08) — two additive terms on top of 1x. The wall-clock
- * term ramps linearly from enrageStartSec. The HP-lost term (2026-08-08 root-
- * cause pass — see config.ts's enrageFromEnemyHpLostFactor docstring) scales
- * with the fraction of the enemy side's starting HP already destroyed, so a
- * comp that kills fast still reaches the angry phase — via HP lost rather
- * than seconds elapsed — instead of out-racing enrage entirely. Applies to
- * both normal enemy attacks and wind-up hits, so the cost of a slow OR a
+/** Number of enrage CLOCK tiers reached by time t (0 = pre-tier, i.e. still
+ * at the tier baseline). See config.ts's enrageTierSecs docstring. */
+function enrageTierIndexAt(t: number, cfg: FightConfig): number {
+  let idx = 0;
+  for (let i = 0; i < cfg.enrageTierSecs.length; i++) {
+    if (t > (cfg.enrageTierSecs[i] as number)) idx = i + 1;
+  }
+  return idx;
+}
+
+/** Enemy damage multiplier from the enrage CLOCK and WOUNDED threats
+ * (2026-08-07 rebuild, extended 2026-08-08, split into two discrete,
+ * telegraphed events 2026-08-26 — see config.ts's FightConfig docstring for
+ * both terms) — two additive terms on top of 1x. CLOCK steps at
+ * enrageTierSecs, holding the last-crossed tier's multiplier. WOUNDED adds a
+ * one-time kicker once the enemy side's HP fraction lost reaches
+ * woundedHpFraction, so a comp that kills fast still reaches a real
+ * consequence — via HP lost rather than seconds elapsed — instead of
+ * out-racing every time-metered threat entirely. Applies to both normal
+ * enemy attacks and wind-up hits, so the cost of a slow OR a
  * fast-but-incomplete fight grows for the whole enemy side, not just the
- * bruiser. See config.ts's FightConfig docstring for why the wall-clock term
- * resets every fight rather than compounding across the run; the HP-lost
- * term is naturally per-fight for the same reason (enemy HP resets). */
+ * bruiser. See config.ts's FightConfig docstring for why CLOCK resets every
+ * fight rather than compounding across the run; WOUNDED is naturally
+ * per-fight for the same reason (enemy HP resets). */
 function enrageMultiplierAt(t: number, enemy: SideState, cfg: FightConfig): number {
-  const timeTerm = t <= cfg.enrageStartSec ? 0 : (t - cfg.enrageStartSec) * cfg.enrageRampPerSec;
+  const tierIdx = enrageTierIndexAt(t, cfg);
+  const tierMult = tierIdx === 0 ? 0 : (cfg.enrageTierMultipliers[tierIdx - 1] as number);
   const maxHp = sideMaxHp(enemy);
   const lostFraction = maxHp > 0 ? 1 - sideHp(enemy) / maxHp : 0;
-  return 1 + timeTerm + lostFraction * cfg.enrageFromEnemyHpLostFactor;
+  const woundedMult = lostFraction >= cfg.woundedHpFraction ? cfg.woundedMultiplier : 0;
+  return 1 + tierMult + woundedMult;
 }
 
 function snapshotHeroes(side: SideState): HeroSnapshot[] {
@@ -479,7 +493,14 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   // A tankless comp is living dangerously from the first tick — counted as a
   // dip immediately, same as the old gate's "no living tank" clause.
   let dipOccurred = !player.heroes.some((h) => h.role === "tank" && h.alive);
-  let enrageStarted = false;
+  // Enrage CLOCK/WOUNDED event edges (2026-08-26 visibility pass) — counts,
+  // not booleans, since CLOCK has multiple tiers. enrageTierLanded and
+  // enrageTierTelegraphed both count tiers already emitted, so a coarse tick
+  // that crosses more than one threshold in a single step (small dt aside,
+  // defensive) still emits one event per tier rather than skipping any.
+  let enrageTierLanded = 0;
+  let enrageTierTelegraphed = 0;
+  let wounded = false;
 
   let outcome: "win" | "loss" | null = null;
   let endReason: "wipe" | "failsafe" = "wipe";
@@ -490,15 +511,39 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
     endT = t;
 
     const enrageMult = enrageMultiplierAt(t, enemy, cfg);
-    // 2026-08-09 fix: this used to test `enrageMult > 1`, which the HP-lost
-    // term (config.ts's enrageFromEnemyHpLostFactor) makes true the instant
-    // any enemy takes damage — so the "enemy enrage begins" tell fired at
-    // t~1s in every fight, not at enrageStartSec, meaning nothing. Gate the
-    // TELL on the wall-clock term only; enrageMult itself (used for actual
-    // damage below) is unchanged and still includes both terms.
-    if (!enrageStarted && t > cfg.enrageStartSec) {
-      enrageStarted = true;
-      events.push({ type: "enrageStart", t });
+    // CLOCK telegraph (2026-08-26): fires enrageTierTelegraphSec before each
+    // tier lands, one event per tier, in order — mirrors the bruiser
+    // wind-up's telegraph/land split (windupStart/windupHit) rather than the
+    // old single silent ramp.
+    while (
+      enrageTierTelegraphed < cfg.enrageTierSecs.length &&
+      t >= (cfg.enrageTierSecs[enrageTierTelegraphed] as number) - cfg.enrageTierTelegraphSec
+    ) {
+      const tier = enrageTierTelegraphed + 1;
+      const fireT = cfg.enrageTierSecs[enrageTierTelegraphed] as number;
+      events.push({ type: "enrageTierTelegraph", t, tier, fireT });
+      enrageTierTelegraphed++;
+    }
+    // CLOCK lands. 2026-08-09 lesson retained: gate strictly on the
+    // wall-clock term (enrageTierIndexAt), never on the combined multiplier
+    // — WOUNDED becoming true the instant any enemy takes damage must never
+    // masquerade as a tier landing early.
+    const newEnrageTier = enrageTierIndexAt(t, cfg);
+    for (let tier = enrageTierLanded + 1; tier <= newEnrageTier; tier++) {
+      const multiplier = cfg.enrageTierMultipliers[tier - 1] as number;
+      events.push({ type: "enrageTier", t, tier, multiplier });
+    }
+    enrageTierLanded = newEnrageTier;
+    // WOUNDED lands once, the first tick the enemy side crosses the
+    // threshold — its own event, deliberately never folded into an
+    // enrageTier callout (see config.ts's woundedHpFraction docstring).
+    if (!wounded) {
+      const maxHp = sideMaxHp(enemy);
+      const lostFraction = maxHp > 0 ? 1 - sideHp(enemy) / maxHp : 0;
+      if (lostFraction >= cfg.woundedHpFraction) {
+        wounded = true;
+        events.push({ type: "wounded", t, multiplier: cfg.woundedMultiplier });
+      }
     }
 
     // Player heroes act on their own beats, targeting the front-most living
@@ -655,6 +700,9 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       chainDamageSoFar: hotHeroId ? chainDamageSoFar : 0,
       chainShape: hotHeroId ? hotChainShape : null,
       enrageMultiplier: enrageMult,
+      enrageTier: enrageTierLanded,
+      secsToNextTier: enrageTierLanded < cfg.enrageTierSecs.length ? (cfg.enrageTierSecs[enrageTierLanded] as number) - t : null,
+      wounded,
       windupTargetId: bruiser?.alive && bruiser.windupFireT !== undefined ? (bruiser.windupTargetId ?? null) : null,
     });
 

@@ -85,6 +85,13 @@ function makeProjectionBlock(proj: Projection): HTMLElement {
   chainLine.textContent = proj.chainLine;
   block.appendChild(chainLine);
 
+  // 2026-08-26 (enrage visibility pass) — same tempo forecast fieldPickScreen
+  // shows, so the pre-fight screen (the last stop before Play) states it too.
+  const enrageLine = document.createElement("p");
+  enrageLine.className = "projection-detail";
+  enrageLine.textContent = proj.enrageLine;
+  block.appendChild(enrageLine);
+
   return block;
 }
 

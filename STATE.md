@@ -2,7 +2,7 @@
 
 > **What this file is:** where the project stands right now, and what to do next. Present tense only.
 > **Read this first** in every session. Layer 1 ends at the rule — that's the 60-second read. Layer 2 is the working index.
-> **Last synced:** 2026-08-25
+> **Last synced:** 2026-08-26
 
 ## What this is
 
@@ -22,13 +22,13 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 ## Where it stands
 
-Prototype #1 is played-verified: the fight is legible and the player can name a true cause, but only the charge bar is a lever that survives to "I'd do it differently." Chain shape reads as a two-way binary rather than the designed five, the field pick collapses to a forced answer once attrition narrows the roster, and the coin spend goes unused. The next pass is a design pass — choose which lever to make real, and how.
+Prototype #1 is played-verified through the 2026-08-25 attribution test: the fight is legible and the player can name a true cause, but the charge bar was the only lever surviving to "I'd do it differently." The chosen fix for chain shape (L4) — splitting enemy enrage into a telegraphed CLOCK/WOUNDED pair, so a grinder's and a burster's tempo tradeoff has a felt consequence — is built and batch-verified, not yet played. The field pick still collapses to a forced answer under attrition, and the coin spend still goes unused.
 
 ## Next up
 
-1. **Design the strategy for making a second lever real.** Candidates, from the played grid: chain-shape granularity (L4), live field-pick alternatives under attrition (L2), coin purpose (L5). Pick one, propose the mechanism, log it before building.
+1. **Play-test the CLOCK/WOUNDED pass and re-run `ATTRIBUTION_TEST.md` against L4** — does chain shape now reach "change it"?
 2. Decide whether the coin spend gets teeth or is cut — it appeared in none of the 12 played cards.
-3. Widen the pool beyond encounters — offers/modifiers next, heroes after; waits on #1.
+3. Widen the pool beyond encounters — offers/modifiers next, heroes after; waits on #1's verdict.
 4. Tune fights 1–3 for real risk against a double-tank draft.
 
 ---
@@ -41,12 +41,12 @@ Prototype #1 is played-verified: the fight is legible and the player can name a 
 | Chain legibility — pacing, HUD, pips, end card | played-verified | `render/playback.ts`, `render/fightView.ts` |
 | Charge bar — the one lever reaching "change it" | played-verified | `render/fieldPickScreen.ts` |
 | Chain shape lever — reads as 2 shapes, not the designed 5 | played-verified | `sim/heroes.ts`, `render/heroPickShared.ts` |
+| Enrage CLOCK/WOUNDED — the chosen fix for shape's tempo cost | batch-verified | `sim/fight.ts`, `sim/projection.ts`, `render/fightView.ts` |
 | Field pick — collapses to a forced answer under attrition | played-verified | `sim/roster.ts`, `render/fieldPickScreen.ts` |
 | Coin spend — absent from all 12 played cards | played-verified | `sim/run.ts`, `render/runScreens.ts` |
 | Pre-play chain signal — expected count + shape | batch-verified | `sim/projection.ts` |
 | Enemies — the 11-encounter tiered pool | batch-verified | `sim/encounters.ts` |
 | Difficulty — ~23% completion at n=1500 | batch-verified | `checks/chaindist.ts` |
-| Strategy pass for a second real lever | not started | Next up #1 |
 | Real game build | not started | — |
 
 ## Unverified bets
@@ -59,7 +59,7 @@ Prototype #1 is played-verified: the fight is legible and the player can name a 
 
 ## Open questions
 
-- Which lever gets the next pass — shape granularity, field-pick alternatives, or coin?
+- Does the CLOCK/WOUNDED split get L4 to "change it" in a played re-test, or does shape need a different fix?
 - What makes a field pick live when attrition has already forced the answer?
 - Does the coin spend need new leverage against a backfire, or should it be cut?
 - Is the encounter pool wide enough to keep a run unsolved, or are offers/heroes needed next?

@@ -55,6 +55,17 @@ export interface Projection {
    * hand-rolled version of (closestChargeLine in preFightScreen.ts, now
    * folded into this shared, checkable mechanism). */
   chainLine: string;
+  /** Number of enrage CLOCK tiers expected to land before the fight's
+   * projected kill time (2026-08-26 visibility pass — see
+   * enrageForecastFor). */
+  enrageTiersExpected: number;
+  /** One-sentence pre-fight tempo forecast — "kills in ~Ns — M CLOCK tiers,
+   * WOUNDED near Ks" — so a chain shape's tempo tradeoff (a grinder spends
+   * more seconds realizing the same value than a burster) is knowable
+   * BEFORE the pick, not just legible once the fight is already running
+   * (see fightView.ts's enrageHud). This is the piece meant to move L4 from
+   * "connect it" to "change it" in the attribution test. */
+  enrageLine: string;
 }
 
 /** Below this pool margin, the projection calls the fight an expected loss
@@ -152,96 +163,112 @@ function sideRates(heroes: HeroState[], cfg: FightConfig): { dps: number; healPe
 }
 
 /** Mean enrage multiplier over a fight of estimated length `durationSec`
- * (2026-08-07 rebuild) — the wall-clock term ramps linearly from 1x at
- * enrageStartSec, so the enraged portion's mean is its own midpoint; blended
- * against the pre-enrage portion (always 1x) by time share. An estimate, not
- * an exact replay of fight.ts's per-tick enrageMultiplierAt — this is a
- * pre-fight expectation, not a guarantee (see this file's top docstring).
+ * (2026-08-07 rebuild, restated for the step CLOCK/WOUNDED split 2026-08-26 —
+ * see config.ts's FightConfig docstring). CLOCK is now piecewise CONSTANT
+ * per tier rather than a linear ramp, so its mean is just each tier
+ * segment's multiplier weighted by how much of `durationSec` falls inside
+ * it — no midpoint blend needed anymore. An estimate, not an exact replay of
+ * fight.ts's per-tick enrageMultiplierAt — this is a pre-fight expectation,
+ * not a guarantee (see this file's top docstring).
  *
- * 2026-08-08 (root-cause pass): adds the mean contribution of the HP-lost
- * enrage term (see config.ts's enrageFromEnemyHpLostFactor docstring). Enemy
- * HP lost runs ~linearly 0->1 over the course of a fight regardless of its
- * length, so its mean over the whole fight is a flat half of the factor —
- * added on top of the wall-clock blend above rather than folded into it,
- * since the two terms are independent (one keyed to seconds, one to damage
- * dealt). */
+ * WOUNDED's mean term keeps the 2026-08-08 root-cause pass's convention:
+ * enemy HP lost runs ~linearly 0->1 over the course of a fight regardless of
+ * its length, so WOUNDED (firing once HP lost crosses woundedHpFraction)
+ * is active for the back `1 - woundedHpFraction` share of the fight — added
+ * on top of the CLOCK weighting rather than folded into it, since the two
+ * terms are independent (one keyed to seconds, one to damage dealt). */
 function meanEnrageMultiplier(durationSec: number, cfg: FightConfig): number {
-  const hpLostMeanTerm = cfg.enrageFromEnemyHpLostFactor * 0.5;
-  if (durationSec <= cfg.enrageStartSec) return 1 + hpLostMeanTerm;
-  const enragedSec = durationSec - cfg.enrageStartSec;
-  const finalMult = 1 + enragedSec * cfg.enrageRampPerSec;
-  const meanEnragedMult = (1 + finalMult) / 2;
-  return (cfg.enrageStartSec * 1 + enragedSec * meanEnragedMult) / durationSec + hpLostMeanTerm;
+  const woundedMeanTerm = cfg.woundedMultiplier * Math.max(0, 1 - cfg.woundedHpFraction);
+  if (durationSec <= 0) return 1 + woundedMeanTerm;
+  const secs = cfg.enrageTierSecs;
+  const mults = cfg.enrageTierMultipliers;
+  let weighted = 0;
+  for (let i = 0; i < secs.length; i++) {
+    const segStart = Math.min(secs[i] as number, durationSec);
+    const segEnd = i + 1 < secs.length ? Math.min(secs[i + 1] as number, durationSec) : durationSec;
+    if (segEnd > segStart) weighted += (segEnd - segStart) * (mults[i] as number);
+  }
+  return 1 + weighted / durationSec + woundedMeanTerm;
+}
+
+/** Number of CLOCK tiers expected to land before a fight of ~killSec length
+ * ends, plus a one-line pre-fight forecast (2026-08-26 visibility pass) —
+ * the pick-time half of making shape a real lever: the field-pick screen can
+ * now state which threat a squad is walking into BEFORE the pick is
+ * committed, not just render it once the fight starts (see fightView.ts's
+ * enrageHud). WOUNDED is treated as near-certain in any won fight (every WIN
+ * ends at 100% enemy HP lost by definition — same fact config.ts's
+ * woundedHpFraction docstring notes), so this states WHEN it lands, not IF. */
+function enrageForecastFor(killSec: number, cfg: FightConfig): { tiersExpected: number; line: string } {
+  const tiersExpected = cfg.enrageTierSecs.filter((s) => s < killSec).length;
+  const woundedAtSec = killSec * cfg.woundedHpFraction;
+  const tierPart = tiersExpected === 0 ? "no CLOCK tiers" : `${tiersExpected} CLOCK tier${tiersExpected === 1 ? "" : "s"}`;
+  return { tiersExpected, line: `Kills in ~${Math.round(killSec)}s — ${tierPart}, WOUNDED near ${Math.round(woundedAtSec)}s.` };
 }
 
 /**
- * Closed-form time for `hpPool` to deplete under a net incoming rate that
- * starts flat and ramps linearly past `enrageStartSec` (2026-08-22 —
- * fixes the divide-by-zero-guard bug: see DECISIONS.md's same-dated entry).
+ * Time for `hpPool` to deplete under a net incoming rate that steps at each
+ * CLOCK tier (2026-08-22 fix restated for the step split, 2026-08-26 — see
+ * DECISIONS.md for both entries).
  *
- * `meanEnrageMultiplier` above answers "what's the mean incoming rate over
- * a fight of THIS length" — a single flat number, fine for comparing against
- * a fixed `killSec`. It has no meaning for "how long could survival run past
+ * `meanEnrageMultiplier` above answers "what's the mean incoming rate over a
+ * fight of THIS length" — a single flat number, fine for comparing against a
+ * fixed `killSec`. It has no meaning for "how long could survival run past
  * killSec," which is exactly the question a squad that out-heals mean
  * incoming damage asks: `Math.max(enemyDps - healPerSec, 0.01)` used to
  * answer that by dividing by the divide-by-zero GUARD itself, manufacturing
  * a fake number in the tens of thousands of seconds (confirmed live: a
  * healer draft against the "Anvil" encounter reads exactly 189.15/0.01 =
- * 18915). This solves the real question instead: the sim's own enrage ramp
- * (fight.ts's enrageMultiplierAt) is wall-clock and uncapped, so survival
- * against it is always finite — model that ramp directly.
+ * 18915). This solves the real question instead, and — since CLOCK is now
+ * piecewise CONSTANT per tier rather than a linear ramp — solves it as a
+ * plain walk over rate segments instead of the old ramp's quadratic:
  *
- * Net incoming rate, holding the HP-lost enrage term at its existing mean
- * approximation (`1 + enrageFromEnemyHpLostFactor * 0.5`, same convention
- * meanEnrageMultiplier already uses — deliberately frozen, not re-derived
- * past killSec, which makes the tail slightly optimistic and is judged not
- * worth a kink in the curve for zero band impact):
- *   r0 = basePreEnrageDps * (1 + enrageFromEnemyHpLostFactor*0.5) - healPerSec   [t <= enrageStartSec]
- *   r(t) = r0 + basePreEnrageDps*enrageRampPerSec * (t - enrageStartSec)         [t > enrageStartSec]
- * Solves cumulative damage D(T) = hpPool for T, three cases:
- * - `hpPool <= 0`: already broken, 0 (guards an at/below-tankBreakFraction
- *   tank — the naive formula below would otherwise invent a positive hold).
- * - `r0 >= 0`: depletes within the flat phase if `r0*enrageStartSec >= hpPool`
- *   (`T = hpPool/r0`); otherwise solve the phase-2 quadratic
- *   `0.5*bk*u^2 + r0*u + (r0*S - hpPool) = 0` for `u = T - S` in the
- *   numerically-stable (no-cancellation) form.
- * - `r0 < 0` (net healing at the start): the naive integral would let that
- *   early net-healing "bank" as negative cumulative damage, which then has
- *   to be paid off once the ramp turns net-positive — inflating survival by
- *   up to ~13% in a sweep across the pool (a hero can't actually bank spare
- *   healing past maxHp). Instead the clock starts at `t0`, the time the net
- *   rate crosses back to zero; continuous with the `r0 >= 0` branch at
- *   `r0 = 0`.
- * `bk <= 0` (no ramp configured, or an empty enemy side) falls back to a
- * flat-rate solve. Every branch clamps to `cfg.maxFightSec` — the sim's own
- * hard tick cutoff (fight.ts's `maxTicks`), so a real ceiling rather than
+ * WOUNDED's contribution is held at its existing frozen mean approximation
+ * (`woundedMultiplier * (1 - woundedHpFraction)`, same convention
+ * meanEnrageMultiplier uses) rather than timed exactly against this
+ * survival curve — deliberately not re-derived past killSec, same judgment
+ * call the 2026-08-22 pass made for the old HP-lost term (a slightly
+ * optimistic tail, not worth a kink in the curve for zero band impact).
+ *
+ * For each tier segment [boundaries[i], boundaries[i+1]) — segment 0 is
+ * [0, enrageTierSecs[0]) at no CLOCK bonus, the last segment runs to
+ * Infinity at the final tier's bonus — the segment's net rate is
+ * `basePreEnrageDps * (1 + woundedMeanTerm + tierBonus) - healPerSec`. A
+ * non-positive rate means the pool doesn't deplete anywhere in that segment
+ * (net healing, or holding steady) — including forever, if that's the last
+ * (infinite) segment, which is this function's only "never depletes"
+ * outcome now (no separate bk<=0 branch needed: an empty enrageTierSecs
+ * array degenerates to exactly one infinite segment at no CLOCK bonus,
+ * which is the old flat-rate case). A positive rate either finishes the
+ * pool inside the segment or leaves a remainder carried into the next
+ * segment — no "bank negative damage during net healing" bug (the pre-2026-
+ * 08-22 divide-by-zero bug's own root cause) is possible, since a
+ * non-depleting segment carries `remaining` forward unchanged rather than
+ * letting it go negative. Clamped to `cfg.maxFightSec` — the sim's own hard
+ * tick cutoff (fight.ts's `maxTicks`), so a real ceiling rather than
  * `Infinity`, which would otherwise reach `Math.round`/`projectionSummary`
  * downstream and print literally.
- *
- * Verified (2026-08-22): algebra checked independently twice; a 4,800-combo
- * sweep of fielded squads x encounters x HP fractions x dpsBonus found this
- * changes ZERO of checks/projection.ts's four band-asserting fixtures.
  */
 function survivalSecUnder(hpPool: number, basePreEnrageDps: number, healPerSec: number, cfg: FightConfig): number {
   if (hpPool <= 0) return 0;
-  const r0 = basePreEnrageDps * (1 + cfg.enrageFromEnemyHpLostFactor * 0.5) - healPerSec;
-  const bk = basePreEnrageDps * cfg.enrageRampPerSec;
-  const S = cfg.enrageStartSec;
-
-  if (bk <= 0) {
-    return Math.min(r0 > 0 ? hpPool / r0 : Infinity, cfg.maxFightSec);
+  const woundedMeanTerm = cfg.woundedMultiplier * Math.max(0, 1 - cfg.woundedHpFraction);
+  const boundaries = [0, ...cfg.enrageTierSecs, Infinity];
+  const tierBonuses = [0, ...cfg.enrageTierMultipliers];
+  let remaining = hpPool;
+  for (let i = 0; i < boundaries.length - 1; i++) {
+    const segStart = boundaries[i] as number;
+    const segEnd = boundaries[i + 1] as number;
+    const rate = basePreEnrageDps * (1 + woundedMeanTerm + (tierBonuses[i] as number)) - healPerSec;
+    if (rate <= 0) continue; // no depletion this segment; remaining carries forward unchanged
+    const segDur = segEnd - segStart;
+    const timeNeeded = remaining / rate;
+    if (isFinite(segDur) && timeNeeded > segDur) {
+      remaining -= rate * segDur;
+      continue;
+    }
+    return Math.min(segStart + timeNeeded, cfg.maxFightSec);
   }
-  if (r0 >= 0) {
-    if (r0 * S >= hpPool) return Math.min(hpPool / r0, cfg.maxFightSec);
-    const disc = r0 * r0 + 2 * bk * (hpPool - r0 * S); // provably > 0 whenever this line runs
-    const u = (2 * (hpPool - r0 * S)) / (r0 + Math.sqrt(disc));
-    return Math.min(S + u, cfg.maxFightSec);
-  }
-  // r0 < 0: don't bank the early net-healing surplus — start the clock when
-  // the still-ramping rate actually crosses back to net-damaging.
-  const t0 = S - r0 / bk;
-  const u = Math.sqrt((2 * hpPool) / bk);
-  return Math.min(t0 + u, cfg.maxFightSec);
+  return cfg.maxFightSec; // never depletes — the final (infinite) segment's rate was <= 0
 }
 
 /**
@@ -364,6 +391,7 @@ export function project(player: SideState, enemy: SideState, cfg: FightConfig): 
 
   const band = bandFor(margin, tankHoldsSec, killSec);
   const { chainsExpected, chainLine } = chainProjectionFor(playerAlive, cfg, killSec, playerDps, enemyDps, healPerSec);
+  const { tiersExpected: enrageTiersExpected, line: enrageLine } = enrageForecastFor(killSec, cfg);
 
   const dealerNames = playerAlive
     .filter((h) => !h.healPerBeat || h.attacksWhileHealing)
@@ -400,6 +428,8 @@ export function project(player: SideState, enemy: SideState, cfg: FightConfig): 
     verdict: verdictFor(band, tank?.name ?? null),
     chainsExpected,
     chainLine,
+    enrageTiersExpected,
+    enrageLine,
   };
 }
 

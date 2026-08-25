@@ -156,33 +156,47 @@ export interface FightConfig {
   windupDamageMultiplier: number;
 
   /**
-   * The enrage clock (2026-08-07 rebuild) — the mechanism that makes
-   * slowness cost something. Enemy damage (normal attacks AND wind-ups)
-   * holds at 1x until enrageStartSec into the fight, then ramps linearly by
-   * enrageRampPerSec per second, uncapped. This is a within-fight ramp that
-   * resets every fight — NOT a cross-fight damage scale (run.ts's comment on
-   * scaledArchetype records that scaling enemy damage across the run's 5
-   * fights at 1.08 collapsed win rate from ~100% to ~13% by fight 3; this is
-   * a different axis, deliberately reset to 1x at the start of every fight).
+   * The enrage CLOCK (2026-08-26 visibility pass, splitting the old single
+   * continuous ramp — see DECISIONS.md — into two named, discrete threats so
+   * each chain shape faces a legible opposing pressure). This is the
+   * grinder's tax: the mechanism that makes SLOWNESS cost something. Enemy
+   * damage (normal attacks AND wind-ups) holds at 1x until enrageTierSecs[0]
+   * into the fight, then steps up to 1+enrageTierMultipliers[i] at each
+   * enrageTierSecs[i], uncapped past the last tier (holds the last step's
+   * multiplier). Each step is preceded by an enrageTierTelegraph event
+   * enrageTierTelegraphSec before it lands — same shape as the bruiser
+   * wind-up (windupTelegraphSec above), the one enemy threat that already
+   * reads, deliberately reused here rather than inventing a new tell.
+   * Within-fight only; resets every fight — NOT a cross-fight damage scale
+   * (run.ts's comment on scaledArchetype records that scaling enemy damage
+   * across the run's 5 fights at 1.08 collapsed win rate from ~100% to ~13%
+   * by fight 3; this is a different axis, deliberately reset to 1x at the
+   * start of every fight). Superseded fields enrageStartSec/enrageRampPerSec
+   * (continuous ramp, no discrete step to feel) — see fight.ts's
+   * enrageMultiplierAt.
    */
-  enrageStartSec: number;
-  enrageRampPerSec: number;
+  enrageTierSecs: number[];
+  enrageTierMultipliers: number[];
+  enrageTierTelegraphSec: number;
   /**
-   * 2026-08-08 (root-cause pass, same as healMaxFractionOfTargetMaxHp above):
-   * enrage also scales with the fraction of the enemy side's starting HP
-   * already destroyed — a wounded enemy hits back harder. Before this, enrage
-   * was purely wall-clock, which meant damage output was ALSO the best
-   * defensive stat: every enemy threat (attack cadence, the wind-up, enrage
-   * itself) is time-metered, so a comp that killed fast enough (e.g.
-   * bracer+vex+cairn's 14s fights) reduced its OWN exposure to all three at
-   * once and simply never reached the danger the ramp was meant to create.
-   * This term makes killing fast cost something: a burst comp still reaches
-   * the angry phase, just via HP destroyed rather than seconds elapsed, so
-   * speed alone no longer removes exposure. lostFraction runs 0->1 over a
-   * fight; multiplied by this factor and added straight to the multiplier
-   * (see fight.ts's enrageMultiplierAt).
+   * WOUNDED (2026-08-26 visibility pass) — the burster's tax, replacing the
+   * old continuous enrageFromEnemyHpLostFactor term with one discrete spike.
+   * The first tick the enemy side's HP fraction remaining drops to/below
+   * 1 - woundedHpFraction (i.e. woundedHpFraction of its starting HP has been
+   * destroyed), enemy damage gets a one-time, permanent +woundedMultiplier
+   * kicker, fired as its own `wounded` event (never conflated with an
+   * enrageTier step — see events.ts). This is what keeps a burst comp from
+   * dodging every time-metered threat at once (2026-08-08 root-cause pass:
+   * before this term existed, a comp that killed fast enough, e.g.
+   * bracer+vex+cairn's 14s fights, reduced its own exposure to every
+   * time-metered threat simultaneously and never reached the danger the
+   * clock was meant to create) — a burst comp still gets a real, felt
+   * consequence, just from HP destroyed rather than seconds elapsed, so
+   * speed alone no longer removes exposure entirely; it trades the CLOCK's
+   * tax for the WOUNDED spike instead of escaping both.
    */
-  enrageFromEnemyHpLostFactor: number;
+  woundedHpFraction: number;
+  woundedMultiplier: number;
 
   /** Chain PRD by bonus-hits-so-far: index 0 = chance the *first* bonus hit
    * after ignition lands, last entry repeats (capped) beyond that. */
@@ -441,24 +455,23 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   windupTelegraphSec: 1.5,
   windupDamageMultiplier: 2.0,
 
-  // Enrage (2026-08-07 rebuild, retuned after the first batch pass): holds
-  // at 1x for the first 20s, then ramps a gentle 2.5%/sec — a ~28s fight
-  // ends near x1.2 enemy damage, not x1.8. Resets every fight; see this
-  // file's FightConfig docstring for why this must NOT compound across the
-  // run's 5 fights the way HP scaling does.
-  enrageStartSec: 20,
-  enrageRampPerSec: 0.025,
-  // 2026-08-08 (root-cause pass): started at 0.6, walked back to 0.25 during
-  // the 20-squad batch sweep — 0.6 turned out to double-punish SLOW fights
-  // rather than selectively reaching fast ones (every WON fight ends at 100%
-  // enemy HP lost by definition, so the term reaches its cap in every win
-  // regardless of squad; a slow fight just spends more real seconds exposed
-  // while ramping through it, so it ate more total bonus damage than the fast
-  // comps it was aimed at). At 0.25, an enemy side ground down to 50% HP is
-  // hitting x1.125, and to 10% HP is hitting x1.225 — enough that a burst
-  // comp still feels real pressure it didn't used to, without re-punishing
-  // the already-slower squads harder than the fast ones it targets.
-  enrageFromEnemyHpLostFactor: 0.25,
+  // Enrage CLOCK (2026-08-26 visibility pass — see FightConfig docstring;
+  // strawmen for the batch harness to move, same as everywhere else in this
+  // file). Three steps replacing the old continuous 20s-start/2.5%-per-sec
+  // ramp, chosen so the OLD ramp's multiplier at each tier's start time is
+  // roughly where each step lands (t=20 -> old ~1.0, t=32 -> old ~1.3,
+  // t=44 -> old ~1.6): a grinder-length fight (~35-45s) now crosses two
+  // felt steps instead of drifting through an unfelt gradient.
+  enrageTierSecs: [20, 32, 44],
+  enrageTierMultipliers: [0.35, 0.8, 1.4],
+  enrageTierTelegraphSec: 1.5,
+  // WOUNDED (2026-08-26 visibility pass, replaces enrageFromEnemyHpLostFactor
+  // — see FightConfig docstring). Fires once at 50% of the enemy side's
+  // starting HP destroyed; +0.25 matches the old term's value at its 50%-HP
+  // reading exactly, so this pass's balance delta starts at zero and moves
+  // only from Step 4's retune.
+  woundedHpFraction: 0.5,
+  woundedMultiplier: 0.25,
 
   chainChanceByHitsSoFar: [0.7, 0.75, 0.8, 0.85, 0.9],
   // Multiplicative off the hot hero's own damage (2026-08-07 rebuild,

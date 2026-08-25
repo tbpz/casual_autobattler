@@ -10,6 +10,24 @@
 
 ---
 
+## [2026-08-26] Enrage split into two visible, telegraphed threats — CLOCK and WOUNDED — replacing the silent continuous ramp
+
+- **Decision:**
+  - The single continuous enrage multiplier (`sim/fight.ts`'s `enrageMultiplierAt`) is replaced by two discrete, named threats: CLOCK (staged wall-clock tiers — the grinder's tax) and WOUNDED (a one-time spike on enemy HP lost — the burster's tax).
+  - Each CLOCK tier telegraphs before it lands, mirroring the bruiser wind-up's telegraph/land split.
+  - A persistent enrage HUD (`render/fightView.ts`) shows both threats live, replacing the old single `enrageStart` callout.
+  - `sim/projection.ts` now forecasts CLOCK tiers crossed and WOUNDED's timing on the field-pick and pre-fight screens, before the pick is committed.
+  - Chosen over reweighting the ramp in place, or shipping visibility only with no balance change.
+- **Why:**
+  - Root-cause pass on the 2026-08-25 test's L4 finding: the old ramp had no on-screen surface, no felt edge, and stopped discriminating slow from fast play once the 2026-08-08 pass added the HP-lost term.
+  - Chain shape's only remaining content, after the 2026-08-20 EV-equalization pass, is tempo — a lever with no felt tempo cost left shape nothing to attribute to.
+  - `npm run check` passes unchanged; `npm run batch -- --n 1000` holds default-roster completion ~22%, matching the prior ~23% band.
+- **Replaces:**
+  - Supersedes `config.ts`'s `enrageStartSec`/`enrageRampPerSec`/`enrageFromEnemyHpLostFactor` fields.
+  - Moves STATE.md's Next up #1 toward playable — pending a played re-run of `ATTRIBUTION_TEST.md` against L4.
+
+---
+
 ## [2026-08-25] Attribution test played: attribution reads, but only the charge bar is a complete lever
 
 - **Decision:**

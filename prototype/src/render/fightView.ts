@@ -191,6 +191,19 @@ export class FightView {
    * actually chose), so the recap states honestly how much of the number on
    * screen the player's own pick bought. */
   private chainEndCard: HTMLElement;
+  /** The enemy CLOCK/WOUNDED HUD (2026-08-26 visibility pass) — same
+   * persistent, snapshot-driven discipline as chainHud above, and for the
+   * same reason: the old single continuous enrage ramp had no on-screen
+   * surface at all beyond one callout at ignition (see DECISIONS.md), so
+   * players stopped noticing it existed. Sits opposite chainHud (enemy side,
+   * not centered) since this is the enemy's own persistent threat, not the
+   * player's. One pip per config.ts's enrageTierSecs entry — fixed count,
+   * global for the whole fight, unlike chainHud's per-hero pip row. */
+  private enrageHud: HTMLElement;
+  private enrageHudTitle: HTMLElement;
+  private enrageHudPips: HTMLElement;
+  private enrageHudPipEls: HTMLElement[] = [];
+  private enrageHudWounded: HTMLElement;
   /** Presentation-only state machine for the chain's OWN lifecycle across
    * ticks (2026-08-19, chain-ending pass) — deliberately NOT read off
    * snapshot.hotHeroId. fight.ts nulls hotHeroId the instant a chain ends,
@@ -267,6 +280,22 @@ export class FightView {
     this.chainEndCard.className = "chain-end-card";
     this.arena.appendChild(this.chainEndCard);
 
+    this.enrageHud = document.createElement("div");
+    this.enrageHud.className = "enrage-hud";
+    this.enrageHudTitle = document.createElement("div");
+    this.enrageHudTitle.className = "enrage-hud-title";
+    this.enrageHudTitle.textContent = "CLOCK";
+    this.enrageHudPips = document.createElement("div");
+    this.enrageHudPips.className = "enrage-hud-pips";
+    this.buildEnrageTierPips(cfg.enrageTierSecs.length);
+    this.enrageHudWounded = document.createElement("div");
+    this.enrageHudWounded.className = "enrage-hud-wounded";
+    this.enrageHudWounded.textContent = "WOUNDED";
+    this.enrageHud.appendChild(this.enrageHudTitle);
+    this.enrageHud.appendChild(this.enrageHudPips);
+    this.enrageHud.appendChild(this.enrageHudWounded);
+    this.arena.appendChild(this.enrageHud);
+
     // 2026-08-19 (chain-ending pass): the callout band is now a SIBLING of
     // .arena, below it, not an overlay inside .arena's own top band — the
     // arena's top overlay strip belongs exclusively to .chain-hud/
@@ -325,6 +354,7 @@ export class FightView {
     this.arena.classList.toggle("chain-backfire", this.chainPhase !== "idle" && snapshot.chainBackfire);
 
     this.updateChainHud(snapshot);
+    this.updateEnrageHud(snapshot);
     this.updateSide(this.playerHeroes, snapshot.playerHeroes, snapshot);
     this.updateSide(this.enemyHeroes, snapshot.enemyHeroes, snapshot);
 
@@ -355,6 +385,8 @@ export class FightView {
     for (const pip of this.chainHudPipEls) pip.classList.remove("filled", "rolling", "landed", "missed", "capped-flare");
     this.chainEndCard.classList.remove("show", "big");
     this.chainEndCard.innerHTML = "";
+    for (const pip of this.enrageHudPipEls) pip.classList.remove("filled", "telegraph", "landed");
+    this.enrageHudWounded.classList.remove("show", "flare");
     this.popupLayer.innerHTML = "";
     this.tracerLayer.innerHTML = "";
     this.arena.classList.remove("shake", "chain-live", "chain-backfire");
@@ -472,6 +504,44 @@ export class FightView {
     this.chainHud.classList.add("show");
   }
 
+  /** Builds the enrage HUD's tier pip row — fixed at cfg.enrageTierSecs.length
+   * for the whole fight (2026-08-26), unlike buildChainPips which rebuilds
+   * per-hero: CLOCK is a global enemy-side threat, not something a pick
+   * varies. */
+  private buildEnrageTierPips(tierCount: number): void {
+    this.enrageHudPips.innerHTML = "";
+    this.enrageHudPipEls = [];
+    for (let i = 0; i < tierCount; i++) {
+      const pip = document.createElement("span");
+      pip.className = "enrage-pip";
+      this.enrageHudPips.appendChild(pip);
+      this.enrageHudPipEls.push(pip);
+    }
+  }
+
+  /** Drives the persistent enrage HUD purely off the snapshot (2026-08-26
+   * visibility pass), same discipline as updateChainHud — correct under
+   * pause/step/scrub. Unlike the chain HUD, this is always on screen (CLOCK
+   * is running from t=0), not gated on any "is something live" condition:
+   * the whole point is that this threat should never go quiet the way the
+   * old single silent ramp did. `telegraph` marks the next unlit pip once
+   * secsToNextTier has closed inside enrageTierTelegraphSec — derived from
+   * the snapshot rather than only from the enrageTierTelegraph event, so a
+   * scrub-back or a paused frame still shows the pending state correctly. */
+  private updateEnrageHud(snapshot: TickSnapshot): void {
+    for (let i = 0; i < this.enrageHudPipEls.length; i++) {
+      const idx = i + 1;
+      const pip = this.enrageHudPipEls[i] as HTMLElement;
+      pip.classList.toggle("filled", idx <= snapshot.enrageTier);
+      const isNext = idx === snapshot.enrageTier + 1;
+      pip.classList.toggle(
+        "telegraph",
+        isNext && snapshot.secsToNextTier !== null && snapshot.secsToNextTier <= this.cfg.enrageTierTelegraphSec,
+      );
+    }
+    this.enrageHudWounded.classList.toggle("show", snapshot.wounded);
+  }
+
   private updateSide(map: Map<string, HeroSlot>, heroes: HeroSnapshot[], snapshot: TickSnapshot): void {
     for (const hero of heroes) {
       const refs = map.get(hero.id);
@@ -547,10 +617,14 @@ export class FightView {
       case "windupHit":
         this.showWindupHit(e.targetId, e.damage);
         break;
-      case "enrageStart":
-        // keepIfDeferred: true — worth replaying after a chain hands the
-        // stage back; it's a once-per-fight fact, not a beat-local one.
-        this.showCallout("ENEMY ENRAGES", true, undefined, true);
+      case "enrageTierTelegraph":
+        this.showEnrageTierTelegraph(e.tier);
+        break;
+      case "enrageTier":
+        this.showEnrageTier(e.tier);
+        break;
+      case "wounded":
+        this.showWounded();
         break;
       case "resolve":
         this.showResolve(e.outcome);
@@ -787,6 +861,33 @@ export class FightView {
   private showWindupStart(targetId: string | null): void {
     const name = targetId ? this.nameOf(targetId) : "someone";
     this.showCallout(`BRUISER TARGETS ${name}`, true);
+  }
+
+  /** CLOCK winds toward its next tier (2026-08-26) — a pulse on the HUD
+   * itself, no callout: three of these can fire in one fight and a callout
+   * for each would crowd the band the wounded spike and tank transitions
+   * also use. updateEnrageHud already shows the pending pip from the
+   * snapshot; this is the one-shot flourish on top; mirrors showChainStart's
+   * emphasize-pulse-plus-snapshot-text split. */
+  private showEnrageTierTelegraph(_tier: number): void {
+    pulseClass(this.enrageHud, "telegraph-pulse", 500);
+  }
+
+  /** CLOCK tier lands (2026-08-26) — the grinder's tax landing as a felt
+   * moment, replacing the old silent ramp. Loud (non-muted) and
+   * keepIfDeferred, like the wind-up's own callout: a once-per-tier fact
+   * worth replaying after a chain hands the stage back. */
+  private showEnrageTier(tier: number): void {
+    pulseClass(this.enrageHud, "emphasize", 500);
+    this.showCallout(`CLOCK TIER ${tier}`, false, undefined, true);
+  }
+
+  /** WOUNDED fires once (2026-08-26) — the burster's tax, deliberately a
+   * different callout and colour from a CLOCK tier (config.ts's
+   * woundedHpFraction docstring) so the two threats never blur into one. */
+  private showWounded(): void {
+    pulseClass(this.enrageHudWounded, "flare", 700);
+    this.showCallout("ENEMY WOUNDED — LASHES OUT", false, "var(--backfire)", true);
   }
 
   private showWindupHit(targetId: string, damage: number): void {

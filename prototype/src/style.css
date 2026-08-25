@@ -13,6 +13,12 @@
      so "my chain just backfired" reads as its own category of danger, not
      as the enemy's colour bleeding onto my own side. */
   --backfire: #ff4d4d;
+  /* The enrage CLOCK's own token (2026-08-26 visibility pass) — distinct
+     from --enemy so a CLOCK pip reads as "a rising threat" rather than as
+     just more enemy-red; WOUNDED deliberately reuses --backfire instead
+     (see .enrage-hud-wounded), so the two enemy threats stay visually
+     separate from each other too. */
+  --enrage: #d98c3d;
   --text: #e8e8ee;
   --muted: #8a8fa3;
   /* How long a CHAIN bar rise takes to glide into place (2026-08-15
@@ -794,6 +800,137 @@ body {
   100% {
     transform: scale(1);
     box-shadow: 0 0 4px 1px var(--chain-hud-color);
+  }
+}
+
+/* The enemy CLOCK/WOUNDED HUD (2026-08-26 visibility pass — see
+   fightView.ts's enrageHud docstring and DECISIONS.md). Anchored top-right
+   of .arena, opposite .chain-hud's centered position, since this is the
+   enemy's own persistent threat rather than the player's chain state — the
+   two must never compete for the same visual slot. Always visible (no
+   .show gate): the whole point is that this threat should never go quiet
+   the way the old silent ramp did. */
+.enrage-hud {
+  position: absolute;
+  top: -50px;
+  right: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.enrage-hud.emphasize {
+  animation: enrageHudEmphasize 0.5s ease-out;
+}
+
+@keyframes enrageHudEmphasize {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* The telegraph beat (2026-08-26) — a soft opacity pulse rather than the
+   tier-landing's scale punch, so the lead-in reads as building tension, not
+   as the moment itself. */
+.enrage-hud.telegraph-pulse {
+  animation: enrageHudTelegraph 0.5s ease-in-out;
+}
+
+@keyframes enrageHudTelegraph {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.enrage-hud-title {
+  font-weight: 700;
+  font-size: 0.8em;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.enrage-hud-pips {
+  display: flex;
+  gap: 4px;
+}
+
+/* One pip per config.ts's enrageTierSecs entry — CLOCK's tier row, the same
+   filled/pending visual language as .chain-pip but deliberately its own
+   class: this is a global enemy-side threat, not a per-hero one, and must
+   never be confused with the player's own chain fuse. */
+.enrage-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: #2a2e3a;
+  border: 1px solid #3a3f4e;
+  transition:
+    background 0.15s ease-out,
+    border-color 0.15s ease-out;
+}
+
+.enrage-pip.filled {
+  background: var(--enrage, #d98c3d);
+  border-color: var(--enrage, #d98c3d);
+}
+
+/* The next tier closing in (2026-08-26) — mirrors .chain-pip.rolling's
+   "is it still going?" pulse with the CLOCK's own equivalent question, "how
+   long until this lands?" — derived from the snapshot's secsToNextTier, not
+   the telegraph event, so a paused or scrubbed frame still shows it. */
+.enrage-pip.telegraph {
+  border-color: var(--enrage, #d98c3d);
+  animation: enragePipPending 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes enragePipPending {
+  from {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+/* WOUNDED (2026-08-26) — hidden until it fires once, then stays lit for the
+   rest of the fight; --backfire red, same threat colour the chain HUD uses
+   for a backfire, so it reads as danger rather than as another CLOCK step. */
+.enrage-hud-wounded {
+  font-weight: 700;
+  font-size: 0.75em;
+  letter-spacing: 0.03em;
+  color: var(--backfire);
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+}
+
+.enrage-hud-wounded.show {
+  opacity: 1;
+}
+
+.enrage-hud-wounded.flare {
+  animation: enrageWoundedFlare 0.7s ease-out;
+}
+
+@keyframes enrageWoundedFlare {
+  0% {
+    transform: scale(1.6);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 

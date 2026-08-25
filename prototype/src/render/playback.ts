@@ -162,15 +162,67 @@ function buildChainWindows(events: FightEvent[], fallbackKneeHit: number): Chain
   return windows;
 }
 
-function rateAt(simT: number, windows: ChainWindow[]): number {
+/** Small, separate dilation windows for the enrage CLOCK/WOUNDED beats
+ * (2026-08-26 visibility pass) — same rate-blending idea as a chain window,
+ * deliberately NOT sharing chainWindows/MAX_ADDED_WALL_SEC's own budget:
+ * these are small beats (a tier landing, a one-off spike), not the fight's
+ * main spectacle, and must never compete with it — see rateAt below, which
+ * checks a chain window first and only falls back to these when none is
+ * active. */
+interface EnrageWindow {
+  startT: number;
+  endT: number;
+  rate: number;
+}
+
+/** Rate applied to the CLOCK telegraph-to-land gap, and the hard cap on how
+ * much wall-clock time that can add — small on purpose, this is a lead-in
+ * beat, not a suspense window on the scale of a chain's own gaps. */
+const TIER_TELEGRAPH_RATE = 0.45;
+const TIER_MAX_ADDED_WALL_SEC = 1.0;
+/** WOUNDED has no lead-in (it's a spike, not a telegraphed step) — this is
+ * its own resolution tail instead, mirroring TAIL_SIM_SEC/TAIL_RATE above so
+ * the flare has a beat to land in before the next action barrels through it. */
+const WOUNDED_TAIL_SIM_SEC = 0.35;
+const WOUNDED_TAIL_RATE = 0.3;
+
+function buildEnrageWindows(events: FightEvent[]): EnrageWindow[] {
+  const windows: EnrageWindow[] = [];
+  const telegraphedAt = new Map<number, number>();
+  for (const e of events) {
+    if (e.type === "enrageTierTelegraph") {
+      telegraphedAt.set(e.tier, e.t);
+    } else if (e.type === "enrageTier") {
+      const startT = telegraphedAt.get(e.tier);
+      if (startT !== undefined && e.t > startT) {
+        const rawGap = e.t - startT;
+        const addedAtFullRate = rawGap * (1 / TIER_TELEGRAPH_RATE - 1);
+        const rate = addedAtFullRate > TIER_MAX_ADDED_WALL_SEC ? rawGap / (rawGap + TIER_MAX_ADDED_WALL_SEC) : TIER_TELEGRAPH_RATE;
+        windows.push({ startT, endT: e.t, rate });
+      }
+    } else if (e.type === "wounded") {
+      windows.push({ startT: e.t, endT: e.t + WOUNDED_TAIL_SIM_SEC, rate: WOUNDED_TAIL_RATE });
+    }
+  }
+  return windows;
+}
+
+function enrageRateAt(simT: number, windows: EnrageWindow[]): number {
   for (const w of windows) {
+    if (simT >= w.startT && simT < w.endT) return w.rate;
+  }
+  return 1;
+}
+
+function rateAt(simT: number, chainWindows: ChainWindow[], enrageWindows: EnrageWindow[]): number {
+  for (const w of chainWindows) {
     if (simT < w.startT || simT > w.endT) continue;
     for (const seg of w.segments) {
       if (simT >= seg.from && simT < seg.to) return seg.rate;
     }
     return w.segments.length > 0 ? (w.segments[w.segments.length - 1] as Segment).rate : 1;
   }
-  return 1;
+  return enrageRateAt(simT, enrageWindows);
 }
 
 /**
@@ -195,6 +247,7 @@ export class Playback {
   private onTick: PlaybackListener;
   private onEnd: (() => void) | null;
   private chainWindows: ChainWindow[];
+  private enrageWindows: EnrageWindow[];
 
   private paused = true;
   private elapsedSec = 0;
@@ -208,6 +261,7 @@ export class Playback {
     this.onTick = onTick;
     this.onEnd = onEnd ?? null;
     this.chainWindows = buildChainWindows(result.events, chainEscalationKneeHit);
+    this.enrageWindows = buildEnrageWindows(result.events);
   }
 
   get isPaused(): boolean {
@@ -255,7 +309,7 @@ export class Playback {
     const now = performance.now();
     const wallDeltaSec = (now - this.lastFrameMs) / 1000;
     this.lastFrameMs = now;
-    const targetRate = rateAt(this.elapsedSec, this.chainWindows);
+    const targetRate = rateAt(this.elapsedSec, this.chainWindows, this.enrageWindows);
     const ease = wallDeltaSec > 0 ? Math.min(1, wallDeltaSec / RATE_EASE_SEC) : 1;
     this.currentRate += (targetRate - this.currentRate) * ease;
     this.elapsedSec += wallDeltaSec * this.currentRate;
