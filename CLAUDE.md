@@ -37,3 +37,5 @@ I cannot reliably detect on my own when a decision is final — in design talk, 
 `STATE.md` is regenerated **only when the user asks** ("sync", "update the state") — never automatically, because a wholesale rewrite is high-stakes and the user should be present to audit it. When asked, **invoke the `state-sync` skill**, which carries the reader framework, the section skeleton, and the four sizing rules. Never regenerate `STATE.md` freehand.
 
 There is **no word budget**. Length is an output of the sizing rules, not a target: draft it once, applying the admission test per line as you write. Do not count words, do not report a count, and never do a second pass to trim to a number — a measure-then-trim loop re-emits the whole file for nothing, and the compression it forces is what made the old STATE unreadable.
+
+Cutting lines is fine; cramming words into a line is not — the plain-language rules in `~/.claude/CLAUDE.md` still apply here.

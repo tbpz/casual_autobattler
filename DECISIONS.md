@@ -10,6 +10,23 @@
 
 ---
 
+## [2026-08-27] CLOCK/WOUNDED cannot price chain shape's tempo tradeoff — shape needs a different lever
+
+- **Decision:**
+  - CLOCK/WOUNDED does not and cannot price chain shape's tempo tradeoff at any tuning.
+  - Chain shape needs a lever other than tempo, or the 2026-08-26 CLOCK/WOUNDED-as-shape-fix approach gets replaced.
+  - CLOCK/WOUNDED itself stands as real, load-bearing general difficulty pacing — this narrows its stated purpose, it doesn't retire the mechanism.
+- **Why:**
+  - Measured via `npm run measure:enrage` (new `batch/enrageLeverage.ts`), n=1500: burst-leaning vs grind-leaning fields differed in mean fight duration by only ~0.34–0.46s, against CLOCK's 12-second tier spacing.
+  - A retimed-CLOCK arm (tiers moved inside the real measured p10–p90 duration band, built specifically to test whether timing was the fix) left the duration delta and the shape completion ranking essentially unchanged.
+  - That same retimed arm raised overall difficulty sharply (+8.9pt completion swing) — a real effect, but orthogonal to shape.
+  - Enrage overall is causally real and load-bearing: removing it entirely swung completion +9.1pt at n=1500 (McNemar z=6.05).
+  - That load-bearing effect is concentrated almost entirely in fight 5 — fights 1-4 win rate moved <1.5pt with enrage removed, fight 5 moved 9.6pt.
+- **Replaces:**
+  - Narrows [2026-08-26] "Enrage split into two visible, telegraphed threats": that entry's shape-tempo rationale is superseded by this measurement; its general-difficulty rationale stands.
+
+---
+
 ## [2026-08-26] Enrage split into two visible, telegraphed threats — CLOCK and WOUNDED — replacing the silent continuous ramp
 
 - **Decision:**

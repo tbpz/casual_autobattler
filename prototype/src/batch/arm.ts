@@ -35,6 +35,45 @@ export function mean(xs: number[]): number {
   return xs.length > 0 ? xs.reduce((s, x) => s + x, 0) / xs.length : 0;
 }
 
+// --- Perceptibility: how many runs would a human need to reliably notice a
+// measured effect? Extracted from chainLeverage.ts's Block 5 (2026-08-26,
+// enrage-leverage-measurement pass — see enrageLeverage.ts) when
+// enrageLeverage.ts needed the identical machinery, same move that created
+// this file out of affinity.ts originally — no behavior change, both
+// reports' Block 5 output is byte-identical to before this extraction.
+//
+// Two-proportion power calc (alpha=0.05 two-sided, 80% power) — a
+// conservative TWO-SAMPLE estimate; a report's own paired same-seed
+// comparisons (McNemar, printArm above) need somewhat fewer, but this stays a
+// defensible upper bound without assuming a specific pairing. ------------
+
+const Z_ALPHA_2 = 1.959964; // alpha=0.05, two-sided
+const Z_BETA = 0.8416212; // 80% power
+
+export function runsToDetect(p1: number, p2: number): number {
+  const diff = p1 - p2;
+  if (Math.abs(diff) < 1e-9) return Infinity;
+  const variance = p1 * (1 - p1) + p2 * (1 - p2);
+  return Math.ceil(((Z_ALPHA_2 + Z_BETA) ** 2 * variance) / (diff * diff));
+}
+
+// Assumption, stated plainly: a played run (5 fights, watched, plus pick
+// screens) takes roughly 4 minutes. This is a strawman for converting "runs
+// needed" into "hours needed" — see STATE.md/ATTRIBUTION_TEST.md for the
+// actual per-fight pacing this is estimating from.
+export const ASSUMED_MINUTES_PER_RUN = 4;
+
+export function printDetectability(label: string, p1: number, p2: number): void {
+  const n = runsToDetect(p1, p2);
+  const hours = (n * ASSUMED_MINUTES_PER_RUN) / 60;
+  const nStr = Number.isFinite(n) ? n.toLocaleString() : "infinite (no measured difference)";
+  const hoursStr = Number.isFinite(n) ? `~${hours < 1 ? hours.toFixed(2) : Math.round(hours).toLocaleString()}h` : "n/a";
+  console.log(
+    `  ${label}: ${(Math.abs(p1 - p2) * 100).toFixed(1)}pt delta -> ${nStr} runs to detect at 80% power -> ${hoursStr} ` +
+      `(at ${ASSUMED_MINUTES_PER_RUN} min/run)`,
+  );
+}
+
 export interface ArmResult {
   label: string;
   report: ReturnType<BatchAggregator["finalize"]>;

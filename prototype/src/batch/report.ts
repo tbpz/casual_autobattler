@@ -69,6 +69,28 @@ import type { RunResult } from "../sim/run.js";
  *  - fractionChainsWhileLosing: of all fired chains, what fraction fired
  *    while the player's pool was below 40% of its fight-start max.
  *
+ * Three more added for the 2026-08-26 enrage-leverage-measurement pass (see
+ * "measure whether CLOCK/WOUNDED actually bite" plan and DECISIONS.md's
+ * CLOCK/WOUNDED entry) — the CLOCK/WOUNDED split was built to give chain
+ * shape a felt tempo cost, but nothing had ever measured whether either
+ * threat actually lands inside a real fight's length:
+ *  - clockTierHistogram: fights bucketed by the highest CLOCK tier reached
+ *    (0 = never landed). Reads the last snapshot's `enrageTier` — snapshot-
+ *    driven, same convention as chainShape/wounded on TickSnapshot, so it's
+ *    exactly what the live enrage HUD would have shown at fight end.
+ *  - meanWoundedFireSec / woundedFireRate: when, and how often, WOUNDED
+ *    actually fires. Found from the fight's own `wounded` event (fires at
+ *    most once — see events.ts) rather than the snapshot, since the event
+ *    carries the exact tick it landed on and a fight that never wounds the
+ *    enemy has no such event to find.
+ *  - durationPercentiles: fight duration's actual distribution (p10/p25/
+ *    median/p75/p90/p99), not just mean+stddev — this is what "does CLOCK's
+ *    20/32/44s tier spacing land inside how long a fight really runs"
+ *    requires and mean+stddev alone can't answer. Stores one scalar
+ *    (fr.durationSec) per fight in `durations` — negligible next to the
+ *    per-tick snapshot arrays this file already avoids retaining (see this
+ *    class's own docstring below).
+ *
  * Two more added for the 2026-08-14 chain rebuild (see DECISIONS.md) —
  * `heatCrossRate` is GONE: firing is now deterministic the instant a hero's
  * charge crosses chargeThreshold (no separate roll), so "charge crossed" and
@@ -132,6 +154,12 @@ export interface BatchReport {
   /** See this file's top docstring, 2026-08-14 chain rebuild entry. */
   backfireRate: number;
   fractionChainsBackfired: number;
+  /** See this file's top docstring, 2026-08-26 enrage-leverage entry. Keyed
+   * 0..cfg.fight.enrageTierSecs.length; 0 means CLOCK never landed. */
+  clockTierHistogram: Record<number, number>;
+  meanWoundedFireSec: number;
+  woundedFireRate: number;
+  durationPercentiles: { p10: number; p25: number; median: number; p75: number; p90: number; p99: number };
 }
 
 /**
@@ -164,6 +192,12 @@ export class BatchAggregator {
   private chainsBackfired = 0;
   private backfireFights = 0;
   private fightsWithChain5Plus = 0;
+  private clockTierHist: Record<number, number> = {};
+  private woundedFires = 0;
+  private totalWoundedFireSec = 0;
+  // One scalar per fight (fr.durationSec), not the fight's own per-tick
+  // snapshot array — see this file's top docstring, 2026-08-26 entry.
+  private durations: number[] = [];
   private cfg: RunConfig;
 
   constructor(cfg: RunConfig) {
@@ -197,8 +231,10 @@ export class BatchAggregator {
       if (this.hasWindupDeath(fr.events)) this.windupDeathFights++;
       this.totalDuration += fr.durationSec;
       this.totalDurationSq += fr.durationSec * fr.durationSec;
+      this.durations.push(fr.durationSec);
       this.chainHist[fr.chainLength] = (this.chainHist[fr.chainLength] ?? 0) + 1;
       this.countChainsWhileLosing(fr);
+      this.countEnrage(fr);
     }
 
     // Walk fights in order, crediting each death to the fight it happened in
@@ -239,6 +275,23 @@ export class BatchAggregator {
     if (sawBackfire) this.backfireFights++;
   }
 
+  /** Reads the CLOCK tier this fight ended at off its last snapshot (0 if
+   * CLOCK never landed — same snapshot-driven convention chainShape/wounded
+   * use on TickSnapshot, so this is exactly what the live enrage HUD would
+   * have shown at fight end), and looks up WOUNDED's own `wounded` event
+   * (fires at most once, so `find` rather than `filter` — see events.ts) for
+   * when it fired, if it fired at all. */
+  private countEnrage(fr: RunResult["fightResults"][number]): void {
+    const lastSnapshot = fr.snapshots[fr.snapshots.length - 1];
+    const tier = lastSnapshot?.enrageTier ?? 0;
+    this.clockTierHist[tier] = (this.clockTierHist[tier] ?? 0) + 1;
+    const woundedEvent = fr.events.find((e) => e.type === "wounded");
+    if (woundedEvent) {
+      this.woundedFires++;
+      this.totalWoundedFireSec += woundedEvent.t;
+    }
+  }
+
   /** True if some player hero's death (a heroDown event) landed on the same
    * tick as a windupHit — i.e. the wind-up itself was the killing blow,
    * not just incidental damage earlier in the fight. */
@@ -250,10 +303,28 @@ export class BatchAggregator {
     );
   }
 
+  /** Nearest-rank percentile (index = round(p * (n-1)), clamped) over a
+   * PRE-SORTED ascending array — callers sort once in finalize() rather than
+   * re-sorting per percentile requested. */
+  private static percentileOf(sorted: number[], p: number): number {
+    if (sorted.length === 0) return 0;
+    const idx = Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))));
+    return sorted[idx] as number;
+  }
+
   finalize(): BatchReport {
     const meanDuration = this.totalFights > 0 ? this.totalDuration / this.totalFights : 0;
     const meanDurationSq = this.totalFights > 0 ? this.totalDurationSq / this.totalFights : 0;
     const durationVariance = Math.max(meanDurationSq - meanDuration * meanDuration, 0);
+    const sortedDurations = [...this.durations].sort((a, b) => a - b);
+    const durationPercentiles = {
+      p10: BatchAggregator.percentileOf(sortedDurations, 0.1),
+      p25: BatchAggregator.percentileOf(sortedDurations, 0.25),
+      median: BatchAggregator.percentileOf(sortedDurations, 0.5),
+      p75: BatchAggregator.percentileOf(sortedDurations, 0.75),
+      p90: BatchAggregator.percentileOf(sortedDurations, 0.9),
+      p99: BatchAggregator.percentileOf(sortedDurations, 0.99),
+    };
     return {
       n: this.n,
       runCompletionRate: this.completed / this.n,
@@ -274,6 +345,10 @@ export class BatchAggregator {
       fractionFightsWithChain5Plus: this.totalFights > 0 ? this.fightsWithChain5Plus / this.totalFights : 0,
       backfireRate: this.totalFights > 0 ? this.backfireFights / this.totalFights : 0,
       fractionChainsBackfired: this.chainsFired > 0 ? this.chainsBackfired / this.chainsFired : 0,
+      clockTierHistogram: this.clockTierHist,
+      meanWoundedFireSec: this.woundedFires > 0 ? this.totalWoundedFireSec / this.woundedFires : 0,
+      woundedFireRate: this.totalFights > 0 ? this.woundedFires / this.totalFights : 0,
+      durationPercentiles,
     };
   }
 }
@@ -297,6 +372,18 @@ export function formatReport(report: BatchReport, label: string): string {
     `  wins with no chain:    ${(report.fractionWinsWithNoChain * 100).toFixed(1)}%  (big win, not only win)`,
     `  chain length hist:     ${histKeys.map((k) => `${k}:${report.chainLengthHistogram[k]}`).join("  ")}`,
     `  mean fight duration:   ${report.meanFightDurationSec.toFixed(2)}s  (stddev ${report.fightDurationStdDevSec.toFixed(2)}s)`,
+    `  duration percentiles:  p10=${report.durationPercentiles.p10.toFixed(1)}s p25=${report.durationPercentiles.p25.toFixed(1)}s ` +
+      `median=${report.durationPercentiles.median.toFixed(1)}s p75=${report.durationPercentiles.p75.toFixed(1)}s ` +
+      `p90=${report.durationPercentiles.p90.toFixed(1)}s p99=${report.durationPercentiles.p99.toFixed(1)}s`,
+    `  CLOCK tier reached:    ${(() => {
+      const total = Object.values(report.clockTierHistogram).reduce((s, c) => s + c, 0);
+      return Object.keys(report.clockTierHistogram)
+        .map(Number)
+        .sort((a, b) => a - b)
+        .map((tier) => `t${tier}:${total > 0 ? (((report.clockTierHistogram[tier] ?? 0) / total) * 100).toFixed(1) : "0.0"}%`)
+        .join("  ");
+    })()}  (t0 = CLOCK never landed, % of fights)`,
+    `  WOUNDED:               fired ${(report.woundedFireRate * 100).toFixed(1)}% of fights, mean t=${report.meanWoundedFireSec.toFixed(1)}s`,
     `  mean deaths per run:   ${report.meanDeathsPerRun.toFixed(2)}`,
     `  deaths by fight:       ${report.deathsByFightIndex.map((d, i) => `f${i + 1}=${d.toFixed(2)}`).join("  ")}`,
     `  chains while losing:   ${(report.fractionChainsWhileLosing * 100).toFixed(1)}%  (<40% pool when fired)`,
