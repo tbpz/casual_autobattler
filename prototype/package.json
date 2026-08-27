@@ -12,7 +12,7 @@
     "batch": "tsx src/batch/cli.ts batch",
     "measure:affinity": "tsx src/batch/affinity.ts",
     "measure:chain-leverage": "tsx src/batch/chainLeverage.ts",
-    "measure:enrage": "tsx src/batch/enrageLeverage.ts",
+    "measure:shape-verdict": "tsx src/batch/shapeVerdict.ts",
     "check": "npm run check:determinism && npm run check:beatsheet && npm run check:chaindist && npm run check:projection",
     "check:determinism": "tsx src/checks/determinism.ts",
     "check:beatsheet": "tsx src/checks/beatsheet.ts",

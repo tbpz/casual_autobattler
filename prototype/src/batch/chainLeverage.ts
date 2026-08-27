@@ -14,8 +14,9 @@
  * invariant into checks/chaindist.ts, same as every prior pass.
  *
  * Seed block 300_000-399_999 is reserved for this file (disjoint from
- * checks/chaindist.ts's <=93_599 and batch/affinity.ts's 200_000-239_999 —
- * see both files' own headers). Allocation within the block:
+ * checks/chaindist.ts's <=93_599, batch/affinity.ts's 200_000-239_999, and
+ * batch/shapeVerdict.ts's 500_000-599_999 — see those files' own headers).
+ * Allocation within the block:
  *   Block 1 (ablation ladder):        300_000 + 1500          -> 301_499
  *   Block 2 (profile swap):           310_000 + 1500          -> 311_499
  *   Block 3 (conditional leverage):   320_000 .. 346_399       (11x4 x 600)
@@ -547,9 +548,9 @@ if (BLOCK === "4" || BLOCK === "all") {
 // =========================================================================
 // BLOCK 5 — Perceptibility: how many runs would a human need to reliably
 // notice each measured effect? Pure arithmetic on Blocks 1-4's own numbers;
-// no new simulation. runsToDetect/printDetectability extracted into arm.ts
-// (2026-08-26, enrage-leverage-measurement pass) — see that file for the
-// two-proportion power calc's own docstring.
+// no new simulation. runsToDetect/printDetectability live in arm.ts (extracted
+// 2026-08-26) — see that file for the two-proportion power calc's own
+// docstring.
 // =========================================================================
 
 if (BLOCK === "5" || BLOCK === "all") {

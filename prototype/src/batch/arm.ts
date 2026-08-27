@@ -11,6 +11,11 @@
  * chainLeverage.ts needed the identical machinery — no behavior change,
  * affinity.ts's own arms print exactly what they did before this file
  * existed.
+ *
+ * Extended 2026-08-27 (shape-verdict pass) with a third aggregator on every arm
+ * — chainOutcomes.ts's per-shape chain decomposition. Same no-behavior-change
+ * rule as the extraction above: it is collected but never printed by printArm,
+ * so affinity.ts's and chainLeverage.ts's output is unchanged.
  */
 import type { RunConfig } from "../sim/config.js";
 import { makePlayerSide } from "../sim/heroes.js";
@@ -19,6 +24,7 @@ import type { FieldPick, RosterState } from "../sim/roster.js";
 import { Rng } from "../sim/rng.js";
 import { BatchAggregator, formatReport } from "./report.js";
 import { HeroChainAggregator, formatHeroChainReport } from "./heroChain.js";
+import { ChainOutcomeAggregator } from "./chainOutcomes.js";
 
 export function mcnemar(a: boolean[], b: boolean[]): { onlyA: number; onlyB: number; z: number } {
   let onlyA = 0;
@@ -36,11 +42,12 @@ export function mean(xs: number[]): number {
 }
 
 // --- Perceptibility: how many runs would a human need to reliably notice a
-// measured effect? Extracted from chainLeverage.ts's Block 5 (2026-08-26,
-// enrage-leverage-measurement pass — see enrageLeverage.ts) when
-// enrageLeverage.ts needed the identical machinery, same move that created
-// this file out of affinity.ts originally — no behavior change, both
-// reports' Block 5 output is byte-identical to before this extraction.
+// measured effect? Extracted from chainLeverage.ts's Block 5 (2026-08-26)
+// when a second report needed the identical machinery, same move that created
+// this file out of affinity.ts originally — no behavior change,
+// chainLeverage.ts's Block 5 output is byte-identical to before the
+// extraction. (That second report, enrageLeverage.ts, is gone as of
+// 2026-08-27 — see DECISIONS.md; this stayed because it is lever-agnostic.)
 //
 // Two-proportion power calc (alpha=0.05 two-sided, 80% power) — a
 // conservative TWO-SAMPLE estimate; a report's own paired same-seed
@@ -78,12 +85,20 @@ export interface ArmResult {
   label: string;
   report: ReturnType<BatchAggregator["finalize"]>;
   heroReport: ReturnType<HeroChainAggregator["finalize"]>;
+  /** Per-chain decomposition by chain SHAPE (2026-08-27, shape-verdict pass —
+   * see chainOutcomes.ts). Collected for every arm because it is cheap
+   * (incremental, one pass over events already in memory) and lever-agnostic,
+   * but printArm never prints it: an arm's rollup is only meaningful to a report
+   * that is actually comparing shapes, so shapeVerdict.ts formats it itself and
+   * affinity.ts/chainLeverage.ts's output stays byte-identical. */
+  chainOutcomes: ReturnType<ChainOutcomeAggregator["finalize"]>;
   completed: boolean[];
   fightsWon: number[];
 }
 
 /** Runs N seeds of one draft/fieldPick/roster-transform/policy combination
- * and aggregates both the whole-run report and the per-hero chain rollup. */
+ * and aggregates the whole-run report, the per-hero chain rollup, and the
+ * per-shape chain-outcome decomposition. */
 export function runArm(
   label: string,
   runCfg: RunConfig,
@@ -96,6 +111,7 @@ export function runArm(
   const policy = makePolicy(policyName, runCfg);
   const agg = new BatchAggregator(runCfg);
   const heroAgg = new HeroChainAggregator();
+  const chainAgg = new ChainOutcomeAggregator(runCfg);
   const completed: boolean[] = [];
   const fightsWon: number[] = [];
 
@@ -105,11 +121,19 @@ export function runArm(
     const result: RunResult = runRun(runCfg, new Rng(seed), policy, seed, roster, fieldPick ? { fieldPick } : undefined);
     agg.add(result);
     heroAgg.add(result, draftIds);
+    chainAgg.addRun(result.fightResults);
     completed.push(result.outcome === "complete");
     fightsWon.push(result.fightsWon);
   }
 
-  return { label, report: agg.finalize(), heroReport: heroAgg.finalize(), completed, fightsWon };
+  return {
+    label,
+    report: agg.finalize(),
+    heroReport: heroAgg.finalize(),
+    chainOutcomes: chainAgg.finalize(),
+    completed,
+    fightsWon,
+  };
 }
 
 /** Prints one arm's report, optionally diffed against a baseline arm

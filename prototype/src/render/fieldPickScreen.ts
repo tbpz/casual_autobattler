@@ -74,14 +74,6 @@ export function renderFieldPickScreen(
   const chainLine = document.createElement("p");
   chainLine.className = "projection-detail";
 
-  // 2026-08-26 (enrage visibility pass): states the fight's tempo forecast
-  // before the pick is committed — which CLOCK tiers a squad is projected
-  // to cross, and when WOUNDED lands — so a shape pick's tradeoff (a
-  // grinder spends more seconds realizing the same payoff than a burster)
-  // is knowable up front, not just felt once the fight is already running.
-  const enrageLine = document.createElement("p");
-  enrageLine.className = "projection-detail";
-
   const playBtn = document.createElement("button");
   playBtn.className = "play-btn";
 
@@ -107,14 +99,12 @@ export function renderFieldPickScreen(
       projectionLine.textContent = "";
       projectionLine.className = "projection-line";
       chainLine.textContent = "";
-      enrageLine.textContent = "";
       return;
     }
     const proj = project(fieldSquad(roster, [...selected]), enemyPreview, cfg.fight);
     projectionLine.textContent = proj.verdict;
     projectionLine.className = `projection-line band-${proj.band}`;
     chainLine.textContent = proj.chainLine;
-    enrageLine.textContent = proj.enrageLine;
   }
 
   function heroRowHtml(h: HeroState): string {
@@ -165,7 +155,6 @@ export function renderFieldPickScreen(
   screen.appendChild(list);
   screen.appendChild(projectionLine);
   screen.appendChild(chainLine);
-  screen.appendChild(enrageLine);
 
   if (dead.length > 0) {
     const fallen = document.createElement("p");

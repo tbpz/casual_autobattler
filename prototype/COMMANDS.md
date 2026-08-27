@@ -14,6 +14,16 @@ npm run measure:affinity -- --n 1500 --block A|B|C|all
                                     # does chainAffinity actually win more, or is the pick-screen
                                     # appeal purely visual? a REPORT, not a check — not part of
                                     # `npm run check`. See src/batch/affinity.ts's header.
+npm run measure:chain-leverage -- --block 1|2|3|4|5|all
+                                    # is the chain mechanic load-bearing, does hero pick change what
+                                    # it does, and how many runs would it take to notice? REPORT.
+                                    # See src/batch/chainLeverage.ts's header.
+npm run measure:shape-verdict -- --block 1|2|3|4|all
+                                    # is burster actually a better pick than grinder? equal-EV says
+                                    # no; this measures the three things that math can't see.
+                                    # REPORT. See src/batch/shapeVerdict.ts's header.
+                                    # (--quick on either measure:* is a harness smoke test only —
+                                    # the numbers it prints are not trustworthy.)
 npm run build                      # tsc + vite production build
 ```
 

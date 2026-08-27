@@ -10,6 +10,43 @@
 
 ---
 
+## [2026-08-27] CLOCK and WOUNDED removed entirely — a progress-keyed tax cannot be a burst tax
+
+- **Decision:**
+  - CLOCK and WOUNDED are removed from the game; nothing scales enemy damage over the course of a
+    fight any more.
+  - The pre-2026-08-26 continuous ramp is NOT restored — it is the same failure in a less legible
+    form.
+  - The bruiser wind-up is now the only in-fight escalating threat (`sim/config.ts`).
+  - Difficulty is deliberately NOT re-compensated for the loss; the easier baseline stands until
+    Tu revisits it.
+  - One pinned `checks/chaindist.ts` guard is left FAILING rather than re-centred: the
+    leave-out-bracer single-tank draft rose 11.8% → 17.7% against its own ~15% "stays extreme"
+    note. Moving the band would hide the effect Tu wants to judge.
+  - `batch/enrageLeverage.ts` and `measure:enrage` are deleted; the lever-agnostic A/B rig
+    survives at `batch/arm.ts`.
+- **Why:**
+  - WOUNDED keyed on cumulative enemy HP lost — which is only "how close am I to winning," a
+    checkpoint every winning fight crosses whatever its chain shape. Measured at n=1000: it fired
+    in ~90% of fights, mean t≈11s.
+  - Its cost is the time spent under the penalty, so a grinder pays MORE than a burster — the same
+    direction CLOCK already pushed. The pair was never two-sided, so no tuning of either could
+    have made chain shape a choice.
+  - That is the cause behind the entry below, which measured the symptom (a ~0.4s duration gap
+    between burst- and grind-leaning fields) without naming it.
+  - Removal measured at n=1000, default draft, always-heal: run completion 22.3% → 31.5%, fight 5
+    win rate 25.6% → 34.4%, fights 1–4 within 3.4pt.
+  - `fractionChainsWhileLosing` held (11.8% → 11.4%) — the danger that produces the cherished
+    moment survived the removal.
+  - Failsafe rate rose 0.0% → 0.1%: with no escalation, a near-stalemate can now run to
+    `maxFightSec` instead of resolving by wipe.
+- **Replaces:**
+  - Retires the 2026-08-26 "Enrage split into two visible, telegraphed threats" mechanism
+    outright, and the general-difficulty rationale the entry below preserved for it.
+  - Ends the `enrageFromEnemyHpLostFactor` lineage from the 2026-08-08 root-cause pass.
+
+---
+
 ## [2026-08-27] CLOCK/WOUNDED cannot price chain shape's tempo tradeoff — shape needs a different lever
 
 - **Decision:**

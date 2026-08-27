@@ -77,12 +77,6 @@ function formatEvent(e: FightEvent): string {
       return `[t=${t}] bruiser winds up on ${e.targetId ?? "?"} — fires at t=${e.fireT.toFixed(2)}`;
     case "windupHit":
       return `[t=${t}] bruiser SLAMS ${e.targetId}: ${e.damage} dmg`;
-    case "enrageTierTelegraph":
-      return `[t=${t}] enemy CLOCK winds toward tier ${e.tier} — lands at t=${e.fireT.toFixed(2)}`;
-    case "enrageTier":
-      return `[t=${t}] enemy CLOCK tier ${e.tier} lands (+${e.multiplier})`;
-    case "wounded":
-      return `[t=${t}] enemy WOUNDED (+${e.multiplier})`;
     case "resolve":
       return `[t=${t}] RESOLVE: ${e.outcome.toUpperCase()} (${e.reason})`;
   }

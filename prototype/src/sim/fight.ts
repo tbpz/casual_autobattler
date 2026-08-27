@@ -138,39 +138,6 @@ function rollDamage(base: number, rng: Rng, variance: number): number {
   return Math.max(1, Math.round(base * factor));
 }
 
-/** Number of enrage CLOCK tiers reached by time t (0 = pre-tier, i.e. still
- * at the tier baseline). See config.ts's enrageTierSecs docstring. */
-function enrageTierIndexAt(t: number, cfg: FightConfig): number {
-  let idx = 0;
-  for (let i = 0; i < cfg.enrageTierSecs.length; i++) {
-    if (t > (cfg.enrageTierSecs[i] as number)) idx = i + 1;
-  }
-  return idx;
-}
-
-/** Enemy damage multiplier from the enrage CLOCK and WOUNDED threats
- * (2026-08-07 rebuild, extended 2026-08-08, split into two discrete,
- * telegraphed events 2026-08-26 — see config.ts's FightConfig docstring for
- * both terms) — two additive terms on top of 1x. CLOCK steps at
- * enrageTierSecs, holding the last-crossed tier's multiplier. WOUNDED adds a
- * one-time kicker once the enemy side's HP fraction lost reaches
- * woundedHpFraction, so a comp that kills fast still reaches a real
- * consequence — via HP lost rather than seconds elapsed — instead of
- * out-racing every time-metered threat entirely. Applies to both normal
- * enemy attacks and wind-up hits, so the cost of a slow OR a
- * fast-but-incomplete fight grows for the whole enemy side, not just the
- * bruiser. See config.ts's FightConfig docstring for why CLOCK resets every
- * fight rather than compounding across the run; WOUNDED is naturally
- * per-fight for the same reason (enemy HP resets). */
-function enrageMultiplierAt(t: number, enemy: SideState, cfg: FightConfig): number {
-  const tierIdx = enrageTierIndexAt(t, cfg);
-  const tierMult = tierIdx === 0 ? 0 : (cfg.enrageTierMultipliers[tierIdx - 1] as number);
-  const maxHp = sideMaxHp(enemy);
-  const lostFraction = maxHp > 0 ? 1 - sideHp(enemy) / maxHp : 0;
-  const woundedMult = lostFraction >= cfg.woundedHpFraction ? cfg.woundedMultiplier : 0;
-  return 1 + tierMult + woundedMult;
-}
-
 function snapshotHeroes(side: SideState): HeroSnapshot[] {
   return side.heroes.map((h) => ({
     id: h.id,
@@ -321,7 +288,6 @@ function handleBruiserBeat(
   enemy: SideState,
   player: SideState,
   hero: HeroState,
-  enrageMult: number,
 ): boolean {
   if (hero.windupFireT !== undefined) {
     if (t < hero.windupFireT) return false; // still telegraphing
@@ -334,7 +300,7 @@ function handleBruiserBeat(
     hero.nextWindupT = t + (hero.windupIntervalSec ?? cfg.windupIntervalSec);
     hero.nextAttackT = t + hero.attackIntervalSec;
     if (!targetId) return false;
-    const damage = Math.max(1, Math.round(hero.damage * cfg.windupDamageMultiplier * enrageMult));
+    const damage = Math.max(1, Math.round(hero.damage * cfg.windupDamageMultiplier));
     const { died, applied } = applyDamageFrom(player, targetId, damage, cfg.chargeWeightSoaked);
     hero.dealt += applied;
     events.push({ type: "windupHit", t, targetId, damage });
@@ -349,7 +315,7 @@ function handleBruiserBeat(
     return false;
   }
   if (t >= hero.nextAttackT) {
-    performHeroAction(events, t, rng, cfg, enemy, "enemy", player, "player", hero, false, "weighted", enrageMult);
+    performHeroAction(events, t, rng, cfg, enemy, "enemy", player, "player", hero, false, "weighted");
     hero.nextAttackT += hero.attackIntervalSec;
     return isWiped(player);
   }
@@ -493,15 +459,6 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   // A tankless comp is living dangerously from the first tick — counted as a
   // dip immediately, same as the old gate's "no living tank" clause.
   let dipOccurred = !player.heroes.some((h) => h.role === "tank" && h.alive);
-  // Enrage CLOCK/WOUNDED event edges (2026-08-26 visibility pass) — counts,
-  // not booleans, since CLOCK has multiple tiers. enrageTierLanded and
-  // enrageTierTelegraphed both count tiers already emitted, so a coarse tick
-  // that crosses more than one threshold in a single step (small dt aside,
-  // defensive) still emits one event per tier rather than skipping any.
-  let enrageTierLanded = 0;
-  let enrageTierTelegraphed = 0;
-  let wounded = false;
-
   let outcome: "win" | "loss" | null = null;
   let endReason: "wipe" | "failsafe" = "wipe";
   let endT = 0;
@@ -509,42 +466,6 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   for (let tick = 1; tick <= maxTicks; tick++) {
     const t = tick * dt;
     endT = t;
-
-    const enrageMult = enrageMultiplierAt(t, enemy, cfg);
-    // CLOCK telegraph (2026-08-26): fires enrageTierTelegraphSec before each
-    // tier lands, one event per tier, in order — mirrors the bruiser
-    // wind-up's telegraph/land split (windupStart/windupHit) rather than the
-    // old single silent ramp.
-    while (
-      enrageTierTelegraphed < cfg.enrageTierSecs.length &&
-      t >= (cfg.enrageTierSecs[enrageTierTelegraphed] as number) - cfg.enrageTierTelegraphSec
-    ) {
-      const tier = enrageTierTelegraphed + 1;
-      const fireT = cfg.enrageTierSecs[enrageTierTelegraphed] as number;
-      events.push({ type: "enrageTierTelegraph", t, tier, fireT });
-      enrageTierTelegraphed++;
-    }
-    // CLOCK lands. 2026-08-09 lesson retained: gate strictly on the
-    // wall-clock term (enrageTierIndexAt), never on the combined multiplier
-    // — WOUNDED becoming true the instant any enemy takes damage must never
-    // masquerade as a tier landing early.
-    const newEnrageTier = enrageTierIndexAt(t, cfg);
-    for (let tier = enrageTierLanded + 1; tier <= newEnrageTier; tier++) {
-      const multiplier = cfg.enrageTierMultipliers[tier - 1] as number;
-      events.push({ type: "enrageTier", t, tier, multiplier });
-    }
-    enrageTierLanded = newEnrageTier;
-    // WOUNDED lands once, the first tick the enemy side crosses the
-    // threshold — its own event, deliberately never folded into an
-    // enrageTier callout (see config.ts's woundedHpFraction docstring).
-    if (!wounded) {
-      const maxHp = sideMaxHp(enemy);
-      const lostFraction = maxHp > 0 ? 1 - sideHp(enemy) / maxHp : 0;
-      if (lostFraction >= cfg.woundedHpFraction) {
-        wounded = true;
-        events.push({ type: "wounded", t, multiplier: cfg.woundedMultiplier });
-      }
-    }
 
     // Player heroes act on their own beats, targeting the front-most living
     // enemy — deterministic, so the player can reliably focus down the
@@ -631,15 +552,14 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
     // state machine (charge/fire, replacing its normal attack while
     // telegraphing); everyone else attacks a weighted-random living player
     // hero, same as before — see pickWeightedTargetId's docstring for why.
-    // Both routes scale by the current enrage multiplier.
     if (!outcome) {
       for (const hero of enemy.heroes) {
         if (!hero.alive || outcome) continue;
         let wiped = false;
         if (hero.role === "bruiser") {
-          wiped = handleBruiserBeat(events, t, rng, cfg, enemy, player, hero, enrageMult);
+          wiped = handleBruiserBeat(events, t, rng, cfg, enemy, player, hero);
         } else if (t >= hero.nextAttackT) {
-          performHeroAction(events, t, rng, cfg, enemy, "enemy", player, "player", hero, false, "weighted", enrageMult);
+          performHeroAction(events, t, rng, cfg, enemy, "enemy", player, "player", hero, false, "weighted");
           hero.nextAttackT += hero.attackIntervalSec;
           wiped = isWiped(player);
         }
@@ -699,10 +619,6 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       visibleChainLength: bonusHitsLanded,
       chainDamageSoFar: hotHeroId ? chainDamageSoFar : 0,
       chainShape: hotHeroId ? hotChainShape : null,
-      enrageMultiplier: enrageMult,
-      enrageTier: enrageTierLanded,
-      secsToNextTier: enrageTierLanded < cfg.enrageTierSecs.length ? (cfg.enrageTierSecs[enrageTierLanded] as number) - t : null,
-      wounded,
       windupTargetId: bruiser?.alive && bruiser.windupFireT !== undefined ? (bruiser.windupTargetId ?? null) : null,
     });
 

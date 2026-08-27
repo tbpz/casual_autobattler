@@ -22,14 +22,20 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 ## Where it stands
 
-Prototype #1 is played-verified through the 2026-08-25 attribution test: the fight is legible and the player can name a true cause, but the charge bar was the only lever surviving to "I'd do it differently." Enrage's CLOCK/WOUNDED split is measured causally real for general difficulty and concentrated in fight 5, but measured incapable of pricing chain shape's tempo tradeoff — shape's fix is open again. The field pick still collapses to a forced answer under attrition, and the coin spend still goes unused.
+The fight is legible and the player can name a true cause, but the charge bar is the only lever
+reaching "I'd do it differently." Nothing escalates enemy damage within a fight any more — the
+bruiser wind-up is the only in-fight threat — and the run is deliberately left easier than it was,
+un-retuned, pending a difficulty decision. Chain shape has no working lever: two candidates have
+now failed, and tempo is ruled out as the currency. The field pick still collapses to a forced
+answer under attrition, and the coin spend still goes unused.
 
 ## Next up
 
-1. **Pick chain shape's replacement lever** — CLOCK/WOUNDED's tempo cost is measured dead (`DECISIONS.md`, 2026-08-27); candidates raised but not chosen: a hit-count/escalation-completion-keyed threat, or something else.
-2. Decide whether the coin spend gets teeth or is cut — it appeared in none of the 12 played cards.
-3. Widen the pool beyond encounters — offers/modifiers next, heroes after; waits on #1's verdict.
-4. Tune fights 1–3 for real risk against a double-tank draft.
+1. **Pick chain shape's replacement lever.** It must price *arrival order* within a chain, not fight duration, and be conditionally right rather than uniformly priced — equal EV means "change it" is closed by construction. Candidates: interruption risk, an encounter that demands a shape, hit-index-scaled backfire.
+2. **Decide whether the field-pick collapse is upstream of #1** — chain shape lives on the field-pick screen, so a forced pick is a lever nobody pulls.
+3. **Decide difficulty:** re-compensate the ~9pt the removal gave back, or accept it. One pinned check is failing until this is settled.
+4. Decide whether the coin spend gets teeth or is cut — it appeared in none of the 12 played cards.
+5. Widen the pool beyond encounters — offers/modifiers next, heroes after.
 
 ---
 
@@ -40,29 +46,29 @@ Prototype #1 is played-verified through the 2026-08-25 attribution test: the fig
 | Fight mechanics — charge, chain, backfire | played-verified | `sim/fight.ts`, `sim/config.ts` |
 | Chain legibility — pacing, HUD, pips, end card | played-verified | `render/playback.ts`, `render/fightView.ts` |
 | Charge bar — the one lever reaching "change it" | played-verified | `render/fieldPickScreen.ts` |
-| Chain shape lever — reads as 2 shapes, not the designed 5 | played-verified | `sim/heroes.ts`, `render/heroPickShared.ts` |
-| Enrage CLOCK/WOUNDED — real difficulty pacing concentrated in fight 5; does not price shape's tempo | batch-verified | `sim/fight.ts`, `batch/enrageLeverage.ts` |
+| Chain shape lever — reads as 2 shapes, not the designed 5; no working price | played-verified | `sim/heroes.ts`, `render/heroPickShared.ts` |
+| In-fight threat — bruiser wind-up only | batch-verified | `sim/fight.ts` |
 | Field pick — collapses to a forced answer under attrition | played-verified | `sim/roster.ts`, `render/fieldPickScreen.ts` |
 | Coin spend — absent from all 12 played cards | played-verified | `sim/run.ts`, `render/runScreens.ts` |
 | Pre-play chain signal — expected count + shape | batch-verified | `sim/projection.ts` |
 | Enemies — the 11-encounter tiered pool | batch-verified | `sim/encounters.ts` |
-| Difficulty — ~23% completion at n=1500 | batch-verified | `checks/chaindist.ts` |
+| Difficulty — ~32% completion, un-retuned, one check failing | batch-verified | `checks/chaindist.ts` |
 | Real game build | not started | — |
 
 ## Unverified bets
 
 - Chain shape can become a real pick-time axis at all, rather than a label on a random walk.
-- A no-telegraph backfire flip reads as dread rather than confusion.
+- The fight keeps enough pressure with no in-fight escalation at all.
 - The coin spend has a purpose worth keeping.
 - One backfire should not durably shrink the live roster — Rook sat out 8 straight fights after a single betrayal.
 - Combat stays watch-only as lever surface is added.
 
 ## Open questions
 
-- What lever should replace tempo for chain shape — a hit-count/escalation-completion threat, or something else?
+- What can chain shape charge, if not seconds?
 - What makes a field pick live when attrition has already forced the answer?
 - Does the coin spend need new leverage against a backfire, or should it be cut?
-- Is the encounter pool wide enough to keep a run unsolved, or are offers/heroes needed next?
+- Does the fight still reliably terminate without escalation — 0.1% of fights now run to `maxFightSec`.
 - How much further to retune fights 1–3 against a double-tank draft?
 
 ## How to work here
@@ -71,5 +77,5 @@ Prototype #1 is played-verified through the 2026-08-25 attribution test: the fig
 - `DECISIONS.md` has an archive rule; entries below it predate the 2026-07-18 pivot and describe a superseded design.
 - Decisions are proposed, never silently logged — on a confirmed yes, append via the `decision-log` skill.
 - This file is regenerated only when asked, via the `state-sync` skill; `REFERENCE.md` is not regenerated by a sync.
-- Commands: `npm run dev` to play (`?test=1&seed=N` runs the `ATTRIBUTION_TEST.md` protocol), `npm run check` for regressions, `npm run batch -- --n 1000` for distributions, `npm run measure:enrage` for the CLOCK/WOUNDED-vs-shape causal report — full list in `prototype/COMMANDS.md`.
+- Commands: `npm run dev` to play (`?test=1&seed=N` runs the `ATTRIBUTION_TEST.md` protocol), `npm run check` for regressions, `npm run batch -- --n 1000` for distributions — full list in `prototype/COMMANDS.md`.
 - Code: `prototype/src/sim/` (`config.ts` holds every tunable in one place), `src/render/`, `src/batch/`, `src/checks/`.

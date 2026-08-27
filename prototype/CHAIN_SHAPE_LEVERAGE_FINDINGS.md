@@ -148,3 +148,168 @@ record and that one as disposable working notes if it's still there.
   session's objective/batch measurement — `ATTRIBUTION_TEST.md`'s own played/perceptual protocol is
   still unrun. Worth a sync next time someone's actually sitting down to update STATE.md, not
   before.
+
+## Postscript, 2026-08-27 — the CLOCK/WOUNDED harness is deleted
+
+`src/batch/enrageLeverage.ts` and its `npm run measure:enrage` script were removed along with
+CLOCK and WOUNDED themselves (see DECISIONS.md). Its findings are recorded in that log, not here.
+
+To rebuild the same kind of measurement for a future lever: the reusable A/B rig survives at
+`src/batch/arm.ts` (`runArm` / `printArm` for paired same-seed arms with McNemar significance,
+`runsToDetect` / `printDetectability` for "how many runs before a human could notice this").
+`src/batch/chainLeverage.ts` is the working example of a report built on it. The pattern that
+mattered: define each arm as a `Partial<FightConfig>` override, run every arm over an identical
+seed sequence, and verify the baseline arm reproduces `checks/chaindist.ts`'s pinned band before
+trusting any delta.
+
+---
+
+# Burster vs grinder — the verdict (2026-08-27)
+
+Tu's question: *"is my feeling that burster is obviously the better choice than grinder right or
+wrong?"* Measured by `npm run measure:shape-verdict` (`src/batch/shapeVerdict.ts`, built this
+session). Burster/grinder split on **fuse length**, Tu's own read and the same definition the
+retired `enrageLeverage.ts` used:
+
+- **burster** — `shortFuseSteep` ("short fuse", Hollow) + `shortFuseFlat` ("front-loaded", Vex)
+- **grinder** — `longFuseFlat` ("long fuse", Bracer) + `longFuseSteep` ("back-loaded", Rook)
+
+Verdict thresholds were **pre-registered in the report before it ran** (5pt completion margin,
+McNemar |z| >= 2), so the output could not be read to confirm either way.
+
+## The answer: WRONG on win rate — but for a more interesting reason than "the math equalized them"
+
+| Measure | Burster | Grinder | Margin |
+|---|---|---|---|
+| Run completion, n=1500 paired seeds | 32.7% | 30.9% | **+1.8pt burster**, McNemar z=1.16 |
+| Fight 5 (Champion) win rate | 37.7% | 34.4% | +3.3pt burster |
+| Shape-isolated single fights, chain fires at t≈0 | 86.9% | 87.8% | −0.9pt (grinder) |
+| Shape-isolated single fights, chain fires mid-fight | 87.6% | 87.9% | −0.3pt (grinder) |
+
+Both below the 5pt bar, and the two levels point in *opposite* directions — which is itself the
+finding: there is no consistent edge to find. Runs needed to notice the run-completion margin at 80%
+power: **10,498 (~700h)**. The fight-5 margin: 3,224 (~215h). Tu's feeling is not tracking outcomes;
+it cannot be, at that size.
+
+## Why it isn't the trivial "equal EV means equal outcome"
+
+The equal-EV normalization is real and it checks out — every attacker's chain is worth the same
+**expected gross damage per fired chain**: 100.0 / 100.2 / 100.5 / 99.9 for the four shapes at a
+fixed reference attacker (damage 6, affinity 1.0). But the live fight pays out only about half of
+that, and the shortfall is **shape-dependent in one direction while the costs run the other way**.
+Two large unpriced effects nearly cancel:
+
+**Burster's unpriced advantage — it realizes more of its EV.**
+
+| | Burster | Grinder |
+|---|---|---|
+| EV realization (realized ÷ analytic E[gross]) | **54.0%** | **43.0%** |
+| Chains cut short (fight end or lockout) | 32.6% | 35.9% |
+| Mean chain length vs analytic | 1.05 hits | 2.58 hits |
+
+**Grinder's unpriced advantage — burster wastes and kills its own.**
+
+| | Burster | Grinder |
+|---|---|---|
+| Overkill spilled past the target side's last body | **20.4%** | **9.8%** |
+| Dud rate (chain fires, lands zero hits) | 40.5% | 28.4% |
+| Player deaths per backfire (permanent for the run) | **0.57** | **0.34** |
+
+Net: +1.8pt, inside noise. Both shapes are being mispriced by the same normalization, in opposite
+directions, by amounts that happen to be close to equal. That is luck, not design — and it means the
+equalization is load-bearing on an assumption it never verified.
+
+**Tempo is confirmed dead as the currency, again.** Making the chain fire mid-fight rather than at
+t≈0 moved the margin by 0.6pt. Front-loading buys nothing here — the same conclusion the
+CLOCK/WOUNDED pass reached from the other direction (DECISIONS.md, 2026-08-27), now measured on the
+shape axis directly rather than through a tempo tax.
+
+## So what IS the feeling tracking? Concentration, and it is forced by the design
+
+Equal EV across unequal fuse lengths *requires* a short fuse to land bigger individual hits. At the
+reference attacker:
+
+| Shape | Per-hit schedule | Biggest hit | Dud rate |
+|---|---|---|---|
+| short fuse (burster) | 22, 131, 240 | **240** | 40.0% |
+| front-loaded (burster) | 35, 70, 105, 140 | 140 | 35.0% |
+| long fuse (grinder) | 6, 11, 17, 23, 28, 34, 40, 45, 53, 60 | **60** | 22.0% |
+| back-loaded (grinder) | 5, 11, 16, 22, 27, 51, 75, 99, 124 | 124 | 28.0% |
+
+Burster's biggest single number is **1.94x** grinder's, on identical expected value, and burster is
+**nothing at all 37.5%** of the time against grinder's 25.0%. Burster is louder *and* more often a
+whiff. Tu's read is a correct read of what the screen shows; it is just not a read of what the shapes
+are worth. Nothing in the pick screen or the fight tells the player that a 240 and a 60 are the same
+purchase.
+
+## Side finding: the Champion edge this document found in August has largely evaporated
+
+Block 2 uses the same rig as the 2026-08-23 session's Block 3 (Rook preloaded, `fightIndex=0`,
+n=600/cell), so the two are directly comparable. That session found Champion was the one encounter
+with real conditional leverage: front-loaded 49.8% vs short-fuse-steep 37.8%, a **12pt** spread, and
+recommended teaching it (option B above).
+
+Now, post-CLOCK/WOUNDED-removal:
+
+| Champion, chain fires at t≈0 | short fuse | front-loaded | long fuse | back-loaded |
+|---|---|---|---|---|
+| win rate | 76.5% | 79.2% | **82.5%** | 78.5% |
+
+The spread is **6.0pt**, not 12, and the top of the ranking is now a *grinder* shape rather than
+front-loaded. The direction between the original two shapes survives (front-loaded still beats short
+fuse, by 2.7pt), but the fight is no longer tight — every shape moved from the 37–50% band into the
+76–83% band, because the difficulty the removal gave back was deliberately not re-compensated
+(DECISIONS.md, 2026-08-27). Some of the reordering is likely that slack rather than a real flip in
+which shape is better.
+
+Either way, **option B ("teach the one edge that already exists") is no longer standing on a 12pt
+effect.** Whether it comes back is downstream of the difficulty decision, which is still open.
+
+## Side finding, not folded into the verdict: the hot-hero-death chain lockout
+
+`fight.ts`'s per-hero loop skips dead heroes, so when the hot hero dies mid-chain `hotHeroId` is
+never cleared — the chain freezes and the chain trigger (which requires `hotHeroId === null`) is
+**locked out for the rest of that fight**. No other hero can fire, however full its charge bar.
+
+Measured, at run level: **3.7% of burster chains and 5.0% of grinder chains**, and when it happens
+the chain system is dead for a mean **15.7s (burster) / 8.4s (grinder)** of a ~20s fight. Asymmetric
+in the predicted direction — a longer fuse is exposed for more beats — but far too small to be what
+Tu felt.
+
+Deliberately **not fixed** this session: the numbers above describe the game as played. Fixing it
+(clear `hotHeroId`, emit a `chainEnd` with a new reason) is its own decision, and it would move
+these numbers.
+
+## What was built
+
+- **`src/batch/chainOutcomes.ts`** — per-chain decomposition off the event stream: EV realization,
+  overkill spill, dud rate, end-reason histogram with the derived `lockout` bucket, chain wall-clock,
+  and backfire death cost. Incremental (never retains `RunResult`s), keys rows on the profile id the
+  chain actually fired under, and changes no sim behaviour.
+- **`src/batch/shapeVerdict.ts`** — `npm run measure:shape-verdict`, four blocks plus a
+  three-guard self-verification preamble. A REPORT, not a check.
+- **`src/batch/arm.ts`** — gained a third aggregator on every arm (the decomposition above).
+  `printArm` never prints it, so `affinity.ts`'s and `chainLeverage.ts`'s output is unchanged.
+- Seed block **500_000–599_999** reserved; noted in `chainLeverage.ts`'s header too.
+
+**Measurement error caught mid-session, worth not repeating:** the first pass divided realized chain
+damage by `CHAIN_EV_TARGET_DAMAGE` (76). That is the expected **net** value — gross minus a symmetric
+backfire's harm — so it understated realization, and by a *different* factor per hero (Rook's
+backfire chance is 18% against Bracer's 7.75%). The aggregator now accumulates each chain's own
+analytic E[gross] from the profile it fired under and the firing hero's stats, so pooling across
+heroes and shapes stays exact. `76` is the right yardstick only for a whole-population net figure,
+never for realized damage on non-backfire chains.
+
+**A `--quick` run said the opposite.** At n=75 the same comparison read −10.7pt *for grinder* with
+z=1.57. The full n=1500 run put it at +1.8pt for burster. `--quick` is a harness smoke test and
+nothing else; the report now prints a distinct INCONCLUSIVE branch when a margin clears the point bar
+but the paired test doesn't, so an underpowered run can't be misread as a null result.
+
+## Open, for the next session
+
+- Chain shape's price still does not exist, and this pass closes one more route: it is not a win-rate
+  edge waiting to be surfaced. STATE's Next-up #1 stands — a **conditional** price, not a rebalance.
+- The equalization is calibrated against a payout that materializes ~50% of the time. Worth deciding
+  whether `CHAIN_EV_TARGET_DAMAGE` should be re-anchored to *realized* value rather than analytic,
+  which would change what "equal EV" even means.
+- Whether to fix the lockout.

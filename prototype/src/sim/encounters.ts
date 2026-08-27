@@ -136,7 +136,7 @@ export const ENCOUNTERS: EncounterDef[] = [
   // file's top docstring and each entry's blurb for the question itself.
   {
     name: "Anvil",
-    blurb: "One huge body, barely hits back. Can you kill it before enrage catches up?",
+    blurb: "One huge body, barely hits back. A grind with no telegraph to fear — how long will you take?",
     tier: "early",
     // No bruiser at all (a grunt, not a bruiser) is deliberate: this
     // encounter's whole point is "no wind-up, no telegraph, zero jeopardy" —

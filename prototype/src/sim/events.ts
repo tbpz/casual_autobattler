@@ -103,20 +103,6 @@ export type FightEvent =
   /** The charge resolves — targetId is who it actually landed on (may differ
    * from windupStart's target if that hero died first; see fight.ts). */
   | { type: "windupHit"; t: number; targetId: string; damage: number }
-  /** The enemy CLOCK telegraphs its next step, landing at fireT
-   * (2026-08-26 visibility pass — mirrors windupStart's telegraph/land
-   * split). tier is 1-indexed, matching config.ts's enrageTierSecs/
-   * enrageTierMultipliers index+1. */
-  | { type: "enrageTierTelegraph"; t: number; tier: number; fireT: number }
-  /** The CLOCK's tier lands — enemy damage steps up by multiplier (added to
-   * 1x, see fight.ts's enrageMultiplierAt). Replaces the old single
-   * enrageStart event; fires once per tier, in order. */
-  | { type: "enrageTier"; t: number; tier: number; multiplier: number }
-  /** WOUNDED lands — fires once, the first tick the enemy side's HP lost
-   * crosses config.ts's woundedHpFraction. A discrete spike, deliberately
-   * never an enrageTier (see that field's own docstring): this is the
-   * burster's tell, and it must read as a different thing from the CLOCK. */
-  | { type: "wounded"; t: number; multiplier: number }
   | { type: "resolve"; t: number; outcome: "win" | "loss"; reason: "wipe" | "failsafe" };
 
 /** A per-hero HP reading at one instant, for body rendering. */
@@ -175,22 +161,6 @@ export interface TickSnapshot {
    * is null. Snapshot-driven, not renderer-accumulated, so a persistent
    * chain HUD stays correct under pause/step/scrub. */
   chainDamageSoFar: number;
-  /** Current enemy damage multiplier from the enrage CLOCK/WOUNDED threats
-   * (2026-08-07 rebuild, split 2026-08-26) — 1 before the first tier, stepping
-   * up per tier and once more if WOUNDED has fired. Render-facing so a live
-   * indicator can show it without the renderer knowing config.ts's formula. */
-  enrageMultiplier: number;
-  /** Number of CLOCK tiers landed so far (0..config.ts's enrageTierSecs
-   * .length) — drives the enrage HUD's filled pips (2026-08-26 visibility
-   * pass), same snapshot-driven convention as chainShape above so the HUD
-   * stays correct under pause/step/scrub. */
-  enrageTier: number;
-  /** Seconds until the next CLOCK tier lands, or null once the last tier has
-   * landed — drives the enrage HUD's closing bar. */
-  secsToNextTier: number | null;
-  /** True once WOUNDED has fired this fight — drives the enrage HUD's
-   * distinct wounded state. */
-  wounded: boolean;
   /** The enemy bruiser's current wind-up target, if it's mid-telegraph —
    * render-facing so the targeted hero can be highlighted for the charge's
    * duration. Null when the bruiser isn't charging (or is dead). */

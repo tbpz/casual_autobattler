@@ -146,57 +146,18 @@ export interface FightConfig {
    * the bruiser stops its normal attacks, telegraphs against a
    * weighted-random target for windupTelegraphSec (same targeting rule as a
    * normal enemy attack — a holding tank draws it tankTargetWeight-to-1),
-   * then lands windupDamageMultiplier x its own base damage (scaled by the
-   * enrage multiplier below) on whoever it locked onto. A telegraph is a
-   * dread beat with no player input required — you watch to see if the
-   * named hero survives it.
+   * then lands windupDamageMultiplier x its own base damage on whoever it
+   * locked onto. A telegraph is a dread beat with no player input required —
+   * you watch to see if the named hero survives it.
+   *
+   * 2026-08-27 (CLOCK/WOUNDED removal — see DECISIONS.md): this is now the
+   * ONLY in-fight escalating threat. Nothing scales enemy damage over the
+   * course of a fight any more; a wind-up hits for the same amount at t=5s
+   * and t=45s.
    */
   windupIntervalSec: number;
   windupTelegraphSec: number;
   windupDamageMultiplier: number;
-
-  /**
-   * The enrage CLOCK (2026-08-26 visibility pass, splitting the old single
-   * continuous ramp — see DECISIONS.md — into two named, discrete threats so
-   * each chain shape faces a legible opposing pressure). This is the
-   * grinder's tax: the mechanism that makes SLOWNESS cost something. Enemy
-   * damage (normal attacks AND wind-ups) holds at 1x until enrageTierSecs[0]
-   * into the fight, then steps up to 1+enrageTierMultipliers[i] at each
-   * enrageTierSecs[i], uncapped past the last tier (holds the last step's
-   * multiplier). Each step is preceded by an enrageTierTelegraph event
-   * enrageTierTelegraphSec before it lands — same shape as the bruiser
-   * wind-up (windupTelegraphSec above), the one enemy threat that already
-   * reads, deliberately reused here rather than inventing a new tell.
-   * Within-fight only; resets every fight — NOT a cross-fight damage scale
-   * (run.ts's comment on scaledArchetype records that scaling enemy damage
-   * across the run's 5 fights at 1.08 collapsed win rate from ~100% to ~13%
-   * by fight 3; this is a different axis, deliberately reset to 1x at the
-   * start of every fight). Superseded fields enrageStartSec/enrageRampPerSec
-   * (continuous ramp, no discrete step to feel) — see fight.ts's
-   * enrageMultiplierAt.
-   */
-  enrageTierSecs: number[];
-  enrageTierMultipliers: number[];
-  enrageTierTelegraphSec: number;
-  /**
-   * WOUNDED (2026-08-26 visibility pass) — the burster's tax, replacing the
-   * old continuous enrageFromEnemyHpLostFactor term with one discrete spike.
-   * The first tick the enemy side's HP fraction remaining drops to/below
-   * 1 - woundedHpFraction (i.e. woundedHpFraction of its starting HP has been
-   * destroyed), enemy damage gets a one-time, permanent +woundedMultiplier
-   * kicker, fired as its own `wounded` event (never conflated with an
-   * enrageTier step — see events.ts). This is what keeps a burst comp from
-   * dodging every time-metered threat at once (2026-08-08 root-cause pass:
-   * before this term existed, a comp that killed fast enough, e.g.
-   * bracer+vex+cairn's 14s fights, reduced its own exposure to every
-   * time-metered threat simultaneously and never reached the danger the
-   * clock was meant to create) — a burst comp still gets a real, felt
-   * consequence, just from HP destroyed rather than seconds elapsed, so
-   * speed alone no longer removes exposure entirely; it trades the CLOCK's
-   * tax for the WOUNDED spike instead of escaping both.
-   */
-  woundedHpFraction: number;
-  woundedMultiplier: number;
 
   /** Chain PRD by bonus-hits-so-far: index 0 = chance the *first* bonus hit
    * after ignition lands, last entry repeats (capped) beyond that. */
@@ -445,8 +406,10 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
 
   // Wind-up (2026-08-07 rebuild, retuned twice after batch passes — see
   // DECISIONS.md's "fight causality rebuild" entry): the initial strawman
-  // (interval 5s, x3.5) combined with the enrage ramp and the larger enemy
-  // pool to produce ~0% run completion across every squad. Backed off
+  // (interval 5s, x3.5) combined with the then-live enrage ramp and the
+  // larger enemy pool to produce ~0% run completion across every squad.
+  // (That ramp is gone as of 2026-08-27 — these numbers have not been
+  // re-tuned for its absence, deliberately; see DECISIONS.md.) Backed off
   // further on a second pass once the enemy pool itself came back down —
   // 9s cadence, 2.0x base damage still leaves a 45hp Vex on ~27hp
   // (survivable once, dangerous twice) while landing well inside Bracer's
@@ -454,24 +417,6 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   windupIntervalSec: 5,
   windupTelegraphSec: 1.5,
   windupDamageMultiplier: 2.0,
-
-  // Enrage CLOCK (2026-08-26 visibility pass — see FightConfig docstring;
-  // strawmen for the batch harness to move, same as everywhere else in this
-  // file). Three steps replacing the old continuous 20s-start/2.5%-per-sec
-  // ramp, chosen so the OLD ramp's multiplier at each tier's start time is
-  // roughly where each step lands (t=20 -> old ~1.0, t=32 -> old ~1.3,
-  // t=44 -> old ~1.6): a grinder-length fight (~35-45s) now crosses two
-  // felt steps instead of drifting through an unfelt gradient.
-  enrageTierSecs: [20, 32, 44],
-  enrageTierMultipliers: [0.35, 0.8, 1.4],
-  enrageTierTelegraphSec: 1.5,
-  // WOUNDED (2026-08-26 visibility pass, replaces enrageFromEnemyHpLostFactor
-  // — see FightConfig docstring). Fires once at 50% of the enemy side's
-  // starting HP destroyed; +0.25 matches the old term's value at its 50%-HP
-  // reading exactly, so this pass's balance delta starts at zero and moves
-  // only from Step 4's retune.
-  woundedHpFraction: 0.5,
-  woundedMultiplier: 0.25,
 
   chainChanceByHitsSoFar: [0.7, 0.75, 0.8, 0.85, 0.9],
   // Multiplicative off the hot hero's own damage (2026-08-07 rebuild,
