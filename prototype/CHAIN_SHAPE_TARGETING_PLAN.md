@@ -108,15 +108,11 @@ instead:
 | Hero | Rule | The one-clause model | Right when | Wrong when |
 |---|---|---|---|---|
 | **Bracer** | **Spread** — each hit moves to a new target | *Clears crowds* | Several small bodies | One big body |
-| **Hollow** | **Focus** — every hit on the same target, overkill carries over | *Deletes one thing* | One fat health bar | open — see Q6 |
+| **Hollow** | **Focus** — every hit on the same target, chosen at ignition; overkill thrown away | *Deletes one thing* | One fat health bar | several small bodies |
 | **Rook** | **Siege** — always hits the highest-HP enemy | *Ignores chaff, goes for the wall* | A big body behind small ones | Everything is the same size |
-| **Vex** | open — see §6 | — | — | — |
+| **Vex** | **Execute** — every hit on the lowest-HP enemy alive at ignition; overkill thrown away | *Removes the cheapest body* | Small bodies in front of a big one | Everything is big |
 | **Cairn** | **Triage** — always heals the most hurt ally | *Saves whoever's closest to dying* | Chip damage on one hero | — |
 | **Ward** | **Triage** — same rule, and it swings on the same beat | *Saves whoever's closest to dying* | Chip damage on one hero | — |
-
-Focus's "wrong when" cell used to read *"a crowd of grunts."* That doesn't hold: with overkill carrying
-over, focus chews through five 48 HP bodies at near-zero waste, and against one big body the carryover
-clause never fires at all. Focus as written has no bad matchup. See Q6.
 
 **The two healer rows describe today's code, not a proposal.** Every other row is a change this pass would
 make; Cairn's and Ward's is what already ships. A healer chain heals the lowest-HP living ally, re-picked
@@ -129,10 +125,8 @@ versus dump it into one hero — is Q3's job and is deliberately not done here. 
 what makes §4's gate attributable: if per-encounter results move, the attacker rules are the only thing
 that could have moved them.
 
-Their **"wrong when" blank is a different kind of blank from Hollow's.** Hollow's cell says *open — see Q6*
-because the question was asked and focus has no answer yet — that is a live design bug. The healers' `—`
-means the question wasn't asked this pass. It has an answer (see Q3), it just isn't load-bearing while
-their rule is frozen.
+The healers' `—` in that column means the question wasn't asked this pass. It has an answer (see Q3),
+it just isn't load-bearing while their rule is frozen.
 
 ### The three parts that ship together
 
@@ -148,11 +142,14 @@ a tooltip. Overkill is already thrown away today and has never once been shown; 
 why shape's whole "many bodies vs. one body" theory never reached anyone. A spread chain should also
 visibly walk across different health bars, so the rule is legible from the motion alone.
 
-A spread chain also has to show its target pool emptying, because Q1 rules that hits with no fresh body
-are simply lost. Two parts, both needed: **every enemy already struck by the current chain gets visibly
-marked**, so the player watches the valid-target pool shrink hit by hit; and when it empties, **the hit
-still fires, still shows its escalated number, and reads as landing on nothing.** The first teaches the
-rule before the sting arrives; the second confirms it.
+Spread and focus both need this, and it's one piece of work, not two — they just fill the same marker
+differently. A spread chain has to show its target pool emptying, because Q1 rules that hits with no
+fresh body are simply lost: **every enemy already struck by the current chain gets visibly marked**, so
+the player watches the valid-target pool shrink hit by hit. A focus chain has to show its one held
+target the same way, marked from the first hit — so when that target dies, the player is watching the
+exact body the rest of the chain is about to waste itself on. Either way, when the chain has nothing
+left to hit, **the hit still fires, still shows its escalated number, and reads as landing on nothing**
+(Q6). The marking teaches the rule before the sting arrives; the whiff confirms it.
 
 Both parts exist for the same reason — a big number resolving to no damage, with nothing on screen
 explaining it, reads as a bug. That misread is worse than the mechanic being invisible: a player who
@@ -178,7 +175,10 @@ cascade is what this prototype exists to deliver. It gets said as an effect of t
 language, never as a stat:
 
 - **Bracer — Spread.** Clears crowds. Many small hits, and it rarely ends early.
-- **Hollow — Focus.** Deletes one thing. Three hits, and the last one is enormous.
+- **Hollow — Focus.** Picks one enemy and stays on it. Three hits, the last one enormous — and wasted
+  if that enemy is already down.
+- **Vex — Execute.** Picks the weakest enemy and finishes it. Fast, and most of it is wasted if
+  nothing is weak.
 - **Rook — Siege.** Goes for the biggest body. Slow to start, brutal if it runs.
 - **Cairn — Triage.** Heals whoever's worst off. A long, steady fuse and the safest coin flip in the pool.
 - **Ward — Triage.** Same rule, and it swings while it heals — at a real backfire risk to match.
@@ -199,10 +199,10 @@ can't reason about it before the fight, which is where the decision actually hap
 teaching to *see* it — only to know it matters. That's the Dota property: the condition is visible and
 the arithmetic is doable.
 
-**It's genuinely conditional — for spread.** Spread into one 420 HP body throws most of its chain away
-(Q1). The other half of that sentence used to read "focus into five 48 HP grunts throws most of its
-damage away," and it isn't true: carryover makes focus efficient there too. Making focus conditional as
-well is Q6, and the axis doesn't work without it.
+**It's genuinely conditional — for both rules now.** Spread into one 420 HP body throws most of its
+chain away (Q1), and focus into five 48 HP grunts throws most of its chain away too (Q6) — the held
+target dies on an early hit and the rest lands on a corpse. Both halves of the axis now carry a real
+cost, which is what makes it an axis rather than a flavour difference.
 
 **It keeps everything that already works.** Length is still rolled live, hit by hit. Escalation still
 explodes past the knee. You still don't know how big a chain will get — you now just know what it will
@@ -226,8 +226,14 @@ The eleven encounters, and what each should reward:
 | **Duelist** | one body, wind-up fires twice as often | **Focus** — every second is another spike |
 | **Warden** | heals itself 6 per beat | **Focus** — the textbook burst check |
 | **Glass Pair** | two 90 HP bodies hitting for 14 | **Focus** — 90 HP dies to one steep hit |
-| **Champion** (finale) | 230 HP body + two 62 HP guards | **Mixed** — clear guards, then siege |
-| **Executioner** | hunts your lowest-HP hero, ignores your tank | **Mixed** — heal question more than a chain question |
+| **Champion** (finale) | 230 HP body + two 62 HP guards | **Mixed** — execute clears the guards, siege takes the body |
+| **Executioner** | hunts your lowest-HP hero, ignores your tank | **Mixed** — execute clears the two Guards; heal question more than a chain question |
+
+**Needs rechecking after Q6: Twins and Glass Pair.** Both are labelled *Focus* above on reasoning written
+before Q6 — kill one 150/90 HP body, keep the fight from getting worse. With carryover gone, focus into
+either pair now wastes whatever the killing hit overshot, the same as it does into Pack. Whether that
+still beats spread in these two rows is a measurement question, not re-derived here — but if it doesn't,
+the 6:3 lean below softens, which is a live input to Q5.
 
 **Immediate finding: the pool leans 6:3 toward focus.** If targeting becomes the axis, a spread pick is
 under-served across a run — which either needs the pool rebalanced or spread compensated. Recorded here
@@ -251,6 +257,12 @@ So length stops being an independent axis and becomes a consequence of the rule.
 **the existing fuses already line up**: Bracer is long and flat (spread), Hollow is short and steep
 (focus), Rook is long and back-loaded (siege). Assign rules to fit the curves you already have and no
 retuning is needed for the first pass.
+
+**Vex is the one exception.** Its drafted curve was sized as a fourth attacker's share of the pool's
+damage budget, not for a rule that locks onto the weakest living enemy — a target that's rarely bigger
+than 40-90 HP. Q4 measures the result: Hollow's curve into a 48 HP grunt realises about 48 of 393
+damage, and Vex's own drafted curve does no better by shape alone. Left as-is deliberately (Q4); flagged
+here so this section's "no retuning needed" isn't read as covering all four attackers.
 
 **Risk if length stays a free choice:** the mismatched combinations — short spread, long focus — are
 strictly worse than their siblings with no compensating upside. That is the dominated-pick problem the
@@ -339,17 +351,24 @@ random deletion of the exact thing being measured.
 
 ## 5. Risks
 
-**Backfire risk lives in one clause, and it is worse than "shrinks the roster."** Q2 mirrors the rule
-onto your own side, and checking that against the code moved this risk rather than enlarging it.
-Fielding sorts tank → damage → support (`sim/heroes.ts:331`), so a mirrored siege aims at your
-highest-HP hero and a mirrored focus seeds on your front-most — both your tank — while spread lands one
-hit per hero across a three-body field and then whiffs. Two of the three rules mirror *toward*
-survivability. All of the danger is focus's **carryover**: a full-length Hollow chain is 393 damage
-(22+131+240, §1) against a fielded squad worth 390 HP at full (Bracer 195 + Rook 85 + Cairn 110), and a
-wiped player side ends the fight as a loss (`sim/fight.ts:523`). Mid-fight, already chipped, it needs
-far less. So the standing bet — "one backfire should not durably shrink the live roster," written after
-one betrayal benched Rook for eight straight fights — is collided with by exactly one clause, and the
-failure mode is worse than the bet's wording: a wipe, not a benching. Q6 is the lever. See §6.
+**Backfire risk mirrors toward survivability, and Q6 closed the one clause that didn't.** Q2 mirrors the
+rule onto your own side. Fielding sorts tank → damage → support (`sim/heroes.ts:331`), so a mirrored
+siege aims at your highest-HP hero and a mirrored focus commits to your front-most — both your tank —
+while spread lands one hit per hero across a three-body field and then whiffs. All three rules mirror
+*toward* survivability now. The one clause that didn't was focus's carryover — a full-length Hollow
+chain was 393 damage (22+131+240, §1) against a fielded squad worth 390 HP at full (Bracer 195 + Rook 85
++ Cairn 110), and a wiped player side ends the fight as a loss (`sim/fight.ts:523`). With carryover gone
+(Q6), a focus backfire commits to the tank and throws the rest away: one death at most, by construction,
+never a wipe. That was the standing bet's exact failure mode — "one backfire should not durably shrink
+the live roster," written after one betrayal benched Rook for eight straight fights — and it no longer
+happens.
+
+**Execute's backfire risk is closed the same way (Q4, 2026-08-29).** Execute was the exception to the
+paragraph above while it could re-target after a kill — mirrored onto your own side, it would chase your
+weakest hero from body to body, and a common two-hit backfire (105) was enough to kill Rook outright
+where every other rule left the squad standing. Locking execute's target at ignition, the same way focus
+was locked, closes it: a mirrored execute can only ever kill the one hero it locked onto. One death at
+most, same guarantee as focus. No hedge added.
 
 **The pool leans focus, 6:3.** Six encounters want one thing dead fast, three want a crowd cleared. Left
 alone, spread is the weaker pick over a run even with per-fight equalisation, because the *fights* aren't
@@ -360,16 +379,10 @@ kill order and therefore incoming damage. "Highest HP" and "new target each hit"
 die first across every fight in the pool. That's a bigger perturbation than the damage numbers suggest —
 don't assume it's local.
 
-**The whiff reads as a bug.** Q1 puts a fully escalated number on screen that resolves to no damage.
-Without both halves of the readout in §2, the honest player reaction is "that's broken," not "spread was
-the wrong pick." Cheaper to get wrong than shape's invisibility was, and worse — a player who thinks the
-game is buggy stops reasoning about it entirely.
-
-**Focus has no bad matchup as written.** Carryover makes it efficient against crowds and irrelevant
-against a single body, so it is close to a strict upgrade on today's front-most rule everywhere. A rule
-with no bad matchup cannot produce per-encounter spread — it lifts every encounter equally, which is
-exactly what §4's gate is built to detect. Since Q2 mirrors the rule onto your own side, carryover is
-also the one clause that can lose a run outright — see the backfire bullet above. Q6 answers both.
+**The whiff reads as a bug.** Both Q1 and Q6 put a fully escalated number on screen that resolves to no
+damage — spread out of bodies, focus into a corpse. Without both halves of the readout in §2, the honest
+player reaction is "that's broken," not "wrong pick." Cheaper to get wrong than shape's invisibility
+was, and worse — a player who thinks the game is buggy stops reasoning about it entirely.
 
 **Shipping the rule alone.** The readout and the name (§2) are not polish to be added later — without
 them this becomes shape again: correct in the simulation, absent from the game. If the scope has to be
@@ -379,9 +392,10 @@ cut, cut a *rule* and keep all three parts for the rules that remain.
 
 ## 6. Open design questions
 
-To be resolved across sessions. Q1 and Q2 are settled; everything else is open. Each question carries
-candidate answers, then a **My read** line — that line is opinion, not a decision, and should be argued
-with. Fill in **Decision** when you settle one, and add a line to §7.
+To be resolved across sessions. All eight now carry a **Decision**; Q5, Q7 and Q8 are deferred
+pending the batch rig rather than answered. Each question carries candidate answers, then a
+**My read** line — that line is opinion, not a decision, and should be argued with. Fill in
+**Decision** when you settle one, and add a line to §7.
 
 ---
 
@@ -478,6 +492,10 @@ exceptions of the kind the first paragraph just declined. The run-health risk mi
 a full-length focus backfire out-damages the entire fielded squad (§5) — but it lives entirely inside
 focus's carryover clause, which is Q6's to write. That is the hedge: not an exception bolted onto Q2,
 but a rule Q6 may word differently.
+
+**Confirmed (2026-08-28): the hedge was never spent.** Q6 removed carryover — a focus backfire now
+commits to one target and throws the rest away, one death at most. The bare ship holds with no
+amendment; the no-killing-blow variant stays unneeded.
 
 ---
 
@@ -586,6 +604,11 @@ which of Hollow and Vex is redundant:
   execute one. Anvil / Wall / Duelist: identical. Vex is a worse Hollow.
 - **Q6 picks "commits and wastes"** → execute strictly upgrades focus, and Hollow is the dead pick.
 
+**Landed (2026-08-28): the second branch.** Q6 settled on commits-and-wastes, so execute — same greedy
+kill order, surplus discarded rather than carried — strictly upgrades focus. This isn't Vex's blocker
+anymore; it's Hollow's. The open question is no longer *what is Vex's rule*, it's *what keeps Hollow
+distinct from execute if Vex gets it*.
+
 The one gap neither branch closes is **short chains into mixed fields**: 35 + 70 = 105 kills a 62 HP
 Honor Guard, while the same 105 of focus goes into a 230 HP Champion and kills nothing. Vex whiffs 35%
 and holds the pool's largest opening hit (35, against Hollow's 22, Bracer's 6, Rook's 5). *Converts a
@@ -610,11 +633,11 @@ shrink the live roster"*, written after one betrayal benched Rook for eight figh
 `windupTargeting: "lowestHp"`, which Executioner and Vanguard use — the mechanic the pool uses to
 signal cruelty.
 
-**Revised read (2026-08-28):** take the bet — Vex gets a rule, and execute is the right one. But do not
-write the decision until Q6 lands, because Q6 decides whether execute is a strict downgrade on focus or
-a strict upgrade on it. When it is written, state Vex's condition as *small bodies in front of a big
-one*, not *crowds* — the mixed lane, not spread's. And put the two-hit backfire on §4's measurement
-list as the likeliest reason Q2's no-killing-blow hedge has to reopen.
+**Revised read (2026-08-28):** take the bet — Vex gets a rule, and execute is the right one. State Vex's
+condition as *small bodies in front of a big one*, not *crowds* — the mixed lane, not spread's. And put
+the two-hit backfire on §4's measurement list as the likeliest reason Q2's no-killing-blow hedge has to
+reopen — that risk is execute's own (a short, frequent backfire killing Rook outright) and Q6 landing on
+commits-and-wastes doesn't touch it, since it never involved carryover in the first place.
 
 **Punish stays live rather than discarded.** Eight of the eleven encounters telegraph
 (`windupTelegraphSec` 1.5s, `windupDamageMultiplier` 2.0), killing the charger cancels the spike, and
@@ -623,7 +646,40 @@ the value is measurable as damage *prevented* rather than dealt. Its bad matchup
 needs. It is the answer if the fantasy wanted is the literal one; execute is the answer if the bet is
 about tempo.
 
-**Decision:** _unanswered — gated on Q6._
+**Decision (2026-08-29): Vex gets execute, and execute locks its target at ignition exactly as focus
+does.**
+
+The rule: at ignition, pick the lowest-HP living enemy and hold it for the whole chain. Overkill is
+thrown away, remaining hits fire into the corpse and whiff, the first whiff drops the hero's speed-up —
+identical shape to Q6's focus. The only difference between the two rules is which body gets locked.
+
+This closes both blockers above, and both close for the same reason: execute's only remaining advantage
+over focus was that it could move to a new target after a kill while focus couldn't. Take that ability
+away and:
+
+- **Blocker 1 closes.** "Execute strictly upgrades focus" rested entirely on the retarget. Locked, the
+  roster's three attackers run the same move — commit the whole chain to one body and remove it — with
+  three different answers to *which* body: front-most (Hollow), highest HP (Rook), lowest HP (Vex). A
+  choice, not a ladder.
+- **Blocker 2 closes.** A mirrored execute can now only kill the one hero it locked onto at ignition —
+  one death at most, by construction, the same guarantee Q6 already gave focus. Q2's declined
+  no-killing-blow hedge stays unneeded, and the two-hit-backfire risk comes off §4's watch list (§5).
+
+**An alternative was raised and set aside: hit the back-most enemy instead of the lowest-HP one.**
+Rejected on the roster order — every encounter puts bruisers first and grunts last on purpose
+(`sim/encounters.ts:254-256`), specifically so front-targeting reliably hits a bruiser. A back-most rule
+would walk past exactly the fights built around "there's a dangerous body, kill it fast" — Executioner
+and Vanguard — and spend the whole chain on Guards and Outriders instead. It also collapses onto
+lowest-HP in practice anyway, since the grunts are the smallest bodies in every mixed encounter.
+
+**Left open on purpose: Vex's curve.** Locking onto the weakest body caps how much of a chain can ever
+land — Hollow's curve into a 48 HP grunt realises about 48 of its 393 total, and Vex's own drafted curve
+does no better by shape alone (§3). The call this session is to accept that waste as the price of a
+guaranteed early kill and leave the curve as-is rather than resize it now. Revisit if §4's measurement,
+or play, says it reads as broken rather than as a cost.
+
+Nothing in this decision goes to `DECISIONS.md`. The gate (Q1 and Q2, met since Q6) stays open and
+unexercised — Tu's call this session, same treatment as Q5 and Q7.
 
 ---
 
@@ -637,7 +693,14 @@ equalisation, because the *fights themselves* aren't evenly distributed.
 of the imbalance, and guessing at it beforehand risks over-correcting a problem that per-fight spread
 may already largely handle. Worth flagging now so it isn't discovered late.
 
-**Decision:** _unanswered_
+**Decision (2026-08-28): defer — measure first, decide after.**
+
+No rebalancing and no compensation gets written now. Run the batch rig once targeting ships, and answer
+this from what it reports rather than a guess made ahead of it — guessing risks over-correcting a gap
+per-fight equalisation may already mostly close. This is also why the question can't be settled from
+today's numbers anyway: §2 already flagged that Twins and Glass Pair were labelled *Focus* on reasoning
+Q6 has since undercut, so the 6:3 lean itself is provisional until that recheck happens. Same
+measurement pass answers both — and Q8, which is deferred to the same run.
 
 ---
 
@@ -662,19 +725,44 @@ it was carrying the whole axis on its own.
 no bad matchup can't produce it — it lifts every encounter equally, which measures as flat. That is the
 same failure chain shape already had, arriving from the other side.
 
-**Promoted by Q2 (2026-08-28): Q6 is load-bearing twice.** It was opened as a per-encounter-spread
-problem. Mirroring the rule onto your own side makes it a run-health problem as well — carryover is the
-one clause that lets a backfire out-damage the whole fielded squad, 393 against 390 (§5), and "focus
-commits and wastes" caps a focus backfire at one death by construction, with no exception needed
-anywhere. Q2 shipped without a hedge on the strength of that. If Q6 keeps carryover, Q2's
-no-killing-blow variant becomes the fallback and has to be reconsidered there.
+**Settled by Q2 (2026-08-28): Q6 was load-bearing twice, and both are resolved.** It was opened as a
+per-encounter-spread problem — commit-and-wastes now gives focus that. Mirroring the rule onto your own
+side (Q2) made it a run-health problem too: carryover was the one clause that could let a backfire
+out-damage the whole fielded squad, 393 against 390 (§5). With carryover gone, a focus backfire commits
+to one target and throws the rest away — one death at most, by construction. Q2's no-killing-blow hedge,
+shipped as a fallback in case this landed the other way, is confirmed unneeded.
 
-**Also gates Q4 (2026-08-28).** Execute — the candidate Vex's rule — is focus-with-carryover minus the
-carry: same greedy kill order, surplus discarded at each kill. So whichever way this question lands,
-one of Hollow and Vex is dominated by the other. Keep carryover and Vex is a worse Hollow; take
-"commits and wastes" and Hollow is the dead pick. Q4 cannot be written before this one.
+**Also settles Q4's blocker (2026-08-28).** Execute — the candidate for Vex's rule — is
+focus-with-carryover minus the carry: same greedy kill order, surplus discarded at each kill. Landing on
+"commits and wastes" means execute strictly upgrades focus, which makes Hollow the dead pick, not Vex.
+Q4's question is no longer *what is Vex's rule* — it's *what keeps Hollow distinct from execute*.
+**Resolved 2026-08-29:** execute gave up its retarget and locks a target at ignition too, same as focus
+— see Q4.
 
-**Decision:** _unanswered_
+**Decision (2026-08-28): focus commits and wastes, mirroring Q1.**
+
+The chain picks one target at ignition and holds it for the whole chain. Overkill is thrown away, not
+carried to the next enemy. Once the held target is dead, the chain keeps rolling — each remaining hit
+still fires, still shows its full escalated number, and lands on nothing — and the first such hit ends
+the hero's speed-up, exactly Q1's rider. This is Q1's answer applied to the other rule: "spread strands
+hits in an empty field, focus strands hits in a dead body" (§5's own framing, line 657). Focus now has a
+real bad matchup — several small bodies, where the held target dies early and the rest of the chain is
+wasted — which is what §4's gate needs to find anything at all.
+
+A candidate was considered and set aside: **the chain stops the instant the held target dies**, rather
+than rolling on into the corpse. It was rejected on two counts. First, it hides the payoff instead of
+paying a cost — a target that dies to hit one denies the player hits two and three entirely, so the
+faster focus succeeds, the less of "the last hit is enormous" the player ever sees; commit-and-waste
+still fires that hit and shows the number, just tagged as wasted. Second, the underlying cost is
+identical either way — a hit into a dead target is worth zero whether the chain rolls into it or stops
+before it — so stopping early buys nothing except a different, softer way to pay the same price, which
+is exactly the "cleanest to read... never has a bad moment" shape Q1 already rejected for spread. Paying
+the two rules' shared weakness in two different ways would also have cost the one-clause consistency
+the whole targeting plan is buying.
+
+**Rider.** This requires the same hot-flag split Q1 needs (§3): the "still accelerating" flag has to be
+distinct from "a chain is running," cleared on the first whiff. Skip that and this decision silently
+becomes "chain stops on the kill" — the variant just rejected.
 
 ---
 
@@ -691,7 +779,12 @@ cost the hero anything at all — is untouched, and it is bigger than targeting.
 **My read:** not this pass. It reaches past targeting into the charge mechanic, and changing it would
 contaminate the §4 measurement. Worth a look once targeting has cleared or failed the gate.
 
-**Decision:** _unanswered_
+**Decision (2026-08-28): defer.**
+
+Nothing about the hot flag's cadence bonus changes this pass. Q1 already takes one bite out of it — the
+first whiff ends the speed-up — but whether firing a chain should cost the hero anything beyond that
+reaches past targeting into the charge mechanic itself, and answering it now would contaminate §4's
+reading of targeting specifically. Revisit once targeting has cleared or failed the gate, same as Q5.
 
 ---
 
@@ -701,6 +794,11 @@ Opened while working Q4. Bracer's ten hits are 6, 11, 17, 23, 28, 34, 40, 45, 53
 body into Pack — five grunts at 48 HP — delivers 6+11+17+23+28 = 85 and kills nothing; Q1 then loses
 the remaining five hits, 232 damage. So spread converts 85 of 317 in the encounter §2's pool table
 labels *Wants: Spread*. Ambush (4×40 HP) is the same shape with one body fewer.
+
+**Less alarming after Q6.** Hollow's committed chain into the same encounter is 22+131+240 = 393, but a
+single 48 HP grunt can only absorb 48 of it before the rest lands on a corpse — one grunt dead, roughly
+48 realised. Spread's 85 is still weak against its own labelled matchup, but it's still ahead of focus's
+48 here. Both rules do badly on Pack; spread just does badly less.
 
 The cause is ordering, not the rule. Spread's hits are smallest exactly when its target pool is
 largest: the early hits land where they cannot kill, and the hits big enough to kill a grunt arrive
@@ -718,7 +816,20 @@ measures weak for a reason that has nothing to do with targeting, and the 15-poi
 a dominance ladder rather than a tuning bug. Worth confirming in the batch rig ahead of the gate; not
 worth designing around yet.
 
-**Decision:** _unanswered_
+**Decision (2026-08-29): defer — measure before choosing, same as Q5 and Q7.**
+
+None of the four candidates gets written now. Q8 is a claim about Bracer's numbers, not about
+targeting, and the four fixes cost different things — front-loading erodes the flat curve §3 leans
+on, a second lap partly reverses Q1, re-scaling the crowd spends difficulty that is already an open
+decision. Guessing which one is needed before knowing the size of the gap risks paying one of those
+prices for nothing.
+
+What the deferral does buy is an ordering rule: **check this in the batch rig before §4's gate is
+read, not after.** If spread converts 85 of 317 into its own labelled matchup, the gate's 15-point
+spread test will report a tuning fault as a verdict on targeting. Confirming it first is what keeps
+the gate honest — the same batch run that answers Q5's Twins/Glass Pair recheck can answer this.
+
+Revisit if the rig confirms the gap. Accept it if the rig says spread clears the gate anyway.
 
 ---
 
@@ -765,3 +876,50 @@ Append one line per session. Newest at the bottom.
   up) kept live as the alternative if the literal "dangerous" fantasy is what's wanted. Q8 opened —
   spread delivers 85 of 317 into Pack and kills nothing, so §4's gate may measure spread weak for a
   reason unrelated to targeting. Nothing in `DECISIONS.md`; the gate is still Q6.
+- **2026-08-28** — Q6 settled: focus commits and wastes, mirroring Q1 exactly — one target held for the
+  whole chain, overkill discarded, remaining hits fire into the corpse and whiff, first whiff drops the
+  hero's speed-up. A candidate where the chain stops the instant the target dies was raised, argued, and
+  rejected: it hides the payoff hit instead of costing anything (the zero-damage cost is identical either
+  way), and it would have paid focus's and spread's shared weakness in two different shapes. Two things
+  this unblocks: §5's backfire risk resizes from a possible wipe (393 into a 390 HP squad) to one death
+  at most, confirming Q2's declined no-killing-blow hedge was never needed; and Q4's blocker resolves
+  onto its harder branch — execute strictly upgrades focus, so Hollow, not Vex, is now the redundant
+  hero, left unanswered for a future session. §2's rules table, identity lines, and readout section
+  updated for the second conditional rule; §5's "no bad matchup" risk removed. Q8 rechecked against the
+  new rule — focus realises about 48 of its 393-damage chain into Pack's Wants:Spread encounter, still
+  behind spread's 85, so both rules do badly there and Q8 stands as written. `DECISIONS.md` gate (Q1 and
+  Q2) was already met; still deliberately **not** exercised — Tu's call this session, held until Q4 also
+  settles which hero holds which rule.
+- **2026-08-28** — Q5 settled: defer. No rebalancing or compensation written now; answer from the batch
+  rig once targeting ships, not from a guess made ahead of it. Tied to Q6's Twins/Glass Pair recheck
+  (§2) — the 6:3 lean this question responds to is itself provisional until that recheck runs, so one
+  measurement pass settles both. Logged in this document only, per Tu's instruction — nothing added to
+  `DECISIONS.md`.
+- **2026-08-28** — Q7 settled: defer, same as Q5. Being hot's cadence bonus stays untouched this pass —
+  Q1 already ends it on the first whiff, but the bigger question of whether a chain should cost the hero
+  anything beyond that belongs to the charge mechanic, not targeting, and would contaminate §4's
+  measurement if answered now. Revisit once targeting clears or fails the gate. Logged in this document
+  only — nothing added to `DECISIONS.md`.
+- **2026-08-29** — Q4 settled: Vex gets execute, and execute locks its target at ignition exactly as
+  focus does — same shape as Q6's rule, only the choice of body differs. This closes both of Q4's
+  blockers at once, because both traced to the same cause: execute could re-target after a kill and
+  focus couldn't. Locked, the three attacker rules become one move (commit the whole chain to a body,
+  remove it) with three different target choices, so Hollow stops being redundant with Vex; and a
+  mirrored execute can only kill the one hero it locked onto, so the two-hit-backfire risk that could
+  kill Rook outright is gone, same guarantee Q6 already gave focus. §5's backfire risk paragraph and
+  Q6's reciprocal note updated to match. A back-most targeting alternative was raised and rejected —
+  every encounter seeds bruisers first and grunts last on purpose (`sim/encounters.ts:254-256`), so
+  back-most would miss the Executioner and Vanguard fights it was meant to help with and collapse onto
+  lowest-HP everywhere else anyway. Left open on purpose: Vex's curve was never sized for a target
+  capped around 40-90 HP — Hollow's curve realises about 48 of 393 into a 48 HP grunt, and Vex's does no
+  better by shape alone (§3) — accepted as the cost of a guaranteed early kill rather than resized this
+  pass. §2's rules table, identity lines, and pool table filled in for Vex. Nothing added to
+  `DECISIONS.md`; the gate (Q1 and Q2, met since Q6) stays open, same treatment as Q5 and Q7.
+- **2026-08-29** — Q8 settled: defer, same as Q5 and Q7. Bracer's spread converting 85 of 317 into
+  Pack is a claim about one hero's curve, not about targeting, and the four fixes each spend
+  something real — the flat curve §3 derives from the rule, Q1's cost, or difficulty that is already
+  an open decision. What the deferral fixes is the order: check this in the batch rig *before* §4's
+  gate is read, or the gate reports a tuning fault as a verdict on targeting. Folded into the same
+  measurement pass as Q5's Twins/Glass Pair recheck. §6's preamble corrected — it still claimed only
+  Q1 and Q2 were settled. Nothing added to `DECISIONS.md`; the gate (Q1 and Q2, met since Q6) stays
+  open, Tu's call, same as the last four sessions.
