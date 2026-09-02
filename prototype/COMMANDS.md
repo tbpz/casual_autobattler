@@ -24,6 +24,11 @@ npm run measure:shape-verdict -- --block 1|2|3|4|all
                                     # REPORT. See src/batch/shapeVerdict.ts's header.
                                     # (--quick on either measure:* is a harness smoke test only —
                                     # the numbers it prints are not trustworthy.)
+npm run measure:targeting -- --block 1|2|3|4|all
+                                    # does chain TARGETING (where a chain aims) clear the
+                                    # per-encounter/pool-wide gate chain shape failed? REPORT.
+                                    # See src/batch/targetingVerdict.ts's header and
+                                    # CHAIN_SHAPE_TARGETING_PLAN.md §4.
 npm run build                      # tsc + vite production build
 ```
 

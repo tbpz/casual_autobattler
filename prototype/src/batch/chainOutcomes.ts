@@ -261,9 +261,18 @@ export class ChainOutcomeAggregator {
         continue;
       }
       if (e.type === "chainHit") {
-        if (open) {
-          open.intended += intendedHitMagnitude(this.cfg.fight, open.profileId, baseHeroId(open.heroId), e.hitIndex);
-        }
+        // Read the sim's own intended figure off the event (2026-09-02, Phase
+        // 1 of the chain-targeting plan) instead of recomputing it
+        // analytically via intendedHitMagnitude below. That recompute
+        // returns 0 for a healer and assumes an arm only ever swaps
+        // chainProfile — both wrong under targeting, where a whiff's
+        // intended value has no analytic formula to recompute from (it
+        // depends on which body a rule locked onto or walked past, not on
+        // hitIndex alone) and healer chains are measured too. e.intended is
+        // exactly what fight.ts's resolveChainHit already computed for this
+        // hit, healer or attacker, whiff or landed — always correct,
+        // regardless of what an arm's transform touched.
+        if (open) open.intended += e.intended;
         continue;
       }
       if (e.type !== "chainEnd") continue;

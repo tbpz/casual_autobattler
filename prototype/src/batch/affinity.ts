@@ -112,7 +112,11 @@ function verifyRoleFloorMatchesDefault(): boolean {
 function verifyDefaultOptIsInert(): boolean {
   const policy = makePolicy("always-heal", cfg);
   for (let i = 0; i < 25; i++) {
-    const seed = 500_000 + i; // well clear of every reserved range
+    // 500_000+ is no longer clear of every reserved range (shapeVerdict.ts
+    // claims 500_000-599_999) — harmless here since this preamble's 25 seeds
+    // are self-contained and never compared against another file's runs, but
+    // noted so a future seed-block audit doesn't have to re-derive that.
+    const seed = 500_000 + i;
     const implicit = runRun(cfg, new Rng(seed), policy, seed, makePlayerSide());
     const explicit = runRun(cfg, new Rng(seed), policy, seed, makePlayerSide(), { fieldPick: defaultFieldPick });
     if (JSON.stringify(implicit.fights) !== JSON.stringify(explicit.fights)) {
