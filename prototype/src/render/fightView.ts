@@ -818,15 +818,23 @@ export class FightView {
   private showChainHit(
     hitIndex: number,
     amount: number,
-    targetId: string,
+    targetId: string | null,
     kind: "damage" | "heal",
     backfire: boolean,
     sourceId: string,
   ): void {
+    // targetId is null on a WHIFF (2026-09-02, Phase 1 of the chain-targeting
+    // plan — see events.ts's chainHit docstring). Only "spread"/"focus"/
+    // "siege"/"execute" can produce one, all gated behind
+    // chainTargetingEnabled, so this branch can't fire yet with that flag at
+    // its default of false. This is the minimal compile-safe handling for
+    // Phase 1 — no popup, no flinch, no tracer, same as today's "target not
+    // found" case below; the whiff's own presentation (an anchored, muted
+    // number, no arena shake) is Phase 2's job, not this one's.
     const targetIsEnemy = (kind === "damage") !== backfire;
     const targetMap = targetIsEnemy ? this.enemyHeroes : this.playerHeroes;
     const attacker = this.playerHeroes.get(sourceId);
-    const target = targetMap.get(targetId);
+    const target = targetId !== null ? targetMap.get(targetId) : undefined;
     const scale = chainPopupScale(hitIndex, this.cfg.chainFullTellThreshold);
     const chainColor = backfire ? "var(--backfire)" : kind === "heal" ? HEAL_ACCENT : (attacker?.accent ?? "var(--ignite)");
 
@@ -836,7 +844,7 @@ export class FightView {
     }
 
     const land = () => {
-      if (target) {
+      if (target && targetId !== null) {
         const maxHp = this.heroMaxHp.get(targetId) ?? 1;
         const frac = Math.max(0.15, Math.min(1, amount / maxHp));
         if (kind === "heal") {

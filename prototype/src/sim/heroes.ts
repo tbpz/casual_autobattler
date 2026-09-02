@@ -1,4 +1,4 @@
-import type { ChainProfile } from "./config.js";
+import type { ChainProfile, ChainTargeting } from "./config.js";
 import type { HeroState, Role, SideState } from "./types.js";
 
 /**
@@ -26,6 +26,11 @@ export interface HeroDef {
    * long their fuse runs and how back-loaded the escalation is, not in how
    * big any given hit lands. */
   chainProfile: ChainProfile;
+  /** This hero's chain TARGETING rule (2026-09-02, Phase 1 of the
+   * chain-targeting plan — see config.ts's ChainTargeting). The mechanical
+   * identity lever that replaces chain shape: heroes now differ in WHERE a
+   * chain aims, not in when its damage arrives. */
+  chainTargeting: ChainTargeting;
   /** This hero's absolute expected-net-chain-value target (2026-08-20, Step
    * 3 — see CHAIN_EV_TARGET_DAMAGE/HEAL below and config.ts's
    * chainMagnitudeScaleAbsolute). Every attacker converges on
@@ -248,6 +253,7 @@ export const PLAYER_HERO_POOL: HeroDef[] = [
     id: "bracer", name: "Bracer", role: "tank", maxHp: 195, damage: 7, attackIntervalSec: 1.4,
     chainAffinity: 0.75,
     chainProfile: CHAIN_PROFILES.longFuseFlat,
+    chainTargeting: "spread",
     chainMagnitudeTarget: CHAIN_EV_TARGET_DAMAGE,
     identity: "The wall. Long fuse, flat growth — its chain rarely ends fast, and rarely ends small either.",
   },
@@ -255,6 +261,7 @@ export const PLAYER_HERO_POOL: HeroDef[] = [
     id: "hollow", name: "Hollow", role: "tank", maxHp: 180, damage: 6, attackIntervalSec: 1.1,
     chainAffinity: 1.3,
     chainProfile: CHAIN_PROFILES.shortFuseSteep,
+    chainTargeting: "focus",
     chainMagnitudeTarget: CHAIN_EV_TARGET_DAMAGE,
     identity: "Fragile, and its chain is short — but three hits can land like six, for better or worse.",
   },
@@ -262,6 +269,7 @@ export const PLAYER_HERO_POOL: HeroDef[] = [
     id: "rook", name: "Rook", role: "damage", maxHp: 85, damage: 6, attackIntervalSec: 0.9,
     chainAffinity: 1.4,
     chainProfile: CHAIN_PROFILES.longFuseSteep,
+    chainTargeting: "siege",
     chainMagnitudeTarget: CHAIN_EV_TARGET_DAMAGE,
     identity: "Highest affinity in the pool — a real gamble on backfire risk. Its chain is back-loaded: weak early, huge if it survives the length.",
   },
@@ -269,6 +277,7 @@ export const PLAYER_HERO_POOL: HeroDef[] = [
     id: "vex", name: "Vex", role: "damage", maxHp: 70, damage: 11, attackIntervalSec: 1.5,
     chainAffinity: 1.0,
     chainProfile: CHAIN_PROFILES.shortFuseFlat,
+    chainTargeting: "execute",
     chainMagnitudeTarget: CHAIN_EV_TARGET_DAMAGE,
     identity: "Explosive burst damage. Front-loaded chain — fires off a few big hits fast, at a middling backfire risk to match.",
   },
@@ -276,6 +285,7 @@ export const PLAYER_HERO_POOL: HeroDef[] = [
     id: "cairn", name: "Cairn", role: "support", maxHp: 110, damage: 1, attackIntervalSec: 1.2, healPerBeat: 7,
     chainAffinity: 0.7,
     chainProfile: CHAIN_PROFILES.healerSteady,
+    chainTargeting: "triage",
     chainMagnitudeTarget: CHAIN_EV_TARGET_HEAL,
     identity: "The safety net. Chains a heal instead of an attack — lowest backfire risk in the pool, and a long, steady fuse.",
   },
@@ -283,6 +293,7 @@ export const PLAYER_HERO_POOL: HeroDef[] = [
     id: "ward", name: "Ward", role: "support", maxHp: 92, damage: 3, attackIntervalSec: 1.0, healPerBeat: 3,
     attacksWhileHealing: true, chainAffinity: 1.15,
     chainProfile: CHAIN_PROFILES.healerHybrid,
+    chainTargeting: "triage",
     chainMagnitudeTarget: CHAIN_EV_TARGET_HEAL,
     identity: "Heals AND swings on the same beat — its chain heal runs just as long as Cairn's, at a real backfire risk to match.",
   },
@@ -355,6 +366,7 @@ export function makeHeroState(def: HeroDef, instanceId: string, phase = 0): Hero
     attacksWhileHealing: def.attacksWhileHealing,
     chainAffinity: def.chainAffinity,
     chainProfile: def.chainProfile,
+    chainTargeting: def.chainTargeting,
     chainMagnitudeTarget: def.chainMagnitudeTarget,
     dealt: 0,
     soaked: 0,

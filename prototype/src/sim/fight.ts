@@ -1,10 +1,11 @@
 import type { Rng } from "./rng.js";
-import type { ChainProfile, FightConfig } from "./config.js";
+import type { ChainProfile, ChainTargeting, FightConfig } from "./config.js";
 import {
   backfireChanceFor,
   baselineChainProfile,
   chainContinuationChance,
   chainEscalationFactorFromProfile,
+  chainHitSpills,
   chainMagnitudeScaleAbsolute,
   expectedNetChainUnits,
 } from "./config.js";
@@ -133,6 +134,89 @@ function lowestHpAliveHero(side: SideState): HeroState | undefined {
   return best;
 }
 
+/** Mirror of lowestHpAliveHero above, for the "siege" chain targeting rule
+ * (2026-09-02, Phase 1 of the chain-targeting plan). Strict `>` so the FIRST
+ * body in list order wins an exact tie — matching lowestHpAliveHero's own
+ * strict `<`. Not cosmetic: Twins and Glass Pair (sim/encounters.ts) seed
+ * their two bodies at identical HP, so this comparison is what decides which
+ * one a siege chain commits to on hit 1. */
+function highestHpAliveHero(side: SideState): HeroState | undefined {
+  let best: HeroState | undefined;
+  for (const h of side.heroes) {
+    if (!h.alive || h.hp <= 0) continue;
+    if (!best || h.hp > best.hp) best = h;
+  }
+  return best;
+}
+
+/** The current chain's per-run target bookkeeping (2026-09-02, Phase 1 of the
+ * chain-targeting plan) — everything a targeting rule other than "front" or
+ * "triage" needs beyond what resolveChainHit already receives. A single
+ * named object rather than two more positional parameters: resolveChainHit
+ * already takes seven, and struck is MUTATED by the caller on every landed
+ * hit, so a bare parameter would leave that mutation direction invisible at
+ * the call site. Reset as one assignment (never partially) at every site
+ * that starts, ends, or force-ends a chain — see runFight's ignition block,
+ * miss branch, and lockout sweep. */
+interface ChainTargetState {
+  /** The body focus/execute committed to at ignition, on the correct side
+   * for whether this chain is backfiring. Null for every other rule. */
+  lockedTargetId: string | null;
+  /** Every body this chain has already landed a hit on, regardless of rule —
+   * only "spread" reads this to find a fresh body, but every rule adds to it
+   * on a landed hit, which keeps the bookkeeping to one place instead of
+   * conditionally maintained per rule. */
+  struck: Set<string>;
+}
+
+function freshChainTargetState(): ChainTargetState {
+  return { lockedTargetId: null, struck: new Set() };
+}
+
+/** first living body in list order not yet struck by this chain — the
+ * "spread" rule. Undefined once every living body on the side has been
+ * struck, which resolveChainHit's caller reads as a whiff. */
+function firstAliveNotIn(side: SideState, struck: Set<string>): string | undefined {
+  return side.heroes.find((h) => h.alive && h.hp > 0 && !struck.has(h.id))?.id;
+}
+
+/** The single switch every chain targeting rule but "triage" (the healer
+ * branch, handled separately in resolveChainHit) goes through (2026-09-02,
+ * Phase 1 of the chain-targeting plan — see config.ts's ChainTargeting).
+ * `targetSide` is already resolved by the caller to `backfire ? player :
+ * enemy`. "front" is the one rule that does NOT read targetSide — it keeps
+ * its own pre-existing asymmetry (frontMostAliveId on the payoff,
+ * pickWeightedTargetId — which consumes the RNG stream — on a backfire),
+ * which is what keeps chainTargetingEnabled: false byte-identical to today's
+ * game. Every other rule is deterministic and consumes nothing. */
+function pickChainTargetId(
+  targeting: Exclude<ChainTargeting, "triage">,
+  backfire: boolean,
+  player: SideState,
+  enemy: SideState,
+  rng: Rng,
+  cfg: FightConfig,
+  state: ChainTargetState,
+): string | undefined {
+  if (targeting === "front") {
+    return backfire ? pickWeightedTargetId(player, rng, cfg) : frontMostAliveId(enemy);
+  }
+  const targetSide = backfire ? player : enemy;
+  switch (targeting) {
+    case "spread":
+      return firstAliveNotIn(targetSide, state.struck);
+    case "focus":
+    case "execute": {
+      const id = state.lockedTargetId;
+      if (!id) return undefined;
+      const hero = targetSide.heroes.find((h) => h.id === id);
+      return hero && hero.alive && hero.hp > 0 ? id : undefined;
+    }
+    case "siege":
+      return highestHpAliveHero(targetSide)?.id;
+  }
+}
+
 function isWiped(side: SideState): boolean {
   return side.heroes.every((h) => !h.alive || h.hp <= 0);
 }
@@ -185,14 +269,30 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
  * reduce EXACTLY to chainMagnitudeScaleFor's old Variant A formula (both
  * anchor to the same baseline-at-backfireChanceBase net value), which is
  * what kept Step 1/Step 2 an identity transform before any hero had a real
- * target authored. */
+ * target authored.
+ *
+ * targeting (2026-09-02, Phase 1 of the chain-targeting plan): when
+ * cfg.chainTargetingEnabled is false, every hero resolves to "front"
+ * (attacker) or "triage" (healer) regardless of what HeroState.chainTargeting
+ * authors — that forced normalisation, not the absence of a switch anywhere
+ * else, is the entire A/B this flag rests on. A healer is normalised the same
+ * way even with the flag ON: resolveChainHit branches on hero.healPerBeat
+ * before ever reading plan.targeting (see below), so an accidentally-authored
+ * non-triage rule on a healer would otherwise be silently ignored rather than
+ * visibly wrong — forcing it here keeps the plan honest as a readout for the
+ * measurement rig and the projection line alike. */
 function resolveChainPlan(cfg: FightConfig, hero: HeroState): ChainPlan {
   const profile = hero.chainProfile ?? baselineChainProfile(cfg);
   const backfireChance = backfireChanceFor(cfg, hero.chainAffinity);
   const baseStat = hero.healPerBeat ?? hero.damage;
   const target = hero.chainMagnitudeTarget ?? baseStat * expectedNetChainUnits(baselineChainProfile(cfg), cfg.backfireChanceBase);
   const magnitudeScale = chainMagnitudeScaleAbsolute(profile, backfireChance, baseStat, target);
-  return { profile, magnitudeScale, backfireChance };
+  const targeting: ChainTargeting = hero.healPerBeat
+    ? "triage"
+    : cfg.chainTargetingEnabled
+      ? (hero.chainTargeting ?? "front")
+      : "front";
+  return { profile, magnitudeScale, backfireChance, targeting };
 }
 
 function cloneHeroes(heroes: HeroState[], cfg: FightConfig): HeroState[] {
@@ -384,7 +484,8 @@ function resolveChainHit(
   hero: HeroState,
   hitIndex: number,
   backfire: boolean,
-): { kind: "damage" | "heal"; targetId: string; amount: number; intended: number; died: string[] } | null {
+  chainState: ChainTargetState,
+): { kind: "damage" | "heal"; targetId: string | null; amount: number; intended: number; died: string[] } | null {
   // hero.chainPlan is always set (cloneHeroes resolves it for every hero);
   // the `?? baselineChainProfile(cfg)` / `?? 1` fallbacks below are
   // defensive, matching this file's existing convention elsewhere.
@@ -410,8 +511,6 @@ function resolveChainHit(
     if (!backfire) hero.restored += amount;
     return { kind: "heal", targetId: target.id, amount, intended: raw, died: [] };
   }
-  const targetId = backfire ? pickWeightedTargetId(player, rng, cfg) : frontMostAliveId(enemy);
-  if (!targetId) return null;
   const attackProfile = plan?.profile ?? baselineChainProfile(cfg);
   // 2026-08-20 (per-hero-profile pass, Step 3): player.dpsBonus (the run's
   // flat-damage coin upgrade) is deliberately NOT added here anymore — see
@@ -422,9 +521,28 @@ function resolveChainHit(
   // banks the upgrade. The upgrade still helps every normal attack (see
   // performHeroAction) — its effect on chains specifically is the accepted
   // cost of chain output being an absolute, stat-independent number.
+  //
+  // 2026-09-02 (Phase 1, chain-targeting plan): magnitude is now computed
+  // BEFORE the target pick, not after — a whiff still needs its full
+  // escalated `intended` value, and the magnitude formula itself is pure
+  // (no RNG), so moving it earlier changes nothing else.
   const damage = chainAttackMagnitude(cfg, attackProfile, hero.damage, plan?.magnitudeScale ?? 1, hitIndex);
-  const { died, applied } = applyDamageFrom(backfire ? player : enemy, targetId, damage, 0, cfg.chainHitSpillsOverkill);
+  // hero.healPerBeat above already returned every healer, so plan.targeting
+  // is never really "triage" here — the fallback to "front" is defensive,
+  // matching this file's own convention, not a live path.
+  const targeting = plan?.targeting === "triage" ? "front" : (plan?.targeting ?? "front");
+  const targetId = pickChainTargetId(targeting, backfire, player, enemy, rng, cfg, chainState);
+  if (!targetId) {
+    // "front" finding no target means no living body at all on the target
+    // side — exactly today's chain-ends-with-noTarget case, unchanged. Every
+    // other rule finding no target is a WHIFF: the chain keeps rolling (Q1),
+    // it just lands on nothing this hit.
+    if (targeting === "front") return null;
+    return { kind: "damage", targetId: null, amount: 0, intended: damage, died: [] };
+  }
+  const { died, applied } = applyDamageFrom(backfire ? player : enemy, targetId, damage, 0, chainHitSpills(cfg));
   hero.dealt += applied;
+  chainState.struck.add(targetId);
   return { kind: "damage", targetId, amount: applied, intended: damage, died };
 }
 
@@ -456,6 +574,21 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   // are always in lockstep; meaningless while hotHeroId is null, same as
   // chainBackfire above.
   let hotChainShape: ChainShape | null = null;
+  // Whether the CURRENT chain's hero is still getting the hotBeatIntervalFactor
+  // speed-up (2026-09-02, Phase 1 of the chain-targeting plan — see Q1's
+  // decision). Splits the "a chain is running" job hotHeroId used to do alone
+  // into two: hotHeroId still means that, everywhere it already meant that
+  // (the eligibility check below, the snapshot, the render layer); this flag
+  // means "and it hasn't whiffed yet." Set true at ignition, cleared on the
+  // first whiff (see resolveChainHit's targetId: null case below) and at
+  // every site that clears hotHeroId, so the two can never fall out of
+  // lockstep the way hotChainShape's own comment above guards against.
+  let hotAccelerating = false;
+  // The CURRENT chain's target bookkeeping (2026-09-02, Phase 1) — see
+  // ChainTargetState's own docstring. Reset as one assignment at every site
+  // that starts, ends, or force-ends a chain, same discipline as
+  // chainDamageSoFar/chainKillIds below.
+  let chainTargetState: ChainTargetState = freshChainTargetState();
   let bonusHitsLanded = 0;
   let finalChainLength = 0;
   // Running totals for the CURRENT chain — reset when a chain fires,
@@ -485,7 +618,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       if (!hero.alive || outcome || t < hero.nextAttackT) continue;
       const isHot = hero.id === hotHeroId;
       performHeroAction(events, t, rng, cfg, player, "player", enemy, "enemy", hero, true, "front");
-      hero.nextAttackT += hero.attackIntervalSec * (isHot ? cfg.hotBeatIntervalFactor : 1);
+      hero.nextAttackT += hero.attackIntervalSec * (isHot && hotAccelerating ? cfg.hotBeatIntervalFactor : 1);
       if (isWiped(enemy)) {
         outcome = "win";
         continue;
@@ -510,7 +643,9 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         const capped = bonusHitsLanded >= chainProfile.maxHits;
         const chance = capped ? 0 : chainContinuationChance(cfg, chainProfile, bonusHitsLanded);
         const rolled = rng.chance(chance);
-        const hit = rolled ? resolveChainHit(rng, cfg, player, enemy, hero, bonusHitsLanded + 1, chainBackfire) : null;
+        const hit = rolled
+          ? resolveChainHit(rng, cfg, player, enemy, hero, bonusHitsLanded + 1, chainBackfire, chainTargetState)
+          : null;
         if (hit) {
           const hitIndex = bonusHitsLanded + 1;
           events.push({
@@ -524,6 +659,16 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
             backfire: chainBackfire,
             sourceId: hero.id,
           });
+          // A whiff (targetId: null — only the four new targeting rules can
+          // produce one; "front" and "triage" return null from
+          // resolveChainHit itself, which falls to the else branch below,
+          // unchanged) still consumes a fuse slot (bonusHitsLanded advances
+          // below either way) but ends the speed-up on the FIRST one, per
+          // Q1's decision — the chain keeps rolling, it just stops
+          // accelerating. The drop lands on the hero's NEXT beat, not this
+          // one: nextAttackT already advanced above, using whatever
+          // hotAccelerating was at the top of this tick.
+          if (hit.targetId === null) hotAccelerating = false;
           const downSide: Side = chainBackfire ? "player" : "enemy";
           for (const id of hit.died) events.push({ type: "heroDown", t, side: downSide, heroId: id });
           bonusHitsLanded = hitIndex;
@@ -554,6 +699,8 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
           finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
           hotHeroId = null;
           hotChainShape = null;
+          hotAccelerating = false;
+          chainTargetState = freshChainTargetState();
         }
       }
     }
@@ -615,6 +762,8 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
         hotHeroId = null;
         hotChainShape = null;
+        hotAccelerating = false;
+        chainTargetState = freshChainTargetState();
       }
     }
 
@@ -639,9 +788,26 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         hotHeroId = ready.id;
         chainBackfire = rng.chance(backfireChanceFor(cfg, ready.chainAffinity));
         hotChainShape = toChainShape(ready.chainPlan?.profile ?? baselineChainProfile(cfg));
+        hotAccelerating = true;
         bonusHitsLanded = 0;
         chainDamageSoFar = 0;
         chainKillIds = [];
+        // The ignition-time lock for "focus"/"execute" (2026-09-02, Phase 1 of
+        // the chain-targeting plan) — computed strictly AFTER chainBackfire
+        // above, since which side gets locked depends on it. Both pickers are
+        // deterministic and consume no RNG, which is what keeps
+        // chainTargetingEnabled: false's event stream unshifted. A null lock
+        // (an empty target side) is unreachable in practice — ignition only
+        // runs while !outcome, and a wipe sets outcome the same tick it
+        // happens — but resolveChainHit treats "locked but nobody there" as
+        // "every hit whiffs" regardless, so nothing special-cases it here.
+        chainTargetState = freshChainTargetState();
+        const targeting = ready.chainPlan?.targeting ?? "front";
+        if (targeting === "focus" || targeting === "execute") {
+          const lockSide = chainBackfire ? player : enemy;
+          const locked = targeting === "focus" ? frontMostAliveId(lockSide) : lowestHpAliveHero(lockSide)?.id;
+          chainTargetState.lockedTargetId = locked ?? null;
+        }
         events.push({ type: "chainStart", t, heroId: ready.id, backfire: chainBackfire, shape: hotChainShape });
       }
     }

@@ -288,7 +288,45 @@ export interface FightConfig {
    * flag, since neither design document nor any open question is about them.
    */
   chainHitSpillsOverkill: boolean;
+
+  /**
+   * Phase 1 of the chain-targeting plan (2026-09-02 — see
+   * CHAIN_TARGETING_IMPLEMENTATION_PLAN.md's Phase 1 and
+   * CHAIN_SHAPE_TARGETING_PLAN.md §2): switches every hero's chain from
+   * always-front-most (attackers) / weighted-random (a backfire) onto its own
+   * per-hero ChainTargeting rule (heroes.ts's PLAYER_HERO_POOL). Default
+   * `false` reproduces today's behaviour exactly — resolveChainPlan forces
+   * every attacker to "front" and every healer to "triage" regardless of what
+   * a HeroDef authors, which is the byte-identical A/B this flag exists to
+   * prove. `true` reads each hero's own chainTargeting instead.
+   */
+  chainTargetingEnabled: boolean;
 }
+
+/**
+ * A hero's chain targeting rule (2026-09-02, Phase 1 of the chain-targeting
+ * plan — see CHAIN_SHAPE_TARGETING_PLAN.md §2). Replaces chain shape's "when
+ * damage arrives" axis with "where it goes":
+ *  - "front" — today's rule, unchanged on both branches: frontMostAliveId on
+ *    the payoff, the weighted-random pickWeightedTargetId on a backfire. Kept
+ *    as its own rule (not a special case) so chainTargetingEnabled: false can
+ *    force every attacker onto it and reproduce today's game exactly.
+ *  - "spread" — a fresh body every hit; whiffs once every living body on the
+ *    target side has been struck by this chain.
+ *  - "focus" — locks the front-most body at ignition and hits only it,
+ *    overkill discarded; whiffs once that body is dead.
+ *  - "siege" — highest current HP among living bodies, re-picked every hit.
+ *  - "execute" — locks the lowest-HP living body at ignition, then identical
+ *    to focus.
+ *  - "triage" — a healer's existing rule (lowest-HP living ally, re-picked
+ *    every hit); named here, not changed (Q3).
+ * Mirrors onto the player's own side on a backfire for every rule except
+ * "front", which keeps its own asymmetric backfire behaviour unchanged.
+ * The precedent for a per-hero targeting string is HeroState's own
+ * windupTargeting (types.ts) — same shape, same fallback-to-today's-rule
+ * convention when unset.
+ */
+export type ChainTargeting = "front" | "spread" | "focus" | "siege" | "execute" | "triage";
 
 export interface RunConfig {
   fight: FightConfig;
@@ -483,6 +521,10 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // See this field's own docstring above — default true is today's shipped
   // behaviour (a chain hit already cleaves), not a change.
   chainHitSpillsOverkill: true,
+
+  // See this field's own docstring above — default false is today's shipped
+  // behaviour (front-most / weighted-random), not a change.
+  chainTargetingEnabled: false,
 };
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {
@@ -581,6 +623,20 @@ export function chainEscalationFactor(cfg: FightConfig, hitIndex: number): numbe
  * slope shouldn't be able to produce a nonsense probability. */
 export function backfireChanceFor(cfg: FightConfig, chainAffinity: number): number {
   return Math.max(0, Math.min(1, cfg.backfireChanceBase + cfg.backfireChanceAffinitySlope * (chainAffinity - 1)));
+}
+
+/** Whether a chain hit should stop at its target instead of cleaving its
+ * overkill onto the next living body (2026-09-02, Phase 1 of the
+ * chain-targeting plan). Under targeting, "overkill is thrown away" has to
+ * be true for focus/execute's locked target and for each of spread's fresh
+ * bodies alike — so cfg.chainHitSpillsOverkill (Phase 0's switch) is forced
+ * off whenever chainTargetingEnabled is on, regardless of what it's set to.
+ * A named helper rather than a bare conjunction inline: both flags matter to
+ * more than one caller (fight.ts's resolveChainHit, the targeting rig,
+ * shapeVerdict.ts's --noSpill), and re-deriving "spills iff both true" in
+ * each of them is how the two knobs would drift apart. */
+export function chainHitSpills(cfg: FightConfig): boolean {
+  return cfg.chainHitSpillsOverkill && !cfg.chainTargetingEnabled;
 }
 
 /**

@@ -64,7 +64,9 @@ function formatEvent(e: FightEvent): string {
     case "chainStart":
       return `[t=${t}] ${e.heroId} ${e.backfire ? "BACKFIRES" : "IGNITES"} (charge threshold crossed)`;
     case "chainHit":
-      return `[t=${t}] chain hit #${e.hitIndex} (${e.kind}${e.backfire ? ", backfire" : ""}) from ${e.sourceId}: ${e.damage} -> ${e.targetId}`;
+      return e.targetId === null
+        ? `[t=${t}] chain hit #${e.hitIndex} (${e.kind}${e.backfire ? ", backfire" : ""}) from ${e.sourceId}: whiffed (${e.intended} wasted)`
+        : `[t=${t}] chain hit #${e.hitIndex} (${e.kind}${e.backfire ? ", backfire" : ""}) from ${e.sourceId}: ${e.damage} -> ${e.targetId}`;
     case "chainEnd":
       return `[t=${t}] ${e.heroId}'s ${e.backfire ? "backfire" : "chain"} ends (${e.reason}), length=${e.chainLength}, total=${e.totalDamage}${e.killedIds.length ? `, killed=${e.killedIds.join(",")}` : ""}`;
     case "heroDown":

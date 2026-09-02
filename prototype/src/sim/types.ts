@@ -4,7 +4,7 @@
  * Heroes are ordered front-to-back; a normal attack targets the front-most
  * living hero on the opposing side (see fight.ts's targeting helpers).
  */
-import type { ChainProfile } from "./config.js";
+import type { ChainProfile, ChainTargeting } from "./config.js";
 
 export type Role = "tank" | "damage" | "support" | "bruiser" | "grunt";
 
@@ -25,6 +25,12 @@ export interface ChainPlan {
   /** This hero's own backfireChanceFor(cfg, chainAffinity), cached alongside
    * the plan it was used to derive so both travel together. */
   backfireChance: number;
+  /** This hero's resolved chain targeting rule for THIS fight (2026-09-02,
+   * Phase 1 of the chain-targeting plan — see config.ts's ChainTargeting).
+   * Always "front"/"triage" when cfg.chainTargetingEnabled is false,
+   * regardless of what HeroState.chainTargeting authors — see fight.ts's
+   * resolveChainPlan, which is the only place this is derived. */
+  targeting: ChainTargeting;
 }
 
 export interface HeroState {
@@ -72,6 +78,14 @@ export interface HeroState {
    * authored per-hero shapes (see heroes.ts's PLAYER_HERO_POOL). Set on
    * HeroDef/HeroState alike, same as chainAffinity. */
   chainProfile?: ChainProfile;
+  /** This hero's own chain TARGETING rule (2026-09-02, Phase 1 of the
+   * chain-targeting plan — see config.ts's ChainTargeting). Undefined falls
+   * back to "front" for an attacker / "triage" for a healer in
+   * fight.ts's resolveChainPlan — same fallback-to-today's-rule convention
+   * windupTargeting below already uses. Set on HeroDef/HeroState alike, same
+   * as chainProfile; enemies author no value and resolve to "front"/"triage"
+   * inertly, since only the player side is ever scanned to ignite a chain. */
+  chainTargeting?: ChainTargeting;
   /** This hero's absolute expected-net-chain-value target (2026-08-20, Step
    * 3 — see config.ts's chainMagnitudeScaleAbsolute and heroes.ts's
    * CHAIN_EV_TARGET_DAMAGE/HEAL). Undefined falls back to a value that

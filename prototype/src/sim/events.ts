@@ -67,7 +67,15 @@ export type FightEvent =
        * went in; `intended - damage` is what the hit wasted. Reporting
        * only — this changes no sim behaviour. */
       intended: number;
-      targetId: string;
+      /** `null` means a WHIFF (2026-09-02, Phase 1 of the chain-targeting
+       * plan): the chain rolled and fired, but "spread"/"focus"/"siege"/
+       * "execute" found no valid body to hit — every fresh body already
+       * struck, or the locked body already dead. `damage` is 0 on a whiff;
+       * `intended` still carries the full escalated number that would have
+       * landed. "front" and "triage" never whiff — a chain running those two
+       * rules still ends the chain (chainEnd, reason "noTarget") the moment
+       * it finds no target, exactly as before this pass. */
+      targetId: string | null;
       kind: "damage" | "heal";
       backfire: boolean;
       sourceId: string;
