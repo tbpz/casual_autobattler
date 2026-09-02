@@ -10,6 +10,59 @@
 
 ---
 
+## [2026-09-02] Chain shape replaced by chain targeting — where a chain aims, not when it lands
+
+- **Decision:**
+  - Chain shape is replaced: what varied "when damage arrives" per hero now varies "where it
+    goes." Fuse length and escalation are untouched — only the target rule changes.
+  - Four attacker rules, one per hero: Bracer spreads (each hit a fresh body), Hollow focuses
+    (locks the front-most body at ignition), Rook sieges (highest current HP, re-picked every
+    hit), Vex executes (locks the lowest-HP body at ignition).
+  - Focus and execute throw away overkill on their locked target rather than carrying it to the
+    next body — `sim/config.ts`'s `chainHitSpillsOverkill` is the switch this depends on.
+  - A chain that runs out of valid targets keeps rolling: each remaining hit still fires, still
+    shows its full escalated number, and lands on nothing. The first such whiff ends the hero's
+    beat-speed-up, not the chain itself.
+  - The targeting rule mirrors onto the player's own side on a backfire, with no exception and no
+    safety hedge attached.
+  - Healers are held fixed — Cairn and Ward keep the heal rule they already had (lowest-HP living
+    ally, re-picked every hit). The rule is named Triage rather than changed.
+  - Chain shape is no longer shown as a stat on either pick screen. A hero's card states its
+    targeting rule and its effect in plain language instead.
+- **Why:**
+  - Five sessions measuring chain shape (`CHAIN_SHAPE_TARGETING_PLAN.md`) found ten of eleven
+    encounters showed no meaningful difference between the four shapes, nothing on screen ever
+    explained a shape's cost, and every shape was worth equal expected damage by construction —
+    so there was no right answer for a player to find.
+  - Phase 0 (2026-08-29) found the "many small bodies vs. one big body" mechanism the shape design
+    assumed was barely present in the code — a chain hit already carried overkill onto the next
+    body like a cleave. Turning that off and re-measuring left the per-shape spreads the same
+    size, confirming the theory had no real mechanism behind it either way.
+  - Targeting makes the same condition — how many health bars, how big — the thing a player can
+    already see and reason about before picking, which chain shape never had.
+- **Replaces:** the six chain-shape entries below this one describing per-hero fuse-shape design;
+  those now describe a superseded mechanic.
+
+## [2026-09-02] Chain targeting: three questions deferred to one measurement pass
+
+- **Decision:**
+  - Three open questions about chain targeting are deferred, to be answered from one batch
+    measurement run rather than decided ahead of it: whether the encounter pool needs rebalancing
+    toward the spread rule or spread needs compensating; whether firing a chain should cost the
+    hero anything beyond the beat-speed-up it already loses on a whiff; and whether Bracer's
+    spread curve converts enough of its own chain into the crowd fights it's meant to win.
+  - The last of those three must be read from the measurement before the per-encounter spread gate
+    is read, not after — a curve that converts too little would make the gate report a tuning
+    fault as a verdict on targeting.
+- **Why:**
+  - Guessing the size of any of these three problems ahead of a measurement risks over-correcting
+    a gap that per-fight equalisation, or the targeting change itself, may already close.
+  - All three surfaced while settling other questions in the same design pass
+    (`CHAIN_SHAPE_TARGETING_PLAN.md` Q5, Q7, Q8) and share one answer: run the batch rig once
+    targeting ships, decide from what it reports.
+
+---
+
 ## [2026-08-27] CLOCK and WOUNDED removed entirely — a progress-keyed tax cannot be a burst tax
 
 - **Decision:**
