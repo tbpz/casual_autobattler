@@ -5,8 +5,11 @@
 `prototype/CHAIN_SHAPE_TARGETING_PLAN.md` holds five sessions of settled design work: replace each
 hero's chain *shape* with a chain *targeting rule* (Bracer spreads, Hollow focuses, Rook sieges,
 Vex executes, both healers keep the heal rule they already have and get called Triage). Q1, Q2,
-Q3, Q4 and Q6 are answered. Q5, Q7 and Q8 are deferred to a measurement pass. Nothing is in
-`DECISIONS.md` yet and `STATE.md` still describes chain shape as the live problem.
+Q3, Q4 and Q6 are answered. Q5, Q7 and Q8 are deferred to a measurement pass.
+
+**Status (2026-09-02): built through Phase 1, and Phase 1's own gate failed the measurement pass —
+see the "Phase 1 stop" section below and `CHAIN_SHAPE_TARGETING_PLAN.md` §7's final entry. Phase 2
+was not started. `chainTargetingEnabled` stays `false`.**
 
 This is a big change, so the work is split into phases with a real stopping point between each.
 Nothing about targeting gets built until Phase 0 answers a question that turned up while reading
@@ -273,6 +276,16 @@ Then read the gate:
   Stop, write it up, do not build the screen work.
 - **Pool-wide spread large** → one rule is simply better over a run. That is Q5's question arriving
   early; rebalance the encounter pool or compensate spread before going further.
+
+**Read (2026-09-02, full sweep, n=600/cell, n=1500/arm — see
+`CHAIN_SHAPE_TARGETING_PLAN.md` §7's final entry for the complete numbers and the investigation
+that followed): per-encounter spread stays small — 2 of 11 fights clear the bar at the immediate
+fire timing, 1 of 11 mid-fight. Pool-wide spread is flat (1.4pt), so the middle row above is the
+right one to read, not the third. Confirmed by investigation, not just measured: fixing Bracer's
+curve and removing Q1's whiff-cost each barely moved the result, and isolating each rule showed
+spread alone costs -7.3pt of run completion while focus and siege each cost about -0.5pt — the
+cause is what spread spends its burst on (spreading thin) rather than how big the numbers are, and
+only 2 of 11 fights reward that. Stopped here. Phase 2 not started.**
 
 ---
 

@@ -1,6 +1,8 @@
 # Chain shape → chain targeting — design plan
 
-> **Status:** brainstorming. Not approved, not executed, nothing logged in `DECISIONS.md`.
+> **Status:** built and measured (2026-09-02). The direction is logged in `DECISIONS.md`; the §4
+> gate itself FAILED — see §7's final entry. `chainTargetingEnabled` stays `false`; the sim code is
+> in the tree, inert, for whenever this is revisited.
 > **What this document is:** the design case for replacing chain *shape* with chain *targeting*,
 > written to be picked up cold across several sessions and edited in place until it's ready to build.
 > **Scope:** game mechanic only. No code, no implementation steps.
@@ -952,3 +954,38 @@ Append one line per session. Newest at the bottom.
   measurement pass as Q5's Twins/Glass Pair recheck. §6's preamble corrected — it still claimed only
   Q1 and Q2 were settled. Nothing added to `DECISIONS.md`; the gate (Q1 and Q2, met since Q6) stays
   open, Tu's call, same as the last four sessions.
+- **2026-09-02** — Built and measured. The direction (Q1/Q2/Q4/Q6, the four attacker rules, healers
+  named Triage, shape dropped as a stat) logged to `DECISIONS.md` before building. Phase 1 of
+  `CHAIN_TARGETING_IMPLEMENTATION_PLAN.md` put all four rules in the sim behind
+  `chainTargetingEnabled`, verified byte-identical to today's game with the flag off (a full
+  event-log diff across 8 seeds, plus `npm run check` reproducing identical numbers). Phase 1's own
+  measurement rig (`batch/targetingVerdict.ts`, `npm run measure:targeting`) then ran the §4 gate at
+  full scale (n=600/cell, n=1500/arm).
+  **The gate FAILED.** Per-encounter spread clears its bar on 2 of 11 fights when the chain fires
+  early, 1 of 11 mid-fight — most fights land within a few points of each other across all four
+  rules, the same flatness chain shape had. Pool-wide spread stays flat (1.4pt, inside the 5pt bar),
+  so at least nothing is secretly dominant. But turning targeting on drops run completion from 33.5%
+  to 20.8% (-12.7pt, z=-8.65) — a large, real cost with nothing to show for it. Q8's own concern
+  was also confirmed at scale: Bracer's spread converts only 26.8%/17.8% of its chain into Pack and
+  Ambush, its two labelled-best fights, both under the pre-registered 40% floor.
+  **Investigated before accepting the result** (Tu's call, rather than stopping at the first
+  failure): tried fixing Bracer's curve first (a shorter, front-loaded profile tripled its
+  realized-damage fraction, 22%→41%) — completion barely moved (21.5%→22.4%). Tried removing Q1's
+  whiff-drops-the-speed-up cost — also barely moved it (24.4%→24.5%). Isolated each rule
+  independently (every other hero held on "front"): Bracer/spread alone costs -7.3pt; Hollow/focus
+  and Rook/siege each cost about -0.5pt, next to nothing. **The cause isn't tunable magnitude — it's
+  what spread spends its magnitude on.** Focus, siege and today's front-most rule all concentrate a
+  chain's burst onto one body and help finish it off fast; spread deliberately does the opposite,
+  and only 2 of the pool's 11 fights have a real crowd to spend that on. On the other 9, spreading
+  the burst thin instead of finishing the front threat just keeps that threat alive and attacking
+  longer — a small HP cost per fight that compounds across a 5-fight run into the completion drop
+  above. No curve tuning changes what the rule is *for*.
+  **Decision this session: stop, no screen work, per §4's own pre-registered rule.**
+  `chainTargetingEnabled` stays `false`; nothing in the shipped game changes. The sim/rig code stays
+  in the tree, inert, rather than reverted — Phase 1 and Phase 2 of the implementation plan are both
+  reusable if this is revisited with a different pool (Q5, sharper now than when it was deferred:
+  the pool doesn't just under-serve spread, it makes spread actively worse than doing nothing
+  special) or a redefined spread rule (e.g. finish the current front-most, then move on, rather than
+  never returning to a struck body). `DECISIONS.md` gets a new entry recording the gate's failure —
+  the 2026-09-02 direction entry stays as written (append-only); this is the follow-up, not a
+  correction to it.

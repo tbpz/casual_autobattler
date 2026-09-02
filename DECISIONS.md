@@ -61,6 +61,31 @@
     (`CHAIN_SHAPE_TARGETING_PLAN.md` Q5, Q7, Q8) and share one answer: run the batch rig once
     targeting ships, decide from what it reports.
 
+## [2026-09-02] Chain targeting failed its own measurement gate — chainTargetingEnabled stays off
+
+- **Decision:**
+  - The four attacker targeting rules (previous entry, same date) were built and measured at full
+    scale against the pre-registered gate: per-encounter spread ≥15 win-rate points (or ≥10 HP-left
+    points on fights too easy for win rate to move), pool-wide spread ≤5 points.
+  - The gate failed. Per-encounter spread cleared its bar on 2 of 11 fights at the immediate fire
+    timing, 1 of 11 mid-fight. Pool-wide spread stayed flat (1.4pt) — no rule is secretly dominant,
+    but nothing differentiates the rules fight-to-fight either.
+  - `chainTargetingEnabled` stays `false`. Nothing in the shipped game changes. The sim and
+    measurement code (`sim/fight.ts`, `sim/config.ts`, `batch/targetingVerdict.ts`) stay in the
+    tree, inert, for whenever this is revisited.
+- **Why:**
+  - Measured at full scale (n=600/cell, n=1500/arm), not `--quick`.
+  - Two fixes were tried before accepting the result: a shorter, front-loaded curve for Bracer
+    (tripled its realized-damage fraction) and removing the whiff's speed-up cost. Neither
+    meaningfully recovered the 12.7-point run-completion drop targeting causes.
+  - Isolating each rule found the cause: spread alone costs -7.3pt of completion; focus and siege
+    each cost about -0.5pt. Spread spends a chain's burst across multiple bodies by design, while
+    focus/siege/front all concentrate it onto one body and finish it fast — and only 2 of the
+    pool's 11 fights have a real crowd to spend a spread chain on. Not a tunable-number problem.
+- **Replaces:** nothing — a follow-up to the direction entry logged the same day, not a correction
+  to it. That entry records the decision that was made; this records what the built version
+  measured.
+
 ---
 
 ## [2026-08-27] CLOCK and WOUNDED removed entirely — a progress-keyed tax cannot be a burst tax
