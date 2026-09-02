@@ -42,9 +42,10 @@ At a reference attacker, the four attacker shapes pay out like this:
 | Rook (damage) | long fuse, back-loaded | 5, 11, 16, 22, 27, 51, 75, 99, 124 | 124 | 28% |
 
 The theory was that "many small bodies vs. one big body" would make shape matter, because a chain hit
-always strikes the **front-most living enemy** and **overkill is thrown away**. A 60-damage hit into a
-48 HP grunt wastes 12. So long/flat chains should clear crowds efficiently, and short/steep chains
-should want one fat health bar.
+always strikes the **front-most living enemy** and was believed to throw overkill away — a 60-damage
+hit into a 48 HP grunt was believed to waste 12. So long/flat chains should clear crowds efficiently,
+and short/steep chains should want one fat health bar. **This turned out to be false — see the fourth
+finding below.**
 
 ### What actually happened
 
@@ -55,14 +56,24 @@ four shapes. Forcing the whole roster onto a single shape moves run completion b
 which hero gets which shape moves it 1.9 points, inside noise. To notice the shape choice by feel would
 take roughly 75 hours of play.
 
-**It can't be seen.** Wasted overkill — the mechanic the whole theory rests on — is silently discarded.
-Nothing on screen ever tells you a hit threw damage away. So even where the rule bites, you can't
-learn it.
+**It can't be seen.** Nothing on screen ever tells you a hit threw damage away. So even where the rule
+bites, you can't learn it. (This finding survives the fourth one below unchanged: even on the rare hit
+that runs past the last body, nothing reports it.)
 
 **It teaches something false.** Because the shapes carry equal value across unequal fuse lengths, a
 short fuse *must* land bigger individual hits. Hollow's biggest hit is 1.94x Bracer's on identical
 expected value, and Hollow whiffs entirely far more often. "Burster looks better" is a correct read of
 what the screen shows and a wrong read of what it's worth.
+
+**The mechanism the theory rests on barely exists (found 2026-08-29, Phase 0 of
+`CHAIN_TARGETING_IMPLEMENTATION_PLAN.md`).** `applyDamageFrom` does not throw a killing blow's leftover
+damage away — it carries it onto the next living body on that side, same as a cleave. A chain hit only
+loses damage when it runs past the very last body on a side, which is rare. Measured directly: turning
+that spill off (`chainHitSpillsOverkill: false`) and re-running the per-encounter matrix left the
+per-shape spreads the same size they were with it on — no latent "many small bodies vs. one big body"
+signal was hiding behind the bug. This is a stronger candidate than "fights 1-4 are too easy" for why
+ten of eleven encounters showed no meaningful difference above: the theory this whole section is built
+on had almost no mechanism behind it in the code, not just an invisible one.
 
 ### The diagnosis
 
@@ -138,9 +149,10 @@ for the player.
 
 **2. The readout** — when a hit wastes damage, the fight has to say so. A hit that reads
 `40 (12 wasted)` is how the rule gets learned, and it gets learned by *watching* rather than by reading
-a tooltip. Overkill is already thrown away today and has never once been shown; that silence is half of
-why shape's whole "many bodies vs. one body" theory never reached anyone. A spread chain should also
-visibly walk across different health bars, so the rule is legible from the motion alone.
+a tooltip. Focus and execute have to make wasting overkill happen before they can show it (§1's fourth
+finding, 2026-08-29) — today's chain hit carries a killing blow's leftover damage onto the next body
+instead of dropping it. A spread chain should also visibly walk across different health bars, so the
+rule is legible from the motion alone.
 
 Spread and focus both need this, and it's one piece of work, not two — they just fill the same marker
 differently. A spread chain has to show its target pool emptying, because Q1 rules that hits with no
@@ -208,8 +220,11 @@ cost, which is what makes it an axis rather than a flavour difference.
 explodes past the knee. You still don't know how big a chain will get — you now just know what it will
 *do*. The cascade and the surprise are untouched.
 
-**It makes an existing mechanic load-bearing.** Wasted overkill is already in the game and was already
-supposed to drive this axis. This is what finally connects it to a decision.
+**It builds the mechanic shape only ever assumed.** Wasted overkill was supposed to drive shape's axis
+and never actually did (§1's fourth finding, 2026-08-29) — `chainHitSpillsOverkill` has to be switched
+off for a chain hit before "overkill thrown away" in the rules table above is true of anything. That is
+new behaviour this proposal has to build, not an existing mechanic it connects to a decision (see
+`CHAIN_TARGETING_IMPLEMENTATION_PLAN.md`'s Phase 1, §1.5).
 
 ### The encounter pool it has to answer
 
@@ -895,6 +910,20 @@ Append one line per session. Newest at the bottom.
   (§2) — the 6:3 lean this question responds to is itself provisional until that recheck runs, so one
   measurement pass settles both. Logged in this document only, per Tu's instruction — nothing added to
   `DECISIONS.md`.
+- **2026-08-29** — Phase 0 of `CHAIN_TARGETING_IMPLEMENTATION_PLAN.md` run before any targeting rule was
+  built: §1's and §2's overkill claim was checked against the code and found false — `applyDamageFrom`
+  already carries a killing blow's leftover damage onto the next living body, so a chain hit behaves
+  like a cleave today; damage is only lost when it runs past a side's last body. Measured with the spill
+  switched off (`chainHitSpillsOverkill: false`, new tunable) via
+  `npm run measure:shape-verdict -- --block 2`: per-encounter win-rate and player-HP-left spreads across
+  the four shapes stayed the same size with the spill on or off, so no "many small bodies vs. one big
+  body" signal was hiding behind the bug. §1's diagnosis stands and Phase 1 proceeds as written, with the
+  spill switched off for chain hits under targeting (§2's rules and §3's overkill sections corrected to
+  say this is a mechanism to build, not one to reveal). Also fixed this session: the chain lockout bug
+  (a hot hero dying mid-chain left no hero able to fire again for the rest of that fight, 3.7-5.0% of
+  chains) and the chainHit event now carries `intended` alongside `damage` so a hit's waste is reportable.
+  Nothing added to `DECISIONS.md` — no design decision changed, only a diagnosis correction and bug
+  fixes; `CHAIN_SHAPE_MATCHUPS.md` corrected to match.
 - **2026-08-28** — Q7 settled: defer, same as Q5. Being hot's cadence bonus stays untouched this pass —
   Q1 already ends it on the first whiff, but the bigger question of whether a chain should cost the hero
   anything beyond that belongs to the charge mechanic, not targeting, and would contaminate §4's

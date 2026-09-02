@@ -22,20 +22,28 @@ function toChainShape(profile: ChainProfile): ChainShape {
 /**
  * Applies `amount` damage starting at the hero with id `startId`, overflowing
  * to the next living hero in list order if the hit is a killing blow with
- * damage to spare. Used for every normal attack (single-target) and for the
- * chain's bonus hits — both are concentrated hits, never splash. Returns the
- * ids of heroes that died, in list order, and the damage actually applied
- * (<= amount — less if the side didn't have enough total HP to absorb it),
- * which the caller credits to the attacker's `dealt` counter.
+ * damage to spare — unless `spillOverkill` is false, in which case the hit
+ * applies at most its target's remaining HP and stops there regardless of
+ * whether damage is left over (2026-08-29, Phase 0 of the chain-targeting
+ * plan — see config.ts's chainHitSpillsOverkill). Used for every normal
+ * attack (single-target) and for the chain's bonus hits — both are
+ * concentrated hits, never splash; only a chain hit ever passes
+ * `spillOverkill = false`, since neither design question this flag exists
+ * for touches normal attacks or wind-up hits. Returns the ids of heroes that
+ * died, in list order, the damage actually applied (<= amount — less if the
+ * side didn't have enough total HP to absorb it, or if spill is off and the
+ * target alone couldn't), which the caller credits to the attacker's `dealt`
+ * counter, and `lost` (== amount - applied) for reporting.
  */
 function applyDamageFrom(
   side: SideState,
   startId: string,
   amount: number,
   chargeWeightSoaked = 0,
-): { died: string[]; applied: number } {
+  spillOverkill = true,
+): { died: string[]; applied: number; lost: number } {
   const startIdx = side.heroes.findIndex((h) => h.id === startId);
-  if (startIdx < 0) return { died: [], applied: 0 };
+  if (startIdx < 0) return { died: [], applied: 0, lost: amount };
   let remaining = amount;
   const died: string[] = [];
   for (let i = startIdx; i < side.heroes.length && remaining > 0; i++) {
@@ -52,8 +60,9 @@ function applyDamageFrom(
       hero.alive = false;
       died.push(hero.id);
     }
+    if (!spillOverkill) break;
   }
-  return { died, applied: amount - remaining };
+  return { died, applied: amount - remaining, lost: remaining };
 }
 
 /** The front-most living hero — a normal attack's deterministic target when
@@ -375,7 +384,7 @@ function resolveChainHit(
   hero: HeroState,
   hitIndex: number,
   backfire: boolean,
-): { kind: "damage" | "heal"; targetId: string; amount: number; died: string[] } | null {
+): { kind: "damage" | "heal"; targetId: string; amount: number; intended: number; died: string[] } | null {
   // hero.chainPlan is always set (cloneHeroes resolves it for every hero);
   // the `?? baselineChainProfile(cfg)` / `?? 1` fallbacks below are
   // defensive, matching this file's existing convention elsewhere.
@@ -399,7 +408,7 @@ function resolveChainHit(
     // Only credit the hero's OWN restored counter on a real heal — a
     // backfire heals the enemy, which isn't this hero's job done well.
     if (!backfire) hero.restored += amount;
-    return { kind: "heal", targetId: target.id, amount, died: [] };
+    return { kind: "heal", targetId: target.id, amount, intended: raw, died: [] };
   }
   const targetId = backfire ? pickWeightedTargetId(player, rng, cfg) : frontMostAliveId(enemy);
   if (!targetId) return null;
@@ -414,9 +423,9 @@ function resolveChainHit(
   // performHeroAction) — its effect on chains specifically is the accepted
   // cost of chain output being an absolute, stat-independent number.
   const damage = chainAttackMagnitude(cfg, attackProfile, hero.damage, plan?.magnitudeScale ?? 1, hitIndex);
-  const { died, applied } = applyDamageFrom(backfire ? player : enemy, targetId, damage);
+  const { died, applied } = applyDamageFrom(backfire ? player : enemy, targetId, damage, 0, cfg.chainHitSpillsOverkill);
   hero.dealt += applied;
-  return { kind: "damage", targetId, amount: applied, died };
+  return { kind: "damage", targetId, amount: applied, intended: damage, died };
 }
 
 /**
@@ -509,6 +518,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
             t,
             hitIndex,
             damage: hit.amount,
+            intended: hit.intended,
             targetId: hit.targetId,
             kind: hit.kind,
             backfire: chainBackfire,
@@ -574,6 +584,38 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
     if (!outcome) {
       updateTankHolding(events, t, player, "player", cfg);
       if (player.heroes.some((h) => h.role === "tank" && h.alive && !h.holding)) dipOccurred = true;
+    }
+
+    // The hot hero can die mid-chain — to its own backfire (in the player
+    // loop above) or to an enemy hit (in the enemy loop above) — and this
+    // per-hero loop skips dead heroes, so without this sweep hotHeroId would
+    // stay set on a corpse for the rest of the fight: no other hero could
+    // ever fire again (the eligibility check below), and every later
+    // snapshot would keep naming a dead hero as hot (2026-08-29, Phase 0 of
+    // the chain-targeting plan — see CHAIN_TARGETING_IMPLEMENTATION_PLAN.md's
+    // 0.1). Closing it out here, before the eligibility check, lets a fresh
+    // chain fire the same tick if some other hero is already past threshold.
+    if (!outcome && hotHeroId !== null) {
+      const hotHero = player.heroes.find((h) => h.id === hotHeroId);
+      if (!hotHero || !hotHero.alive) {
+        events.push({
+          type: "chainEnd",
+          t,
+          chainLength: bonusHitsLanded,
+          heroId: hotHeroId,
+          totalDamage: chainDamageSoFar,
+          killedIds: chainKillIds,
+          backfire: chainBackfire,
+          reason: "sourceDied",
+          // hotChainShape is always set in lockstep with hotHeroId (see its
+          // own declaration comment above) — non-null here by that invariant.
+          maxHits: hotChainShape!.maxHits,
+          label: hotChainShape!.label,
+        });
+        finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
+        hotHeroId = null;
+        hotChainShape = null;
+      }
     }
 
     // Chain trigger (2026-08-14 rebuild — see config.ts's FightConfig

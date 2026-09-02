@@ -7,9 +7,14 @@
  * NET chain value (heroes.ts's CHAIN_EV_TARGET_DAMAGE = 76) analytically. That
  * analytic promise rests on three assumptions the live sim violates:
  *   1. a chain always runs to its natural stochastic end — it doesn't; the hot
- *      hero can die mid-chain (fight.ts's per-hero loop skips dead heroes, so
- *      hotHeroId is never cleared and the chain trigger is locked out for the
- *      rest of that fight), or the fight can end under it;
+ *      hero can die mid-chain, to its own backfire or to an enemy hit, cutting
+ *      the chain short right there (fight.ts's chainEnd reason "sourceDied" —
+ *      2026-08-29, Phase 0 lockout fix: before that fix the fight's per-hero
+ *      loop skipped dead heroes, hotHeroId was never cleared, and NO other
+ *      hero could fire again for the rest of that fight either; this file
+ *      still counts the cut-short chain as a "lockout" below, since losing
+ *      whatever hits would have followed is the part that survived the fix),
+ *      or the fight can end under it;
  *   2. damage now is worth the same as damage later — it isn't; a kill removes
  *      an enemy's DPS for whatever fight remains;
  *   3. a backfire costs exactly what an equal payoff gains
@@ -57,17 +62,19 @@ const PROFILE_BY_ID: Record<string, ChainProfile> = Object.fromEntries(
 
 const HERO_BY_ID = Object.fromEntries(PLAYER_HERO_POOL.map((h) => [h.id, h]));
 
-/** Why a chain stopped. `reason` on the chainEnd event has four values
- * (fight.ts's two emission sites); this splits its "fightEnd" into the two
- * causally different cases:
+/** Why a chain stopped. `reason` on the chainEnd event has five values
+ * (fight.ts's three emission sites); this renames "sourceDied" to "lockout" —
+ * kept as its own cause, under its pre-2026-08-29 name, so historical
+ * measurement runs stay comparable:
  *  - fightEnd: the FIGHT ended while the chain was still live (a win by wipe
  *    mid-chain, or the failsafe) — the chain was cut short by winning/losing.
- *  - lockout:  the HOT HERO DIED mid-chain and the fight carried on without it.
- *    hotHeroId is never cleared in that case, so no further chain can fire for
- *    the rest of the fight. This is the asymmetry a long fuse is exposed to and
- *    a short one mostly isn't — see this file's header, assumption 1.
- * A hero dying on the same tick the fight resolves is NOT a lockout: nothing
- * was locked out, the fight was already over. */
+ *  - lockout:  the HOT HERO DIED mid-chain (fight.ts's "sourceDied") and the
+ *    fight carried on without it — the chain loses whatever hits would have
+ *    followed. This is the asymmetry a long fuse is exposed to and a short
+ *    one mostly isn't — see this file's header, assumption 1.
+ * A hero dying on the same tick the fight resolves is reported as "fightEnd",
+ * not "lockout": nothing was cut short, the fight was already over (see
+ * fight.ts's post-loop sweep, gated on `!outcome`). */
 export type ChainEndCause = "miss" | "capped" | "noTarget" | "fightEnd" | "lockout";
 
 export const CHAIN_END_CAUSES: ChainEndCause[] = ["miss", "capped", "noTarget", "fightEnd", "lockout"];
@@ -282,10 +289,12 @@ export class ChainOutcomeAggregator {
         row.killsGood += e.killedIds.length;
       }
       const heroDownT = open ? downT[open.heroId] : undefined;
-      const lockedOut = e.reason === "fightEnd" && heroDownT !== undefined && heroDownT < endT;
-      const cause: ChainEndCause = lockedOut ? "lockout" : e.reason;
+      // "sourceDied" IS the real reason as of the 2026-08-29 lockout fix — no
+      // more deriving it from a timestamp comparison (see this file's
+      // ChainEndCause docstring for why it keeps the "lockout" name here).
+      const cause: ChainEndCause = e.reason === "sourceDied" ? "lockout" : e.reason;
       row.causes[cause]++;
-      if (lockedOut && heroDownT !== undefined) row.sumLockedOutSec += endT - heroDownT;
+      if (cause === "lockout" && heroDownT !== undefined) row.sumLockedOutSec += endT - heroDownT;
       open = null;
     }
   }

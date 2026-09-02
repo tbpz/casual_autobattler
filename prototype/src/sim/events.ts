@@ -59,6 +59,14 @@ export type FightEvent =
       t: number;
       hitIndex: number;
       damage: number;
+      /** What this hit was ESCALATED to before any clamping — a healer's raw
+       * heal before the chain-heal cap/room clamp, an attacker's raw
+       * magnitude before applyDamageFrom clamps it against the target side's
+       * remaining HP (2026-08-29, Phase 0 of the chain-targeting plan — see
+       * fight.ts's resolveChainHit). `damage` keeps meaning what actually
+       * went in; `intended - damage` is what the hit wasted. Reporting
+       * only — this changes no sim behaviour. */
+      intended: number;
       targetId: string;
       kind: "damage" | "heal";
       backfire: boolean;
@@ -82,7 +90,12 @@ export type FightEvent =
       totalDamage: number;
       killedIds: string[];
       backfire: boolean;
-      reason: "miss" | "capped" | "noTarget" | "fightEnd";
+      /** "sourceDied" (2026-08-29, Phase 0 lockout fix — see fight.ts's new
+       * post-loop sweep): the hot hero died mid-chain, to its own backfire or
+       * to an enemy hit, before its next beat could roll a continuation. The
+       * chain closes out right there instead of leaving hotHeroId stuck on a
+       * dead hero for the rest of the fight. */
+      reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied";
       /** This hero's own fuse length (2026-08-20, per-hero-profile pass) —
        * replaces cfg.chainMaxHits for the "capped implies max length" check
        * and the render layer's cap-pip lookup. By end time hotHeroId is

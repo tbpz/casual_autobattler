@@ -9,12 +9,24 @@ Not a decision record — nothing here is logged in `DECISIONS.md`. It is the th
 
 ## The mechanic that drives the table
 
-A chain hit always strikes the **front-most living enemy**, and **overkill is wasted**
-(`sim/fight.ts`'s `resolveChainHit` → `frontMostAliveId`, damage clamped by `applyDamageFrom`).
-A 60-damage hit into a 40 HP grunt throws away 20.
+A chain hit always strikes the **front-most living enemy**, and — this was wrong; see the
+correction below — was believed to waste overkill (`sim/fight.ts`'s `resolveChainHit` →
+`frontMostAliveId`, damage clamped by `applyDamageFrom`). A 60-damage hit into a 40 HP grunt
+was believed to throw away 20.
 
-That is the whole reason "many small bodies" vs. "one big body" was expected to be a real axis
+That was the whole reason "many small bodies" vs. "one big body" was expected to be a real axis
 for shape: long/flat chains clear a crowd efficiently, short/steep chains want one fat health bar.
+
+**Correction (2026-08-29, Phase 0 of `CHAIN_TARGETING_IMPLEMENTATION_PLAN.md`):** `applyDamageFrom`
+does not throw the overkill away — it carries a killing blow's leftover damage onto the next
+living body on that side, same as a cleave. A chain hit only ever loses damage when it runs past
+the very last body on a side. Measured with the spill switched off
+(`chainHitSpillsOverkill: false`) via `npm run measure:shape-verdict -- --block 2`: per-encounter
+win-rate and player-HP-left spreads across the four shapes stayed the same size with the spill on
+or off (e.g. Pack's win-rate spread was 2.6pt with spill on, 1.8pt with it off; Champion's HP-left
+spread was 7.8pt vs 7.1pt) — turning the spill off did not open up any latent "many small bodies
+vs. one big body" differentiation. The "many small bodies" theory this table's crowd-fight rows
+(Pack, Ambush) were built on is not supported by anything in the current mechanic.
 
 ## The six picks
 

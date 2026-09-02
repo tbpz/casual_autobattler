@@ -874,7 +874,7 @@ export class FightView {
   /** The chain's ending, owning the handoff from "live" through an optional
    * failure/cap beat to the resolution card and finally back to idle
    * (2026-08-19, chain-ending pass — replaces the old direct-to-card
-   * showChainEnd). Four root causes, four different presentations:
+   * showChainEnd). Five root causes, two presentations:
    *
    *  - "miss"/"capped" get their own beat first — the pip that was pending
    *    resolves visibly (broken, or the cap flaring) and the HUD title
@@ -882,10 +882,12 @@ export class FightView {
    *    the played-session complaint this answers ("it just cancels
    *    immediately to normal"), there was no such frame at all.
    *  - "noTarget" (a real but unglamorous ending — everyone left to hit was
-   *    already dead or full) and "fightEnd" (the fight itself resolving is
-   *    the bigger moment; app.ts's own 900ms hold covers it) skip straight
-   *    to the card — a failure tell on either would be a lie or a
-   *    distraction, not a beat.
+   *    already dead or full), "fightEnd" (the fight itself resolving is the
+   *    bigger moment; app.ts's own 900ms hold covers it), and "sourceDied"
+   *    (2026-08-29, Phase 0 lockout fix — the hot hero itself died mid-chain;
+   *    nothing was "missed," there's just no one left to keep firing) skip
+   *    straight to the card — a failure tell on any of the three would be a
+   *    lie or a distraction, not a beat.
    *
    * No `chainLength === 0` early return anymore (2026-08-17 shipped one,
    * gated on "fired but never landed a single bonus hit"): a first-roll miss
@@ -897,7 +899,7 @@ export class FightView {
     totalDamage: number,
     killedIds: string[],
     backfire: boolean,
-    reason: "miss" | "capped" | "noTarget" | "fightEnd",
+    reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied",
     // 2026-08-20 (per-hero-profile pass): this hero's OWN fuse length, off
     // the chainEnd event — replaces this.cfg.chainMaxHits below, which was
     // only ever correct while every hero shared the one global cap.
@@ -984,7 +986,7 @@ export class FightView {
     totalDamage: number,
     killedIds: string[],
     backfire: boolean,
-    reason: "miss" | "capped" | "noTarget" | "fightEnd",
+    reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied",
     maxHits: number,
     profileLabel: string,
   ): void {

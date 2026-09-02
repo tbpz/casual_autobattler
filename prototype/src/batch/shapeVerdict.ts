@@ -109,8 +109,19 @@ const args = parseArgs(process.argv.slice(2));
 // itself, NOT for trusting the printed numbers. Real answers need the full n's.
 const QUICK_DIVISOR = args.quick ? 20 : 1;
 const BLOCK = (args.block as "1" | "2" | "3" | "4" | "all") ?? "all";
+// Phase 0 of the chain-targeting plan (2026-08-29 — see
+// CHAIN_TARGETING_IMPLEMENTATION_PLAN.md's Phase 0 stop): run this sweep
+// twice, once default and once with --noSpill, and compare Block 2/3's
+// numbers. Turning spill off is expected to change run completion (fewer
+// killing blows carry their leftover damage onto the next body), which is
+// exactly what verifyBaselineMatchesChaindistBand pins against — so that
+// specific preamble check is skipped under --noSpill; the other two preamble
+// checks (identity transform, chain-outcome wiring) still run unconditionally.
+const NO_SPILL = Boolean(args.noSpill);
 
-const cfg: RunConfig = DEFAULT_RUN_CONFIG;
+const cfg: RunConfig = NO_SPILL
+  ? { ...DEFAULT_RUN_CONFIG, fight: { ...DEFAULT_RUN_CONFIG.fight, chainHitSpillsOverkill: false } }
+  : DEFAULT_RUN_CONFIG;
 const HEALER_IDS = new Set(PLAYER_HERO_POOL.filter((h) => h.healPerBeat).map((h) => h.id));
 
 /** The pre-registered bar. A completion/win-rate margin below this counts as
@@ -206,7 +217,13 @@ function verifyBaselineMatchesChaindistBand(): boolean {
   return ok;
 }
 
-if (!verifySelfProfileTransformIsInert() || !verifyChainOutcomeWiring() || !verifyBaselineMatchesChaindistBand()) {
+if (NO_SPILL) {
+  console.log(`(--noSpill: chainHitSpillsOverkill=false for this whole sweep — skipping the completion-band preamble check,\n` +
+    ` since a completion-rate shift is exactly what this run exists to measure)\n`);
+}
+const preambleOk =
+  verifySelfProfileTransformIsInert() && verifyChainOutcomeWiring() && (NO_SPILL || verifyBaselineMatchesChaindistBand());
+if (!preambleOk) {
   console.error("\nshape-verdict sweep ABORTED — self-verification failed, arms below would not be measuring what they claim");
   process.exit(1);
 }
@@ -350,12 +367,21 @@ interface Block2Cell {
   winRate: number;
   fireRate: number;
   row: ChainOutcomeRow | undefined;
+  /** Phase 0.4 — win rate alone is pinned near 100% in fights 1-4, so every
+   * shape scores the same there for reasons that have nothing to do with
+   * shape (see CHAIN_TARGETING_IMPLEMENTATION_PLAN.md's 0.4). These three
+   * still move on an "easy" fight: mean fraction of player HP left at fight
+   * end, mean fight duration, and realized-vs-intended chain damage. */
+  meanPlayerHpFrac: number;
+  meanDurationSec: number;
 }
 
 function runBlock2Cell(encounterIdx: number, profile: ChainProfile, startCharge: number, seedBase: number, n: number): Block2Cell {
   const agg = new ChainOutcomeAggregator(cfg);
   let wins = 0;
   let fired = 0;
+  let sumHpFrac = 0;
+  let sumDurationSec = 0;
   for (let i = 0; i < n; i++) {
     const seed = seedBase + i;
     const setup: FightSetup = {
@@ -365,10 +391,20 @@ function runBlock2Cell(encounterIdx: number, profile: ChainProfile, startCharge:
     const result = runFight(setup, cfg.fight, new Rng(seed), seed);
     if (result.outcome === "win") wins++;
     if (result.ignited) fired++;
+    const maxHp = result.finalPlayerHeroes.reduce((s, h) => s + h.maxHp, 0);
+    const hp = result.finalPlayerHeroes.reduce((s, h) => s + h.hp, 0);
+    sumHpFrac += maxHp > 0 ? hp / maxHp : 0;
+    sumDurationSec += result.durationSec;
     agg.add(result);
   }
   const rows = agg.finalize().rows.filter((r) => r.profileId === profile.id);
-  return { winRate: wins / n, fireRate: fired / n, row: rows[0] };
+  return {
+    winRate: wins / n,
+    fireRate: fired / n,
+    row: rows[0],
+    meanPlayerHpFrac: sumHpFrac / n,
+    meanDurationSec: sumDurationSec / n,
+  };
 }
 
 if (BLOCK === "2" || BLOCK === "all") {
@@ -413,6 +449,22 @@ if (BLOCK === "2" || BLOCK === "all") {
         `  ${ENCOUNTERS[ei]!.name.padEnd(14)}` +
           cells.map((c) => `${(c.cell.winRate * 100).toFixed(1)}%`.padStart(15)).join("") +
           `   ${margin >= 0 ? "+" : ""}${margin.toFixed(1)}pt`,
+      );
+      // Phase 0.4 — an easy fight (win rate pinned near 100%) still shows
+      // which shape was better on HP left, duration and EV realization.
+      const hpFracs = cells.map((c) => c.cell.meanPlayerHpFrac);
+      const durations = cells.map((c) => c.cell.meanDurationSec);
+      const hpSpreadPt = (Math.max(...hpFracs) - Math.min(...hpFracs)) * 100;
+      const durSpreadSec = Math.max(...durations) - Math.min(...durations);
+      console.log(
+        `  ${"hp%/dur/evReal".padEnd(14)}` +
+          cells
+            .map((c) => {
+              const evReal = c.cell.row ? chainOutcomeStats(c.cell.row).evRealization * 100 : 0;
+              return `${(c.cell.meanPlayerHpFrac * 100).toFixed(0)}/${c.cell.meanDurationSec.toFixed(1)}/${evReal.toFixed(0)}`.padStart(15);
+            })
+            .join("") +
+          `   spread ${hpSpreadPt.toFixed(1)}pt hp, ${durSpreadSec.toFixed(1)}s dur`,
       );
     }
 

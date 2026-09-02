@@ -272,6 +272,22 @@ export interface FightConfig {
    * chain heal is a rare, escalating event and gets real room to matter.
    */
   chainHealMaxFractionOfTargetMaxHp: number;
+
+  /**
+   * Phase 0 of the chain-targeting plan (2026-08-29 — see
+   * CHAIN_TARGETING_IMPLEMENTATION_PLAN.md's 0.3 and
+   * CHAIN_SHAPE_LEVERAGE_FINDINGS.md:214): both chain-shape design docs claim
+   * a chain hit's overkill is wasted. It isn't — applyDamageFrom already
+   * carries a killing blow's leftover damage onto the next living body on
+   * that side, so a chain hit behaves like a cleave today. Default `true`
+   * reproduces that existing behaviour exactly. `false` makes a chain hit
+   * apply at most its target's remaining HP and lose the rest, which is what
+   * Q4 (execute) and Q6 (focus) assume a "wastes overkill" rule means. Only
+   * ever read by chain bonus hits (fight.ts's resolveChainHit) — normal
+   * attacks and wind-up hits keep the old cleave behaviour regardless of this
+   * flag, since neither design document nor any open question is about them.
+   */
+  chainHitSpillsOverkill: boolean;
 }
 
 export interface RunConfig {
@@ -463,6 +479,10 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // chain reads as a real event (up to a fifth of a body's own maxHp in one
   // hit) without letting a single chain hit fully top up a squishy ally.
   chainHealMaxFractionOfTargetMaxHp: 0.2,
+
+  // See this field's own docstring above — default true is today's shipped
+  // behaviour (a chain hit already cleaves), not a change.
+  chainHitSpillsOverkill: true,
 };
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {
