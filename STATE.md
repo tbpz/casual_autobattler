@@ -2,7 +2,7 @@
 
 > **What this file is:** where the project stands right now, and what to do next. Present tense only.
 > **Read this first** in every session. Layer 1 ends at the rule — that's the 60-second read. Layer 2 is the working index.
-> **Last synced:** 2026-09-02
+> **Last synced:** 2026-09-04
 
 ## What this is
 
@@ -25,17 +25,16 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 The fight is legible and the player can name a true cause, but the charge bar is still the only
 lever reaching "I'd do it differently." No in-fight escalation beyond the bruiser wind-up, and the
 run stays deliberately easier than it was, un-retuned, pending a difficulty decision. Chain
-targeting — the full replacement for chain shape — was built, measured at full scale, and failed
-its own pre-registered gate: spread concentrates a chain's burst across bodies by design, and only
-2 of 11 fights actually reward that. The field pick still collapses to a forced answer under
-attrition, and the coin spend still goes unused.
+identity has now failed four separate candidate levers at full-scale measurement — payoff size,
+backfire risk, shape, and targeting — each measured, none surviving. The field pick still
+collapses to a forced answer under attrition, and the coin spend still goes unused.
 
 ## Next up
 
-1. **Chain identity has no working lever after two full design-and-measure passes** (shape, then
-   targeting). No new candidate is proposed — this needs a genuinely different idea, or a decision
-   to leave the pick uncontested. See `CHAIN_SHAPE_TARGETING_PLAN.md` §7's last entry before
-   starting a third attempt.
+1. **Chain identity has no working lever after four full design-and-measure passes** (size, risk,
+   shape, targeting). No new candidate is proposed — this needs a genuinely different idea, or a
+   decision to leave the pick uncontested. See DECISIONS.md's 2026-09-04 entry and
+   `CHAIN_SHAPE_TARGETING_PLAN.md` §7's last entry before starting a fifth attempt.
 2. Decide whether the field-pick collapse is upstream of #1 — chain identity lives on the
    field-pick screen, so a forced pick is a lever nobody pulls.
 3. Decide difficulty: re-compensate the ~9pt the CLOCK/WOUNDED removal gave back, or accept it. One
@@ -53,6 +52,7 @@ attrition, and the coin spend still goes unused.
 | Chain legibility — pacing, HUD, pips, end card | played-verified | `render/playback.ts`, `render/fightView.ts` |
 | Charge bar — the one lever reaching "change it" | played-verified | `render/fieldPickScreen.ts` |
 | Chain targeting — built behind a flag, failed its own gate; flag off | batch-verified | `sim/fight.ts`, `sim/config.ts`, `batch/targetingVerdict.ts` |
+| Backfire risk — measured across all role pairs and in isolation, failed as a balance lever | batch-verified | `sim/config.ts` (`backfireChanceFor`), `batch/backfireRisk.ts` |
 | In-fight threat — bruiser wind-up only | batch-verified | `sim/fight.ts` |
 | Field pick — collapses to a forced answer under attrition | played-verified | `sim/roster.ts`, `render/fieldPickScreen.ts` |
 | Coin spend — absent from all 12 played cards | played-verified | `sim/run.ts`, `render/runScreens.ts` |
@@ -63,8 +63,8 @@ attrition, and the coin spend still goes unused.
 
 ## Unverified bets
 
-- A chain-identity pick (shape, then targeting) can become a real pick-time axis — two designs
-  tried, both failed at full-scale measurement.
+- A chain-identity pick (size, risk, shape, then targeting) can become a real pick-time axis —
+  four designs tried, all four failed at full-scale measurement.
 - The fight keeps enough pressure with no in-fight escalation at all.
 - The coin spend has a purpose worth keeping.
 - One backfire should not durably shrink the live roster — Rook sat out 8 straight fights after a single betrayal.
@@ -72,8 +72,9 @@ attrition, and the coin spend still goes unused.
 
 ## Open questions
 
-- Is there any chain-identity pick-time axis left to try, or is the charge bar the only lever this
-  mechanic will ever have? Two leads are named in `CHAIN_SHAPE_TARGETING_PLAN.md` §7's last entry.
+- Is there any chain-identity pick-time axis left to try, after four separate candidates all
+  failed, or is the charge bar the only lever this mechanic will ever have? See DECISIONS.md's
+  2026-09-04 entry.
 - What makes a field pick live when attrition has already forced the answer?
 - Does the coin spend need a real answer to a backfire, or should it be cut?
 - Does the fight still reliably terminate without escalation — 0.1% of fights now run to `maxFightSec`.

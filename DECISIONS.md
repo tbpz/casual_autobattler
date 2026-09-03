@@ -10,6 +10,35 @@
 
 ---
 
+## [2026-09-04] Backfire-as-risk fails as a chain-identity lever — four candidates now closed
+
+- **Decision:**
+  - Backfire risk (chainAffinity -> backfireChanceFor) does not create a real pick-time choice,
+    at the shipped compensation or any swept alternative.
+  - No further tuning pass on `backfireChanceBase`/`backfireChanceAffinitySlope` or on how much a
+    backfire is assumed to cost is planned. `batch/backfireRisk.ts` stays in the tree, inert,
+    same convention as chain targeting's measurement code.
+- **Why:**
+  - Risk isolated from every other stat (one hero, chainAffinity swept 0.7-1.4, n=600/cell) never
+    moved a single fight's outcome by more than ~7 points, anywhere across all 11 encounters.
+  - Full-run outcome spread widened for the riskier pick in only 1 of 3 role pairs (tank), by 0.3
+    completion points — ~212,000 runs needed to detect at 80% power.
+  - Zeroing the risk-differentiation between heroes entirely produced results in the same small,
+    noisy range as leaving it shipped — the size of the gap, not just its presence, is too small
+    to matter.
+  - Sweeping how much a backfire is assumed to cost, up to the highest value the compensation
+    formula tolerates, did not fix all three role pairs at any one setting.
+  - The 2026-08-19 finding (Cairn beats Ward in all four pairings) was confounded by non-risk stat
+    differences and averaged the 11-encounter draw away; this pass isolates risk alone across all
+    three role pairs and reaches the same flat verdict on stronger evidence.
+- **Replaces:**
+  - Extends, not contradicts, the 2026-08-19 "affinity-as-risk" entry — its open Cairn-beats-Ward
+    gap is now explained (not risk, and not fixable by risk) rather than left open.
+  - Chain identity has now failed four separate candidate levers (payoff size, risk, shape,
+    targeting) — sharpens STATE.md's "two full design-and-measure passes" framing to four.
+
+---
+
 ## [2026-09-02] Chain shape replaced by chain targeting — where a chain aims, not when it lands
 
 - **Decision:**
