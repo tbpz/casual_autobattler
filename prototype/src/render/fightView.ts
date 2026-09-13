@@ -74,6 +74,12 @@ const CHAIN_FAILURE_HOLD_MS = 600;
  * never clips the card mid-animation. */
 const CHAIN_END_CARD_HOLD_MS = 1700;
 
+/** How long a guard redirect's "aim swings onto the guardian" tracer takes
+ * to fly, before the slam's impact plays on its new target (2026-09-13
+ * slam-visibility pass) — short enough to read as a last-instant save, not
+ * a second telegraph. */
+const GUARD_SWING_MS = 150;
+
 /** Heals share one colour regardless of healer identity — green reads as
  * "restoration" on sight, and a healer's own accent ring already carries
  * their identity once the tracer lands on them. */
@@ -234,6 +240,24 @@ export class FightView {
    * near-miss beat so it never competes with a chain that actually landed;
    * "so close" only means something when nothing else already happened. */
   private anyChainFiredThisFight = false;
+  /** One persistent aim-line element per charging bruiser (2026-09-13
+   * slam-visibility pass), keyed by that bruiser's hero id — reused and
+   * repositioned every tick by updateWindupTells rather than spawned fresh,
+   * since it has to grow continuously across the whole telegraph instead of
+   * playing once like a normal tracer. */
+  private aimLines: Map<string, HTMLElement> = new Map();
+  /** Whether each bruiser (by id) was charging as of the LAST tick's
+   * updateWindupTells call — the only way to notice "the charge just ended"
+   * on the tick it happens, since by the time that tick's own snapshot is
+   * read the sim has already cleared windupFireT (see fight.ts's
+   * handleBruiserBeat, "stun" branch). */
+  private windupChargingState: Map<string, boolean> = new Map();
+  /** True for exactly one tick per bruiser: the one on which its charge just
+   * ended. showChainHit's "stun" branch reads this to tell Hollow actually
+   * cancelling a live telegraph apart from an ordinary frozen beat with
+   * nothing charging to break — it's equally true when a charge ends by
+   * firing normally, but only the stun path ever consults it. */
+  private windupJustCancelled: Map<string, boolean> = new Map();
 
   constructor(container: HTMLElement, cfg: FightConfig) {
     this.cfg = cfg;
@@ -328,6 +352,7 @@ export class FightView {
     this.updateChainHud(snapshot);
     this.updateSide(this.playerHeroes, snapshot.playerHeroes, snapshot);
     this.updateSide(this.enemyHeroes, snapshot.enemyHeroes, snapshot);
+    this.updateWindupTells(snapshot);
 
     this.lastPlayerHpFraction = snapshot.playerMaxHp > 0 ? snapshot.playerHp / snapshot.playerMaxHp : 0;
     this.lastPlayerHeroes = snapshot.playerHeroes;
@@ -362,13 +387,18 @@ export class FightView {
     this.lastPlayerHpFraction = 1;
     this.lastPlayerHeroes = [];
     this.anyChainFiredThisFight = false;
+    this.windupChargingState.clear();
+    this.windupJustCancelled.clear();
+    for (const el of this.aimLines.values()) el.remove();
+    this.aimLines.clear();
     for (const refs of [...this.playerHeroes.values(), ...this.enemyHeroes.values()]) {
-      refs.body.classList.remove("down", "hot", "lunge", "flinch", "healed", "broken", "charging");
+      refs.body.classList.remove("down", "hot", "lunge", "flinch", "healed", "broken", "charging", "targeted", "windup-shatter");
       refs.body.querySelectorAll(".impact-flash").forEach((el) => el.remove());
       refs.status.classList.remove("show");
       // Drop back to 0 without animating the sweep — a restart isn't a fire,
       // so it must skip --charge-rise entirely, not play it backwards.
       refs.chargeFill.classList.add("instant");
+      refs.chargeFill.classList.remove("committed");
       refs.chargeFill.style.width = "0%";
       refs.chargeGhostFill.style.width = "0%";
       refs.lastChargeFraction = 0;
@@ -479,30 +509,135 @@ export class FightView {
       refs.body.classList.toggle("hot", isHot);
       refs.body.style.setProperty("--chain-color", isHot && snapshot.chainBackfire ? "var(--backfire)" : refs.accent);
       refs.body.classList.toggle("broken", hero.role === "tank" && hero.alive && !hero.holding);
-      // Wind-up telegraph (2026-08-07): snapshot-driven, like hot/broken
-      // above, so it stays correct under pause/step/scrub rather than
-      // depending on a timer racing the wall clock.
-      refs.body.classList.toggle("charging", hero.alive && hero.id === snapshot.windupTargetId);
-      // Charge (CHAIN) bar (2026-08-14 chain rebuild) — reads like an HP bar
-      // and persists across fights (see sim/types.ts's HeroState.charge).
-      // Enemies also carry a charge field but it's never read for firing, so
-      // their bar stays empty; CSS collapses it on the enemy side regardless.
-      const chargeFraction = this.cfg.chargeThreshold > 0 ? Math.min(hero.charge / this.cfg.chargeThreshold, 1) : 0;
-      // 2026-08-15 chain-bar-visibility fix: a rise should CREEP (see
-      // --charge-rise in style.css) but a fire-reset must stay instant, same
-      // as HP's own ghost-gap device. Comparing against the last value we
-      // actually rendered (rather than snapshot.hotHeroId) means this also
-      // does the right thing on restart()/scrub-backwards for free.
-      refs.chargeFill.classList.toggle("instant", chargeFraction < refs.lastChargeFraction);
-      refs.chargeFill.style.width = `${(chargeFraction * 100).toFixed(1)}%`;
-      refs.chargeGhostFill.style.width = `${(chargeFraction * 100).toFixed(1)}%`;
-      refs.lastChargeFraction = chargeFraction;
-      refs.chargeLabel.textContent = `CHAIN ${Math.round(hero.charge)}/${Math.round(this.cfg.chargeThreshold)}`;
-      // Near-full pulse (2026-08-14) — the dread beat: the player feels the
-      // bar closing in on firing without knowing which way it'll go.
-      refs.chargeFill.classList.toggle("near-full", chargeFraction >= 0.85 && chargeFraction < 1);
+      // The wind-up telegraph's own tells (attacker glow, victim mark, the
+      // SLAM bar, the aim line) moved to updateWindupTells (2026-09-13
+      // slam-visibility pass) — a bruiser is skipped here entirely so the
+      // two update paths never fight over the same DOM.
+      if (hero.role !== "bruiser") {
+        // Charge (CHAIN) bar (2026-08-14 chain rebuild) — reads like an HP
+        // bar and persists across fights (see sim/types.ts's
+        // HeroState.charge). Enemies also carry a charge field but it's
+        // never read for firing, so their bar stays empty; CSS collapses it
+        // on the enemy side regardless.
+        const chargeFraction = this.cfg.chargeThreshold > 0 ? Math.min(hero.charge / this.cfg.chargeThreshold, 1) : 0;
+        // 2026-08-15 chain-bar-visibility fix: a rise should CREEP (see
+        // --charge-rise in style.css) but a fire-reset must stay instant,
+        // same as HP's own ghost-gap device. Comparing against the last
+        // value we actually rendered (rather than snapshot.hotHeroId) means
+        // this also does the right thing on restart()/scrub-backwards for
+        // free.
+        refs.chargeFill.classList.toggle("instant", chargeFraction < refs.lastChargeFraction);
+        refs.chargeFill.style.width = `${(chargeFraction * 100).toFixed(1)}%`;
+        refs.chargeGhostFill.style.width = `${(chargeFraction * 100).toFixed(1)}%`;
+        refs.lastChargeFraction = chargeFraction;
+        refs.chargeLabel.textContent = `CHAIN ${Math.round(hero.charge)}/${Math.round(this.cfg.chargeThreshold)}`;
+        // Near-full pulse (2026-08-14) — the dread beat: the player feels
+        // the bar closing in on firing without knowing which way it'll go.
+        refs.chargeFill.classList.toggle("near-full", chargeFraction >= 0.85 && chargeFraction < 1);
+      }
       refs.counter.textContent = counterText(hero);
     }
+  }
+
+  /** Drives every enemy bruiser's own slam tells — the SLAM bar, the
+   * attacker's own .charging glow, the victim's .targeted mark, and the aim
+   * line between them (2026-09-13 slam-visibility pass). Purely
+   * snapshot-driven, same discipline as updateChainHud/updateSide, so all of
+   * it stays correct under pause/step/scrub rather than racing a wall-clock
+   * timer. Two phases, computed straight off the per-hero fields HeroSnapshot
+   * now carries (see events.ts):
+   *  - WINDING (hero.windupFireT undefined): the bar creeps from empty to
+   *    full across hero.windupIntervalSec (or the shared default) — how
+   *    close this enemy is to its NEXT telegraph.
+   *  - COMMITTED (hero.windupFireT set): the bar drains from full to empty
+   *    across cfg.windupTelegraphSec, reaching empty exactly as the hit
+   *    lands; the victim (hero.windupTargetId) gets .targeted, and the aim
+   *    line grows from this body toward the victim's, its length the same
+   *    countdown the bar is draining. */
+  private updateWindupTells(snapshot: TickSnapshot): void {
+    for (const refs of this.playerHeroes.values()) refs.body.classList.remove("targeted");
+
+    for (const hero of snapshot.enemyHeroes) {
+      if (hero.role !== "bruiser") continue;
+      const refs = this.enemyHeroes.get(hero.id);
+      if (!refs) continue;
+
+      const isCharging = hero.alive && hero.windupFireT !== undefined;
+      // Captured BEFORE overwriting, so showChainHit's "stun" branch (run
+      // later this same tick, off the event this tick's snapshot already
+      // reflects) can still tell "this bruiser was charging a moment ago" —
+      // by the time this snapshot exists, a cancelling stun has already
+      // cleared windupFireT (see fight.ts's handleBruiserBeat).
+      const wasCharging = this.windupChargingState.get(hero.id) ?? false;
+      this.windupJustCancelled.set(hero.id, wasCharging && !isCharging);
+      this.windupChargingState.set(hero.id, isCharging);
+
+      refs.body.classList.toggle("charging", isCharging);
+      refs.chargeFill.classList.toggle("committed", isCharging);
+
+      let fraction = 0;
+      if (hero.alive && isCharging) {
+        const telegraphSec = this.cfg.windupTelegraphSec;
+        const remaining = (hero.windupFireT as number) - snapshot.t;
+        fraction = telegraphSec > 0 ? Math.max(0, Math.min(1, remaining / telegraphSec)) : 0;
+      } else if (hero.alive && hero.nextWindupT !== undefined) {
+        const intervalSec = hero.windupIntervalSec ?? this.cfg.windupIntervalSec;
+        const remaining = hero.nextWindupT - snapshot.t;
+        fraction = intervalSec > 0 ? Math.max(0, Math.min(1, 1 - remaining / intervalSec)) : 0;
+      }
+      refs.chargeFill.style.width = `${(fraction * 100).toFixed(1)}%`;
+      refs.chargeGhostFill.style.width = `${(fraction * 100).toFixed(1)}%`;
+
+      const aimLine = this.aimLineFor(hero.id);
+      const target = isCharging && hero.windupTargetId ? this.playerHeroes.get(hero.windupTargetId) : undefined;
+      if (target) {
+        target.body.classList.add("targeted");
+        // The bar's own fraction drains 1 -> 0 across the telegraph; the aim
+        // line reads the same countdown the other way, growing 0 -> 1 so it
+        // touches the victim exactly as the bar (and the hit) reaches empty.
+        this.updateAimLine(aimLine, refs.body, target.body, 1 - fraction);
+      } else {
+        this.hideAimLine(aimLine);
+      }
+    }
+  }
+
+  /** Lazily creates (once per bruiser id) the persistent line element
+   * updateWindupTells repositions every tick — see .aim-line in style.css. */
+  private aimLineFor(bruiserId: string): HTMLElement {
+    let el = this.aimLines.get(bruiserId);
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "aim-line";
+      el.style.opacity = "0";
+      el.style.width = "0px";
+      this.tracerLayer.appendChild(el);
+      this.aimLines.set(bruiserId, el);
+    }
+    return el;
+  }
+
+  /** Points `el` from `from`'s centre toward `to`'s, sized to `progress`
+   * (0 = still at the attacker, 1 = reaching the victim) of the distance
+   * between them. Written directly from the snapshot, no CSS transition on
+   * length — see .aim-line's own docstring for why. */
+  private updateAimLine(el: HTMLElement, from: HTMLElement, to: HTMLElement, progress: number): void {
+    const a = this.centerOf(from);
+    const b = this.centerOf(to);
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const dist = Math.hypot(dx, dy);
+    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+    el.style.left = `${a.x}px`;
+    el.style.top = `${a.y}px`;
+    el.style.width = `${(dist * Math.max(0, Math.min(1, progress))).toFixed(1)}px`;
+    el.style.transform = `rotate(${angle.toFixed(2)}deg)`;
+    el.style.opacity = "0.85";
+  }
+
+  private hideAimLine(el: HTMLElement): void {
+    el.style.opacity = "0";
+    el.style.width = "0px";
   }
 
   private handleEvent(e: FightEvent): void {
@@ -535,7 +670,7 @@ export class FightView {
         this.showWindupStart(e.targetId);
         break;
       case "windupHit":
-        this.showWindupHit(e.targetId, e.damage);
+        this.showWindupHit(e.sourceId, e.targetId, e.damage, e.originalTargetId, e.redirect);
         break;
       case "resolve":
         this.showResolve(e.outcome);
@@ -764,27 +899,64 @@ export class FightView {
     pulseClass(refs.body, backfire ? "backfire-burst" : "ignite-burst", 500);
   }
 
-  /** The wind-up resolves — a heavier version of a normal attack: bigger
-   * flash, its own damage-popup colour (WINDUP_ACCENT) distinct from both a
-   * normal hit and the chain's ignite-yellow, and a loud (non-muted)
-   * callout, since this is the beat that's supposed to make fragility
-   * actually threatening rather than routine. */
+  /** The bruiser locks onto a target — a quiet tell on that hero's OWN
+   * status line (2026-09-13 slam-visibility pass: replaces a shared, loud
+   * .callout). The countdown itself is carried continuously by the SLAM bar
+   * and the aim line (updateWindupTells), both already snapshot-driven and
+   * already naming who; this only adds the word, same quiet register a
+   * tank-break tell uses. */
   private showWindupStart(targetId: string | null): void {
-    const name = targetId ? this.nameOf(targetId) : "someone";
-    this.showCallout(`BRUISER TARGETS ${name}`, true);
+    if (targetId) this.showHeroStatusTell(targetId, "SLAM INCOMING");
   }
 
-  private showWindupHit(targetId: string, damage: number): void {
+  /** The wind-up resolves (2026-09-13 slam-visibility pass: now sourced, so
+   * the hit can lunge/tracer from the actual attacker instead of only
+   * flashing the victim) — a heavier version of a normal attack: bigger
+   * flash, its own damage-popup colour (WINDUP_ACCENT), and an arena shake,
+   * since this is meant to be the single biggest hit the player watches for.
+   * `redirect` (events.ts) makes Bracer's guard provable: a real redirect
+   * gets its own short "aim swings onto the guardian" tracer before the
+   * impact plays; an ordinary mid-telegraph retarget (the locked hero died
+   * to something else) gets none, since nothing was actually saved. */
+  private showWindupHit(
+    sourceId: string,
+    targetId: string,
+    damage: number,
+    originalTargetId: string | null,
+    redirect: "guard" | "targetDied" | null,
+  ): void {
+    const attacker = this.enemyHeroes.get(sourceId);
     const target = this.playerHeroes.get(targetId);
     if (!target) return;
 
-    const maxHp = this.heroMaxHp.get(targetId) ?? 1;
-    const frac = Math.max(0.3, Math.min(1, damage / maxHp));
-    target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
-    pulseClass(target.body, "flinch", 300);
-    this.showImpactFlash(target.body, frac);
-    this.showPopup(target.body, `-${damage}`, "windup", 1 + frac, 0, WINDUP_ACCENT);
-    this.showCallout("SLAM", false);
+    const land = () => {
+      const maxHp = this.heroMaxHp.get(targetId) ?? 1;
+      const frac = Math.max(0.3, Math.min(1, damage / maxHp));
+      if (attacker) this.lungeToward(attacker.body, target.body, 14);
+      target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
+      pulseClass(target.body, "flinch", 300);
+      this.showImpactFlash(target.body, frac);
+      this.showPopup(target.body, `-${damage}`, "windup", 1 + frac, 0, WINDUP_ACCENT);
+      this.arena.classList.remove("shake");
+      void this.arena.offsetWidth;
+      this.arena.classList.add("shake");
+    };
+
+    if (redirect === "guard" && originalTargetId) {
+      const originalTarget = this.playerHeroes.get(originalTargetId);
+      if (originalTarget) {
+        this.fireTracer(originalTarget.body, target.body, WINDUP_ACCENT, 8, undefined, GUARD_SWING_MS);
+        setTimeout(land, GUARD_SWING_MS);
+        return;
+      }
+    }
+
+    if (attacker) {
+      this.fireTracer(attacker.body, target.body, WINDUP_ACCENT, 8);
+      setTimeout(land, TRACER_MS);
+    } else {
+      land();
+    }
   }
 
   /** Tiered per DECISIONS.md's 2026-08-06 "spectacle gated on payoff" entry
@@ -847,6 +1019,14 @@ export class FightView {
           pulseClass(target.body, "healed", 500); // reuses the "protected" glow, not a heal
           this.showPopup(target.body, `GUARD ${Math.round(durationSec ?? 0)}s`, "chain", scale, Math.min(hitIndex, 5), chainColor);
         } else if (kind === "stun") {
+          // Hollow's whole point, made provable (2026-09-13 slam-visibility
+          // pass): if this enemy was mid-telegraph the instant before this
+          // hit landed (windupJustCancelled, set by updateWindupTells this
+          // same tick), the charge just broke, not just froze — a one-shot
+          // shatter on top of the ordinary freeze, so cancelling a live slam
+          // reads as its own event instead of an identical frozen beat with
+          // nothing behind it.
+          if (this.windupJustCancelled.get(targetId)) pulseClass(target.body, "windup-shatter", 400);
           target.body.classList.add("frozen");
           setTimeout(() => target.body.classList.remove("frozen"), Math.round((durationSec ?? 0) * 1000));
           this.showPopup(target.body, `FROZEN ${Math.round(durationSec ?? 0)}s`, "chain", scale, Math.min(hitIndex, 5), chainColor);
@@ -1231,18 +1411,25 @@ function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: stri
   // which is why this bar previously rendered invisibly). Reads like the HP
   // bar: a real fill on top of a delayed ghost fill, so the reset-to-zero on
   // firing drains visibly instead of snapping.
+  //
+  // 2026-09-13 (slam-visibility pass): an enemy bruiser reuses this exact
+  // element as its own SLAM bar instead — style.css un-hides it (.windup)
+  // and fightView.ts's updateWindupTells drives it from the bruiser's own
+  // wind-up fields rather than updateSide's charge-bar code. Decided once,
+  // at build time, since a hero's role never changes mid-fight.
+  const isSlamBar = side === "enemy" && hero.role === "bruiser";
   const chargeTrack = document.createElement("div");
-  chargeTrack.className = "charge-track";
+  chargeTrack.className = isSlamBar ? "charge-track windup" : "charge-track";
   const chargeGhostFill = document.createElement("div");
-  chargeGhostFill.className = "charge-ghost-fill";
+  chargeGhostFill.className = isSlamBar ? "charge-ghost-fill windup" : "charge-ghost-fill";
   chargeTrack.appendChild(chargeGhostFill);
   const chargeFill = document.createElement("div");
-  chargeFill.className = "charge-fill";
+  chargeFill.className = isSlamBar ? "charge-fill windup" : "charge-fill";
   chargeTrack.appendChild(chargeFill);
 
   const chargeLabel = document.createElement("div");
-  chargeLabel.className = "charge-label";
-  chargeLabel.textContent = "CHAIN";
+  chargeLabel.className = isSlamBar ? "charge-label windup" : "charge-label";
+  chargeLabel.textContent = isSlamBar ? "SLAM" : "CHAIN";
 
   slot.appendChild(body);
   slot.appendChild(name);

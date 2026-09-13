@@ -26,9 +26,6 @@ export interface HeroDef {
    * produces or how its odds are shaped — see this file's top docstring for
    * the full table of who does what and what it answers. */
   chainEffect: ChainEffect;
-  /** One line for the squad-pick screen — what picking this hero buys you,
-   * beyond its raw numbers. */
-  identity: string;
 }
 
 /**
@@ -72,37 +69,31 @@ export const PLAYER_HERO_POOL: HeroDef[] = [
     id: "bracer", name: "Bracer", role: "tank", maxHp: 195, damage: 7, attackIntervalSec: 1.4,
     chainAffinity: 0.75,
     chainEffect: "guard",
-    identity: "Its chain covers the squad — the enemy's next telegraphed hit lands on Bracer instead. Bring it against anything that winds up.",
   },
   {
     id: "hollow", name: "Hollow", role: "tank", maxHp: 180, damage: 6, attackIntervalSec: 1.1,
     chainAffinity: 1.3,
     chainEffect: "stun",
-    identity: "Its chain freezes an enemy solid, cancelling a wind-up in progress. Bring it against a spike you need cancelled, or anything fast.",
   },
   {
     id: "rook", name: "Rook", role: "damage", maxHp: 85, damage: 6, attackIntervalSec: 0.9,
     chainAffinity: 1.4,
     chainEffect: "poundBiggest",
-    identity: "Its chain keeps pounding the single biggest body on the field. Bring it against one huge enemy — highest backfire risk in the pool to match.",
   },
   {
     id: "vex", name: "Vex", role: "damage", maxHp: 70, damage: 11, attackIntervalSec: 1.5,
     chainAffinity: 1.0,
     chainEffect: "strikeAll",
-    identity: "Its chain hits every living enemy at once. Bring it against a crowd — a lone tough body barely notices.",
   },
   {
     id: "cairn", name: "Cairn", role: "support", maxHp: 110, damage: 1, attackIntervalSec: 1.2, healPerBeat: 7,
     chainAffinity: 0.7,
     chainEffect: "mendAll",
-    identity: "Its chain heals the whole squad at once. Bring it against steady chip damage from many small hits — lowest backfire risk in the pool.",
   },
   {
     id: "ward", name: "Ward", role: "support", maxHp: 92, damage: 3, attackIntervalSec: 1.0, healPerBeat: 3,
     attacksWhileHealing: true, chainAffinity: 1.15,
     chainEffect: "mendOne",
-    identity: "Its chain pours everything into your worst-hurt hero. Bring it when the enemy is hunting one hero to kill it.",
   },
 ];
 

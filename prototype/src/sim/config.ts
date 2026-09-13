@@ -381,25 +381,47 @@ export interface FightConfig {
  */
 export type ChainEffect = "strikeAll" | "poundBiggest" | "guard" | "stun" | "mendAll" | "mendOne";
 
-/** A short, compact verb phrase for `effect` — used where space is tight
- * (sim/projection.ts's chain line). render/heroPickShared.ts's
- * chainEffectLines carries the fuller, two-line pick-screen wording; this is
- * the one-line version for a pre-fight readout that names a specific hero. */
-export function chainEffectVerb(effect: ChainEffect): string {
+/** The two-line pick-screen text for a hero's chain EFFECT (2026-09-13, "a
+ * hero's chain names its own enemy" rebuild — see DECISIONS.md). `does` names
+ * the effect in plain words; `against` names when to bring it. This is the
+ * single source for that wording — render/heroPickShared.ts's
+ * chainEffectLines (the squad/field pick rows) and this file's
+ * chainEffectVerb (the short one-line version for a pre-fight readout) both
+ * read it, so the two screens can't drift into describing the same effect
+ * two different ways.
+ *
+ * "Slam" is the only word taught to the player beyond plain English — it
+ * names the enemy's charged-up hit and is used consistently in these lines,
+ * the enemy blurbs (sim/encounters.ts), the pre-fight lines (projection.ts),
+ * and the in-fight callout (render/fightView.ts's showWindupStart). Every
+ * other word here is ordinary language, not a coined term. Keep `does`
+ * around 40 characters and `against` around 40 — both sit in a
+ * `white-space: nowrap` column (style.css's .hero-pick-chain/-against) that
+ * doesn't wrap. */
+export function chainEffectLines(effect: ChainEffect): { does: string; against: string } {
   switch (effect) {
     case "strikeAll":
-      return "hits every enemy at once";
+      return { does: "Hits every enemy at once.", against: "Good against a crowd." };
     case "poundBiggest":
-      return "keeps pounding the biggest body";
+      return { does: "Hits the biggest enemy, over and over.", against: "Good against one huge enemy." };
     case "guard":
-      return "covers the squad from the next telegraphed hit";
+      return { does: "Takes the next slam for the squad.", against: "Good against slams." };
     case "stun":
-      return "freezes an enemy solid";
+      return { does: "Freezes one enemy, cancelling its slam.", against: "Good against a slam, or a fast enemy." };
     case "mendAll":
-      return "heals the whole squad at once";
+      return { does: "Heals the whole squad at once.", against: "Good against lots of small hits." };
     case "mendOne":
-      return "pours into your worst-hurt hero";
+      return { does: "Heals your worst-hurt hero, hard.", against: "Good when one hero takes all the hits." };
   }
+}
+
+/** A short, compact verb phrase for `effect` — used where space is tight
+ * (sim/projection.ts's chain line, render/fightView.ts's end-of-chain card).
+ * Derived from chainEffectLines' `does` above (lowercased, full stop
+ * dropped) rather than hand-kept as a second copy of the same six ideas. */
+export function chainEffectVerb(effect: ChainEffect): string {
+  const does = chainEffectLines(effect).does;
+  return does.charAt(0).toLowerCase() + does.slice(1, -1);
 }
 
 export interface RunConfig {

@@ -93,7 +93,7 @@ export const ENCOUNTERS: EncounterDef[] = [
   },
   {
     name: "Twins",
-    blurb: "Two telegraphed spikes, offset. Can you absorb both without a break?",
+    blurb: "Two slams, offset. Can you take both without a break?",
     tier: "mid",
     bruisers: [
       { namePrefix: "Twin", maxHp: 150, damage: 8.5, attackIntervalSec: 1.15, windupPhase: 0, windupTargeting: "weighted" },
@@ -107,7 +107,7 @@ export const ENCOUNTERS: EncounterDef[] = [
   },
   {
     name: "Executioner",
-    blurb: "The wind-up hunts your lowest-HP hero directly, tank aggro or not. Can your squishies survive?",
+    blurb: "Its slam goes straight for your weakest hero, tank or no tank. Can they survive?",
     tier: "mid",
     bruisers: [
       { namePrefix: "Executioner", maxHp: 190, damage: 10, attackIntervalSec: 1.1, windupTargeting: "lowestHp" },
@@ -136,7 +136,7 @@ export const ENCOUNTERS: EncounterDef[] = [
   // file's top docstring and each entry's blurb for the question itself.
   {
     name: "Anvil",
-    blurb: "One huge body, barely hits back. A grind with no telegraph to fear — how long will you take?",
+    blurb: "One huge body, barely hits back. No slam to fear — how fast can you kill it?",
     tier: "early",
     // No bruiser at all (a grunt, not a bruiser) is deliberate: this
     // encounter's whole point is "no wind-up, no telegraph, zero jeopardy" —
@@ -162,7 +162,7 @@ export const ENCOUNTERS: EncounterDef[] = [
   },
   {
     name: "Duelist",
-    blurb: "The wind-up fires twice as often. Can you survive sustained pressure, not just one big hit?",
+    blurb: "Its slam lands twice as often. Can you take steady pressure, not just one big hit?",
     tier: "mid",
     bruisers: [
       { namePrefix: "Duelist", maxHp: 200, damage: 9, attackIntervalSec: 1.1, windupTargeting: "weighted", windupIntervalSec: 2.5 },
@@ -202,7 +202,7 @@ export const ENCOUNTERS: EncounterDef[] = [
   },
   {
     name: "Vanguard",
-    blurb: "The wind-up hunts your lowest HP — and chip damage keeps changing who that is. Can your squishies survive a moving target?",
+    blurb: "Its slam goes for your weakest hero — and small hits keep changing who that is. Can they survive?",
     tier: "finale",
     bruisers: [
       { namePrefix: "Vanguard", maxHp: 240, damage: 11, attackIntervalSec: 1, windupTargeting: "lowestHp" },

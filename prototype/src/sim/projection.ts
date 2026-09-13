@@ -107,11 +107,11 @@ function bandFor(margin: number, tankHoldsSec: number | null, killSec: number): 
 function verdictFor(band: MarginBand, tankName: string | null): string {
   switch (band) {
     case "comfortable":
-      return "Comfortable floor. Should hold up — the bruiser's wind-up is the wildcard.";
+      return "Comfortable floor. Should hold up — a slam is the wildcard.";
     case "tight":
       return tankName
-        ? `Tight. ${tankName} may not hold the whole fight, and a bad wind-up could decide it.`
-        : "Tight. No one's holding the line — a wind-up could end this early.";
+        ? `Tight. ${tankName} may not hold the whole fight, and a bad slam could decide it.`
+        : "Tight. No one's holding the line — a slam could end this early.";
     case "losing":
       return "Rough floor. You'll need a break — or a fast chain — to pull this out.";
   }
@@ -219,7 +219,7 @@ function chainProjectionFor(
   } else {
     const count = Math.max(1, Math.round(chainsExpected));
     const verb = closest.chainEffect ? chainEffectVerb(closest.chainEffect) : "fires";
-    chainLine = `Chain: expect ~${count} this fight. ${closest.name}'s ${verb}.`;
+    chainLine = `Chain: expect ~${count} this fight. ${closest.name}'s chain ${verb}.`;
   }
   return { chainsExpected, chainLine };
 }

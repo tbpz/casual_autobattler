@@ -77,9 +77,9 @@ function formatEvent(e: FightEvent): string {
     case "tankRecover":
       return `[t=${t}] ${e.side} tank ${e.heroId} recovers — holding again`;
     case "windupStart":
-      return `[t=${t}] bruiser winds up on ${e.targetId ?? "?"} — fires at t=${e.fireT.toFixed(2)}`;
+      return `[t=${t}] ${e.sourceId} winds up on ${e.targetId ?? "?"} — fires at t=${e.fireT.toFixed(2)}`;
     case "windupHit":
-      return `[t=${t}] bruiser SLAMS ${e.targetId}: ${e.damage} dmg`;
+      return `[t=${t}] ${e.sourceId} SLAMS ${e.targetId}: ${e.damage} dmg${e.redirect ? ` (redirect: ${e.redirect}, was ${e.originalTargetId})` : ""}`;
     case "resolve":
       return `[t=${t}] RESOLVE: ${e.outcome.toUpperCase()} (${e.reason})`;
   }

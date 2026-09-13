@@ -13,6 +13,10 @@
      so "my chain just backfired" reads as its own category of danger, not
      as the enemy's colour bleeding onto my own side. */
   --backfire: #ff4d4d;
+  /* The slam's own colour (2026-09-13 slam-visibility pass) — mirrors
+     fightView.ts's WINDUP_ACCENT constant so the bar, the aim line, and the
+     attacker/victim body marks all read as one category of threat. */
+  --windup: #ff5252;
   --text: #e8e8ee;
   --muted: #8a8fa3;
   /* How long a CHAIN bar rise takes to glide into place (2026-08-15
@@ -321,9 +325,47 @@ body {
   }
 }
 
-.enemy-side .charge-track,
-.enemy-side .charge-label {
+/* 2026-09-13 slam-visibility pass: the enemy side's CHAIN bar stays hidden
+   (only the player ever fires a chain), but a bruiser's own bar (.windup,
+   see makeHeroSlot) is exactly what this pass exists to un-hide. */
+.enemy-side .charge-track:not(.windup),
+.enemy-side .charge-label:not(.windup) {
   display: none;
+}
+
+/* The enemy bruiser's own SLAM bar (2026-09-13 slam-visibility pass) —
+   reuses the CHAIN bar's track/fill/ghost-fill shape above, un-hidden on the
+   enemy side for a bruiser only. Two phases on one fill: WINDING (no
+   .committed) creeps calm and dark from empty to full across the gap
+   between telegraphs; COMMITTED (toggled by fightView.ts's
+   updateWindupTells the instant the telegraph starts) switches to the danger
+   red and drains across the telegraph window, reaching empty exactly as the
+   hit lands. No transition on the fill itself, unlike the CHAIN bar's rise —
+   updateWindupTells writes an exact, snapshot-derived fraction every tick,
+   so pausing/stepping/scrubbing the replay always shows the true state
+   rather than a CSS animation racing the wall clock. */
+.charge-fill.windup {
+  background: #7a2b2b;
+  transition: none;
+}
+
+.charge-fill.windup.committed {
+  background: var(--windup);
+  animation: windupNearFire 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes windupNearFire {
+  from {
+    filter: brightness(1);
+  }
+  to {
+    filter: brightness(1.5);
+    box-shadow: 0 0 6px 1px var(--windup);
+  }
+}
+
+.charge-ghost-fill.windup {
+  background: var(--windup);
 }
 
 .body {
@@ -452,12 +494,15 @@ body {
   }
 }
 
-/* The wind-up telegraph (2026-08-07) — previously toggled by fightView.ts
-   with no matching rule at all, so a charge-locked target rendered nothing.
-   A pulsing outline in the enemy's own colour: this body is what the
-   bruiser is about to hit. */
+/* The wind-up telegraph (2026-08-07; split in two 2026-09-13, slam-
+   visibility pass). Originally this single class was toggled on the VICTIM
+   only — the one visual cue for the whole mechanism taught the wrong body,
+   since nothing at all marked the bruiser actually charging.
+   .charging is now the ATTACKER's own tell: a pulsing outline in the slam's
+   own colour (--windup, not the plain --enemy body-fill red) on whichever
+   enemy is currently telegraphing. */
 .body.charging {
-  outline: 3px solid var(--enemy);
+  outline: 3px solid var(--windup);
   outline-offset: 3px;
   animation: chargeTelegraph 0.6s ease-in-out infinite alternate;
 }
@@ -469,6 +514,37 @@ body {
   to {
     filter: brightness(1.4);
   }
+}
+
+/* .targeted is the VICTIM's own tell, split off from the class above — who
+   a live telegraph is aimed at. Quiet by design (a static dashed ring, no
+   pulse): the attacker's own pulse and the aim line (below) already carry
+   the urgency, so this only has to answer "who." */
+.body.targeted {
+  outline: 2px dashed var(--windup);
+  outline-offset: 3px;
+}
+
+/* The one-shot break when Hollow's stun cancels a telegraph mid-charge
+   (fightView.ts's showChainHit, "stun" branch) — a ring that flares and
+   collapses to nothing, distinct from .charging's steady pulse above, so
+   "the charge just got cancelled" reads as its own event, not a continuation
+   of the same animation. */
+@keyframes windupShatter {
+  0% {
+    box-shadow:
+      0 0 0 3px var(--windup),
+      0 0 16px 4px var(--windup);
+  }
+  100% {
+    box-shadow:
+      0 0 0 3px var(--windup),
+      0 0 0 0 transparent;
+  }
+}
+
+.body.windup-shatter {
+  animation: windupShatter 0.4s ease-out;
 }
 
 /* Hollow's "stun" chain effect (2026-09-13 rebuild) — a frozen body reads as
@@ -596,6 +672,23 @@ body {
   transition:
     transform 0.2s ease-out,
     opacity 0.2s ease-out;
+}
+
+/* The line from a charging bruiser to its locked target (2026-09-13
+   slam-visibility pass, fightView.ts's updateWindupTells) — grows from the
+   attacker toward the victim across the whole telegraph, touching the
+   victim exactly as the hit lands. Unlike .tracer above, its length is
+   written directly from the snapshot every tick (no CSS transition on
+   width/transform), same "exact under pause/scrub" reasoning as the slam
+   bar it travels alongside. */
+.aim-line {
+  position: absolute;
+  height: 2px;
+  background: var(--windup);
+  box-shadow: 0 0 4px 1px var(--windup);
+  transform-origin: 0 50%;
+  pointer-events: none;
+  transition: opacity 0.15s linear;
 }
 
 /* A chain tracer (see fightView.ts's showChainHit) — bigger and glowier
@@ -957,6 +1050,19 @@ body {
   color: #6ee7a0;
 }
 
+/* The slam's own popup tier (2026-09-13 slam-visibility pass) — this tier
+   name was already passed in by fightView.ts's showWindupHit but had no
+   matching rule, so the biggest single hit in the fight rendered at
+   ordinary-attack weight. Bold and in the slam's own colour, same
+   convention as .chain's --owner-accent glow. */
+.damage-popup.windup {
+  color: var(--windup);
+  font-size: 1.1em;
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.6),
+    0 0 8px var(--windup);
+}
+
 /* --owner-accent (set inline by fightView.ts's showChainHit) is the
    identity/direction channel — a hero's own accent for a real chain,
    --backfire for one gone wrong, HEAL_ACCENT for a heal-chain hit — carried
@@ -1214,15 +1320,6 @@ button:disabled {
   font-size: 0.8em;
   color: var(--muted);
   text-transform: capitalize;
-}
-
-/* Identity line (2026-08-08) — what picking this hero buys you, beyond its
- * raw numbers. Sits under role, above the stats column. */
-.hero-pick-identity {
-  font-size: 0.78em;
-  color: var(--muted);
-  font-style: italic;
-  margin-top: 2px;
 }
 
 .hero-pick-stats {

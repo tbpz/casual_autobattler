@@ -231,6 +231,10 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
     holding: h.holding,
     charge: h.charge,
     chainAffinity: h.chainAffinity,
+    windupFireT: h.windupFireT,
+    windupTargetId: h.windupTargetId,
+    nextWindupT: h.nextWindupT,
+    windupIntervalSec: h.windupIntervalSec,
   }));
 }
 
@@ -356,8 +360,15 @@ function handleBruiserBeat(
     if (t < hero.windupFireT) return false; // still telegraphing
     // Charge resolves. If the locked target died to something else first,
     // retarget fresh — the threat was real, just not to that hero anymore.
-    const lockedAlive = hero.windupTargetId && player.heroes.some((h) => h.id === hero.windupTargetId && h.alive);
-    let targetId = lockedAlive ? (hero.windupTargetId as string) : pickWindupTargetId(hero, player, rng, cfg, enemyTargetTally);
+    const originalTargetId = hero.windupTargetId ?? null;
+    const lockedAlive = originalTargetId !== null && player.heroes.some((h) => h.id === originalTargetId && h.alive);
+    let targetId = lockedAlive ? (originalTargetId as string) : pickWindupTargetId(hero, player, rng, cfg, enemyTargetTally);
+    // `redirect` (2026-09-13 slam-visibility pass) names WHY the final
+    // target differs from the locked one — a plain retarget (the locked
+    // hero died to something else) vs. Bracer's guard stepping in below —
+    // so the render layer can tell the two apart instead of only seeing an
+    // unexplained diff between windupStart's target and this hit's.
+    let redirect: "guard" | "targetDied" | null = !lockedAlive && originalTargetId !== null ? "targetDied" : null;
     // Bracer's "guard" chain effect (config.ts's ChainEffect) redirects a
     // telegraphed hit at the moment it lands, not at telegraph start — a
     // real payoff sends it to the guarding hero; a backfire (guardInverted)
@@ -367,10 +378,15 @@ function handleBruiserBeat(
     // redirects, which is what lets a long chain guard several cycles.
     if (player.guardUntilT !== undefined && t < player.guardUntilT) {
       if (player.guardInverted) {
-        targetId = lowestHpAliveHero(player)?.id ?? targetId;
+        const inverted = lowestHpAliveHero(player)?.id ?? targetId;
+        if (inverted !== targetId) redirect = "guard";
+        targetId = inverted;
       } else {
         const guardian = player.heroes.find((h) => h.id === player.guardHeroId && h.alive);
-        if (guardian) targetId = guardian.id;
+        if (guardian) {
+          if (guardian.id !== targetId) redirect = "guard";
+          targetId = guardian.id;
+        }
       }
     }
     hero.windupFireT = undefined;
@@ -381,7 +397,7 @@ function handleBruiserBeat(
     const damage = Math.max(1, Math.round(hero.damage * cfg.windupDamageMultiplier));
     const { died, applied } = applyDamageFrom(player, targetId, damage, cfg.chargeWeightSoaked);
     hero.dealt += applied;
-    events.push({ type: "windupHit", t, targetId, damage });
+    events.push({ type: "windupHit", t, sourceId: hero.id, targetId, damage, originalTargetId, redirect });
     for (const id of died) events.push({ type: "heroDown", t, side: "player", heroId: id });
     return isWiped(player);
   }
@@ -389,7 +405,7 @@ function handleBruiserBeat(
     const targetId = pickWindupTargetId(hero, player, rng, cfg, enemyTargetTally) ?? null;
     hero.windupTargetId = targetId;
     hero.windupFireT = t + cfg.windupTelegraphSec;
-    events.push({ type: "windupStart", t, targetId, fireT: hero.windupFireT });
+    events.push({ type: "windupStart", t, sourceId: hero.id, targetId, fireT: hero.windupFireT });
     return false;
   }
   if (t >= hero.nextAttackT) {
@@ -774,8 +790,6 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       }
     }
 
-    const bruiser = enemy.heroes.find((h) => h.role === "bruiser");
-
     snapshots.push({
       t,
       playerHp: sideHp(player),
@@ -789,7 +803,6 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       visibleChainLength: bonusHitsLanded,
       chainDamageSoFar: hotHeroId ? chainDamageSoFar : 0,
       chainEffect: hotHeroId ? hotEffect : null,
-      windupTargetId: bruiser?.alive && bruiser.windupFireT !== undefined ? (bruiser.windupTargetId ?? null) : null,
     });
 
     if (outcome) break;

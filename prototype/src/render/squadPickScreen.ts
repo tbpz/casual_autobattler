@@ -33,11 +33,17 @@ import { chainEffectLines, backfireRiskPips } from "./heroPickShared.js";
  * the DEFAULT fielding (roster.ts's defaultFieldPick) of whatever 5 are
  * currently selected, since the draft itself is never fielded directly.
  *
- * 2026-08-08: each row also shows attack interval, a chainAffinity pip
- * meter, and a one-line identity — the player's own diagnosis was "I know
- * the cascade is there, but I don't know how to head into it while playing
- * a normal round." This is the missing lever, stated at the only moment a
- * player can act on it: before the fight, not during the recap.
+ * 2026-08-08: each row also shows attack interval and a chainAffinity pip
+ * meter — the player's own diagnosis was "I know the cascade is there, but I
+ * don't know how to head into it while playing a normal round." This is the
+ * missing lever, stated at the only moment a player can act on it: before the
+ * fight, not during the recap.
+ *
+ * 2026-09-13 (setup-phase copy pass): the row's own one-line `identity` was
+ * dropped — it restated the same fact as the CHAIN line below it in a third
+ * set of words (see DECISIONS.md). The hint below now teaches "slam" once,
+ * the one word the pick screen and every enemy blurb share (config.ts's
+ * chainEffectLines).
  */
 export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, onPlay: (heroIds: string[]) => void): void {
   container.innerHTML = "";
@@ -53,6 +59,11 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
   hint.className = "hint";
   hint.textContent = `Pick ${draftSize} for the run — or just hit Play. You'll choose 3 to field each fight.`;
   screen.appendChild(hint);
+
+  const slamHint = document.createElement("p");
+  slamHint.className = "hint";
+  slamHint.textContent = "Some enemies charge up a big hit before it lands. That's a slam.";
+  screen.appendChild(slamHint);
 
   const selected = new Set<string>(DEFAULT_DRAFT_ROSTER_IDS);
 
@@ -116,7 +127,6 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
       <span class="hero-pick-info">
         <span class="hero-pick-name">${def.name}</span>
         <span class="hero-pick-role">${def.role}</span>
-        <span class="hero-pick-identity">${def.identity}</span>
       </span>
       <span class="hero-pick-stats">
         <span class="hero-pick-numbers">${def.maxHp}hp / ${def.damage}dmg / ${def.attackIntervalSec}s${def.healPerBeat ? ` +${def.healPerBeat}heal` : ""}${def.attacksWhileHealing ? " +atk" : ""}</span>

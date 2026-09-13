@@ -86,11 +86,30 @@ export type FightEvent =
   | { type: "tankBreak"; t: number; side: Side; heroId: string }
   | { type: "tankRecover"; t: number; side: Side; heroId: string }
   /** The bruiser begins a telegraphed charge against targetId, firing at
-   * fireT — the dread beat: a named hero, on a visible clock. */
-  | { type: "windupStart"; t: number; targetId: string | null; fireT: number }
+   * fireT — the dread beat: a named hero, on a visible clock. `sourceId`
+   * (2026-09-13 slam-visibility pass) is the bruiser itself — previously
+   * absent, which is why the render layer could highlight the victim but
+   * never the attacker. */
+  | { type: "windupStart"; t: number; sourceId: string; targetId: string | null; fireT: number }
   /** The charge resolves — targetId is who it actually landed on (may differ
-   * from windupStart's target if that hero died first; see fight.ts). */
-  | { type: "windupHit"; t: number; targetId: string; damage: number }
+   * from windupStart's target if that hero died first; see fight.ts).
+   * `sourceId` (2026-09-13) mirrors windupStart's. `originalTargetId` is the
+   * target locked at telegraph start (null if none was ever locked);
+   * `redirect` says WHY it differs from the final `targetId` — "targetDied"
+   * (the locked hero fell to something else first, so this is an ordinary
+   * retarget) or "guard" (Bracer's chain effect stepped in at fire time) —
+   * or null when the final target IS the locked one. Without this the two
+   * cases were indistinguishable from a diff alone, and Bracer's guard had
+   * no visible proof it did anything. */
+  | {
+      type: "windupHit";
+      t: number;
+      sourceId: string;
+      targetId: string;
+      damage: number;
+      originalTargetId: string | null;
+      redirect: "guard" | "targetDied" | null;
+    }
   | { type: "resolve"; t: number; outcome: "win" | "loss"; reason: "wipe" | "failsafe" };
 
 /** A per-hero HP reading at one instant, for body rendering. */
@@ -118,6 +137,15 @@ export interface HeroSnapshot {
    * without the renderer importing the static hero pool. Inert (1) for
    * enemies, who never chain — see sim/encounters.ts. */
   chainAffinity: number;
+  /** Enemy bruiser only (2026-09-13 slam-visibility pass) — mirrors
+   * types.ts's HeroState fields of the same name, render-facing so the slam
+   * bar/aim line/attacker-glow can be driven per-hero, per-frame, straight
+   * off the snapshot (same discipline as every other tell here: correct
+   * under pause/step/scrub). Undefined for every non-bruiser. */
+  windupFireT?: number;
+  windupTargetId?: string | null;
+  nextWindupT?: number;
+  windupIntervalSec?: number;
 }
 
 export interface TickSnapshot {
@@ -148,10 +176,6 @@ export interface TickSnapshot {
    * is null. Snapshot-driven, not renderer-accumulated, so a persistent
    * chain HUD stays correct under pause/step/scrub. */
   chainDamageSoFar: number;
-  /** The enemy bruiser's current wind-up target, if it's mid-telegraph —
-   * render-facing so the targeted hero can be highlighted for the charge's
-   * duration. Null when the bruiser isn't charging (or is dead). */
-  windupTargetId: string | null;
 }
 
 export interface FightResult {
