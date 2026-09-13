@@ -1,10 +1,11 @@
 import { Rng } from "../sim/rng.js";
 import { DEFAULT_RUN_CONFIG, type RunConfig } from "../sim/config.js";
 import { runFight } from "../sim/fight.js";
-import { DEFAULT_DRAFT_ROSTER_IDS, makePlayerSide } from "../sim/heroes.js";
+import { DEFAULT_DRAFT_ROSTER_IDS, DEFAULT_PLAYER_ROSTER_IDS, makePlayerSide } from "../sim/heroes.js";
 import type { FightEvent, FightResult } from "../sim/events.js";
 import { makeEnemySide, makePolicy, runRun, type RunResult } from "../sim/run.js";
 import { BatchAggregator, formatReport } from "./report.js";
+import { runLabFight, type LabSetup } from "../lab/labFight.js";
 
 /** Named FIELDED squads (exactly 3) for the `fight` subcommand's --squad —
  * an isolated single fight, no roster/attrition involved. A literal
@@ -143,6 +144,20 @@ switch (cmd) {
     printFightLog(result, "single fight");
     break;
   }
+  case "lab": {
+    // The lab's own headless entry point (prototype/src/lab/labFight.ts) —
+    // exercises the exact setup path the UI's ?lab=1 screen uses, so the
+    // whole setup layer is provable before any UI exists. --heroes/--charge
+    // are positional-paired: chargePercents[i] belongs to heroIds[i].
+    const heroIds = args.heroes ? args.heroes.split(",") : DEFAULT_PLAYER_ROSTER_IDS;
+    const chargePercents = args.charge ? args.charge.split(",").map(Number) : heroIds.map(() => 0);
+    const encounterIndex = args.encounter ? Number(args.encounter) : 0;
+    const rampIndex = args.ramp ? Number(args.ramp) : 0;
+    const labSetup: LabSetup = { heroIds, chargePercents, encounterIndex, rampIndex, seed };
+    const result = runLabFight(labSetup, cfg);
+    printFightLog(result, "lab fight");
+    break;
+  }
   case "run": {
     // A full 5-fight run. --squad now takes a DRAFT (any length >=
     // cfg.playerN — passing exactly 3 degrades to "no bench," the pre-
@@ -181,7 +196,8 @@ switch (cmd) {
   }
   default:
     console.error(
-      `Usage: tsx src/batch/cli.ts <fight|run|batch> [--seed N] [--n N] [--policy name] [--squad comfortable|tight|greedy|default|burst|thin|id,id,id...]`,
+      `Usage: tsx src/batch/cli.ts <fight|lab|run|batch> [--seed N] [--n N] [--policy name] [--squad comfortable|tight|greedy|default|burst|thin|id,id,id...]\n` +
+        `  lab: --heroes id,id,id --charge pct,pct,pct --encounter N --ramp N --seed N`,
     );
     process.exit(1);
 }

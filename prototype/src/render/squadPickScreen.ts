@@ -9,7 +9,7 @@ import {
 import { defaultFieldPick, fieldSquad } from "../sim/roster.js";
 import { makeEnemySide } from "../sim/run.js";
 import { project } from "../sim/projection.js";
-import { chainShapeSparkline, backfireRiskPips } from "./heroPickShared.js";
+import { chainEffectLines, backfireRiskPips } from "./heroPickShared.js";
 
 /**
  * Run-start DRAFT: 5 of 6, pre-checked with the default draft and a
@@ -110,6 +110,7 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
     const row = document.createElement("button");
     row.type = "button";
     row.className = "hero-pick-row";
+    const chain = chainEffectLines(def.chainEffect);
     row.innerHTML = `
       <span class="hero-pick-check"></span>
       <span class="hero-pick-info">
@@ -119,7 +120,8 @@ export function renderSquadPickScreen(container: HTMLElement, cfg: RunConfig, on
       </span>
       <span class="hero-pick-stats">
         <span class="hero-pick-numbers">${def.maxHp}hp / ${def.damage}dmg / ${def.attackIntervalSec}s${def.healPerBeat ? ` +${def.healPerBeat}heal` : ""}${def.attacksWhileHealing ? " +atk" : ""}</span>
-        <span class="hero-pick-chain">CHAIN ${chainShapeSparkline(def.chainProfile)} ${def.chainProfile.label}</span>
+        <span class="hero-pick-chain">CHAIN: ${chain.does}</span>
+        <span class="hero-pick-chain-against">${chain.against}</span>
         <span class="hero-pick-backfire">BACKFIRE ${backfireRiskPips(cfg.fight, def.chainAffinity, MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY)}</span>
       </span>
     `;

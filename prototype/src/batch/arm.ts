@@ -41,6 +41,32 @@ export function mean(xs: number[]): number {
   return xs.length > 0 ? xs.reduce((s, x) => s + x, 0) / xs.length : 0;
 }
 
+/** Population standard deviation. Extracted (2026-09-04, chain-proof pass)
+ * alongside spreadStats below for chainProof.ts's variance-decomposition
+ * block, which needs a metric finer than p10/p90 width on a 6-level integer
+ * (fightsWon) — same reuse-not-rewrite convention as this file's other
+ * exports. */
+export function stdev(xs: number[]): number {
+  if (xs.length === 0) return 0;
+  const m = mean(xs);
+  return Math.sqrt(mean(xs.map((x) => (x - m) ** 2)));
+}
+
+/** p10/p50/p90 and their width, for "same center, wider spread" comparisons.
+ * Extracted from batch/backfireRisk.ts (2026-08-?? backfire-risk pass; moved
+ * here 2026-09-04, chain-proof pass) when chainProof.ts needed the identical
+ * machinery — same move that pulled runArm/printArm out of affinity.ts
+ * originally. No behavior change: backfireRisk.ts's own printed output is
+ * unchanged by importing this instead of defining it locally. */
+export function spreadStats(xs: number[]): { p10: number; p50: number; p90: number; width: number } {
+  if (xs.length === 0) return { p10: 0, p50: 0, p90: 0, width: 0 };
+  const sorted = [...xs].sort((a, b) => a - b);
+  const at = (p: number) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))))]!;
+  const p10 = at(0.1);
+  const p90 = at(0.9);
+  return { p10, p50: at(0.5), p90, width: p90 - p10 };
+}
+
 // --- Perceptibility: how many runs would a human need to reliably notice a
 // measured effect? Extracted from chainLeverage.ts's Block 5 (2026-08-26)
 // when a second report needed the identical machinery, same move that created

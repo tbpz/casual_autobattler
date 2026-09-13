@@ -1,11 +1,10 @@
 import type { RunConfig } from "../sim/config.js";
-import { baselineChainProfile } from "../sim/config.js";
 import type { HeroState } from "../sim/types.js";
 import { MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY } from "../sim/heroes.js";
 import { defaultFieldPick, fieldSquad, livingRosterHeroes, type RosterState } from "../sim/roster.js";
 import { makeEnemySide } from "../sim/run.js";
 import { project } from "../sim/projection.js";
-import { chainShapeSparkline, backfireRiskPips, chargeBarHtml } from "./heroPickShared.js";
+import { chainEffectLines, backfireRiskPips, chargeBarHtml } from "./heroPickShared.js";
 
 /**
  * Per-fight FIELD pick (2026-08-09 roster/bench pass — see config.ts's
@@ -109,6 +108,7 @@ export function renderFieldPickScreen(
 
   function heroRowHtml(h: HeroState): string {
     const hpFrac = h.maxHp > 0 ? Math.round((h.hp / h.maxHp) * 100) : 0;
+    const chain = chainEffectLines(h.chainEffect ?? "poundBiggest");
     return `
       <span class="hero-pick-check"></span>
       <span class="hero-pick-info">
@@ -118,7 +118,8 @@ export function renderFieldPickScreen(
       </span>
       <span class="hero-pick-stats">
         <span class="hero-pick-numbers">${Math.round(h.hp)}/${Math.round(h.maxHp)}hp / ${h.damage}dmg / ${h.attackIntervalSec}s${h.healPerBeat ? ` +${h.healPerBeat}heal` : ""}${h.attacksWhileHealing ? " +atk" : ""}</span>
-        <span class="hero-pick-chain">CHAIN ${chainShapeSparkline(h.chainProfile ?? baselineChainProfile(cfg.fight))} ${(h.chainProfile ?? baselineChainProfile(cfg.fight)).label}</span>
+        <span class="hero-pick-chain">CHAIN: ${chain.does}</span>
+        <span class="hero-pick-chain-against">${chain.against}</span>
         <span class="hero-pick-backfire">BACKFIRE ${backfireRiskPips(cfg.fight, h.chainAffinity, MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY)}</span>
       </span>
     `;

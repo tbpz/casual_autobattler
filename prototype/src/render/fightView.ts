@@ -1,4 +1,5 @@
-import type { FightConfig } from "../sim/config.js";
+import type { ChainEffect, FightConfig } from "../sim/config.js";
+import { chainEffectVerb } from "../sim/config.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
 import { MAX_CHAIN_AFFINITY, MIN_CHAIN_AFFINITY } from "../sim/heroes.js";
 
@@ -394,13 +395,9 @@ export class FightView {
     });
   }
 
-  /** (Re)builds the chain HUD's pip row for a given fuse length (2026-08-20,
-   * per-hero-profile pass — extracted from the constructor, which used to
-   * build this once at cfg.chainMaxHits and never again). Called from the
-   * constructor at the global default, then from updateChainHud whenever the
-   * live snapshot's own chainShape.maxHits disagrees with the row currently
-   * built — i.e. once per chain, on its first tick, for a hero whose fuse
-   * differs from whatever was built before it. */
+  /** Builds the chain HUD's pip row, once, at cfg.chainMaxHits — every hero
+   * shares this same cap (2026-09-13 rebuild), so there is nothing left to
+   * rebuild mid-fight the way a per-hero fuse once required. */
   private buildChainPips(maxHits: number): void {
     this.chainHudPips.innerHTML = "";
     this.chainHudPipEls = [];
@@ -438,20 +435,13 @@ export class FightView {
    * entirely while `resolving` so it can't stomp the miss/cap/end beat
    * showChainEnd is presenting.
    *
-   * 2026-08-20 (per-hero-profile pass): rebuilds the pip row via
-   * buildChainPips whenever the live chain's own fuse (snapshot.chainShape)
-   * disagrees with the row's current length — this is what makes the row
-   * per-chain instead of fixed at cfg.chainMaxHits forever. Snapshot-driven,
-   * not event-driven, for the same pause/step/scrub reason every other tell
-   * here is: render() updates the HUD from the snapshot BEFORE draining
-   * eventsThisTick, so an event-only rebuild would paint one stale-length
-   * frame on the ignition tick itself. */
+   * 2026-09-13 rebuild: every hero shares cfg.chainMaxHits again (no more
+   * per-hero fuse), so the pip row built once in the constructor
+   * (buildChainPips(cfg.chainMaxHits)) never needs rebuilding mid-fight —
+   * the per-chain rebuild this function used to do is gone with it. */
   private updateChainHud(snapshot: TickSnapshot): void {
     if (!snapshot.hotHeroId || this.chainPhase === "resolving") return;
     this.chainPhase = "live";
-    if (snapshot.chainShape && snapshot.chainShape.maxHits !== this.chainHudPipEls.length) {
-      this.buildChainPips(snapshot.chainShape.maxHits);
-    }
     const name = this.nameOf(snapshot.hotHeroId);
     const refs = this.slotFor(snapshot.hotHeroId);
     const backfire = snapshot.chainBackfire;
@@ -533,10 +523,10 @@ export class FightView {
         this.showChainStart(e.heroId, e.backfire);
         break;
       case "chainHit":
-        this.showChainHit(e.hitIndex, e.damage, e.targetId, e.kind, e.backfire, e.sourceId);
+        this.showChainHit(e.hitIndex, e.damage, e.targetId, e.kind, e.backfire, e.sourceId, e.durationSec);
         break;
       case "chainEnd":
-        this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.killedIds, e.backfire, e.reason, e.maxHits, e.label);
+        this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.killedIds, e.backfire, e.reason, e.effect);
         break;
       case "heroDown":
         this.showHeroDown(e.heroId);
@@ -814,29 +804,37 @@ export class FightView {
    * good hit lands on the enemy, its backfire lands on an ally; a healer's
    * good hit lands on the lowest-HP ally, its backfire lands on the enemy
    * (targetId is already resolved to the right side by fight.ts's
-   * resolveChainHit — this only has to pick which MAP to look the id up in). */
+   * resolveChainHit — this only has to pick which MAP to look the id up in).
+   *
+   * 2026-09-13 rebuild: `kind` widens to "guard"/"stun" (config.ts's
+   * ChainEffect) — neither moves HP, so `amount` is 0 and `durationSec`
+   * carries the real number instead. Both still lunge/tracer/pip exactly
+   * like a damage/heal hit — only the popup text and the target-side flip
+   * differ. */
   private showChainHit(
     hitIndex: number,
     amount: number,
     targetId: string | null,
-    kind: "damage" | "heal",
+    kind: "damage" | "heal" | "guard" | "stun",
     backfire: boolean,
     sourceId: string,
+    durationSec?: number,
   ): void {
     // targetId is null on a WHIFF (2026-09-02, Phase 1 of the chain-targeting
-    // plan — see events.ts's chainHit docstring). Only "spread"/"focus"/
-    // "siege"/"execute" can produce one, all gated behind
-    // chainTargetingEnabled, so this branch can't fire yet with that flag at
-    // its default of false. This is the minimal compile-safe handling for
-    // Phase 1 — no popup, no flinch, no tracer, same as today's "target not
-    // found" case below; the whiff's own presentation (an anchored, muted
-    // number, no arena shake) is Phase 2's job, not this one's.
-    const targetIsEnemy = (kind === "damage") !== backfire;
+    // plan — see events.ts's chainHit docstring). This is the minimal
+    // compile-safe handling — no popup, no flinch, no tracer.
+    //
+    // "guard" is side-level, not aimed at a body — its targetId is the FIRING
+    // hero itself (fight.ts's resolveChainHit), always on the player's own
+    // side, real payoff or backfire alike. Every other kind flips side on
+    // backfire, same as before.
+    const targetIsEnemy = kind === "guard" ? false : (kind === "damage" || kind === "stun") !== backfire;
     const targetMap = targetIsEnemy ? this.enemyHeroes : this.playerHeroes;
     const attacker = this.playerHeroes.get(sourceId);
     const target = targetId !== null ? targetMap.get(targetId) : undefined;
     const scale = chainPopupScale(hitIndex, this.cfg.chainFullTellThreshold);
-    const chainColor = backfire ? "var(--backfire)" : kind === "heal" ? HEAL_ACCENT : (attacker?.accent ?? "var(--ignite)");
+    const chainColor =
+      backfire ? "var(--backfire)" : kind === "heal" ? HEAL_ACCENT : (attacker?.accent ?? "var(--ignite)");
 
     if (attacker && target) {
       this.lungeToward(attacker.body, target.body, 14);
@@ -845,19 +843,28 @@ export class FightView {
 
     const land = () => {
       if (target && targetId !== null) {
-        const maxHp = this.heroMaxHp.get(targetId) ?? 1;
-        const frac = Math.max(0.15, Math.min(1, amount / maxHp));
-        if (kind === "heal") {
-          pulseClass(target.body, "healed", 500);
+        if (kind === "guard") {
+          pulseClass(target.body, "healed", 500); // reuses the "protected" glow, not a heal
+          this.showPopup(target.body, `GUARD ${Math.round(durationSec ?? 0)}s`, "chain", scale, Math.min(hitIndex, 5), chainColor);
+        } else if (kind === "stun") {
+          target.body.classList.add("frozen");
+          setTimeout(() => target.body.classList.remove("frozen"), Math.round((durationSec ?? 0) * 1000));
+          this.showPopup(target.body, `FROZEN ${Math.round(durationSec ?? 0)}s`, "chain", scale, Math.min(hitIndex, 5), chainColor);
         } else {
-          target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
-          pulseClass(target.body, "flinch", 300);
-          this.showImpactFlash(target.body, frac);
+          const maxHp = this.heroMaxHp.get(targetId) ?? 1;
+          const frac = Math.max(0.15, Math.min(1, amount / maxHp));
+          if (kind === "heal") {
+            pulseClass(target.body, "healed", 500);
+          } else {
+            target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
+            pulseClass(target.body, "flinch", 300);
+            this.showImpactFlash(target.body, frac);
+          }
+          const sign = kind === "heal" ? "+" : "-";
+          const popupColor = kind === "heal" || backfire ? chainColor : undefined;
+          const popup = this.showPopup(target.body, `${sign}${Math.round(amount)}`, "chain", scale, Math.min(hitIndex, 5), popupColor);
+          if (attacker && popup) popup.style.setProperty("--owner-accent", chainColor);
         }
-        const sign = kind === "heal" ? "+" : "-";
-        const popupColor = kind === "heal" || backfire ? chainColor : undefined;
-        const popup = this.showPopup(target.body, `${sign}${Math.round(amount)}`, "chain", scale, Math.min(hitIndex, 5), popupColor);
-        if (attacker && popup) popup.style.setProperty("--owner-accent", chainColor);
       }
       // 2026-08-17: the per-hit tell moved off the shared .callout (which a
       // fast chain — hits fire on the hot hero's own accelerated beat, see
@@ -908,13 +915,9 @@ export class FightView {
     killedIds: string[],
     backfire: boolean,
     reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied",
-    // 2026-08-20 (per-hero-profile pass): this hero's OWN fuse length, off
-    // the chainEnd event — replaces this.cfg.chainMaxHits below, which was
-    // only ever correct while every hero shared the one global cap.
-    maxHits: number,
-    // This hero's own shape label (e.g. "long fuse") — the end card's
-    // replacement for the old "affinity carried ×N" line (Step 3).
-    profileLabel: string,
+    // This chain's own effect (config.ts's ChainEffect) — the end card's
+    // replacement for the old per-hero shape label (2026-09-13 rebuild).
+    effect: ChainEffect,
   ): void {
     this.chainPhase = "resolving";
     // Captured now, checked inside every deferred callback below — see
@@ -932,7 +935,7 @@ export class FightView {
       // not a failure beat played first — this is the ONLY line that hides
       // it now (chainTeardown's own removal below is a defensive no-op).
       this.chainHud.classList.remove("show");
-      this.renderChainEndCard(heroId, chainLength, totalDamage, killedIds, backfire, reason, maxHits, profileLabel);
+      this.renderChainEndCard(heroId, chainLength, totalDamage, killedIds, backfire, reason, effect);
       setTimeout(() => this.chainTeardown(gen, killedIds), CHAIN_END_CARD_HOLD_MS);
     };
 
@@ -950,11 +953,11 @@ export class FightView {
         this.chainHudTitle.style.color = "var(--muted)";
       } else {
         // "capped": there is no pending pip past the last one (the sim
-        // forces the continuation chance to 0 the instant this hero's own
-        // fuse (maxHits) is reached — see fight.ts — so the roll never
-        // actually happens); flare the cap pip itself instead of a pip that
-        // doesn't exist.
-        const pipEl = this.chainHudPipEls[maxHits - 1];
+        // forces the continuation chance to 0 the instant cfg.chainMaxHits —
+        // shared by every hero again since the 2026-09-13 rebuild — is
+        // reached, so the roll never actually happens); flare the cap pip
+        // itself instead of a pip that doesn't exist.
+        const pipEl = this.chainHudPipEls[this.cfg.chainMaxHits - 1];
         if (pipEl) pulseClass(pipEl, "capped-flare", CHAIN_FAILURE_HOLD_MS);
         this.chainHudTitle.textContent = `${this.nameOf(heroId)} — MAXED`;
         this.chainHudTitle.style.color = this.slotFor(heroId)?.accent ?? "var(--chain)";
@@ -978,16 +981,15 @@ export class FightView {
    * distinction as a size bump rather than a presence/absence gate — the
    * escalating-loudness ladder stays, only the silent floor goes.
    *
-   * 2026-08-20 (Step 3): the detail line used to decompose payoff into
-   * chain LENGTH (the dominant, unpickable axis) vs. this hero's own
-   * chainAffinity (the ~2x axis the draft/field pick actually bought). That
-   * decomposition is gone because the thing it was decomposing is gone —
-   * chainAffinity no longer touches magnitude at all, and every hero's
-   * chain now converges on the same expected value within its kind. What's
-   * left to state honestly is SHAPE: how much of this hero's own fuse
-   * actually got used (`chainLength` of `maxHits` possible hits) and what
-   * kind of curve it was (`profileLabel`) — the thing the draft/field pick
-   * bought now that magnitude no longer varies. */
+   * 2026-09-13 rebuild: the detail line used to decompose payoff into chain
+   * LENGTH (the dominant, unpickable axis) vs. this hero's own shape. What's
+   * left to state honestly is the same split, just against cfg's one shared
+   * cap now instead of a per-hero fuse: how much of the chain actually ran
+   * (`chainLength` of cfg.chainMaxHits possible hits) and what the chain WAS
+   * (`effect`, in the same plain words the pick screen uses — config.ts's
+   * chainEffectVerb). For "guard"/"stun", `totalDamage` is 0 by construction
+   * (neither moves HP) — the headline's own number would read as a lie, so
+   * this reports the hit count only for those two, no damage figure. */
   private renderChainEndCard(
     heroId: string,
     chainLength: number,
@@ -995,8 +997,7 @@ export class FightView {
     killedIds: string[],
     backfire: boolean,
     reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied",
-    maxHits: number,
-    profileLabel: string,
+    effect: ChainEffect,
   ): void {
     const refs = this.slotFor(heroId);
     const name = this.nameOf(heroId);
@@ -1005,6 +1006,8 @@ export class FightView {
     const killNote = killedIds.length > 0 ? ` — ${killedIds.map((id) => this.nameOf(id)).join(", ")} DOWN` : "";
     const hitWord = chainLength === 1 ? "hit" : "hits";
     const maxedNote = reason === "capped" ? " — MAXED" : "";
+    const isNoNumberEffect = effect === "guard" || effect === "stun";
+    const amountPart = isNoNumberEffect ? "" : `, ${Math.round(totalDamage)}`;
 
     this.chainEndCard.innerHTML = "";
     const headline = document.createElement("div");
@@ -1012,10 +1015,10 @@ export class FightView {
     headline.textContent =
       chainLength === 0
         ? `${name}'S ${label} FIZZLED`
-        : `${name}'S ${label} — ${chainLength} ${hitWord.toUpperCase()}, ${Math.round(totalDamage)}${killNote}${maxedNote}`;
+        : `${name}'S ${label} — ${chainLength} ${hitWord.toUpperCase()}${amountPart}${killNote}${maxedNote}`;
     const detail = document.createElement("div");
     detail.className = "chain-end-detail";
-    detail.textContent = `${chainLength} of ${maxHits} hits rolled · ${profileLabel}`;
+    detail.textContent = `${chainLength} of ${this.cfg.chainMaxHits} hits rolled · ${chainEffectVerb(effect)}`;
     this.chainEndCard.appendChild(headline);
     this.chainEndCard.appendChild(detail);
     this.chainEndCard.style.color = color;

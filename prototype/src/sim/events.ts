@@ -4,33 +4,10 @@
  * re-simulates (the record-then-replay split carried over conceptually from
  * the old prototype's sim/engine.ts + render/playback.ts).
  */
+import type { ChainEffect } from "./config.js";
 import type { Role } from "./types.js";
 
 export type Side = "player" | "enemy";
-
-/** The firing hero's chain SHAPE, as much of it as the renderer needs
- * (2026-08-20, per-hero-profile pass — see config.ts's ChainProfile).
- * Deliberately NOT the whole ChainProfile: the continuation table and the
- * magnitude-normalizer terms are sim-internal, and the render layer only
- * ever needs "how many pips, and where does the ladder steepen." Carried on
- * chainStart (to size the HUD's pip row and playback's per-window escalation
- * knee) and mirrored onto TickSnapshot (see TickSnapshot.chainShape's own
- * docstring for why a snapshot field is needed too, not just the event). */
-export interface ChainShape {
-  /** Profile id (e.g. "longFuseFlat") — debug only. */
-  profileId: string;
-  /** Two-word player-facing label (e.g. "long fuse") — the end card's Step 3
-   * replacement for "affinity carried ×N", which stopped being true the
-   * moment chainAffinity stopped touching magnitude (fightView.ts's
-   * renderChainEndCard). */
-  label: string;
-  /** This hero's own fuse length — replaces cfg.chainMaxHits everywhere the
-   * renderer used to read the global field. */
-  maxHits: number;
-  /** This hero's escalation knee — playback.ts's gap-dilation deepening
-   * point, and the HUD spectacle ladder's own reference. */
-  escalationKneeHit: number;
-}
 
 export type FightEvent =
   | { type: "attack"; t: number; side: Side; attackerId: string; targetId: string; damage: number }
@@ -40,20 +17,21 @@ export type FightEvent =
    * candidate contest and no roll on whether it happens anymore, only the
    * backfire coin flip carried on this event). `backfire` is decided once,
    * here, and every chainHit/chainEnd for this chain repeats it — the
-   * renderer reads it to pick gold burst vs. red implosion immediately,
-   * with no advance telegraph. `shape` (2026-08-20) is this hero's resolved
-   * chain shape for the fight — see ChainShape above. */
-  | { type: "chainStart"; t: number; heroId: string; backfire: boolean; shape: ChainShape }
-  /** `kind` distinguishes an attacker's escalating damage hit from a
-   * healer's escalating heal (2026-08-14 chain rebuild — the chain always
-   * repeats the hero's OWN action). `backfire` mirrors the owning
-   * chainStart's flag, carried per-hit so the renderer doesn't have to track
-   * chain state itself. `sourceId` is the hot hero (2026-08-14 — replaces
-   * fightView.ts's currentHotHeroId back-channel; attribution now rides the
-   * event instead of a renderer-side field). `targetId` is whoever the hit
-   * or heal actually landed on — the enemy on a good damage chain, an ALLY
-   * on a backfired one; the lowest-HP ally on a good heal chain, the enemy
-   * on a backfired one. */
+   * renderer reads it to pick gold burst vs. red implosion immediately, with
+   * no advance telegraph. `effect` (2026-09-13, "a hero's chain names its own
+   * enemy" rebuild — see config.ts's ChainEffect) is what this chain DOES —
+   * replaces the old per-hero ChainShape (fuse length/escalation knee), which
+   * described a number's curve instead of naming what the chain answers. */
+  | { type: "chainStart"; t: number; heroId: string; backfire: boolean; effect: ChainEffect }
+  /** `kind` mirrors ChainEffect's own damage/heal/guard/stun split (2026-09-13
+   * rebuild). `backfire` mirrors the owning chainStart's flag, carried
+   * per-hit so the renderer doesn't have to track chain state itself.
+   * `sourceId` is the hot hero. `targetId` is whoever this hit landed on (or,
+   * for "guard", the firing hero itself — the effect is side-level, not aimed
+   * at a body). A rung that hits several bodies at once ("strikeAll",
+   * "mendAll") produces one chainHit event PER body, all sharing the same
+   * `hitIndex` and `t` — that's what makes it read as "everyone at once"
+   * without a separate multi-target event shape. */
   | {
       type: "chainHit";
       t: number;
@@ -61,35 +39,33 @@ export type FightEvent =
       damage: number;
       /** What this hit was ESCALATED to before any clamping — a healer's raw
        * heal before the chain-heal cap/room clamp, an attacker's raw
-       * magnitude before applyDamageFrom clamps it against the target side's
-       * remaining HP (2026-08-29, Phase 0 of the chain-targeting plan — see
-       * fight.ts's resolveChainHit). `damage` keeps meaning what actually
-       * went in; `intended - damage` is what the hit wasted. Reporting
-       * only — this changes no sim behaviour. */
+       * magnitude before applyDamageFrom clamps it against the target's
+       * remaining HP. `damage` keeps meaning what actually went in;
+       * `intended - damage` is what the hit wasted. Reporting only — this
+       * changes no sim behaviour. 0 for "guard"/"stun", which don't move HP. */
       intended: number;
-      /** `null` means a WHIFF (2026-09-02, Phase 1 of the chain-targeting
-       * plan): the chain rolled and fired, but "spread"/"focus"/"siege"/
-       * "execute" found no valid body to hit — every fresh body already
-       * struck, or the locked body already dead. `damage` is 0 on a whiff;
-       * `intended` still carries the full escalated number that would have
-       * landed. "front" and "triage" never whiff — a chain running those two
-       * rules still ends the chain (chainEnd, reason "noTarget") the moment
-       * it finds no target, exactly as before this pass. */
       targetId: string | null;
-      kind: "damage" | "heal";
+      kind: "damage" | "heal" | "guard" | "stun";
       backfire: boolean;
       sourceId: string;
+      /** Set only for "guard"/"stun" — how many seconds this rung's effect
+       * lasts (config.ts's chainGuardBaseSec/chainStunBaseSec, escalated).
+       * Undefined for "damage"/"heal", which carry their number in `amount`
+       * instead. */
+      durationSec?: number;
     }
   /** heroId is the hero who was hot during this chain. totalDamage/killedIds
    * are what the chain actually bought (or cost) the squad — see fight.ts's
    * chain-hit branch, which accumulates both alongside bonusHitsLanded.
-   * `backfire` mirrors chainStart's flag.
+   * `backfire` mirrors chainStart's flag. `effect` is this chain's own
+   * ChainEffect — the end card's showChainEnd needs it and can't read it off
+   * anything else by end time (hotHeroId is already null).
    *
    * `reason` (2026-08-19 chain-ending pass) distinguishes the four causes
    * that used to collapse into one identical event — a played session
    * couldn't tell a chain that hit the cap from one that just missed, and
    * a chain that WON the fight rendered the same "broken" beat as one that
-   * fizzled. See fight.ts's two emission sites. */
+   * fizzled. See fight.ts's emission sites. */
   | {
       type: "chainEnd";
       t: number;
@@ -104,16 +80,7 @@ export type FightEvent =
        * chain closes out right there instead of leaving hotHeroId stuck on a
        * dead hero for the rest of the fight. */
       reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied";
-      /** This hero's own fuse length (2026-08-20, per-hero-profile pass) —
-       * replaces cfg.chainMaxHits for the "capped implies max length" check
-       * and the render layer's cap-pip lookup. By end time hotHeroId is
-       * already null and the snapshot's chainShape is gone, so this can't be
-       * recovered from anywhere else. */
-      maxHits: number;
-      /** This hero's own shape label (e.g. "long fuse") — same reasoning as
-       * maxHits above; the end card's showChainEnd needs it and can't read
-       * it off anything else by end time. */
-      label: string;
+      effect: ChainEffect;
     }
   | { type: "heroDown"; t: number; side: Side; heroId: string }
   | { type: "tankBreak"; t: number; side: Side; heroId: string }
@@ -170,14 +137,13 @@ export interface TickSnapshot {
    * chainTellThreshold gate is gone; see DECISIONS.md). */
   chainBackfire: boolean;
   visibleChainLength: number;
-  /** The CURRENT chain's shape (2026-08-20, per-hero-profile pass) — null
-   * whenever hotHeroId is null. Carried on the snapshot, not just on
-   * chainStart, because updateChainHud is deliberately snapshot-driven (so
-   * the HUD stays correct under pause/step/scrub — see fightView.ts) and
-   * render() drains events AFTER updating the HUD from the snapshot each
-   * tick; an event-only path would paint one stale-length frame on the
-   * ignition tick itself. */
-  chainShape: ChainShape | null;
+  /** The CURRENT chain's effect (config.ts's ChainEffect) — null whenever
+   * hotHeroId is null. Carried on the snapshot, not just on chainStart,
+   * because updateChainHud is deliberately snapshot-driven (so the HUD stays
+   * correct under pause/step/scrub — see fightView.ts) and render() drains
+   * events AFTER updating the HUD from the snapshot each tick; an event-only
+   * path would paint one stale-length frame on the ignition tick itself. */
+  chainEffect: ChainEffect | null;
   /** Running damage/heal total for the CURRENT chain — 0 whenever hotHeroId
    * is null. Snapshot-driven, not renderer-accumulated, so a persistent
    * chain HUD stays correct under pause/step/scrub. */

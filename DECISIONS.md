@@ -10,6 +10,35 @@
 
 ---
 
+## [2026-09-13] Chain identity: effect, not magnitude — replaces all four prior levers
+
+- **Decision:**
+  - Heroes now differ by chain EFFECT — what the chain does (`strikeAll`, `poundBiggest`, `guard`,
+    `stun`, `mendAll`, `mendOne`) — not by a bigger/smaller/differently-shaped/differently-aimed
+    number.
+  - The equal-net-value machinery (`chainMagnitudeScaleAbsolute`, `CHAIN_EV_TARGET_DAMAGE/HEAL`) is
+    deleted; effects are not meant to be comparable on one scale.
+  - Every hero shares one continuation table and escalation curve again — only the effect and its
+    own base magnitude (`sim/config.ts`'s `chainStrikeAllBase` etc.) differ per hero.
+- **Why:**
+  - All four prior levers described the same effect (an escalating hit or heal) with a different
+    number or aim rule — a number describing a hero's own chain has no enemy on the other side of it
+    to be weak to, so no player-formed memory was possible even where a lever was measurably real
+    (payoff size, targeting).
+  - "Reduce armor" names something the enemy has and is memorable for exactly that reason; "long
+    fuse, flat growth" names something the hero's own number does and cannot be matched against
+    anything.
+  - The batch harness cannot judge this kind of change — `FIGHT_DECIDING_FACTORS.md` found 10 of 11
+    fights already decided before any pick-time lever gets a turn — so the verdict on this pass comes
+    from Tu reading the pick screen cold, not a win-rate band.
+- **Replaces:**
+  - Chain payoff size (2026-08-20), backfire-as-risk (2026-08-19, closed 2026-09-04), chain shape
+    (2026-08-20 per-hero-profile pass), and chain targeting (2026-09-02) — all four superseded.
+  - Their measurement files (`batch/shapeVerdict.ts`, `targetingVerdict.ts`, `backfireRisk.ts`,
+    `affinity.ts`, `chainLeverage.ts`) are deleted outright rather than kept inert.
+
+---
+
 ## [2026-09-04] Backfire-as-risk fails as a chain-identity lever — four candidates now closed
 
 - **Decision:**

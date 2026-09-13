@@ -201,16 +201,11 @@ export interface FightConfig {
    * without touching the PRD table's shape (still easier to extend once a
    * chain is going — see chainChanceByHitsSoFar). */
   chainMaxHits: number;
-  /** Global multiplier applied on top of whichever continuation table is in
-   * play — cfg.chainChanceByHitsSoFar for a hero with no profile, or a
-   * per-hero ChainProfile's own table once one is authored (2026-08-20,
-   * per-hero-profile pass — see config.ts's ChainProfile/
-   * chainContinuationChance). Default 1 (inert). Exists so a check that
+  /** Global multiplier applied on top of chainChanceByHitsSoFar (see
+   * chainContinuationChance below). Default 1 (inert). Exists so a check that
    * wants to disable continuation entirely (checks/beatsheet.ts,
    * checks/projection.ts — both zero this alongside chainChanceByHitsSoFar)
-   * has one knob that keeps working regardless of which table a given hero
-   * is reading, instead of that override silently becoming a per-hero-profile
-   * no-op. */
+   * has one knob for it, separate from the table itself. */
   chainContinuationScale: number;
   /** While a hero is hot, its next-beat advance is multiplied by this
    * (< 1 = faster) instead of the full attackIntervalSec — the chain
@@ -274,59 +269,138 @@ export interface FightConfig {
   chainHealMaxFractionOfTargetMaxHp: number;
 
   /**
-   * Phase 0 of the chain-targeting plan (2026-08-29 — see
-   * CHAIN_TARGETING_IMPLEMENTATION_PLAN.md's 0.3 and
-   * CHAIN_SHAPE_LEVERAGE_FINDINGS.md:214): both chain-shape design docs claim
-   * a chain hit's overkill is wasted. It isn't — applyDamageFrom already
-   * carries a killing blow's leftover damage onto the next living body on
-   * that side, so a chain hit behaves like a cleave today. Default `true`
-   * reproduces that existing behaviour exactly. `false` makes a chain hit
-   * apply at most its target's remaining HP and lose the rest, which is what
-   * Q4 (execute) and Q6 (focus) assume a "wastes overkill" rule means. Only
-   * ever read by chain bonus hits (fight.ts's resolveChainHit) — normal
-   * attacks and wind-up hits keep the old cleave behaviour regardless of this
-   * flag, since neither design document nor any open question is about them.
+   * Base magnitude for each ChainEffect (2026-09-13, "a hero's chain names
+   * its own enemy" rebuild — see DECISIONS.md). A chain rung's actual
+   * strength is always `base * chainEscalationFactor(cfg, hitIndex)` — one
+   * shared curve for all six effects, same as every hero used before this
+   * rebuild. `chainStrikeAllBase`/`chainPoundBase` are damage; `chainMendAllBase`/
+   * `chainMendOneBase` are healing; `chainStunBaseSec`/`chainGuardBaseSec` are
+   * SECONDS, not damage — a duration escalates on the identical curve as a
+   * damage number, which is what lets one curve stay honest across six
+   * different verbs. See fight.ts's resolveChainHit for the switch that reads
+   * these.
+   *
+   * Starting values derived, not guessed, from the pre-rebuild pool: the
+   * escalation curve summed against chainChanceByHitsSoFar (below) gives
+   * ~12.955 expected escalation units per fired chain, and the old
+   * CHAIN_EV_TARGET_DAMAGE was 76 — so chainPoundBase: 6 (6 * 12.955 ~= 76)
+   * reproduces the old single-target attacker's output almost exactly.
+   * chainStrikeAllBase and chainMendAllBase are cut roughly by the pool's
+   * median living-enemy count (3) so an "everyone at once" effect doesn't
+   * simply dominate a single-target one on every board. chainStunBaseSec/
+   * chainGuardBaseSec are picked in SECONDS directly against
+   * windupIntervalSec/windupTelegraphSec below (a rung-1 guard covers one
+   * telegraph; a rung-7 stun removes a bruiser for roughly two of its own
+   * wind-up cycles) — these are strawmen for the batch harness to move, same
+   * convention as every other value in this file.
+   *
+   * chainMendOneBase is capped by the heal-clamp guard
+   * (chainHealMaxFractionOfTargetMaxHp), not by the old CHAIN_EV_TARGET_HEAL —
+   * 2.5 (the value that would land near the old ~28 target, same convention
+   * as chainPoundBase) puts the LAST rung's raw heal at 2.5 * 13 = 32.5,
+   * comfortably over checks/chaindist.ts's clamp ceiling on a normal-sized
+   * body. 1.5 keeps the last rung (1.5 * 13 = 19.5) under that ceiling with
+   * room to spare — see that check's own heal-cap block.
    */
-  chainHitSpillsOverkill: boolean;
+  chainStrikeAllBase: number;
+  chainPoundBase: number;
+  chainMendAllBase: number;
+  chainMendOneBase: number;
+  chainStunBaseSec: number;
+  chainGuardBaseSec: number;
 
   /**
-   * Phase 1 of the chain-targeting plan (2026-09-02 — see
-   * CHAIN_TARGETING_IMPLEMENTATION_PLAN.md's Phase 1 and
-   * CHAIN_SHAPE_TARGETING_PLAN.md §2): switches every hero's chain from
-   * always-front-most (attackers) / weighted-random (a backfire) onto its own
-   * per-hero ChainTargeting rule (heroes.ts's PLAYER_HERO_POOL). Default
-   * `false` reproduces today's behaviour exactly — resolveChainPlan forces
-   * every attacker to "front" and every healer to "triage" regardless of what
-   * a HeroDef authors, which is the byte-identical A/B this flag exists to
-   * prove. `true` reads each hero's own chainTargeting instead.
+   * 2026-09-04 (deciding-factors measurement rig — see
+   * FIGHT_DECIDING_FACTORS.md): who the enemy attacks (and which player hero
+   * a wind-up locks onto with windupTargeting "weighted") is a coin flip
+   * today — pickWeightedTargetId re-rolls it every beat. That dice roll was
+   * never priceable on its own, because there was no way to hold "who gets
+   * hit" steady without also changing HOW MUCH each hero gets hit. This flag
+   * exists only to make that possible.
+   *
+   * Default `"weighted"` reproduces today's game exactly — pickWeightedTargetId,
+   * unchanged, still consumes the RNG stream the same way. `"weightedRoundRobin"`
+   * keeps the identical long-run share per hero (same tankTargetWeight /
+   * brokenTankTargetWeight formula, re-evaluated every pick so a tank breaking
+   * mid-fight still shifts the share) but picks deterministically — smooth
+   * weighted round-robin (fight.ts's pickRoundRobinTargetId), the same
+   * algorithm load balancers use to spread requests by weight with no RNG. This
+   * is deliberately NOT "always hit the tank": that would change how much
+   * damage the tank eats, and the measurement would become about the tank
+   * instead of about the dice. Freezing a rate at its own average, not at a
+   * single point, is what makes the resulting number a price on RANDOMNESS
+   * itself rather than a price on some other change smuggled in alongside it.
+   *
+   * Never read by chain backfire targeting (fight.ts's "front" rule, which
+   * re-rolls pickWeightedTargetId against the PLAYER's own side) — that is a
+   * different factor ("which way the chain aims" and "who on your side eats
+   * it"), measured separately, and is untouched by this flag on purpose.
    */
-  chainTargetingEnabled: boolean;
+  enemyTargetMode: "weighted" | "weightedRoundRobin";
+
+  /**
+   * Measurement-only override of a chain's backfire coin flip (2026-09-04,
+   * chain-proof pass — see `batch/chainProof.ts`'s claim 3: "a backfire can
+   * create a losing position outright"). `fight.ts`'s ignition site still
+   * rolls `rng.chance(backfireChanceFor(...))` every time, so the RNG stream
+   * is untouched either way — this only overrides what the roll DECIDES,
+   * never whether it happens. `undefined` (every shipped config) reproduces
+   * today's behaviour exactly: the roll's own result is used, byte-identical
+   * to before this field existed. `"always"`/`"never"` force every chain in
+   * the fight to backfire or not, so a batch rig can hold the backfire coin
+   * fixed while everything else (which hero fires, chain length, targeting)
+   * still varies normally. Never set outside batch/checks code.
+   */
+  forceBackfire?: "always" | "never";
 }
 
 /**
- * A hero's chain targeting rule (2026-09-02, Phase 1 of the chain-targeting
- * plan — see CHAIN_SHAPE_TARGETING_PLAN.md §2). Replaces chain shape's "when
- * damage arrives" axis with "where it goes":
- *  - "front" — today's rule, unchanged on both branches: frontMostAliveId on
- *    the payoff, the weighted-random pickWeightedTargetId on a backfire. Kept
- *    as its own rule (not a special case) so chainTargetingEnabled: false can
- *    force every attacker onto it and reproduce today's game exactly.
- *  - "spread" — a fresh body every hit; whiffs once every living body on the
- *    target side has been struck by this chain.
- *  - "focus" — locks the front-most body at ignition and hits only it,
- *    overkill discarded; whiffs once that body is dead.
- *  - "siege" — highest current HP among living bodies, re-picked every hit.
- *  - "execute" — locks the lowest-HP living body at ignition, then identical
- *    to focus.
- *  - "triage" — a healer's existing rule (lowest-HP living ally, re-picked
- *    every hit); named here, not changed (Q3).
- * Mirrors onto the player's own side on a backfire for every rule except
- * "front", which keeps its own asymmetric backfire behaviour unchanged.
- * The precedent for a per-hero targeting string is HeroState's own
- * windupTargeting (types.ts) — same shape, same fallback-to-today's-rule
- * convention when unset.
+ * A hero's chain EFFECT (2026-09-13, "a hero's chain names its own enemy"
+ * rebuild — see DECISIONS.md). Replaces the old ChainProfile/ChainTargeting
+ * pair — heroes no longer differ by a bigger/smaller/differently-shaped
+ * number, they differ by what the chain DOES:
+ *  - "strikeAll" — damage to every living body on the target side at once
+ *    (Vex). Good against a crowd.
+ *  - "poundBiggest" — damage to the highest-current-HP living body on the
+ *    target side, re-picked every rung (Rook). Good against one huge body.
+ *  - "guard" — redirects the target side's next telegraphed hit(s) onto the
+ *    firing hero for a duration (Bracer). Good against anything that winds
+ *    up.
+ *  - "stun" — the front-most living body on the target side can't act for a
+ *    duration, cancelling an in-progress wind-up (Hollow). Good against a
+ *    spike that needs cancelling, or a fast attacker.
+ *  - "mendAll" — heals every living ally on the target side at once (Cairn).
+ *    Good against steady chip damage from many small hits.
+ *  - "mendOne" — heals the lowest-HP living ally on the target side, same
+ *    target-pick rule as a normal heal beat (Ward). Good against a threat
+ *    that hunts one hero to kill it.
+ * A backfire mirrors the identical effect onto the WRONG side (attacker
+ * effects hit the firing hero's own side; healer effects heal the enemy) —
+ * same convention the pre-rebuild chain always used, just carried through six
+ * effects instead of one damage/heal split.
  */
-export type ChainTargeting = "front" | "spread" | "focus" | "siege" | "execute" | "triage";
+export type ChainEffect = "strikeAll" | "poundBiggest" | "guard" | "stun" | "mendAll" | "mendOne";
+
+/** A short, compact verb phrase for `effect` — used where space is tight
+ * (sim/projection.ts's chain line). render/heroPickShared.ts's
+ * chainEffectLines carries the fuller, two-line pick-screen wording; this is
+ * the one-line version for a pre-fight readout that names a specific hero. */
+export function chainEffectVerb(effect: ChainEffect): string {
+  switch (effect) {
+    case "strikeAll":
+      return "hits every enemy at once";
+    case "poundBiggest":
+      return "keeps pounding the biggest body";
+    case "guard":
+      return "covers the squad from the next telegraphed hit";
+    case "stun":
+      return "freezes an enemy solid";
+    case "mendAll":
+      return "heals the whole squad at once";
+    case "mendOne":
+      return "pours into your worst-hurt hero";
+  }
+}
 
 export interface RunConfig {
   fight: FightConfig;
@@ -518,13 +592,19 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // hit) without letting a single chain hit fully top up a squishy ally.
   chainHealMaxFractionOfTargetMaxHp: 0.2,
 
-  // See this field's own docstring above — default true is today's shipped
-  // behaviour (a chain hit already cleaves), not a change.
-  chainHitSpillsOverkill: true,
+  // See this field's own docstring above — derived from the pre-rebuild
+  // pool's own numbers, not guessed. Re-batch (npm run batch) before trusting
+  // any of these once played.
+  chainStrikeAllBase: 2,
+  chainPoundBase: 6,
+  chainMendAllBase: 1,
+  chainMendOneBase: 1.5,
+  chainStunBaseSec: 0.8,
+  chainGuardBaseSec: 1.5,
 
-  // See this field's own docstring above — default false is today's shipped
-  // behaviour (front-most / weighted-random), not a change.
-  chainTargetingEnabled: false,
+  // See this field's own docstring above — default "weighted" is today's
+  // shipped behaviour (pickWeightedTargetId's dice roll), not a change.
+  enemyTargetMode: "weighted",
 };
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {
@@ -625,198 +705,17 @@ export function backfireChanceFor(cfg: FightConfig, chainAffinity: number): numb
   return Math.max(0, Math.min(1, cfg.backfireChanceBase + cfg.backfireChanceAffinitySlope * (chainAffinity - 1)));
 }
 
-/** Whether a chain hit should stop at its target instead of cleaving its
- * overkill onto the next living body (2026-09-02, Phase 1 of the
- * chain-targeting plan). Under targeting, "overkill is thrown away" has to
- * be true for focus/execute's locked target and for each of spread's fresh
- * bodies alike — so cfg.chainHitSpillsOverkill (Phase 0's switch) is forced
- * off whenever chainTargetingEnabled is on, regardless of what it's set to.
- * A named helper rather than a bare conjunction inline: both flags matter to
- * more than one caller (fight.ts's resolveChainHit, the targeting rig,
- * shapeVerdict.ts's --noSpill), and re-deriving "spills iff both true" in
- * each of them is how the two knobs would drift apart. */
-export function chainHitSpills(cfg: FightConfig): boolean {
-  return cfg.chainHitSpillsOverkill && !cfg.chainTargetingEnabled;
-}
-
-/**
- * Per-hero chain SHAPE (2026-08-20, per-hero-profile pass — see DECISIONS.md
- * and the "chain choice: make the pick a shape, not a size" plan). Pure
- * data, no hero stats: everything that used to be a single global on
- * FightConfig (chainChanceByHitsSoFar, chainEscalationKneeHit/
- * StepMultiplier, chainMaxHits) becomes per-hero here instead. The
- * multiplier that equalizes expected value across profiles depends on the
- * hero's own backfire chance too, so it is NOT authored on the profile —
- * see chainMagnitudeScaleFor below, computed per-hero at fight start.
- *
- * Step 0 of the per-hero-profile pass: this file adds the type and the pure
- * analytic math below it, but nothing in the sim reads a profile yet — every
- * hero still runs off the global FightConfig fields via baselineChainProfile
- * (Step 1 threads it through as a proven identity transform; Step 3 is the
- * first step that actually authors non-baseline profiles).
- */
-export interface ChainProfile {
-  /** Debug/label id — e.g. "baseline", "longFuse". */
-  id: string;
-  /** Two-word pick-screen label, e.g. "long fuse" (2026-08-20, Step 3) —
-   * render-facing, but kept on the profile itself (not re-derived) so the
-   * pick screen and any debug output can never disagree about what a shape
-   * is called. */
-  label: string;
-  /** This profile's own hard cap — replaces cfg.chainMaxHits wherever the
-   * sim or renderer used the global field. */
-  maxHits: number;
-  escalationKneeHit: number;
-  escalationStepMultiplier: number;
-  /** PRD by bonus-hits-so-far, same clamp-to-last convention as
-   * cfg.chainChanceByHitsSoFar / prdLookup. */
-  continuation: number[];
-}
-
-/** The profile built from cfg's own existing global chain fields — the EV
- * anchor every other profile is normalized against (see
- * chainMagnitudeScaleFor), and the fallback for any hero with no profile
- * authored (identity transform through Step 1 and Step 2). */
-export function baselineChainProfile(cfg: FightConfig): ChainProfile {
-  return {
-    id: "baseline",
-    label: "baseline",
-    maxHits: cfg.chainMaxHits,
-    escalationKneeHit: cfg.chainEscalationKneeHit,
-    escalationStepMultiplier: cfg.chainEscalationStepMultiplier,
-    continuation: cfg.chainChanceByHitsSoFar,
-  };
-}
-
-/** chainEscalationFactor, reading a profile instead of cfg directly — same
- * formula, so a profile built by baselineChainProfile(cfg) agrees with
- * chainEscalationFactor(cfg, n) for every n (asserted in checks/chaindist.ts
- * as the Step 0 validation that this new math is correct before anything
- * depends on it). */
-export function chainEscalationFactorFromProfile(profile: ChainProfile, hitIndex: number): number {
-  if (hitIndex <= profile.escalationKneeHit) return hitIndex;
-  return profile.escalationKneeHit + (hitIndex - profile.escalationKneeHit) * profile.escalationStepMultiplier;
-}
-
-/** prdLookup against a profile's own continuation table, damped by
+/** prdLookup against cfg's own continuation table, damped by
  * cfg.chainContinuationScale (default 1, inert) — see that field's own
- * docstring for why the scale exists as a separate global on top of a
- * per-hero table. Clamped to [0, 1] defensively, same convention as
- * backfireChanceFor. */
-export function chainContinuationChance(cfg: FightConfig, profile: ChainProfile, hitsSoFar: number): number {
-  const raw = prdLookup(profile.continuation, hitsSoFar);
+ * docstring for why the scale exists as a separate knob on top of the table.
+ * Clamped to [0, 1] defensively, same convention as backfireChanceFor.
+ *
+ * 2026-09-13 ("a hero's chain names its own enemy" rebuild): heroes no longer
+ * carry their own continuation table — every hero reads this same one, same
+ * as before the 2026-08-20 per-hero-profile pass. What differs between heroes
+ * now is the EFFECT a rung produces (ChainEffect above), not how likely the
+ * chain is to keep running. */
+export function chainContinuationChance(cfg: FightConfig, hitsSoFar: number): number {
+  const raw = prdLookup(cfg.chainChanceByHitsSoFar, hitsSoFar);
   return Math.max(0, Math.min(1, raw * cfg.chainContinuationScale));
-}
-
-/** R(1..maxHits): P(the chain reaches AT LEAST n bonus hits), for
- * n = 1..profile.maxHits. R(n) = product of the continuation chance at every
- * roll from 0 to n-1 — the chain's own survival function. Pure, O(maxHits),
- * and deliberately reads the profile's own table directly (prdLookup) rather
- * than going through chainContinuationChance: this represents the profile's
- * TRUE odds for balancing/EV purposes, unaffected by cfg.chainContinuationScale
- * — a test-only override that zeroes continuation in checks/beatsheet.ts and
- * checks/projection.ts should not silently change what a profile analytically
- * promises. */
-export function chainReachProbabilities(profile: ChainProfile): number[] {
-  const reach: number[] = [];
-  let cumulative = 1;
-  for (let n = 1; n <= profile.maxHits; n++) {
-    cumulative *= prdLookup(profile.continuation, n - 1);
-    reach.push(cumulative);
-  }
-  return reach;
-}
-
-/** p[0..maxHits]: P(chain length === k), derived from chainReachProbabilities
- * (p[k] = R(k) - R(k+1) for k in [1, maxHits); p[maxHits] = R(maxHits), since
- * the sim forces the continuation chance to 0 the instant the cap is
- * reached — see fight.ts's `capped` branch — so all of R(maxHits)'s mass
- * collapses onto length === maxHits exactly, never a further roll). Sums to
- * 1 by construction. */
-export function chainLengthDistribution(profile: ChainProfile): number[] {
-  const reach = chainReachProbabilities(profile);
-  const dist: number[] = new Array(profile.maxHits + 1).fill(0);
-  dist[0] = 1 - (reach[0] ?? 0);
-  for (let k = 1; k < profile.maxHits; k++) {
-    dist[k] = (reach[k - 1] ?? 0) - (reach[k] ?? 0);
-  }
-  dist[profile.maxHits] = reach[profile.maxHits - 1] ?? 0;
-  return dist;
-}
-
-/** G(P): the expected GROSS chain magnitude of one fired chain, in units of
- * (hero base stat x cfg.chainHitMultiplier) — E[sum of e(n) for n=1..length]
- * computed via E[sum] = sum_n P(length >= n) * e(n), so no length enumeration
- * is needed. Pure, O(maxHits). */
-export function expectedChainUnits(profile: ChainProfile): number {
-  const reach = chainReachProbabilities(profile);
-  let sum = 0;
-  for (let n = 1; n <= profile.maxHits; n++) {
-    sum += (reach[n - 1] ?? 0) * chainEscalationFactorFromProfile(profile, n);
-  }
-  return sum;
-}
-
-/** N(P,b): expected NET chain value once backfire is priced in. A backfire
- * is the same magnitude aimed at the wrong side (fight.ts's resolveChainHit
- * — the design's own stated symmetry), so net = gross payoff minus gross
- * harm: N = (1 - (1+harmWeight)*b) * G. harmWeight defaults to 1 (a backfire
- * costs exactly what an equal payoff gains) — a strawman, batch-tunable like
- * every other value in this file, since a backfire plausibly costs MORE
- * given that deaths are permanent and attrition carries across the run.
- * Throws if b >= 1/(1+harmWeight): at that point net value is non-positive
- * and a scale computed against it would be meaningless (or sign-flipped)
- * rather than merely small — fail loud instead of returning nonsense. */
-export function expectedNetChainUnits(profile: ChainProfile, backfireChance: number, harmWeight = 1): number {
-  const threshold = 1 / (1 + harmWeight);
-  if (backfireChance >= threshold) {
-    throw new Error(
-      `expectedNetChainUnits: backfireChance ${backfireChance} >= ${threshold} makes net chain value non-positive`,
-    );
-  }
-  return (1 - (1 + harmWeight) * backfireChance) * expectedChainUnits(profile);
-}
-
-/** The multiplier that puts profile P (at the given firing hero's own
- * backfireChance) on the same expected NET value as the baseline profile at
- * cfg.backfireChanceBase. Anchored to a profile built from cfg's own
- * existing global fields, not to the pool — same convention backfireChanceFor
- * already uses (anchored at chainAffinity === 1.0, not the pool's actual
- * min/max) — so this file stays pool-agnostic and every existing tuning
- * value's history stays valid. A higher-volatility hero (bigger b) gets a
- * LARGER scale to compensate, which is the volatility premium: risk and
- * shape reinforce instead of fighting each other. */
-export function chainMagnitudeScaleFor(cfg: FightConfig, profile: ChainProfile, backfireChance: number): number {
-  const anchor = expectedNetChainUnits(baselineChainProfile(cfg), cfg.backfireChanceBase);
-  const net = expectedNetChainUnits(profile, backfireChance);
-  return anchor / net;
-}
-
-/** The ABSOLUTE version of the multiplier above (2026-08-20, Step 3 — see
- * the "chain choice: make the pick a shape, not a size" plan's Variant A/B
- * discussion). chainMagnitudeScaleFor (Variant A) equalizes net value in
- * UNITS OF the hero's own base stat — so a hero with a bigger damage stat
- * still lands a visibly bigger chain, just proportionally so; the pip meter
- * this replaced showed exactly that ranking. Variant B removes the base
- * stat from the equation entirely: `target` is an absolute expected-net-
- * damage-or-heal number (heroes.ts's CHAIN_EV_TARGET_DAMAGE/HEAL — two
- * separate targets, since damage and HP-restored are not comparable units,
- * same convention chainCoefficient's own docstring already established),
- * and every hero's chain converges on THAT number regardless of its own
- * damage/healPerBeat stat. This is what makes "no hero has a bigger chain"
- * literally true rather than merely proportionally softened — chain output
- * stops being a function of the hero's normal-combat identity at all,
- * leaving fuse/shape as the only axis that differs. `baseStat` is the raw
- * stat the sim's magnitude formula multiplies against (hero.damage for an
- * attacker, hero.healPerBeat for a healer) — passed in rather than read off
- * a HeroDef so this file stays free of any hero-shaped type. */
-export function chainMagnitudeScaleAbsolute(
-  profile: ChainProfile,
-  backfireChance: number,
-  baseStat: number,
-  target: number,
-  harmWeight = 1,
-): number {
-  const net = expectedNetChainUnits(profile, backfireChance, harmWeight);
-  return target / (baseStat * net);
 }

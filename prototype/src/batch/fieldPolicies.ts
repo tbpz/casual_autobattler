@@ -17,16 +17,13 @@ export const scoreAffinity: HeroScore = (h) => h.chainAffinity;
 export const scoreCharge: HeroScore = (h) => h.charge;
 /** 2026-08-19-era ranking — was "the TRUE chain-output ranking" (damage*
  * affinity for an attacker, heal*affinity for a healer) back when
- * chainAffinity still scaled payoff magnitude. SUPERSEDED 2026-08-20 (Step 3
- * of the "chain choice: make the pick a shape, not a size" plan — see
- * heroes.ts's PLAYER_HERO_POOL docstring and config.ts's
- * chainMagnitudeScaleAbsolute): chainAffinity no longer touches magnitude at
- * all, only backfireChanceFor, so this quantity no longer tracks a fielded
- * hero's actual chain payoff — every hero's chain converges on the same
- * chainMagnitudeTarget regardless of chainAffinity or damage/healPerBeat.
- * Kept only so batch/affinity.ts's A5 arm stays a named, historical
- * comparison point (a fielding policy that ranks by a now-dead quantity);
- * do not read this as a live payoff estimate. */
+ * chainAffinity still scaled payoff magnitude. Dead as a payoff estimate
+ * since the 2026-08-20 per-hero-profile pass (chainAffinity became
+ * volatility-only) and doubly so since the 2026-09-13 chain-effect rebuild
+ * (a chain's magnitude now comes from its effect's own base config value,
+ * not from damage/healPerBeat at all). The batch/affinity.ts file this
+ * scored a fielding policy for is gone; kept here only as a named, historical
+ * comparison point — do not read this as a live payoff estimate. */
 export const scoreChainCoefficient: HeroScore = (h) => (h.healPerBeat ?? h.damage) * h.chainAffinity;
 
 const FIELD_ROLE_ORDER: Role[] = ["tank", "damage", "support"];

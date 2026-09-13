@@ -1,5 +1,5 @@
 import type { FightConfig } from "./config.js";
-import { baselineChainProfile } from "./config.js";
+import { chainEffectVerb } from "./config.js";
 import type { HeroState, SideState } from "./types.js";
 import { sideHp } from "./types.js";
 
@@ -175,8 +175,7 @@ function survivalSecUnder(hpPool: number, enemyDps: number, healPerSec: number, 
 }
 
 /**
- * Mean-value chain expectation (2026-08-20, per-hero-profile pass — Part 1
- * §6 of the "chain choice: make the pick a shape, not a size" plan). Charge
+ * Mean-value chain expectation. Charge
  * is per-hero and only the highest-charge hero fires on threshold-cross
  * (fight.ts), but for a POOL-level "how many chains should I expect" this
  * treats the side's charge as one shared pool: total charge already carried
@@ -213,14 +212,14 @@ function chainProjectionFor(
 
   let closest = playerAlive[0]!;
   for (const h of playerAlive) if (h.charge > closest.charge) closest = h;
-  const closestProfile = closest.chainProfile ?? baselineChainProfile(cfg);
 
   let chainLine: string;
   if (chainsExpected < 0.5) {
     chainLine = "Chain: unlikely this fight — charge is far off.";
   } else {
     const count = Math.max(1, Math.round(chainsExpected));
-    chainLine = `Chain: expect ~${count} this fight. ${closest.name}'s are ${closestProfile.label}.`;
+    const verb = closest.chainEffect ? chainEffectVerb(closest.chainEffect) : "fires";
+    chainLine = `Chain: expect ~${count} this fight. ${closest.name}'s ${verb}.`;
   }
   return { chainsExpected, chainLine };
 }

@@ -1,36 +1,21 @@
 import type { Rng } from "./rng.js";
-import type { ChainProfile, ChainTargeting, FightConfig } from "./config.js";
-import {
-  backfireChanceFor,
-  baselineChainProfile,
-  chainContinuationChance,
-  chainEscalationFactorFromProfile,
-  chainHitSpills,
-  chainMagnitudeScaleAbsolute,
-  expectedNetChainUnits,
-} from "./config.js";
+import type { ChainEffect, FightConfig } from "./config.js";
+import { backfireChanceFor, chainContinuationChance, chainEscalationFactor } from "./config.js";
 import type { ChainPlan, FightSetup, HeroState, SideState } from "./types.js";
 import { sideHp, sideMaxHp } from "./types.js";
-import type { ChainShape, FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "./events.js";
-
-/** Reduces a hero's full ChainPlan.profile down to the small render-facing
- * shape (2026-08-20, per-hero-profile pass — see events.ts's ChainShape
- * docstring for why this is deliberately not the whole ChainProfile). */
-function toChainShape(profile: ChainProfile): ChainShape {
-  return { profileId: profile.id, label: profile.label, maxHits: profile.maxHits, escalationKneeHit: profile.escalationKneeHit };
-}
+import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "./events.js";
 
 /**
  * Applies `amount` damage starting at the hero with id `startId`, overflowing
  * to the next living hero in list order if the hit is a killing blow with
  * damage to spare — unless `spillOverkill` is false, in which case the hit
  * applies at most its target's remaining HP and stops there regardless of
- * whether damage is left over (2026-08-29, Phase 0 of the chain-targeting
- * plan — see config.ts's chainHitSpillsOverkill). Used for every normal
- * attack (single-target) and for the chain's bonus hits — both are
- * concentrated hits, never splash; only a chain hit ever passes
- * `spillOverkill = false`, since neither design question this flag exists
- * for touches normal attacks or wind-up hits. Returns the ids of heroes that
+ * whether damage is left over. A normal attack (and a wind-up hit) always
+ * spills; every chain effect passes `spillOverkill = false` instead — each
+ * rung's damage effect (strikeAll, poundBiggest) already resolves against its
+ * own freshly-chosen target(s), so letting overkill leak onto whichever body
+ * happens to sit next in list order would go around that choice rather than
+ * respect it. Returns the ids of heroes that
  * died, in list order, the damage actually applied (<= amount — less if the
  * side didn't have enough total HP to absorb it, or if spill is off and the
  * target alone couldn't), which the caller credits to the attacker's `dealt`
@@ -116,13 +101,79 @@ function pickWeightedTargetId(side: SideState, rng: Rng, cfg: FightConfig): stri
   return alive[alive.length - 1]?.id;
 }
 
+/** Smooth weighted round-robin (nginx-style): deterministic target selection
+ * that converges to the same long-run share as pickWeightedTargetId's dice,
+ * with no RNG draw (2026-09-04, deciding-factors measurement rig — see
+ * config.ts's enemyTargetMode docstring and FIGHT_DECIDING_FACTORS.md). Reads
+ * the exact same weight formula as pickWeightedTargetId, re-evaluated on
+ * every pick so a tank breaking (or dying) mid-fight still shifts the share.
+ * `tally` is one `currentWeight` per hero id, carried across the whole fight
+ * by the caller (fresh per runFight call — never shared between fights). */
+function pickRoundRobinTargetId(side: SideState, cfg: FightConfig, tally: Map<string, number>): string | undefined {
+  const alive = side.heroes.filter((h) => h.alive && h.hp > 0);
+  if (alive.length === 0) return undefined;
+  let aggroTankClaimed = false;
+  let totalWeight = 0;
+  let bestIdx = -1;
+  let bestCurrent = -Infinity;
+  for (let i = 0; i < alive.length; i++) {
+    const hero = alive[i];
+    if (!hero) continue;
+    let w = 1;
+    if (hero.role === "tank") {
+      if (!hero.holding) w = cfg.brokenTankTargetWeight;
+      else if (!aggroTankClaimed) {
+        aggroTankClaimed = true;
+        w = cfg.tankTargetWeight;
+      }
+    }
+    totalWeight += w;
+    const current = (tally.get(hero.id) ?? 0) + w;
+    tally.set(hero.id, current);
+    if (current > bestCurrent) {
+      bestCurrent = current;
+      bestIdx = i;
+    }
+  }
+  const winner = alive[bestIdx];
+  if (!winner) return undefined;
+  tally.set(winner.id, bestCurrent - totalWeight);
+  return winner.id;
+}
+
+/** Resolves cfg.enemyTargetMode: the shipped dice (pickWeightedTargetId,
+ * unchanged) or the deterministic round-robin above. `tally` is required
+ * (and the round-robin branch throws without one) rather than silently
+ * falling back to dice — a silent fallback would quietly break the exact
+ * measurement enemyTargetMode exists to make possible. Only ever called for
+ * an ENEMY's own attack/wind-up target pick against the player side — a
+ * chain backfire's own weighted pick (this file's "front" rule) is a
+ * different factor and stays on pickWeightedTargetId directly, see
+ * config.ts's enemyTargetMode docstring. */
+function pickEnemyTargetId(
+  side: SideState,
+  rng: Rng,
+  cfg: FightConfig,
+  tally: Map<string, number> | undefined,
+): string | undefined {
+  if (cfg.enemyTargetMode !== "weightedRoundRobin") return pickWeightedTargetId(side, rng, cfg);
+  if (!tally) throw new Error("pickEnemyTargetId: weightedRoundRobin mode requires a tally");
+  return pickRoundRobinTargetId(side, cfg, tally);
+}
+
 /** Picks a wind-up's target per the bruiser's own windupTargeting rule
  * (2026-08-09, encounter-table pass — see types.ts's HeroState docstring and
  * sim/encounters.ts). Falls back to the normal weighted rule when unset, so
  * every pre-existing bruiser (no field set) behaves exactly as before. */
-function pickWindupTargetId(hero: HeroState, player: SideState, rng: Rng, cfg: FightConfig): string | undefined {
+function pickWindupTargetId(
+  hero: HeroState,
+  player: SideState,
+  rng: Rng,
+  cfg: FightConfig,
+  enemyTargetTally: Map<string, number> | undefined,
+): string | undefined {
   if (hero.windupTargeting === "lowestHp") return lowestHpAliveHero(player)?.id;
-  return pickWeightedTargetId(player, rng, cfg);
+  return pickEnemyTargetId(player, rng, cfg, enemyTargetTally);
 }
 
 function lowestHpAliveHero(side: SideState): HeroState | undefined {
@@ -134,12 +185,14 @@ function lowestHpAliveHero(side: SideState): HeroState | undefined {
   return best;
 }
 
-/** Mirror of lowestHpAliveHero above, for the "siege" chain targeting rule
- * (2026-09-02, Phase 1 of the chain-targeting plan). Strict `>` so the FIRST
- * body in list order wins an exact tie — matching lowestHpAliveHero's own
- * strict `<`. Not cosmetic: Twins and Glass Pair (sim/encounters.ts) seed
- * their two bodies at identical HP, so this comparison is what decides which
- * one a siege chain commits to on hit 1. */
+/** Mirror of lowestHpAliveHero above, for the "poundBiggest" chain effect
+ * (Rook's identity — config.ts's ChainEffect). Strict `>` so the FIRST body
+ * in list order wins an exact tie — matching lowestHpAliveHero's own strict
+ * `<`. Not cosmetic: Twins and Glass Pair (sim/encounters.ts) seed their two
+ * bodies at identical HP, so this comparison is what decides which one Rook's
+ * chain commits to on hit 1. Re-picked every rung (not locked at ignition
+ * like the old "siege" rule it replaces), so a chain can switch targets if
+ * the current biggest body dies mid-chain. */
 function highestHpAliveHero(side: SideState): HeroState | undefined {
   let best: HeroState | undefined;
   for (const h of side.heroes) {
@@ -147,74 +200,6 @@ function highestHpAliveHero(side: SideState): HeroState | undefined {
     if (!best || h.hp > best.hp) best = h;
   }
   return best;
-}
-
-/** The current chain's per-run target bookkeeping (2026-09-02, Phase 1 of the
- * chain-targeting plan) — everything a targeting rule other than "front" or
- * "triage" needs beyond what resolveChainHit already receives. A single
- * named object rather than two more positional parameters: resolveChainHit
- * already takes seven, and struck is MUTATED by the caller on every landed
- * hit, so a bare parameter would leave that mutation direction invisible at
- * the call site. Reset as one assignment (never partially) at every site
- * that starts, ends, or force-ends a chain — see runFight's ignition block,
- * miss branch, and lockout sweep. */
-interface ChainTargetState {
-  /** The body focus/execute committed to at ignition, on the correct side
-   * for whether this chain is backfiring. Null for every other rule. */
-  lockedTargetId: string | null;
-  /** Every body this chain has already landed a hit on, regardless of rule —
-   * only "spread" reads this to find a fresh body, but every rule adds to it
-   * on a landed hit, which keeps the bookkeeping to one place instead of
-   * conditionally maintained per rule. */
-  struck: Set<string>;
-}
-
-function freshChainTargetState(): ChainTargetState {
-  return { lockedTargetId: null, struck: new Set() };
-}
-
-/** first living body in list order not yet struck by this chain — the
- * "spread" rule. Undefined once every living body on the side has been
- * struck, which resolveChainHit's caller reads as a whiff. */
-function firstAliveNotIn(side: SideState, struck: Set<string>): string | undefined {
-  return side.heroes.find((h) => h.alive && h.hp > 0 && !struck.has(h.id))?.id;
-}
-
-/** The single switch every chain targeting rule but "triage" (the healer
- * branch, handled separately in resolveChainHit) goes through (2026-09-02,
- * Phase 1 of the chain-targeting plan — see config.ts's ChainTargeting).
- * `targetSide` is already resolved by the caller to `backfire ? player :
- * enemy`. "front" is the one rule that does NOT read targetSide — it keeps
- * its own pre-existing asymmetry (frontMostAliveId on the payoff,
- * pickWeightedTargetId — which consumes the RNG stream — on a backfire),
- * which is what keeps chainTargetingEnabled: false byte-identical to today's
- * game. Every other rule is deterministic and consumes nothing. */
-function pickChainTargetId(
-  targeting: Exclude<ChainTargeting, "triage">,
-  backfire: boolean,
-  player: SideState,
-  enemy: SideState,
-  rng: Rng,
-  cfg: FightConfig,
-  state: ChainTargetState,
-): string | undefined {
-  if (targeting === "front") {
-    return backfire ? pickWeightedTargetId(player, rng, cfg) : frontMostAliveId(enemy);
-  }
-  const targetSide = backfire ? player : enemy;
-  switch (targeting) {
-    case "spread":
-      return firstAliveNotIn(targetSide, state.struck);
-    case "focus":
-    case "execute": {
-      const id = state.lockedTargetId;
-      if (!id) return undefined;
-      const hero = targetSide.heroes.find((h) => h.id === id);
-      return hero && hero.alive && hero.hp > 0 ? id : undefined;
-    }
-    case "siege":
-      return highestHpAliveHero(targetSide)?.id;
-  }
 }
 
 function isWiped(side: SideState): boolean {
@@ -249,50 +234,17 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
   }));
 }
 
-/** Resolves a hero's ChainPlan for THIS fight (2026-08-20, per-hero-profile
- * pass — see types.ts's ChainPlan docstring). Falls back to
- * baselineChainProfile(cfg) when the hero carries no chainProfile of its
- * own. Computed for EVERY hero, enemy sides included: cheap (O(maxHits)),
- * and harmless for enemies since they never chain and nothing reads their
- * plan.
- *
- * Step 3: magnitudeScale now uses chainMagnitudeScaleAbsolute (Variant B) —
- * every hero's chain converges on its own hero.chainMagnitudeTarget in
- * absolute expected-net-value terms, independent of its damage/healPerBeat
- * stat (see config.ts's own docstring on that function for why). baseStat is
- * read the same way the sim's magnitude formulas read it — healPerBeat for a
- * healer, damage otherwise.
- *
- * A hero with no chainMagnitudeTarget authored (chainMagnitudeTarget
- * undefined) falls back to `baseStat * expectedNetChainUnits(baseline,
- * backfireChanceBase)` — algebraically this makes chainMagnitudeScaleAbsolute
- * reduce EXACTLY to chainMagnitudeScaleFor's old Variant A formula (both
- * anchor to the same baseline-at-backfireChanceBase net value), which is
- * what kept Step 1/Step 2 an identity transform before any hero had a real
- * target authored.
- *
- * targeting (2026-09-02, Phase 1 of the chain-targeting plan): when
- * cfg.chainTargetingEnabled is false, every hero resolves to "front"
- * (attacker) or "triage" (healer) regardless of what HeroState.chainTargeting
- * authors — that forced normalisation, not the absence of a switch anywhere
- * else, is the entire A/B this flag rests on. A healer is normalised the same
- * way even with the flag ON: resolveChainHit branches on hero.healPerBeat
- * before ever reading plan.targeting (see below), so an accidentally-authored
- * non-triage rule on a healer would otherwise be silently ignored rather than
- * visibly wrong — forcing it here keeps the plan honest as a readout for the
- * measurement rig and the projection line alike. */
+/** Resolves a hero's ChainPlan for THIS fight (2026-09-13, "a hero's chain
+ * names its own enemy" rebuild — see types.ts's ChainPlan docstring).
+ * Computed for EVERY hero, enemy sides included: cheap, and harmless for
+ * enemies since they never chain and nothing reads their plan. An enemy's
+ * `effect` is arbitrary (they author no HeroDef.chainEffect) — never
+ * exercised, since only the player side is ever scanned to ignite a chain. */
 function resolveChainPlan(cfg: FightConfig, hero: HeroState): ChainPlan {
-  const profile = hero.chainProfile ?? baselineChainProfile(cfg);
-  const backfireChance = backfireChanceFor(cfg, hero.chainAffinity);
-  const baseStat = hero.healPerBeat ?? hero.damage;
-  const target = hero.chainMagnitudeTarget ?? baseStat * expectedNetChainUnits(baselineChainProfile(cfg), cfg.backfireChanceBase);
-  const magnitudeScale = chainMagnitudeScaleAbsolute(profile, backfireChance, baseStat, target);
-  const targeting: ChainTargeting = hero.healPerBeat
-    ? "triage"
-    : cfg.chainTargetingEnabled
-      ? (hero.chainTargeting ?? "front")
-      : "front";
-  return { profile, magnitudeScale, backfireChance, targeting };
+  return {
+    effect: hero.chainEffect ?? "poundBiggest",
+    backfireChance: backfireChanceFor(cfg, hero.chainAffinity),
+  };
 }
 
 function cloneHeroes(heroes: HeroState[], cfg: FightConfig): HeroState[] {
@@ -328,6 +280,7 @@ function performHeroAction(
   isPlayerAttacker: boolean,
   targeting: "front" | "weighted",
   damageMultiplier = 1,
+  enemyTargetTally?: Map<string, number>,
 ): void {
   if (hero.healPerBeat) {
     const target = lowestHpAliveHero(attackerSide);
@@ -351,7 +304,7 @@ function performHeroAction(
     if (!hero.attacksWhileHealing) return;
   }
   const targetId =
-    targeting === "front" ? frontMostAliveId(defenderSide) : pickWeightedTargetId(defenderSide, rng, cfg);
+    targeting === "front" ? frontMostAliveId(defenderSide) : pickEnemyTargetId(defenderSide, rng, cfg, enemyTargetTally);
   if (!targetId) return;
   const base = (hero.damage + (isPlayerAttacker ? attackerSide.dpsBonus : 0)) * damageMultiplier;
   const damage = rollDamage(base, rng, cfg.damageVariance);
@@ -397,13 +350,29 @@ function handleBruiserBeat(
   enemy: SideState,
   player: SideState,
   hero: HeroState,
+  enemyTargetTally: Map<string, number> | undefined,
 ): boolean {
   if (hero.windupFireT !== undefined) {
     if (t < hero.windupFireT) return false; // still telegraphing
     // Charge resolves. If the locked target died to something else first,
     // retarget fresh — the threat was real, just not to that hero anymore.
     const lockedAlive = hero.windupTargetId && player.heroes.some((h) => h.id === hero.windupTargetId && h.alive);
-    const targetId = lockedAlive ? (hero.windupTargetId as string) : pickWindupTargetId(hero, player, rng, cfg);
+    let targetId = lockedAlive ? (hero.windupTargetId as string) : pickWindupTargetId(hero, player, rng, cfg, enemyTargetTally);
+    // Bracer's "guard" chain effect (config.ts's ChainEffect) redirects a
+    // telegraphed hit at the moment it lands, not at telegraph start — a
+    // real payoff sends it to the guarding hero; a backfire (guardInverted)
+    // sends it to the player's own lowest-HP hero instead, Bracer stepping
+    // aside rather than stepping in. A window in time (guardUntilT), not a
+    // single consumable charge — every wind-up that fires before it expires
+    // redirects, which is what lets a long chain guard several cycles.
+    if (player.guardUntilT !== undefined && t < player.guardUntilT) {
+      if (player.guardInverted) {
+        targetId = lowestHpAliveHero(player)?.id ?? targetId;
+      } else {
+        const guardian = player.heroes.find((h) => h.id === player.guardHeroId && h.alive);
+        if (guardian) targetId = guardian.id;
+      }
+    }
     hero.windupFireT = undefined;
     hero.windupTargetId = undefined;
     hero.nextWindupT = t + (hero.windupIntervalSec ?? cfg.windupIntervalSec);
@@ -417,66 +386,68 @@ function handleBruiserBeat(
     return isWiped(player);
   }
   if (hero.nextWindupT !== undefined && t >= hero.nextWindupT) {
-    const targetId = pickWindupTargetId(hero, player, rng, cfg) ?? null;
+    const targetId = pickWindupTargetId(hero, player, rng, cfg, enemyTargetTally) ?? null;
     hero.windupTargetId = targetId;
     hero.windupFireT = t + cfg.windupTelegraphSec;
     events.push({ type: "windupStart", t, targetId, fireT: hero.windupFireT });
     return false;
   }
   if (t >= hero.nextAttackT) {
-    performHeroAction(events, t, rng, cfg, enemy, "enemy", player, "player", hero, false, "weighted");
+    performHeroAction(events, t, rng, cfg, enemy, "enemy", player, "player", hero, false, "weighted", 1, enemyTargetTally);
     hero.nextAttackT += hero.attackIntervalSec;
     return isWiped(player);
   }
   return false;
 }
 
-/** Resolves one bonus hit for the currently-hot hero (2026-08-14 chain
- * rebuild — see config.ts's FightConfig docstring). The chain always repeats
- * the hero's OWN action: an attacker's hit escalates damage, a healer's hit
- * (healPerBeat set — Ward included, per its own docstring: the chain reads
- * off healPerBeat regardless of attacksWhileHealing) escalates a heal.
- * `backfire` aims the SAME action at the wrong side instead of changing what
- * it does — an attacker hits its own team, a healer heals the enemy — using
- * the identical magnitude formula either way, so a hero's backfire is
- * exactly as loud as its payoff.
- *
- * Returns null when there's no valid target for this hit (every candidate on
- * the target side is already dead, or — heal only — already full HP); the
- * caller treats that exactly like a failed continuation roll, ending the
- * chain rather than looping on a no-op. */
-/** A chain bonus hit's damage for an ATTACKING hero (tank/damage role) at
- * `hitIndex` — the escalation curve (config.ts's
- * chainEscalationFactorFromProfile) applies multiplicatively alongside the
- * hero's own base damage and its resolved magnitudeScale, identically
- * whether the hit is a real payoff or a backfire. Exported (2026-08-15,
- * chain-payoff-axis pass) so checks/chaindist.ts can verify design
- * invariants against the exact same formula the fight sim uses, rather than
- * re-deriving it and risking drift. Not valid for a healer — see
- * resolveChainHit's heal branch, which uses healPerBeat as its base and
- * clamps against the target's own maxHp instead.
- *
- * 2026-08-20 (per-hero-profile pass, Step 3): `magnitudeScale` replaces the
- * old `chainAffinity` parameter — this is the actual behavior change this
- * step makes (Steps 1-2 only moved WHERE the escalation curve came from).
- * magnitudeScale is types.ts's ChainPlan.magnitudeScale
- * (config.ts's chainMagnitudeScaleAbsolute), which equalizes every hero's
- * expected NET chain value in absolute terms — chainAffinity no longer
- * appears in this formula at all; it now drives ONLY backfireChanceFor. */
-export function chainAttackMagnitude(
-  cfg: FightConfig,
-  profile: ChainProfile,
-  damage: number,
-  magnitudeScale: number,
-  hitIndex: number,
-): number {
-  return Math.max(
-    1,
-    Math.round(damage * cfg.chainHitMultiplier * chainEscalationFactorFromProfile(profile, hitIndex) * magnitudeScale),
-  );
+/** A chain rung's escalated magnitude for a damage/heal effect — the shared
+ * escalation curve (config.ts's chainEscalationFactor) times cfg's own
+ * chainHitMultiplier, off whichever per-effect base config.ts's ChainEffect
+ * fields authored. Rounded and floored at 1, same convention the pre-rebuild
+ * formula used. Not used for "guard"/"stun" — those escalate a DURATION, see
+ * escalatedDurationSec below, which deliberately skips both the rounding and
+ * chainHitMultiplier (a duration isn't damage). */
+function escalatedMagnitude(cfg: FightConfig, base: number, hitIndex: number): number {
+  return Math.max(1, Math.round(base * cfg.chainHitMultiplier * chainEscalationFactor(cfg, hitIndex)));
 }
 
+/** Same curve as escalatedMagnitude, for a "guard"/"stun" rung's duration in
+ * seconds — no rounding, no chainHitMultiplier (a duration is not damage). */
+function escalatedDurationSec(cfg: FightConfig, baseSec: number, hitIndex: number): number {
+  return baseSec * chainEscalationFactor(cfg, hitIndex);
+}
+
+/** One target's outcome from a single chain rung. Attack/heal effects that
+ * hit several bodies at once (strikeAll, mendAll) produce one of these PER
+ * living body; the caller (runFight) pushes one chainHit event per entry, all
+ * sharing the same hitIndex and tick — which is what makes strikeAll read as
+ * "everyone at once" on the same frame instead of needing its own event
+ * shape. "guard" produces a single entry with no targetId (the effect is
+ * side-level, not aimed at a body) and durationSec set; "stun" produces a
+ * single entry with the frozen body's id and durationSec set. */
+interface ChainHitEntry {
+  kind: "damage" | "heal" | "guard" | "stun";
+  targetId: string | null;
+  amount: number;
+  intended: number;
+  died: string[];
+  durationSec?: number;
+}
+
+/** Resolves one rung of the currently-hot hero's chain (2026-09-13, "a
+ * hero's chain names its own enemy" rebuild — see config.ts's ChainEffect).
+ * The chain always repeats the hero's OWN effect, escalated by hitIndex;
+ * `backfire` aims the SAME effect at the wrong side instead of changing what
+ * it does — same convention every version of this mechanic has used.
+ *
+ * Returns null when this rung has nothing to do — every candidate on the
+ * target side is dead (damage effects), every ally is already full HP (heal
+ * effects), or (stun only) no living body to freeze. The caller treats that
+ * exactly like a failed continuation roll: the chain ends. "guard" never
+ * whiffs — it is a side-level effect, not aimed at a body, so the player
+ * side always exists to receive it. */
 function resolveChainHit(
+  t: number,
   rng: Rng,
   cfg: FightConfig,
   player: SideState,
@@ -484,66 +455,98 @@ function resolveChainHit(
   hero: HeroState,
   hitIndex: number,
   backfire: boolean,
-  chainState: ChainTargetState,
-): { kind: "damage" | "heal"; targetId: string | null; amount: number; intended: number; died: string[] } | null {
-  // hero.chainPlan is always set (cloneHeroes resolves it for every hero);
-  // the `?? baselineChainProfile(cfg)` / `?? 1` fallbacks below are
-  // defensive, matching this file's existing convention elsewhere.
-  const plan = hero.chainPlan;
-  if (hero.healPerBeat) {
-    const target = lowestHpAliveHero(backfire ? enemy : player);
-    if (!target) return null;
-    const room = target.maxHp - target.hp;
-    if (room <= 0) return null;
-    // Chain heals get their own, much higher cap than a normal heal beat
-    // (2026-08-15 — see config.ts's chainHealMaxFractionOfTargetMaxHp
-    // docstring): at the shared normal-beat cap, a support's chain was
-    // capped to single digits regardless of length — the clearest version
-    // of the "some heroes' chains are always a dud" problem this pass fixes.
-    const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
-    const profile = plan?.profile ?? baselineChainProfile(cfg);
-    const raw =
-      hero.healPerBeat * cfg.chainHitMultiplier * chainEscalationFactorFromProfile(profile, hitIndex) * (plan?.magnitudeScale ?? 1);
-    const amount = Math.max(1, Math.min(raw, cap, room));
-    target.hp += amount;
-    // Only credit the hero's OWN restored counter on a real heal — a
-    // backfire heals the enemy, which isn't this hero's job done well.
-    if (!backfire) hero.restored += amount;
-    return { kind: "heal", targetId: target.id, amount, intended: raw, died: [] };
+): ChainHitEntry[] | null {
+  const effect: ChainEffect = hero.chainPlan?.effect ?? "poundBiggest";
+  // A damage effect's real payoff lands on the enemy, backfire on the
+  // player's own side; a heal effect is the mirror of that (real payoff
+  // heals the player's own side, backfire heals the enemy) — same asymmetry
+  // every version of this mechanic has used. "guard" is side-level (always
+  // the player) and "stun" picks its own target per branch below, so neither
+  // reads this.
+  const isHealEffect = effect === "mendAll" || effect === "mendOne";
+  const targetSide = isHealEffect ? (backfire ? enemy : player) : backfire ? player : enemy;
+
+  switch (effect) {
+    case "strikeAll": {
+      const targets = targetSide.heroes.filter((h) => h.alive && h.hp > 0);
+      if (targets.length === 0) return null;
+      const damage = escalatedMagnitude(cfg, cfg.chainStrikeAllBase, hitIndex);
+      return targets.map((target) => {
+        const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false);
+        hero.dealt += applied;
+        return { kind: "damage" as const, targetId: target.id, amount: applied, intended: damage, died };
+      });
+    }
+    case "poundBiggest": {
+      const target = highestHpAliveHero(targetSide);
+      if (!target) return null;
+      const damage = escalatedMagnitude(cfg, cfg.chainPoundBase, hitIndex);
+      const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false);
+      hero.dealt += applied;
+      return [{ kind: "damage" as const, targetId: target.id, amount: applied, intended: damage, died }];
+    }
+    case "mendAll": {
+      const allies = targetSide.heroes.filter((h) => h.alive && h.hp > 0 && h.hp < h.maxHp);
+      if (allies.length === 0) return null;
+      const raw = escalatedMagnitude(cfg, cfg.chainMendAllBase, hitIndex);
+      return allies.map((target) => {
+        const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
+        const amount = Math.max(1, Math.min(raw, cap, target.maxHp - target.hp));
+        target.hp += amount;
+        if (!backfire) hero.restored += amount;
+        return { kind: "heal" as const, targetId: target.id, amount, intended: raw, died: [] as string[] };
+      });
+    }
+    case "mendOne": {
+      const target = lowestHpAliveHero(targetSide);
+      if (!target) return null;
+      const room = target.maxHp - target.hp;
+      if (room <= 0) return null;
+      // Chain heals get their own, much higher cap than a normal heal beat
+      // (2026-08-15 — see config.ts's chainHealMaxFractionOfTargetMaxHp
+      // docstring): at the shared normal-beat cap, a support's chain was
+      // capped to single digits regardless of length.
+      const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
+      const raw = escalatedMagnitude(cfg, cfg.chainMendOneBase, hitIndex);
+      const amount = Math.max(1, Math.min(raw, cap, room));
+      target.hp += amount;
+      if (!backfire) hero.restored += amount;
+      return [{ kind: "heal" as const, targetId: target.id, amount, intended: raw, died: [] as string[] }];
+    }
+    case "guard": {
+      // Side-level, not aimed at a body — always writes to the PLAYER side,
+      // since only the enemy ever winds up. A real payoff covers the squad
+      // with the firing hero (Bracer); a backfire inverts the redirect onto
+      // the player's own lowest-HP hero instead (handleBruiserBeat reads
+      // guardInverted) — Bracer stepping aside rather than stepping in.
+      // Never whiffs: the player side always exists while the fight runs.
+      const sec = escalatedDurationSec(cfg, cfg.chainGuardBaseSec, hitIndex);
+      player.guardUntilT = Math.max(player.guardUntilT ?? t, t + sec);
+      player.guardHeroId = hero.id;
+      player.guardInverted = backfire;
+      return [{ kind: "guard" as const, targetId: hero.id, amount: 0, intended: 0, died: [] as string[], durationSec: sec }];
+    }
+    case "stun": {
+      // Payoff: deterministic front-most, same reasoning as a normal player
+      // attack — makeEncounterEnemySide puts bruisers first, so this
+      // reliably freezes the boss on purpose. Backfire: weighted-random own
+      // hero, the same rule an enemy's own attack uses against the player —
+      // a stun turned on yourself shouldn't be aimable.
+      const targetId = backfire ? pickWeightedTargetId(player, rng, cfg) : frontMostAliveId(enemy);
+      const targetSideForLookup = backfire ? player : enemy;
+      const target = targetId ? targetSideForLookup.heroes.find((h) => h.id === targetId) : undefined;
+      if (!target) return null;
+      const sec = escalatedDurationSec(cfg, cfg.chainStunBaseSec, hitIndex);
+      target.stunnedUntilT = Math.max(target.stunnedUntilT ?? t, t + sec);
+      target.nextAttackT = Math.max(target.nextAttackT, target.stunnedUntilT);
+      if (target.nextWindupT !== undefined) target.nextWindupT = Math.max(target.nextWindupT, target.stunnedUntilT);
+      // Cancels an in-progress telegraph outright — this is Hollow's whole
+      // point ("cancelling a wind-up in progress"), not merely delaying it.
+      target.windupFireT = undefined;
+      target.windupTargetId = undefined;
+      return [{ kind: "stun" as const, targetId: target.id, amount: 0, intended: 0, died: [] as string[], durationSec: sec }];
+    }
   }
-  const attackProfile = plan?.profile ?? baselineChainProfile(cfg);
-  // 2026-08-20 (per-hero-profile pass, Step 3): player.dpsBonus (the run's
-  // flat-damage coin upgrade) is deliberately NOT added here anymore — see
-  // config.ts's chainMagnitudeScaleAbsolute docstring. magnitudeScale is
-  // solved against hero.damage alone (heroes.ts's CHAIN_EV_TARGET_DAMAGE);
-  // folding a variable, run-dependent dpsBonus into that base would make
-  // "every hero converges on the same target" untrue the moment a run
-  // banks the upgrade. The upgrade still helps every normal attack (see
-  // performHeroAction) — its effect on chains specifically is the accepted
-  // cost of chain output being an absolute, stat-independent number.
-  //
-  // 2026-09-02 (Phase 1, chain-targeting plan): magnitude is now computed
-  // BEFORE the target pick, not after — a whiff still needs its full
-  // escalated `intended` value, and the magnitude formula itself is pure
-  // (no RNG), so moving it earlier changes nothing else.
-  const damage = chainAttackMagnitude(cfg, attackProfile, hero.damage, plan?.magnitudeScale ?? 1, hitIndex);
-  // hero.healPerBeat above already returned every healer, so plan.targeting
-  // is never really "triage" here — the fallback to "front" is defensive,
-  // matching this file's own convention, not a live path.
-  const targeting = plan?.targeting === "triage" ? "front" : (plan?.targeting ?? "front");
-  const targetId = pickChainTargetId(targeting, backfire, player, enemy, rng, cfg, chainState);
-  if (!targetId) {
-    // "front" finding no target means no living body at all on the target
-    // side — exactly today's chain-ends-with-noTarget case, unchanged. Every
-    // other rule finding no target is a WHIFF: the chain keeps rolling (Q1),
-    // it just lands on nothing this hit.
-    if (targeting === "front") return null;
-    return { kind: "damage", targetId: null, amount: 0, intended: damage, died: [] };
-  }
-  const { died, applied } = applyDamageFrom(backfire ? player : enemy, targetId, damage, 0, chainHitSpills(cfg));
-  hero.dealt += applied;
-  chainState.struck.add(targetId);
-  return { kind: "damage", targetId, amount: applied, intended: damage, died };
 }
 
 /**
@@ -569,26 +572,14 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   // pass — see config.ts's backfireChanceBase docstring). Meaningless while
   // hotHeroId is null.
   let chainBackfire = false;
-  // The CURRENT chain's shape (2026-08-20, per-hero-profile pass) — set the
-  // instant hotHeroId is set, cleared the instant it's cleared, so the two
-  // are always in lockstep; meaningless while hotHeroId is null, same as
-  // chainBackfire above.
-  let hotChainShape: ChainShape | null = null;
-  // Whether the CURRENT chain's hero is still getting the hotBeatIntervalFactor
-  // speed-up (2026-09-02, Phase 1 of the chain-targeting plan — see Q1's
-  // decision). Splits the "a chain is running" job hotHeroId used to do alone
-  // into two: hotHeroId still means that, everywhere it already meant that
-  // (the eligibility check below, the snapshot, the render layer); this flag
-  // means "and it hasn't whiffed yet." Set true at ignition, cleared on the
-  // first whiff (see resolveChainHit's targetId: null case below) and at
-  // every site that clears hotHeroId, so the two can never fall out of
-  // lockstep the way hotChainShape's own comment above guards against.
-  let hotAccelerating = false;
-  // The CURRENT chain's target bookkeeping (2026-09-02, Phase 1) — see
-  // ChainTargetState's own docstring. Reset as one assignment at every site
-  // that starts, ends, or force-ends a chain, same discipline as
-  // chainDamageSoFar/chainKillIds below.
-  let chainTargetState: ChainTargetState = freshChainTargetState();
+  // The CURRENT chain's effect (config.ts's ChainEffect) — set the instant
+  // hotHeroId is set, cleared the instant it's cleared, so the two are always
+  // in lockstep; meaningless while hotHeroId is null, same as chainBackfire
+  // above. 2026-09-13 rebuild: every rung of a fired chain now always lands
+  // (resolveChainHit returns null only for a TOTAL whiff, which ends the
+  // chain outright — see its own docstring), so there is no more separate
+  // "hasn't whiffed yet" flag to track alongside this.
+  let hotEffect: ChainEffect | null = null;
   let bonusHitsLanded = 0;
   let finalChainLength = 0;
   // Running totals for the CURRENT chain — reset when a chain fires,
@@ -601,6 +592,11 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   // A tankless comp is living dangerously from the first tick — counted as a
   // dip immediately, same as the old gate's "no living tank" clause.
   let dipOccurred = !player.heroes.some((h) => h.role === "tank" && h.alive);
+  // Smooth-weighted-round-robin state for cfg.enemyTargetMode ===
+  // "weightedRoundRobin" (2026-09-04, deciding-factors rig) — see
+  // pickRoundRobinTargetId's docstring. One per fight, never read when
+  // enemyTargetMode is the default "weighted".
+  const enemyTargetTally = new Map<string, number>();
   let outcome: "win" | "loss" | null = null;
   let endReason: "wipe" | "failsafe" = "wipe";
   let endT = 0;
@@ -618,62 +614,47 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       if (!hero.alive || outcome || t < hero.nextAttackT) continue;
       const isHot = hero.id === hotHeroId;
       performHeroAction(events, t, rng, cfg, player, "player", enemy, "enemy", hero, true, "front");
-      hero.nextAttackT += hero.attackIntervalSec * (isHot && hotAccelerating ? cfg.hotBeatIntervalFactor : 1);
+      hero.nextAttackT += hero.attackIntervalSec * (isHot ? cfg.hotBeatIntervalFactor : 1);
       if (isWiped(enemy)) {
         outcome = "win";
         continue;
       }
       if (isHot) {
-        // capped/rolled kept separate from `hit` (2026-08-19 chain-ending
+        // capped/rolled kept separate from `hits` (2026-08-19 chain-ending
         // pass) so the miss branch below can report WHY the chain ended —
         // continuation roll failed, the hard cap forced it, or the roll
-        // passed but resolveChainHit found no valid target — instead of
-        // collapsing all three into one identical event.
-        // 2026-08-20 (per-hero-profile pass, Step 1): reads the cap and the
-        // continuation odds off this hero's OWN resolved chainPlan.profile
-        // instead of the global cfg fields directly — for a hero with no
-        // authored profile that plan is baselineChainProfile(cfg), whose
-        // fields equal these cfg fields exactly, so this step is byte-
-        // identical until Step 3 authors real per-hero profiles.
-        // chainContinuationChance also applies cfg.chainContinuationScale, a
-        // global damper checks/beatsheet.ts and checks/projection.ts use to
-        // disable continuation entirely regardless of which table a hero
-        // reads (see that field's own docstring).
-        const chainProfile = hero.chainPlan?.profile ?? baselineChainProfile(cfg);
-        const capped = bonusHitsLanded >= chainProfile.maxHits;
-        const chance = capped ? 0 : chainContinuationChance(cfg, chainProfile, bonusHitsLanded);
+        // passed but resolveChainHit found no valid target at all — instead
+        // of collapsing all three into one identical event. Every hero now
+        // shares one continuation table and cap (config.ts's
+        // chainChanceByHitsSoFar/chainMaxHits) — see this file's 2026-09-13
+        // rebuild; chainContinuationScale still applies on top, a global
+        // damper checks/beatsheet.ts and checks/projection.ts use to disable
+        // continuation entirely.
+        const capped = bonusHitsLanded >= cfg.chainMaxHits;
+        const chance = capped ? 0 : chainContinuationChance(cfg, bonusHitsLanded);
         const rolled = rng.chance(chance);
-        const hit = rolled
-          ? resolveChainHit(rng, cfg, player, enemy, hero, bonusHitsLanded + 1, chainBackfire, chainTargetState)
-          : null;
-        if (hit) {
+        const hits = rolled ? resolveChainHit(t, rng, cfg, player, enemy, hero, bonusHitsLanded + 1, chainBackfire) : null;
+        if (hits) {
           const hitIndex = bonusHitsLanded + 1;
-          events.push({
-            type: "chainHit",
-            t,
-            hitIndex,
-            damage: hit.amount,
-            intended: hit.intended,
-            targetId: hit.targetId,
-            kind: hit.kind,
-            backfire: chainBackfire,
-            sourceId: hero.id,
-          });
-          // A whiff (targetId: null — only the four new targeting rules can
-          // produce one; "front" and "triage" return null from
-          // resolveChainHit itself, which falls to the else branch below,
-          // unchanged) still consumes a fuse slot (bonusHitsLanded advances
-          // below either way) but ends the speed-up on the FIRST one, per
-          // Q1's decision — the chain keeps rolling, it just stops
-          // accelerating. The drop lands on the hero's NEXT beat, not this
-          // one: nextAttackT already advanced above, using whatever
-          // hotAccelerating was at the top of this tick.
-          if (hit.targetId === null) hotAccelerating = false;
           const downSide: Side = chainBackfire ? "player" : "enemy";
-          for (const id of hit.died) events.push({ type: "heroDown", t, side: downSide, heroId: id });
+          for (const hit of hits) {
+            events.push({
+              type: "chainHit",
+              t,
+              hitIndex,
+              damage: hit.amount,
+              intended: hit.intended,
+              targetId: hit.targetId,
+              kind: hit.kind,
+              backfire: chainBackfire,
+              sourceId: hero.id,
+              durationSec: hit.durationSec,
+            });
+            for (const id of hit.died) events.push({ type: "heroDown", t, side: downSide, heroId: id });
+            chainDamageSoFar += hit.amount;
+            chainKillIds.push(...hit.died);
+          }
           bonusHitsLanded = hitIndex;
-          chainDamageSoFar += hit.amount;
-          chainKillIds.push(...hit.died);
           if (chainBackfire) {
             if (isWiped(player)) outcome = "loss";
           } else if (isWiped(enemy)) {
@@ -693,14 +674,11 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
             killedIds: chainKillIds,
             backfire: chainBackfire,
             reason,
-            maxHits: chainProfile.maxHits,
-            label: chainProfile.label,
+            effect: hotEffect!,
           });
           finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
           hotHeroId = null;
-          hotChainShape = null;
-          hotAccelerating = false;
-          chainTargetState = freshChainTargetState();
+          hotEffect = null;
         }
       }
     }
@@ -714,9 +692,9 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         if (!hero.alive || outcome) continue;
         let wiped = false;
         if (hero.role === "bruiser") {
-          wiped = handleBruiserBeat(events, t, rng, cfg, enemy, player, hero);
+          wiped = handleBruiserBeat(events, t, rng, cfg, enemy, player, hero, enemyTargetTally);
         } else if (t >= hero.nextAttackT) {
-          performHeroAction(events, t, rng, cfg, enemy, "enemy", player, "player", hero, false, "weighted");
+          performHeroAction(events, t, rng, cfg, enemy, "enemy", player, "player", hero, false, "weighted", 1, enemyTargetTally);
           hero.nextAttackT += hero.attackIntervalSec;
           wiped = isWiped(player);
         }
@@ -754,16 +732,13 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
           killedIds: chainKillIds,
           backfire: chainBackfire,
           reason: "sourceDied",
-          // hotChainShape is always set in lockstep with hotHeroId (see its
-          // own declaration comment above) — non-null here by that invariant.
-          maxHits: hotChainShape!.maxHits,
-          label: hotChainShape!.label,
+          // hotEffect is always set in lockstep with hotHeroId (see its own
+          // declaration comment above) — non-null here by that invariant.
+          effect: hotEffect!,
         });
         finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
         hotHeroId = null;
-        hotChainShape = null;
-        hotAccelerating = false;
-        chainTargetState = freshChainTargetState();
+        hotEffect = null;
       }
     }
 
@@ -786,29 +761,16 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         ready.charge = 0;
         ignited = true;
         hotHeroId = ready.id;
-        chainBackfire = rng.chance(backfireChanceFor(cfg, ready.chainAffinity));
-        hotChainShape = toChainShape(ready.chainPlan?.profile ?? baselineChainProfile(cfg));
-        hotAccelerating = true;
+        // The roll always happens, whether or not cfg.forceBackfire overrides
+        // what it decides — see that field's own docstring (config.ts) for
+        // why this keeps the RNG stream identical to today's game.
+        const rolled = rng.chance(backfireChanceFor(cfg, ready.chainAffinity));
+        chainBackfire = cfg.forceBackfire === undefined ? rolled : cfg.forceBackfire === "always";
+        hotEffect = ready.chainPlan?.effect ?? "poundBiggest";
         bonusHitsLanded = 0;
         chainDamageSoFar = 0;
         chainKillIds = [];
-        // The ignition-time lock for "focus"/"execute" (2026-09-02, Phase 1 of
-        // the chain-targeting plan) — computed strictly AFTER chainBackfire
-        // above, since which side gets locked depends on it. Both pickers are
-        // deterministic and consume no RNG, which is what keeps
-        // chainTargetingEnabled: false's event stream unshifted. A null lock
-        // (an empty target side) is unreachable in practice — ignition only
-        // runs while !outcome, and a wipe sets outcome the same tick it
-        // happens — but resolveChainHit treats "locked but nobody there" as
-        // "every hit whiffs" regardless, so nothing special-cases it here.
-        chainTargetState = freshChainTargetState();
-        const targeting = ready.chainPlan?.targeting ?? "front";
-        if (targeting === "focus" || targeting === "execute") {
-          const lockSide = chainBackfire ? player : enemy;
-          const locked = targeting === "focus" ? frontMostAliveId(lockSide) : lowestHpAliveHero(lockSide)?.id;
-          chainTargetState.lockedTargetId = locked ?? null;
-        }
-        events.push({ type: "chainStart", t, heroId: ready.id, backfire: chainBackfire, shape: hotChainShape });
+        events.push({ type: "chainStart", t, heroId: ready.id, backfire: chainBackfire, effect: hotEffect });
       }
     }
 
@@ -826,7 +788,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       chainBackfire,
       visibleChainLength: bonusHitsLanded,
       chainDamageSoFar: hotHeroId ? chainDamageSoFar : 0,
-      chainShape: hotHeroId ? hotChainShape : null,
+      chainEffect: hotHeroId ? hotEffect : null,
       windupTargetId: bruiser?.alive && bruiser.windupFireT !== undefined ? (bruiser.windupTargetId ?? null) : null,
     });
 
@@ -853,10 +815,9 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       killedIds: chainKillIds,
       backfire: chainBackfire,
       reason: "fightEnd",
-      // hotChainShape is always set in lockstep with hotHeroId (see its own
+      // hotEffect is always set in lockstep with hotHeroId (see its own
       // declaration comment above) — non-null here by that invariant.
-      maxHits: hotChainShape!.maxHits,
-      label: hotChainShape!.label,
+      effect: hotEffect!,
     });
     finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
   }

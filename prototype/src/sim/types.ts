@@ -4,33 +4,22 @@
  * Heroes are ordered front-to-back; a normal attack targets the front-most
  * living hero on the opposing side (see fight.ts's targeting helpers).
  */
-import type { ChainProfile, ChainTargeting } from "./config.js";
+import type { ChainEffect } from "./config.js";
 
 export type Role = "tank" | "damage" | "support" | "bruiser" | "grunt";
 
-/** A hero's resolved chain plan for THIS fight (2026-08-20, per-hero-profile
- * pass — see config.ts's ChainProfile/chainMagnitudeScaleFor). Sim-internal:
- * resolved once per fight in fight.ts's cloneHeroes (from HeroState.
- * chainProfile, falling back to baselineChainProfile(cfg) when unset) and
- * stored back on the cloned HeroState so a chain-fire site never has to
- * recompute it mid-fight, and so a batch-harness roster transform that
- * changes chainAffinity without recomputing this can't silently measure an
- * un-normalized hero — the plan is always freshly derived from whatever cfg
- * the fight actually runs under. */
+/** A hero's resolved chain plan for THIS fight (2026-09-13, "a hero's chain
+ * names its own enemy" rebuild — replaces the old profile/targeting/
+ * magnitude-scale ChainPlan). Resolved once per fight in fight.ts's
+ * cloneHeroes (from HeroState.chainEffect) and stored back on the cloned
+ * HeroState so a chain-fire site never has to re-derive it mid-fight. Enemies
+ * get an arbitrary effect too (cloneHeroes resolves every hero) but it is
+ * never read — only the player side is ever scanned to ignite a chain. */
 export interface ChainPlan {
-  profile: ChainProfile;
-  /** The multiplier equalizing this profile+risk against the pool's EV
-   * anchor — see config.ts's chainMagnitudeScaleFor. */
-  magnitudeScale: number;
+  effect: ChainEffect;
   /** This hero's own backfireChanceFor(cfg, chainAffinity), cached alongside
    * the plan it was used to derive so both travel together. */
   backfireChance: number;
-  /** This hero's resolved chain targeting rule for THIS fight (2026-09-02,
-   * Phase 1 of the chain-targeting plan — see config.ts's ChainTargeting).
-   * Always "front"/"triage" when cfg.chainTargetingEnabled is false,
-   * regardless of what HeroState.chainTargeting authors — see fight.ts's
-   * resolveChainPlan, which is the only place this is derived. */
-  targeting: ChainTargeting;
 }
 
 export interface HeroState {
@@ -59,43 +48,33 @@ export interface HeroState {
    * heroes.ts). Meaningless without healPerBeat set. */
   attacksWhileHealing?: boolean;
 
-  /** 2026-08-14 (chain-rebuild pass) through 2026-08-19 (affinity-as-risk
-   * pass): scaled PAYOFF magnitude in both directions. 2026-08-20 (per-hero-
-   * profile pass, Step 3): magnitude moved entirely onto chainProfile/
-   * chainMagnitudeTarget below — chainAffinity is now VOLATILITY ONLY, via
-   * config.ts's backfireChanceFor (higher affinity = higher backfire chance,
-   * same payoff size as every other hero of its kind). It still doesn't
-   * scale how fast `charge` accrues — every hero fills at the same rate, so
-   * two heroes' bars read as directly comparable at field-pick time. See
-   * heroes.ts's PLAYER_HERO_POOL for why each hero's value differs: this is
-   * now "how much of a gamble is this hero to have go hot," nothing else. */
+  /** VOLATILITY ONLY (2026-08-19 affinity-as-risk pass, unchanged by the
+   * 2026-09-13 chain-effect rebuild): feeds config.ts's backfireChanceFor —
+   * higher affinity means a bigger backfire chance, nothing about what a
+   * hero's chain does or how big it lands (see chainEffect below for that).
+   * It also doesn't scale how fast `charge` accrues — every hero fills at
+   * the same rate, so two heroes' bars read as directly comparable at
+   * field-pick time. See heroes.ts's PLAYER_HERO_POOL for why each hero's
+   * value differs: this is "how much of a gamble is this hero to have go
+   * hot," nothing else. */
   chainAffinity: number;
 
-  /** This hero's own chain SHAPE (2026-08-20, per-hero-profile pass — see
-   * config.ts's ChainProfile). Undefined falls back to
-   * baselineChainProfile(cfg) — the identity transform that kept every
-   * hero's behavior unchanged through Step 1/Step 2, before Step 3 actually
-   * authored per-hero shapes (see heroes.ts's PLAYER_HERO_POOL). Set on
-   * HeroDef/HeroState alike, same as chainAffinity. */
-  chainProfile?: ChainProfile;
-  /** This hero's own chain TARGETING rule (2026-09-02, Phase 1 of the
-   * chain-targeting plan — see config.ts's ChainTargeting). Undefined falls
-   * back to "front" for an attacker / "triage" for a healer in
-   * fight.ts's resolveChainPlan — same fallback-to-today's-rule convention
-   * windupTargeting below already uses. Set on HeroDef/HeroState alike, same
-   * as chainProfile; enemies author no value and resolve to "front"/"triage"
-   * inertly, since only the player side is ever scanned to ignite a chain. */
-  chainTargeting?: ChainTargeting;
-  /** This hero's absolute expected-net-chain-value target (2026-08-20, Step
-   * 3 — see config.ts's chainMagnitudeScaleAbsolute and heroes.ts's
-   * CHAIN_EV_TARGET_DAMAGE/HEAL). Undefined falls back to a value that
-   * reproduces chainMagnitudeScaleFor's pool-agnostic behavior (Variant A) —
-   * see fight.ts's resolveChainPlan for the exact fallback formula. */
-  chainMagnitudeTarget?: number;
+  /** This hero's own chain EFFECT (2026-09-13, "a hero's chain names its own
+   * enemy" rebuild — see config.ts's ChainEffect and heroes.ts's
+   * PLAYER_HERO_POOL). Set on HeroDef/HeroState alike, same as chainAffinity;
+   * enemies author no value (they never chain — only the player side is ever
+   * scanned to ignite one). */
+  chainEffect?: ChainEffect;
   /** This hero's chain plan, RESOLVED for the current fight — see this
    * file's ChainPlan docstring. Undefined until fight.ts's cloneHeroes sets
-   * it; enemies never get one (they never chain). */
+   * it; enemies get one too (harmless — never read). */
   chainPlan?: ChainPlan;
+  /** Set by an enemy's "stun" chain effect (config.ts's ChainEffect) —
+   * sim-clock time this hero is unable to act until. Read by the beat loop
+   * (fight.ts) to push nextAttackT/nextWindupT past it, and by a bruiser's
+   * wind-up start to cancel an in-progress telegraph. Undefined when not
+   * stunned; the render layer uses it for the frozen marker and countdown. */
+  stunnedUntilT?: number;
 
   /** Per-fight job counters (2026-08-06 legibility pass) — zeroed at fight
    * start by cloneHeroes, never carried between fights. These are the
@@ -154,6 +133,17 @@ export interface SideState {
    * run-level upgrades (coin sink B). Applied only to the player side; 0 for
    * enemies. */
   dpsBonus: number;
+
+  /** Set by a "guard" chain effect (config.ts's ChainEffect, Bracer's
+   * identity) — while sim-clock time is before guardUntilT, an enemy wind-up
+   * that would land on this side redirects (fight.ts's handleBruiserBeat).
+   * Always set on the PLAYER side, since only the enemy ever winds up.
+   * guardInverted (set by a backfired guard) redirects onto the player's
+   * OWN lowest-HP hero instead of onto the guarding hero — Bracer stepping
+   * aside rather than stepping in. Per-fight only; never carried by roster.ts. */
+  guardHeroId?: string | null;
+  guardUntilT?: number;
+  guardInverted?: boolean;
 }
 
 export function sideMaxHp(side: SideState): number {

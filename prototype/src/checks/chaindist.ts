@@ -70,27 +70,25 @@
  * funnel check's backfire band re-measured and re-centered for the new
  * per-hero mechanism.
  *
- * Seed reservation note (2026-08-22, chain-leverage-measurement pass — see
- * the "validate the feeling" plan): this file uses seeds up to 93_599 (see
- * each block's own seed base below); batch/affinity.ts reserves
- * 200_000-239_999; batch/chainLeverage.ts reserves 300_000-399_999. All three
- * ranges are disjoint by construction — keep it that way.
+ * Seed reservation note: this file uses seeds up to 93_599 (see each block's
+ * own seed base below).
+ *
+ * 2026-09-13 ("a hero's chain names its own enemy" rebuild — see
+ * DECISIONS.md): the per-hero ChainProfile/ChainTargeting/equal-EV machinery
+ * this file used to validate (Step 0's escalation-vs-baseline proof, the
+ * equal-EV/shape-divergence block) is GONE — every hero reads the same
+ * continuation table and escalation curve again, so there is nothing left to
+ * prove equal across profiles. What replaced it: heroes differ by EFFECT
+ * (config.ts's ChainEffect), and the check that matters is "does each
+ * effect actually produce more of its own thing on a board suited to it" —
+ * see the per-effect block below, which replaces both deleted blocks.
  */
 import { Rng } from "../sim/rng.js";
-import {
-  DEFAULT_RUN_CONFIG,
-  backfireChanceFor,
-  prdLookup,
-  chainEscalationFactor,
-  baselineChainProfile,
-  chainEscalationFactorFromProfile,
-  chainLengthDistribution,
-  chainMagnitudeScaleAbsolute,
-  expectedChainUnits,
-  expectedNetChainUnits,
-} from "../sim/config.js";
-import { makePlayerSide, PLAYER_HERO_POOL, CHAIN_EV_TARGET_DAMAGE, CHAIN_EV_TARGET_HEAL } from "../sim/heroes.js";
+import { DEFAULT_RUN_CONFIG, backfireChanceFor, prdLookup, chainEscalationFactor } from "../sim/config.js";
+import { makePlayerSide, PLAYER_HERO_POOL } from "../sim/heroes.js";
 import { makePolicy, runRun } from "../sim/run.js";
+import { runFight } from "../sim/fight.js";
+import { makeEncounterEnemySide, ENCOUNTERS } from "../sim/encounters.js";
 import { BatchAggregator } from "../batch/report.js";
 
 const cfg = DEFAULT_RUN_CONFIG.fight;
@@ -127,32 +125,20 @@ function check(name: string, condition: boolean, detail = ""): void {
 
 between("fraction of fired chains with length >= 3 (composition of the table alone)", chain3PlusRate, 0.38, 0.46);
 
-// --- Per-hero-profile pass, Step 0 (2026-08-20 — see the "chain choice: make
-// the pick a shape, not a size" plan): validates the new analytic ChainProfile
-// math (config.ts's baselineChainProfile/chainEscalationFactorFromProfile/
-// chainLengthDistribution) against the pre-existing global formula and the
-// RNG-sampled composition above, BEFORE either becomes load-bearing in Step 1.
-// If this block fails, the new math is wrong — fix it here, not downstream.
+// --- Escalation curve is monotonic non-decreasing (2026-09-13 rebuild —
+// every hero now reads this one shared curve, so there is exactly one of
+// these to check instead of one per profile). A curve that ever dipped would
+// mean a LONGER chain could escalate to a SMALLER number than a shorter one
+// — the opposite of "length is the thing you can't call in advance."
 {
-  const cfg = DEFAULT_RUN_CONFIG.fight;
-  const baseline = baselineChainProfile(cfg);
-
-  let escalationAgrees = true;
-  for (let n = 1; n <= 10; n++) {
-    if (chainEscalationFactorFromProfile(baseline, n) !== chainEscalationFactor(cfg, n)) escalationAgrees = false;
+  let monotone = true;
+  let prev = -Infinity;
+  for (let n = 1; n <= cfg.chainMaxHits; n++) {
+    const f = chainEscalationFactor(cfg, n);
+    if (f < prev) monotone = false;
+    prev = f;
   }
-  check(
-    "chainEscalationFactorFromProfile(baseline, n) === chainEscalationFactor(cfg, n) for n=1..10",
-    escalationAgrees,
-  );
-
-  const dist = chainLengthDistribution(baseline);
-  const analyticChain3Plus = dist.slice(3).reduce((a, b) => a + b, 0);
-  check(
-    "chainLengthDistribution(baseline)'s analytic P(len >= 3) matches the RNG-sampled rate above, within the same pin",
-    Math.abs(analyticChain3Plus - 0.42) < 0.005 && analyticChain3Plus >= 0.38 && analyticChain3Plus <= 0.46,
-    `analytic ${(analyticChain3Plus * 100).toFixed(2)}% vs sampled ${(chain3PlusRate * 100).toFixed(2)}%`,
-  );
+  check("chainEscalationFactor is monotone non-decreasing across 1..chainMaxHits", monotone);
 }
 
 // --- backfireChanceFor design invariant (2026-08-19, affinity-as-risk
@@ -186,117 +172,142 @@ between("fraction of fired chains with length >= 3 (composition of the table alo
   );
 }
 
-// --- Equal-EV / shape-divergence design invariant (2026-08-20, Step 3 of the
-// "chain choice: make the pick a shape, not a size" plan — see DECISIONS.md).
-// Supersedes the pre-2026-08-20 escalation-vs-identity check above this
-// comment in every prior version of this file: that check asserted chain
-// LENGTH out-spread hero IDENTITY (chainAffinity-scaled magnitude) — a
-// meaningful test of the OLD model, where magnitude still varied by hero.
-// It is not merely stale but a CATEGORY ERROR against the new one: magnitude
-// no longer varies by hero at all (chainMagnitudeScaleAbsolute equalizes it
-// by construction), so "does length out-spread identity" is comparing a real
-// number to a hard zero. The new invariant is the model's actual thesis,
-// stated directly: GROSS magnitude spreads widely across profiles (a real,
-// visible difference in shape) while NET expected value does not (no hero's
-// chain is bigger or smaller than another's, only differently shaped).
-//
-// Pure and analytical — no batch sweep, no RNG — using the exact functions
-// fight.ts's resolveChainPlan/chainAttackMagnitude call, so there's no risk
-// of the check drifting from the real formula.
+// --- Heal cap still binds (config.ts's chainHealMaxFractionOfTargetMaxHp) —
+// a healer's chain hit must still clamp against a normal-sized body, same
+// guarantee the old per-hero heal-clamp guard checked, now against the flat
+// chainMendAllBase/chainMendOneBase instead of a per-hero resolved scale.
+// REFERENCE_MAX_HP is the pool's own median maxHp (70,85,92,110,180,195 ->
+// 101).
 {
-  const cfg = DEFAULT_RUN_CONFIG.fight;
-  const attackers = PLAYER_HERO_POOL.filter((h) => !h.healPerBeat);
-  const healers = PLAYER_HERO_POOL.filter((h) => h.healPerBeat);
-
-  function evUnitsFor(h: (typeof PLAYER_HERO_POOL)[number]): number {
-    const baseStat = h.healPerBeat ?? h.damage;
-    const b = backfireChanceFor(cfg, h.chainAffinity);
-    const scale = chainMagnitudeScaleAbsolute(h.chainProfile, b, baseStat, h.chainMagnitudeTarget);
-    return scale * baseStat * expectedNetChainUnits(h.chainProfile, b);
-  }
-
-  // Block A — equal NET EV within each kind. Not merely close: this is exact
-  // algebra (evUnits === chainMagnitudeTarget by construction for every
-  // attacker), so the tolerance below is guarding against a wiring bug
-  // (wrong baseStat, wrong profile, stale target), not measurement noise.
-  const attackerEv = attackers.map(evUnitsFor);
-  const attackerEvSpread = (Math.max(...attackerEv) - Math.min(...attackerEv)) / CHAIN_EV_TARGET_DAMAGE;
-  check(
-    "every attacker's chain converges on CHAIN_EV_TARGET_DAMAGE (equal net EV, by construction)",
-    attackerEvSpread < 0.01,
-    `spread ${(attackerEvSpread * 100).toFixed(2)}% — ${attackers.map((h, i) => `${h.id}=${attackerEv[i]!.toFixed(1)}`).join(" ")}`,
-  );
-  const healerEv = healers.map(evUnitsFor);
-  const healerEvSpread = (Math.max(...healerEv) - Math.min(...healerEv)) / CHAIN_EV_TARGET_HEAL;
-  check(
-    "every healer's chain converges on CHAIN_EV_TARGET_HEAL (equal net EV, by construction)",
-    healerEvSpread < 0.01,
-    `spread ${(healerEvSpread * 100).toFixed(2)}% — ${healers.map((h, i) => `${h.id}=${healerEv[i]!.toFixed(1)}`).join(" ")}`,
-  );
-
-  // Block B — GROSS magnitude and length distribution genuinely differ. This
-  // is the other half of the thesis: equal net EV would be a hollow victory
-  // if every profile were secretly the same shape. Checked on the four
-  // attackers, whose shapes were authored to differ (heroes.ts's
-  // CHAIN_PROFILES); healers are both deliberately long-fuse/flat (see that
-  // file's own docstring on why) and are not asserted to diverge here.
-  const grossG = attackers.map((h) => expectedChainUnits(h.chainProfile));
-  const grossRatio = Math.max(...grossG) / Math.min(...grossG);
-  check(
-    "gross chain magnitude spreads widely across attacker profiles (shapes really differ)",
-    grossRatio >= 1.5,
-    `${grossRatio.toFixed(2)}x — ${attackers.map((h, i) => `${h.id}=${grossG[i]!.toFixed(2)}`).join(" ")}`,
-  );
-
-  const meanLengths = attackers.map((h) => {
-    const dist = chainLengthDistribution(h.chainProfile);
-    return dist.reduce((sum, p, k) => sum + p * k, 0);
-  });
-  const meanLenRatio = Math.max(...meanLengths) / Math.min(...meanLengths);
-  check(
-    "mean chain length spreads across attacker profiles (fuse length really differs)",
-    meanLenRatio >= 1.5,
-    `${meanLenRatio.toFixed(2)}x — ${attackers.map((h, i) => `${h.id}=${meanLengths[i]!.toFixed(2)}`).join(" ")}`,
-  );
-
-  const p3plus = attackers.map((h) => chainLengthDistribution(h.chainProfile).slice(3).reduce((a, x) => a + x, 0));
-  const p3plusSpread = Math.max(...p3plus) - Math.min(...p3plus);
-  check(
-    "P(length >= 3) spreads by at least 20 points across attacker profiles",
-    p3plusSpread >= 0.2,
-    `${(p3plusSpread * 100).toFixed(1)} points — ${attackers.map((h, i) => `${h.id}=${(p3plus[i]! * 100).toFixed(1)}%`).join(" ")}`,
-  );
-
-  // Block C — no profile is a hidden dud: every attacker's own EV-normalized
-  // scale stays within a sane band. A scale near 0 or absurdly large would
-  // mean this profile's shape can't actually deliver its target without a
-  // multiplier so extreme it stops reading as "the same hero, different
-  // curve." Not measured against the old model's numbers (there's nothing
-  // comparable left) — just a sanity fence on the new one.
-  for (const h of attackers) {
-    const b = backfireChanceFor(cfg, h.chainAffinity);
-    const scale = chainMagnitudeScaleAbsolute(h.chainProfile, b, h.damage, h.chainMagnitudeTarget);
-    check(`${h.id}'s chain magnitude scale stays in a sane band [0.1, 10]`, scale >= 0.1 && scale <= 10, `scale=${scale.toFixed(3)}`);
-  }
-
-  // Block D — heal-clamp guard (see heroes.ts's CHAIN_PROFILES docstring and
-  // config.ts's chainHealMaxFractionOfTargetMaxHp). A healer's LAST hit, at
-  // its own resolved scale, must land comfortably under the chain-heal clamp
-  // on a normal-sized body — otherwise its analytic EV (Block A) is a
-  // promise the sim quietly breaks via Math.min clamping, in exactly the
-  // spot this analytical check can't otherwise see. REFERENCE_MAX_HP is the
-  // pool's own median maxHp (70,85,92,110,180,195 -> 101).
   const REFERENCE_MAX_HP = 101;
   const clampCeiling = cfg.chainHealMaxFractionOfTargetMaxHp * REFERENCE_MAX_HP;
-  for (const h of healers) {
-    const b = backfireChanceFor(cfg, h.chainAffinity);
-    const scale = chainMagnitudeScaleAbsolute(h.chainProfile, b, h.healPerBeat!, h.chainMagnitudeTarget);
-    const lastHitFactor = chainEscalationFactorFromProfile(h.chainProfile, h.chainProfile.maxHits);
-    const lastHitRaw = h.healPerBeat! * cfg.chainHitMultiplier * lastHitFactor * scale;
+  const lastFactor = chainEscalationFactor(cfg, cfg.chainMaxHits);
+  for (const [label, base] of [
+    ["mendOne", cfg.chainMendOneBase],
+    ["mendAll", cfg.chainMendAllBase],
+  ] as const) {
+    const lastHitRaw = base * cfg.chainHitMultiplier * lastFactor;
     check(
-      `${h.id}'s last chain-heal hit stays under the clamp ceiling on a normal-sized body (heal-clamp guard)`,
+      `${label}'s last-rung heal stays under the clamp ceiling on a normal-sized body (heal-clamp guard)`,
       lastHitRaw <= clampCeiling,
       `raw=${lastHitRaw.toFixed(1)} ceiling=${clampCeiling.toFixed(1)}`,
+    );
+  }
+}
+
+// --- Per-effect mechanism check (2026-09-13, "a hero's chain names its own
+// enemy" rebuild): replaces the two deleted blocks above (profile-vs-cfg
+// identity proof, equal-EV/shape-divergence proof) — there is no more
+// profile or equal-EV to prove. What matters now is literal: does each
+// hero's chain effect actually do the thing its identity promises. One
+// forced ignition per hero — charge preloaded to chargeThreshold,
+// chainChanceByHitsSoFar forced to [1] so the very first rung is guaranteed
+// rather than a 70% roll, forceBackfire: "never" so the payoff (not the
+// backfire) is what gets checked — not a batch sweep: this is a mechanism
+// check, not a balance one (see FIGHT_DECIDING_FACTORS.md — the batch
+// harness can't see a chain pick's effect at all, only the dice around it).
+{
+  const forcedCfg = { ...cfg, forceBackfire: "never" as const, chainChanceByHitsSoFar: [1] };
+  const forcedRunCfg = { ...DEFAULT_RUN_CONFIG, fight: forcedCfg };
+
+  function encounterIndex(name: string): number {
+    const idx = ENCOUNTERS.findIndex((e) => e.name === name);
+    if (idx < 0) throw new Error(`chaindist: no encounter named "${name}"`);
+    return idx;
+  }
+
+  /** Builds a one-fight setup with `heroIds` fielded (their real pool
+   * effects, unless overridden by `hpOverrides`) and the FIRST hero's charge
+   * preloaded to fire immediately — against `boardName`. */
+  function forcedSetup(heroIds: string[], boardName: string, hpOverrides: Record<string, number> = {}) {
+    const player = makePlayerSide(heroIds);
+    for (const h of player.heroes) {
+      const id = h.id.split("_").slice(1).join("_");
+      if (id in hpOverrides) h.hp = hpOverrides[id]!;
+    }
+    const hot = player.heroes.find((h) => h.id.endsWith(`_${heroIds[0]}`))!;
+    hot.charge = forcedCfg.chargeThreshold;
+    const enemy = makeEncounterEnemySide(forcedRunCfg, 0, encounterIndex(boardName));
+    return { player, enemy };
+  }
+
+  // Restricted to the FIRST chain's own window (up to its own chainEnd) —
+  // a long enough fight can refill the same hero's charge and fire a SECOND
+  // full chain later, whose own rung 1 would otherwise double-count here.
+  function firstRungHits(heroIds: string[], boardName: string, hpOverrides?: Record<string, number>) {
+    const setup = forcedSetup(heroIds, boardName, hpOverrides);
+    const result = runFight(setup, forcedCfg, new Rng(1), 1);
+    const firstEndIdx = result.events.findIndex((e) => e.type === "chainEnd");
+    const window = firstEndIdx >= 0 ? result.events.slice(0, firstEndIdx + 1) : result.events;
+    return window.filter((e) => e.type === "chainHit" && e.hitIndex === 1) as Extract<
+      (typeof result.events)[number],
+      { type: "chainHit" }
+    >[];
+  }
+
+  // Vex (strikeAll) on Pack (5 full-HP grunts): the first rung should hit
+  // several of them at once, not just one.
+  {
+    const hits = firstRungHits(["vex"], "Pack");
+    const distinctTargets = new Set(hits.map((h) => h.targetId)).size;
+    check(
+      "Vex's strikeAll hits several enemies on the same rung against a crowd (Pack)",
+      hits.length > 0 && hits.every((h) => h.kind === "damage") && distinctTargets >= 3,
+      `${hits.length} hits, ${distinctTargets} distinct targets`,
+    );
+  }
+
+  // Rook (poundBiggest) on the same board: exactly one target per rung, even
+  // though several equally-valid bodies are alive.
+  {
+    const hits = firstRungHits(["rook"], "Pack");
+    check(
+      "Rook's poundBiggest hits exactly one enemy per rung, even against a crowd (Pack)",
+      hits.length === 1 && hits[0]!.kind === "damage" && hits[0]!.damage > 0,
+      `${hits.length} hits`,
+    );
+  }
+
+  // Cairn (mendAll) with two damaged allies fielded: the first rung should
+  // heal both at once.
+  {
+    const hits = firstRungHits(["cairn", "rook", "vex"], "Pack", { rook: 40, vex: 30 });
+    const distinctTargets = new Set(hits.map((h) => h.targetId)).size;
+    check(
+      "Cairn's mendAll heals every damaged ally on the same rung",
+      hits.length > 0 && hits.every((h) => h.kind === "heal") && distinctTargets >= 2,
+      `${hits.length} hits, ${distinctTargets} distinct targets`,
+    );
+  }
+
+  // Ward (mendOne) with two damaged allies at different HP: exactly the
+  // worse-off one (vex, at 20 hp) gets healed, not rook (at 60).
+  {
+    const hits = firstRungHits(["ward", "rook", "vex"], "Pack", { rook: 60, vex: 20 });
+    check(
+      "Ward's mendOne heals exactly the worst-hurt ally per rung, not the whole squad",
+      hits.length === 1 && hits[0]!.kind === "heal" && (hits[0]!.targetId ?? "").endsWith("_vex"),
+      `${hits.length} hits, targetId=${hits[0]?.targetId}`,
+    );
+  }
+
+  // Bracer (guard) and Hollow (stun): existence + shape only — both are
+  // side-level/duration effects rather than a damage or heal number, so
+  // "non-zero output" means a real positive duration, not an amount.
+  {
+    const hits = firstRungHits(["bracer"], "The Wall");
+    check(
+      "Bracer's guard fires with a positive duration",
+      hits.length === 1 && hits[0]!.kind === "guard" && (hits[0]!.durationSec ?? 0) > 0,
+      `${hits.length} hits, durationSec=${hits[0]?.durationSec}`,
+    );
+  }
+  {
+    const hits = firstRungHits(["hollow"], "The Wall");
+    check(
+      "Hollow's stun fires against the enemy with a positive duration",
+      hits.length === 1 && hits[0]!.kind === "stun" && (hits[0]!.durationSec ?? 0) > 0,
+      `${hits.length} hits, durationSec=${hits[0]?.durationSec}`,
     );
   }
 }
@@ -336,17 +347,16 @@ const DEFAULT_DRAFT = ["bracer", "hollow", "rook", "cairn", "ward"];
         if (e.type !== "chainEnd") continue;
         checkedEnds++;
         seenReasons.add(e.reason);
-        // 2026-08-20 (per-hero-profile pass, Step 3): compares against the
-        // event's OWN maxHits, not a single global cfg.chainMaxHits — a
-        // per-hero fuse means "capped" now implies chainLength equals
-        // WHICHEVER hero fired it own cap, not the same number for everyone.
-        if (e.reason === "capped" && e.chainLength !== e.maxHits) cappedButNotMaxLength++;
+        // 2026-09-13 rebuild: every hero shares cfg.chainMaxHits again (no
+        // more per-hero fuse) — "capped" implies chainLength === that one
+        // global cap.
+        if (e.reason === "capped" && e.chainLength !== cfg.chainMaxHits) cappedButNotMaxLength++;
       }
     }
   }
   check(`chainEnd.reason: at least one end observed across ${checkedEnds} chains`, checkedEnds > 0);
   check(
-    `chainEnd.reason "capped" implies chainLength === that hero's own fuse (maxHits)`,
+    `chainEnd.reason "capped" implies chainLength === cfg.chainMaxHits`,
     cappedButNotMaxLength === 0,
     `${cappedButNotMaxLength} counter-examples out of ${checkedEnds}`,
   );

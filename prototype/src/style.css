@@ -471,6 +471,15 @@ body {
   }
 }
 
+/* Hollow's "stun" chain effect (2026-09-13 rebuild) — a frozen body reads as
+ * visibly unable to act, distinct from .broken (a tank's line failing) and
+ * .charging (a wind-up in progress, which a stun cancels outright). */
+.body.frozen {
+  filter: saturate(0.3) brightness(1.3) hue-rotate(160deg);
+  outline: 2px solid #7ec8ff;
+  outline-offset: 2px;
+}
+
 /* Ambient dimming while a chain is live (2026-08-14 pacing pass) — the
    arena's OWN combat traffic fades so the chain doesn't have to compete
    with six bodies swinging at once; the chain's own tracers
@@ -1253,14 +1262,22 @@ button:disabled {
   white-space: nowrap;
 }
 
-/* Chain affinity pips (2026-08-08) — payoff/backfire magnitude, visible at
- * pick time (2026-08-14: no longer accrual speed — see heroes.ts). Uses the
- * chain's own colour token so it reads as the same channel as the in-fight
- * charge bar (see .charge-fill), not just another stat. */
+/* CHAIN effect line (2026-09-13, "a hero's chain names its own enemy"
+ * rebuild — replaces the old escalation-curve sparkline, which showed a
+ * number's shape rather than what the chain does). Uses the chain's own
+ * colour token so it reads as the same channel as the in-fight charge bar
+ * (see .charge-fill), not just another stat. */
 .hero-pick-chain {
   color: var(--chain);
   letter-spacing: 1px;
   font-size: 0.9em;
+}
+
+/* The "good against" half of the chain line — same rebuild as above. Dimmer
+ * and un-tracked: it's the answer to "why pick this," not a stat to scan. */
+.hero-pick-chain-against {
+  color: var(--muted);
+  font-size: 0.85em;
 }
 
 /* BACKFIRE risk pips (2026-08-20, pick-screen honesty pass) — same shape as
@@ -1406,4 +1423,243 @@ button:disabled {
 
 .answer-key p {
   margin: 2px 0;
+}
+
+/* ---------- Lab (?lab=1) ----------
+ * A hand-picked fight, or two side by side (prototype/src/lab/) — reuses
+ * .screen/.hint/.play-btn/.controls from the rest of this file. #app is
+ * capped at 640px above (line 42) so two fight views fit side by side; the
+ * lab widens its own root instead of raising that cap globally, since every
+ * other screen is tuned to read well at 640px. */
+
+#app.lab-wide {
+  max-width: 1200px;
+}
+
+.lab-mode-toggle {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.lab-mode-btn {
+  flex: 1 1 0;
+}
+
+.lab-mode-btn.selected {
+  border-color: var(--player);
+  background: #1c2a3a;
+}
+
+.lab-setup-columns {
+  display: flex;
+  /* Required, not cosmetic: .lab-compare-controls below uses order:2 +
+   * flex-basis:100% to sit on its own line under both columns. Without wrap
+   * all three boxes share one line, the controls claim 100% of it, and both
+   * flex-basis:0 columns collapse to zero width. */
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.lab-setup-column {
+  flex: 1 1 0;
+  min-width: 0;
+  background: #20232c;
+  border: 1px solid #3a3f4e;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.lab-setup-column h2 {
+  margin: 0 0 8px;
+  font-size: 1em;
+}
+
+.lab-hero-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.lab-hero-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lab-hero-slot select {
+  flex: 0 0 auto;
+}
+
+.lab-hero-slot input[type="range"] {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.lab-charge-label {
+  font-size: 0.75em;
+  color: var(--muted);
+  white-space: nowrap;
+  width: 76px;
+  text-align: right;
+}
+
+.lab-encounter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.lab-encounter-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #3a3f4e;
+  background: #1a1d24;
+  cursor: pointer;
+}
+
+.lab-encounter-row.selected {
+  border-color: var(--player);
+  background: #1c2a3a;
+}
+
+.lab-encounter-name {
+  font-weight: 700;
+  font-size: 0.9em;
+}
+
+.lab-encounter-blurb {
+  font-size: 0.75em;
+  color: var(--muted);
+}
+
+.lab-ramp,
+.lab-seed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.85em;
+}
+
+.lab-ramp input,
+.lab-seed input {
+  width: 64px;
+}
+
+.lab-ramp-info {
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.lab-compare-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+  order: 2;
+  flex-basis: 100%;
+  margin: 4px 0;
+}
+
+.lab-link-seeds {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
+.lab-elapsed {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9em;
+  margin: 0 0 8px;
+}
+
+.lab-fight-panels {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.lab-fight-panel {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.lab-fight-panel h3 {
+  margin: 0 0 6px;
+  font-size: 0.9em;
+  color: var(--muted);
+  text-align: center;
+}
+
+.lab-stats {
+  margin-top: 10px;
+}
+
+.lab-stats-note {
+  font-size: 0.7em;
+  color: var(--muted);
+  margin: 0 0 4px;
+}
+
+.lab-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8em;
+}
+
+.lab-stats-table th,
+.lab-stats-table td {
+  padding: 3px 6px;
+  text-align: right;
+  border-bottom: 1px solid #2a2e3a;
+}
+
+.lab-stats-table th:first-child,
+.lab-stats-table td:first-child {
+  text-align: left;
+}
+
+.lab-stats-row.lab-stats-enemy .lab-stats-name {
+  color: var(--enemy);
+}
+
+.lab-stats-row.lab-stats-player .lab-stats-name {
+  color: var(--player);
+}
+
+.lab-stats-row.down {
+  opacity: 0.4;
+}
+
+.lab-speed-btn.selected {
+  border-color: var(--player);
+  background: #1c2a3a;
+}
+
+/* This is the file's first @media rule (2026-09-12, lab pass): every other
+ * screen is fluid under #app's own max-width, so nothing before this needed
+ * one. Below ~1000px the lab's two-up layouts (setup columns, compare
+ * panels) stack instead of squeezing — .hero-slot's own 44px floor
+ * (line 114) means two fight views need real width to sit side by side. */
+@media (max-width: 1000px) {
+  .lab-setup-columns,
+  .lab-fight-panels {
+    flex-direction: column;
+  }
 }

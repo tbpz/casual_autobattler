@@ -10,6 +10,7 @@ import { makePlayerSide } from "../sim/heroes.js";
 import { makePolicy, makeEnemySide, runRun } from "../sim/run.js";
 import { defaultFieldPick } from "../sim/roster.js";
 import { encounterOrderFor } from "../sim/encounters.js";
+import { runLabFight, type LabSetup } from "../lab/labFight.js";
 
 let failed = false;
 
@@ -92,6 +93,16 @@ for (let i = 0; i < 10; i++) {
   }
 }
 check("encounter order: different seeds -> at least one pair diverges", orderDivergence);
+
+// Lab-mode determinism (prototype/src/lab/labFight.ts): the lab builds its
+// own FightSetup from a LabSetup and runs a fresh Rng(setup.seed) per call
+// (unlike the real run, which shares one Rng stream across all 5 fights) —
+// this pins that the lab's own setup layer is exactly as reproducible as
+// every other runFight call site above.
+const labSetup: LabSetup = { heroIds: ["rook", "bracer", "cairn"], chargePercents: [99, 0, 0], encounterIndex: 3, rampIndex: 0, seed };
+const labA = runLabFight(labSetup, cfg);
+const labB = runLabFight(labSetup, cfg);
+check("lab: same LabSetup -> identical event log", JSON.stringify(labA.events) === JSON.stringify(labB.events));
 
 if (failed) {
   console.error("\ndeterminism check FAILED");

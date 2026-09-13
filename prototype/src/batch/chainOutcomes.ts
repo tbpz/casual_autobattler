@@ -1,11 +1,12 @@
 /**
- * Per-chain outcome decomposition — the things the equal-EV normalization
- * cannot see (2026-08-27, "is burster obviously better than grinder" pass;
- * see CHAIN_SHAPE_LEVERAGE_FINDINGS.md and batch/shapeVerdict.ts).
+ * Per-chain outcome decomposition — what a fired chain actually delivered,
+ * decomposed off the live event stream rather than trusted from a design
+ * intent (2026-08-27, "is burster obviously better than grinder" pass;
+ * carried forward through the 2026-09-13 "a hero's chain names its own
+ * enemy" rebuild — see DECISIONS.md).
  *
- * config.ts's chainMagnitudeScaleAbsolute equalizes every attacker's expected
- * NET chain value (heroes.ts's CHAIN_EV_TARGET_DAMAGE = 76) analytically. That
- * analytic promise rests on three assumptions the live sim violates:
+ * Three things the live sim can cut a chain short on, which this file
+ * measures directly off events rather than assuming away:
  *   1. a chain always runs to its natural stochastic end — it doesn't; the hot
  *      hero can die mid-chain, to its own backfire or to an enemy hit, cutting
  *      the chain short right there (fight.ts's chainEnd reason "sourceDied" —
@@ -17,50 +18,34 @@
  *      or the fight can end under it;
  *   2. damage now is worth the same as damage later — it isn't; a kill removes
  *      an enemy's DPS for whatever fight remains;
- *   3. a backfire costs exactly what an equal payoff gains
- *      (expectedNetChainUnits' harmWeight=1) — but deaths are permanent for the
- *      run, and applyDamageFrom overflows down the list, so a concentrated
- *      backfire kills bodies where a spread one gets healed back.
+ *   3. a chain hit's escalated ("intended") magnitude can exceed what actually
+ *      landed — applyDamageFrom clamps a damage hit against the target side's
+ *      remaining HP (an attack effect) or a heal hit against its own clamp
+ *      (config.ts's chainHealMaxFractionOfTargetMaxHp) — so "intended" and
+ *      "realized" (chainHit.amount) genuinely differ.
  * This file measures all three off the event stream, so a win-rate delta
- * between two shapes arrives with its mechanism attached instead of as a bare
- * number.
+ * between two effects (or two encounters) arrives with its mechanism
+ * attached instead of as a bare number.
+ *
+ * 2026-09-13 rebuild: rows now key on the chain's own EFFECT (config.ts's
+ * ChainEffect, carried on chainStart/chainEnd), not a profile id — there is
+ * no more per-hero shape or equal-EV target to validate a realized number
+ * against, so the old analytic-gross/EV-realization figures (which existed
+ * specifically to check the old equal-EV promise) are gone. What "intended
+ * vs realized" still measures: how much of a chain's escalated magnitude
+ * actually landed, read straight off chainHit.intended/amount — true for
+ * every effect, healer or attacker alike, no per-hero lookup needed.
  *
  * Same incremental contract as report.ts's BatchAggregator and heroChain.ts's
  * HeroChainAggregator — add() one FightResult at a time and never retain them
  * (see report.ts's own docstring for the heap blowup that forced that
- * discipline). Rows key on the profile id carried by the chain's OWN chainStart
- * event (events.ts's ChainShape), never on the hero pool's authored profile, so
- * a harness-side chainProfile transform is measured correctly rather than
- * silently attributed to the shape the hero shipped with.
+ * discipline).
  *
  * Reads nothing the renderer doesn't already have, and changes no sim
  * behaviour: this is pure measurement over FightResult.events.
  */
-import {
-  backfireChanceFor,
-  chainMagnitudeScaleAbsolute,
-  chainReachProbabilities,
-  type ChainProfile,
-  type FightConfig,
-  type RunConfig,
-} from "../sim/config.js";
-import { chainAttackMagnitude } from "../sim/fight.js";
-import { CHAIN_PROFILES, PLAYER_HERO_POOL } from "../sim/heroes.js";
+import type { ChainEffect, RunConfig } from "../sim/config.js";
 import type { FightResult } from "../sim/events.js";
-import { baseHeroId } from "./heroChain.js";
-
-/** profileId -> the authored ChainProfile. chainStart's ChainShape carries only
- * the render-facing subset (label/maxHits/escalationKneeHit), not the
- * continuation table or the escalation step, both of which the intended-
- * magnitude recomputation below needs — so the id is resolved back against
- * heroes.ts's own table. A profile authored outside CHAIN_PROFILES (none today)
- * lands with no intended-magnitude figure rather than a silently mis-scaled
- * one. */
-const PROFILE_BY_ID: Record<string, ChainProfile> = Object.fromEntries(
-  Object.values(CHAIN_PROFILES).map((p) => [p.id, p as ChainProfile]),
-);
-
-const HERO_BY_ID = Object.fromEntries(PLAYER_HERO_POOL.map((h) => [h.id, h]));
 
 /** Why a chain stopped. `reason` on the chainEnd event has five values
  * (fight.ts's three emission sites); this renames "sourceDied" to "lockout" —
@@ -70,7 +55,7 @@ const HERO_BY_ID = Object.fromEntries(PLAYER_HERO_POOL.map((h) => [h.id, h]));
  *    mid-chain, or the failsafe) — the chain was cut short by winning/losing.
  *  - lockout:  the HOT HERO DIED mid-chain (fight.ts's "sourceDied") and the
  *    fight carried on without it — the chain loses whatever hits would have
- *    followed. This is the asymmetry a long fuse is exposed to and a short
+ *    followed. This is the asymmetry a long chain is exposed to and a short
  *    one mostly isn't — see this file's header, assumption 1.
  * A hero dying on the same tick the fight resolves is reported as "fightEnd",
  * not "lockout": nothing was cut short, the fight was already over (see
@@ -79,47 +64,36 @@ export type ChainEndCause = "miss" | "capped" | "noTarget" | "fightEnd" | "locko
 
 export const CHAIN_END_CAUSES: ChainEndCause[] = ["miss", "capped", "noTarget", "fightEnd", "lockout"];
 
+/** mendAll/mendOne repeat a heal, not an attack — their payoff unit is HP
+ * restored, never comparable to a damage row. */
+function isHealEffect(effect: ChainEffect): boolean {
+  return effect === "mendAll" || effect === "mendOne";
+}
+
 export interface ChainOutcomeRow {
-  profileId: string;
-  label: string;
-  /** Whether this profile's payoff unit is HP RESTORED rather than damage — a
-   * healer's chain repeats a heal (fight.ts's resolveChainHit). Never compare a
-   * healer row's payoff against an attacker row's; the units differ. */
+  effect: ChainEffect;
+  /** Whether this effect's payoff unit is HP RESTORED rather than damage —
+   * never compare a healer row's payoff against an attacker row's. */
   healer: boolean;
   chains: number;
-  /** Chains that fired and landed ZERO bonus hits — the first continuation roll
-   * failed. Structural, not bad luck: shortFuseSteep's first roll is 0.60 vs
-   * longFuseFlat's 0.78. */
+  /** Chains that fired and landed ZERO bonus hits — the first continuation
+   * roll failed. Every hero now shares one continuation table (2026-09-13
+   * rebuild), so this rate is the same across effects by construction; kept
+   * per-row anyway so a harness-side override (chainContinuationScale, a
+   * forced hero) still measures correctly rather than being assumed. */
   duds: number;
   backfires: number;
   sumLength: number;
-  /** chainEnd.totalDamage on non-backfire chains — what the chain ACTUALLY
-   * bought, against the analytic target the profile promises. */
+  /** chainEnd.totalDamage (or total HP restored, for a heal effect) on
+   * non-backfire chains — what the chain ACTUALLY delivered. */
   sumRealizedGood: number;
   sumRealizedBackfire: number;
-  /** Sum of the magnitudes the chain's hits were INTENDED to land, recomputed
-   * per hit with fight.ts's own exported chainAttackMagnitude. Intended minus
-   * realized is overkill spilled off the end of the target side
-   * (applyDamageFrom returns `applied`, capped by that side's remaining total
-   * HP, and the event records the capped figure). Attackers only — a chain
-   * heal's shortfall is the heal clamp and the target's missing HP, not
-   * overkill. */
+  /** Sum of chainHit.intended — what each hit was escalated to before any
+   * clamp (applyDamageFrom's side-HP clamp for a damage effect, the heal cap
+   * for a heal effect). intended minus realized is what a hit lost to that
+   * clamp, read straight off the event stream — true for every effect. */
   sumIntendedGood: number;
   sumIntendedBackfire: number;
-  /** The ANALYTIC expected gross magnitude of each fired chain, summed — the
-   * yardstick realized damage is measured against.
-   *
-   * Deliberately NOT heroes.ts's CHAIN_EV_TARGET_DAMAGE (76): that is the
-   * expected NET value, gross minus a symmetric backfire's harm
-   * (expectedNetChainUnits' `(1 - (1+harmWeight)*b)` factor). Dividing
-   * non-backfire realized damage by a NET target overstates the shortfall, and
-   * by a different factor per hero — Rook's backfire chance is 18% against
-   * Bracer's 7.75%, so the same shape would score differently on the two. This
-   * accumulates each chain's own E[gross] instead, from the profile the chain
-   * actually fired under and the firing hero's own stats, so pooling across
-   * heroes and profiles stays exact. */
-  sumAnalyticGrossGood: number;
-  sumAnalyticGrossBackfire: number;
   /** chainEnd.t - chainStart.t, summed: how long a chain occupies the fight. */
   sumWallClockSec: number;
   /** Fight seconds left after the chain ended, summed — the window over which
@@ -130,14 +104,12 @@ export interface ChainOutcomeRow {
    * lockout chains — the span during which no chain could fire at all. */
   sumLockedOutSec: number;
   killsGood: number;
-  /** Player bodies killed BY a backfiring chain. Permanent for the run, which
-   * is the cost harmWeight=1 does not price (header assumption 3). */
+  /** Player bodies killed BY a backfiring chain. Permanent for the run. */
   deathsFromBackfire: number;
 }
 
 interface OpenChain {
-  profileId: string;
-  label: string;
+  effect: ChainEffect;
   heroId: string;
   backfire: boolean;
   startT: number;
@@ -153,11 +125,10 @@ export interface ChainOutcomeReport {
   chainEndCount: number;
 }
 
-function emptyRow(profileId: string, label: string, healer: boolean): ChainOutcomeRow {
+function emptyRow(effect: ChainEffect): ChainOutcomeRow {
   return {
-    profileId,
-    label,
-    healer,
+    effect,
+    healer: isHealEffect(effect),
     chains: 0,
     duds: 0,
     backfires: 0,
@@ -166,8 +137,6 @@ function emptyRow(profileId: string, label: string, healer: boolean): ChainOutco
     sumRealizedBackfire: 0,
     sumIntendedGood: 0,
     sumIntendedBackfire: 0,
-    sumAnalyticGrossGood: 0,
-    sumAnalyticGrossBackfire: 0,
     sumWallClockSec: 0,
     sumSecondsRemainingAfterEnd: 0,
     causes: { miss: 0, capped: 0, noTarget: 0, fightEnd: 0, lockout: 0 },
@@ -177,62 +146,16 @@ function emptyRow(profileId: string, label: string, healer: boolean): ChainOutco
   };
 }
 
-/** The magnitude one attacker chain hit was INTENDED to land, before
- * applyDamageFrom truncates it against the target side's remaining HP. Rebuilt
- * from the same inputs fight.ts's resolveChainPlan uses (the hero's own damage /
- * chainAffinity / chainMagnitudeTarget, and the profile the chain actually
- * fired under) rather than re-deriving the formula — chainAttackMagnitude and
- * chainMagnitudeScaleAbsolute are the sim's own exports.
- *
- * Assumes the measured arms transform chainProfile ONLY, never damage /
- * chainAffinity / chainMagnitudeTarget — true of every arm in shapeVerdict.ts.
- * An arm that scaled chainMagnitudeTarget (chainLeverage.ts's Block 1 magnitude
- * arms) would need its factor applied here too; that report does not use this
- * aggregator. */
-function intendedHitMagnitude(cfg: FightConfig, profileId: string, heroBaseId: string, hitIndex: number): number {
-  const profile = PROFILE_BY_ID[profileId];
-  const hero = HERO_BY_ID[heroBaseId];
-  if (!profile || !hero || hero.healPerBeat) return 0;
-  const backfireChance = backfireChanceFor(cfg, hero.chainAffinity);
-  const scale = chainMagnitudeScaleAbsolute(profile, backfireChance, hero.damage, hero.chainMagnitudeTarget);
-  return chainAttackMagnitude(cfg, profile, hero.damage, scale, hitIndex);
-}
-
-/** E[gross magnitude of one fired chain] for this (profile, hero) pair, in real
- * damage rather than escalation units: sum over n of P(chain reaches hit n) x
- * the magnitude hit n would land. Uses the sim's own reach probabilities and
- * magnitude formula, so it is the exact analytic counterpart of what the fight
- * records — see sumAnalyticGrossGood's docstring for why the NET target is the
- * wrong yardstick here. Attackers only (0 for a healer, whose chain heal is
- * clamped per hit against the target's own body). Memoized: the same handful of
- * (profile, hero) pairs recur across every chain in a sweep. */
-const analyticGrossCache: Record<string, number> = {};
-function analyticGrossPerChain(cfg: FightConfig, profileId: string, heroBaseId: string): number {
-  const key = `${profileId}|${heroBaseId}`;
-  const cached = analyticGrossCache[key];
-  if (cached !== undefined) return cached;
-  const profile = PROFILE_BY_ID[profileId];
-  const hero = HERO_BY_ID[heroBaseId];
-  let total = 0;
-  if (profile && hero && !hero.healPerBeat) {
-    const reach = chainReachProbabilities(profile);
-    for (let n = 1; n <= profile.maxHits; n++) {
-      total += (reach[n - 1] ?? 0) * intendedHitMagnitude(cfg, profileId, heroBaseId, n);
-    }
-  }
-  analyticGrossCache[key] = total;
-  return total;
-}
-
 export class ChainOutcomeAggregator {
-  private rows: Record<string, ChainOutcomeRow> = {};
+  private rows: Partial<Record<ChainEffect, ChainOutcomeRow>> = {};
   private starts = 0;
   private ends = 0;
-  private cfg: RunConfig;
 
-  constructor(cfg: RunConfig) {
-    this.cfg = cfg;
-  }
+  // cfg is accepted for interface parity with the other batch aggregators
+  // (report.ts's BatchAggregator, heroChain.ts's HeroChainAggregator all take
+  // the run config their construction site already has in hand) — this file
+  // reads nothing off it directly.
+  constructor(_cfg: RunConfig) {}
 
   add(fr: FightResult): void {
     // Player deaths and when they happened — needed to tell a lockout from an
@@ -248,53 +171,37 @@ export class ChainOutcomeAggregator {
     for (const e of fr.events) {
       if (e.type === "chainStart") {
         this.starts++;
-        const heroBase = baseHeroId(e.heroId);
         open = {
-          profileId: e.shape.profileId,
-          label: e.shape.label,
+          effect: e.effect,
           heroId: e.heroId,
           backfire: e.backfire,
           startT: e.t,
           intended: 0,
-          healer: Boolean(HERO_BY_ID[heroBase]?.healPerBeat),
+          healer: isHealEffect(e.effect),
         };
         continue;
       }
       if (e.type === "chainHit") {
-        // Read the sim's own intended figure off the event (2026-09-02, Phase
-        // 1 of the chain-targeting plan) instead of recomputing it
-        // analytically via intendedHitMagnitude below. That recompute
-        // returns 0 for a healer and assumes an arm only ever swaps
-        // chainProfile — both wrong under targeting, where a whiff's
-        // intended value has no analytic formula to recompute from (it
-        // depends on which body a rule locked onto or walked past, not on
-        // hitIndex alone) and healer chains are measured too. e.intended is
-        // exactly what fight.ts's resolveChainHit already computed for this
-        // hit, healer or attacker, whiff or landed — always correct,
-        // regardless of what an arm's transform touched.
         if (open) open.intended += e.intended;
         continue;
       }
       if (e.type !== "chainEnd") continue;
       this.ends++;
-      const key = open?.profileId ?? "unknown";
-      const row = (this.rows[key] ??= emptyRow(key, open?.label ?? e.label, open?.healer ?? false));
+      const effect = open?.effect ?? e.effect;
+      const row = (this.rows[effect] ??= emptyRow(effect));
       row.chains++;
       row.sumLength += e.chainLength;
       if (e.chainLength === 0) row.duds++;
       if (open) row.sumWallClockSec += e.t - open.startT;
       row.sumSecondsRemainingAfterEnd += Math.max(0, endT - e.t);
-      const analyticGross = open ? analyticGrossPerChain(this.cfg.fight, open.profileId, baseHeroId(open.heroId)) : 0;
       if (e.backfire) {
         row.backfires++;
         row.sumRealizedBackfire += e.totalDamage;
         row.sumIntendedBackfire += open?.intended ?? 0;
-        row.sumAnalyticGrossBackfire += analyticGross;
         row.deathsFromBackfire += e.killedIds.length;
       } else {
         row.sumRealizedGood += e.totalDamage;
         row.sumIntendedGood += open?.intended ?? 0;
-        row.sumAnalyticGrossGood += analyticGross;
         row.killsGood += e.killedIds.length;
       }
       const heroDownT = open ? downT[open.heroId] : undefined;
@@ -314,22 +221,21 @@ export class ChainOutcomeAggregator {
 
   finalize(): ChainOutcomeReport {
     return {
-      rows: Object.values(this.rows).sort((a, b) => a.profileId.localeCompare(b.profileId)),
+      rows: Object.values(this.rows).sort((a, b) => a.effect.localeCompare(b.effect)),
       chainStartCount: this.starts,
       chainEndCount: this.ends,
     };
   }
 }
 
-/** Sums a set of rows into one — used to pool the two burster profiles (or the
- * two grinder profiles) into a single side of the comparison. profileId/label
- * become the caller's pooled name. Refuses to mix healer and attacker rows: the
- * payoff units differ (damage vs HP restored). */
-export function poolRows(rows: ChainOutcomeRow[], profileId: string, label: string): ChainOutcomeRow {
+/** Sums a set of rows into one — used to pool related effects (e.g. every
+ * damage effect) into a single side of a comparison. Refuses to mix healer
+ * and attacker rows: the payoff units differ (damage vs HP restored). */
+export function poolRows(rows: ChainOutcomeRow[], effect: ChainEffect): ChainOutcomeRow {
   if (rows.some((r) => r.healer) && rows.some((r) => !r.healer)) {
-    throw new Error(`poolRows(${profileId}): refusing to pool healer and attacker rows — payoff units differ`);
+    throw new Error(`poolRows(${effect}): refusing to pool healer and attacker rows — payoff units differ`);
   }
-  const out = emptyRow(profileId, label, rows.some((r) => r.healer));
+  const out = emptyRow(effect);
   for (const r of rows) {
     out.chains += r.chains;
     out.duds += r.duds;
@@ -339,8 +245,6 @@ export function poolRows(rows: ChainOutcomeRow[], profileId: string, label: stri
     out.sumRealizedBackfire += r.sumRealizedBackfire;
     out.sumIntendedGood += r.sumIntendedGood;
     out.sumIntendedBackfire += r.sumIntendedBackfire;
-    out.sumAnalyticGrossGood += r.sumAnalyticGrossGood;
-    out.sumAnalyticGrossBackfire += r.sumAnalyticGrossBackfire;
     out.sumWallClockSec += r.sumWallClockSec;
     out.sumSecondsRemainingAfterEnd += r.sumSecondsRemainingAfterEnd;
     out.sumLockedOutSec += r.sumLockedOutSec;
@@ -352,10 +256,7 @@ export function poolRows(rows: ChainOutcomeRow[], profileId: string, label: stri
 }
 
 /** Per-chain derived figures — every denominator stated, so a row with few
- * chains can't quietly read as a precise number. `evRealization` is the
- * headline: realized payoff against what this row's chains were analytically
- * expected to gross (sumAnalyticGrossGood — see its docstring for why the NET
- * target would be the wrong yardstick). */
+ * chains can't quietly read as a precise number. */
 export function chainOutcomeStats(row: ChainOutcomeRow) {
   const good = row.chains - row.backfires;
   const per = (x: number, d: number) => (d > 0 ? x / d : 0);
@@ -366,14 +267,10 @@ export function chainOutcomeStats(row: ChainOutcomeRow) {
     meanLength: per(row.sumLength, row.chains),
     meanRealizedGood: per(row.sumRealizedGood, good),
     meanIntendedGood: per(row.sumIntendedGood, good),
-    meanAnalyticGrossGood: per(row.sumAnalyticGrossGood, good),
-    /** Realized damage / analytically expected gross damage, over non-backfire
-     * chains. 1.0 means the shape delivers exactly what the math priced it at;
-     * below 1.0 means the live fight is taking a cut the analytic EV can't see
-     * (overkill spill, a chain cut short, or a lockout). */
-    evRealization: row.sumAnalyticGrossGood > 0 ? row.sumRealizedGood / row.sumAnalyticGrossGood : 0,
-    /** Fraction of intended damage spilled past the target side's last body. */
-    spillFraction: row.sumIntendedGood > 0 ? 1 - row.sumRealizedGood / row.sumIntendedGood : 0,
+    /** Fraction of intended magnitude that never landed — clamped away by
+     * applyDamageFrom's side-HP limit (a damage effect) or the heal cap (a
+     * heal effect). */
+    shortfallFraction: row.sumIntendedGood > 0 ? 1 - row.sumRealizedGood / row.sumIntendedGood : 0,
     meanWallClockSec: per(row.sumWallClockSec, row.chains),
     meanSecondsRemainingAfterEnd: per(row.sumSecondsRemainingAfterEnd, row.chains),
     lockoutRate: per(row.causes.lockout, row.chains),
@@ -387,12 +284,10 @@ export function chainOutcomeStats(row: ChainOutcomeRow) {
 export function formatChainOutcomeRow(row: ChainOutcomeRow, indent = "    "): string {
   const s = chainOutcomeStats(row);
   const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
-  const name = row.profileId === row.label ? row.label : `${row.label} (${row.profileId})`;
   return [
-    `${indent}${name}  chains=${s.chains}${row.healer ? "  [healer: payoff is HP restored]" : ""}`,
-    `${indent}  realized/good chain:  ${s.meanRealizedGood.toFixed(1)} vs analytic E[gross] ` +
-      `${s.meanAnalyticGrossGood.toFixed(1)} -> EV realization ${pct(s.evRealization)}`,
-    `${indent}  intended/good chain:  ${s.meanIntendedGood.toFixed(1)}  (spilled past last body: ${pct(s.spillFraction)})`,
+    `${indent}${row.effect}  chains=${s.chains}${row.healer ? "  [healer: payoff is HP restored]" : ""}`,
+    `${indent}  realized/good chain:  ${s.meanRealizedGood.toFixed(1)} vs intended ${s.meanIntendedGood.toFixed(1)} ` +
+      `(shortfall: ${pct(s.shortfallFraction)})`,
     `${indent}  length:               mean ${s.meanLength.toFixed(2)} hits, duds ${pct(s.dudRate)}, ` +
       `wall-clock ${s.meanWallClockSec.toFixed(2)}s`,
     `${indent}  fight left after end: ${s.meanSecondsRemainingAfterEnd.toFixed(2)}s`,
