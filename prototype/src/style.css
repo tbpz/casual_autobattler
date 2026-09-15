@@ -167,18 +167,30 @@ body {
   --body-size: 68px;
 }
 
-/* The body's own depth cell (2026-09-16 upright-field pass — see
-   fightView.ts's makeHeroSlot/HeroSlot). status/body/freeze-ring live
-   inside this instead of straight in .hero-slot, so buildSide's single
-   --lean-y transform can move the whole unit toward or away from the
-   centre line as one piece, without touching name/hp-bar/counter below —
-   those stay ordinary flow siblings underneath, at a fixed position.
-   Height reserves --body-size (the biggest thing inside) plus a little
-   slack for the lean itself; body sits flush at the TOP of that box (flex's
-   own default alignment, one in-flow child), which is exactly where it sat
-   as .hero-slot's own first child before — the reason .hero-status/
-   .freeze-ring below need no position change despite now anchoring to this
-   element instead of .hero-slot directly. */
+/* The body's own depth cell (2026-09-16 upright-field pass, deepened by the
+   same day's back-row pass — see fightView.ts's makeHeroSlot/HeroSlot and
+   buildSide). status/body/freeze-ring live inside this instead of straight
+   in .hero-slot, so ONE transform can move the whole unit — depth AND the
+   attack-beat step-in both live in the four custom properties below — as
+   one piece, without touching name/hp-bar/counter below, which stay put as
+   ordinary flow siblings underneath, at a fixed position (this is what
+   keeps the per-hero HP bars, the "who's winning" read, from ever moving —
+   see .side's own docstring).
+   --depth-y/--depth-scale/--depth-bright/--depth-sat are set once per hero
+   at buildSide time (0px/1/1/1 for the front rank; pushed back, shrunk and
+   dimmed for everyone behind it — see buildSide's own comment for the
+   numbers) and are the ONLY thing that ever changes for the whole fight,
+   short of the brief "a back-row hit just landed" pop (showAttack's
+   pulseDepthForward) that borrows the same four properties to bring a
+   struck hero forward for a moment. The transition is what makes both of
+   those reads — and the attack lunge on .body below, a DIFFERENT element —
+   compose instead of collide.
+   Height only grows on the player's own perch (see .player-side override
+   below): the enemy's "away from centre" direction is upward, into the
+   arena's own already-reserved headroom above it, so it never needs extra
+   room of its own; the player's is downward, straight at its own name/HP
+   bar 3px below (.hero-slot's gap), which is why THAT direction alone needs
+   reserved space. */
 .body-perch {
   position: relative;
   width: 100%;
@@ -186,14 +198,24 @@ body {
   flex-direction: column;
   align-items: center;
   height: calc(var(--body-size, 40px) + 10px);
-  transform: translateY(var(--lean-y, 0px));
+  transform: translateY(var(--depth-y, 0px)) scale(var(--depth-scale, 1));
+  filter: brightness(var(--depth-bright, 1)) saturate(var(--depth-sat, 1));
+  transition:
+    transform 0.16s ease-out,
+    filter 0.16s ease-out;
+}
+
+.player-side .body-perch {
+  height: calc(var(--body-size, 40px) + 10px + 26px);
 }
 
 /* A faint ground shadow under the body (2026-09-16 upright-field pass) —
    the depth cue a lean alone can't carry on its own: something to visibly
    sit ON, not just float at a different height. ::before so it paints
    BEHIND the body (a real DOM child, painted after generated content in the
-   same stacking context) rather than over it. */
+   same stacking context) rather than over it. Opacity is a custom property
+   (--depth-shadow-opacity, back-row pass) so a receded body's shadow fades
+   with it instead of staying a bright disc under a dim, distant figure. */
 .body-perch::before {
   content: "";
   position: absolute;
@@ -203,7 +225,7 @@ body {
   height: 6px;
   transform: translateX(-50%);
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, var(--depth-shadow-opacity, 0.4));
   filter: blur(2px);
   pointer-events: none;
 }
@@ -788,6 +810,41 @@ body {
   animation: windupShatter 0.4s ease-out;
 }
 
+/* A front-rank body a hit just passed OVER (showAttack's bypass branch,
+   back-row pass) — quiet by design, same register as .targeted above: this
+   fires on ~40% of enemy attacks even at full tank HP (cfg.tankTargetWeight),
+   so it must read as ambient, not as its own alarm. All the loudness belongs
+   on the body that actually got hit (.struck-back below). */
+@keyframes bypassed {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  35% {
+    filter: brightness(0.75);
+  }
+}
+.body.bypassed {
+  animation: bypassed 0.3s ease-out;
+}
+
+/* The back-row payoff (showAttack's pulseDepthForward + this): the struck
+   hero was drawn small and dim precisely so that a hit reaching it is an
+   event — a ring in the ATTACKER's own colour (so the mark itself says who),
+   layered on top of whatever else .body already owns (.hot/.broken's own
+   box-shadow), same one-shot-ring idiom as igniteBurst/backfireBurst above. */
+@keyframes struckBack {
+  0% {
+    box-shadow: 0 0 0 3px var(--hit-color, var(--windup)), 0 0 14px 3px var(--hit-color, var(--windup));
+  }
+  100% {
+    box-shadow: 0 0 0 3px var(--hit-color, var(--windup)), 0 0 0 0 transparent;
+  }
+}
+.body.struck-back {
+  animation: struckBack 0.42s ease-out;
+}
+
 /* Hollow's "stun" chain effect (2026-09-13 rebuild) — a frozen body reads as
  * visibly unable to act, distinct from .broken (a tank's line failing) and
  * .charging (a wind-up in progress, which a stun cancels outright). Toggled
@@ -967,6 +1024,32 @@ body {
    never fades while it's the thing happening. */
 .tracer.chain-tracer {
   filter: drop-shadow(0 0 4px currentColor);
+}
+
+/* A back-rank attacker's own shot (showAttack, back-row pass) — thrown from
+   its row rather than carried in on a lunge, so it needs to look thrown: a
+   slower, glowier dot on the same bowed flight fireTracer already has for a
+   hit that skips the front rank. */
+.tracer.lob {
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+/* A hit that actually reached a back-rank body past a living front rank
+   (showAttack's `bypass`) — the loudest of the three tracer registers, since
+   this is the one moment the pass exists to make unmistakable. */
+.tracer.bypass {
+  filter: drop-shadow(0 0 7px currentColor);
+}
+
+/* The slam's aim line, dashed instead of solid (2026-09-16 back-row pass,
+   updateWindupTells) for exactly the same reason a normal hit gets a bowed
+   tracer instead of a straight one: a committed wind-up target chosen by the
+   same weighted dice (fight.ts's pickWeightedTargetId) can be someone behind
+   the tank, and a solid line drawn straight to them reads as passing through
+   whoever's actually standing in the way. */
+.aim-line.bypass {
+  background: repeating-linear-gradient(90deg, var(--windup) 0 5px, transparent 5px 9px);
+  box-shadow: none;
 }
 
 @keyframes healPulse {

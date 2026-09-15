@@ -124,19 +124,55 @@ const GUARD_PIP_CAP = 5;
  * slam in a fight that runs ~20s. */
 const SLAM_SWING_MS = 420;
 
-/** How far a FRONT-rank body leans toward the centre line, in px (2026-09-16
- * upright-field pass) — the depth cue that makes a tank/bruiser read as
- * standing ahead of its own row, not just first in a flat line. A small
- * nudge, not a second row: the HP bars are the "who's winning" read (see
- * style.css's .side docstring) and must never move, so the lean only ever
- * touches .body-perch (buildSide), never the slot itself. */
-const FRONT_LEAN_PX = 7;
+/** How far the FRONT rank leans toward the centre line, and the BACK rank
+ * away from it, in px (2026-09-16 back-row pass — replaces the old single
+ * 7px FRONT_LEAN_PX, which gave the back rank no depth of its own at all:
+ * front and back sat at the same distance from centre, 7px apart). Both
+ * numbers only ever touch .body-perch's --depth-y (buildSide) — the HP bars
+ * are the "who's winning" read (style.css's .side docstring) and must never
+ * move, so .hero-slot itself is never touched. */
+const FRONT_LEAN_PX = 12;
+const BACK_SET_BACK_PX = 20;
+/** The back rank's static scale/dim (buildSide) — smaller and quieter than
+ * the front rank, so a hit reaching it (pulseDepthForward, showAttack) reads
+ * as an event: the body visibly snaps forward to full size and brightness
+ * for the length of that hit, then settles back. */
+const BACK_SCALE = 0.8;
+const BACK_BRIGHTNESS = 0.82;
+const BACK_SATURATE = 0.88;
+const BACK_SHADOW_OPACITY = 0.22;
 
-/** How far a bowed tracer (a hit that skips a living front-rank body —
- * showAttack) is pushed off the straight line to its target, in px. Scaled
- * per-flight by distance (fireTracer) between FRONT_BOW_MIN_PX and this. */
-const FRONT_BOW_MAX_PX = 26;
-const FRONT_BOW_MIN_PX = 16;
+/** How long a struck back-rank body's forward pop lasts (showAttack's
+ * pulseDepthForward) — long enough to be read as the hit's own event, short
+ * enough that it's back in its row well before that hero's own next beat. */
+const BACK_HIT_POP_MS = 460;
+
+/** A front-rank attacker's own beat: bigger than a back-rank attacker's
+ * recoil (RECOIL_PX below) and than the shared healer/chain lunge distance,
+ * so stepping into the clash line reads as this rank's own motion, not the
+ * same nudge every attack already had. */
+const STEP_IN_PX = 22;
+
+/** A back-rank attacker's own beat (showAttack) — it never leaves its row;
+ * lungeToward's negative maxDist runs the existing lunge backwards (see its
+ * own docstring), reading as a throwing recoil instead of a step forward. */
+const RECOIL_PX = 8;
+
+/** Flight time for a back-rank attacker's own shot, or any hit that reaches
+ * behind the front rank — both fly the bowed path (fireTracer's `bow`), and
+ * both take longer than a front-rank melee hit (TRACER_MS) since they're
+ * covering more ground, not closing a gap at arm's reach. */
+const LOB_TRACER_MS = 320;
+
+/** How far a bowed tracer (a hit that skips a living front-rank body, or any
+ * back-rank attacker's own throw — showAttack) is pushed off the straight
+ * line to its target, in px. Scaled per-flight by distance (fireTracer)
+ * between BOW_MIN_PX and this. Bigger than the old FRONT_BOW_MAX_PX/MIN_PX
+ * (26/16): those were tuned against a 7px front/back gap, and the biggest
+ * body in the pool (a bruiser, 68px wide) would have sat inside that arc
+ * rather than visibly beside it. */
+const BOW_MAX_PX = 42;
+const BOW_MIN_PX = 22;
 
 /** Heals share one colour regardless of healer identity — green reads as
  * "restoration" on sight, and a healer's own accent ring already carries
@@ -512,7 +548,20 @@ export class FightView {
     for (const el of this.aimLines.values()) el.remove();
     this.aimLines.clear();
     for (const refs of [...this.playerHeroes.values(), ...this.enemyHeroes.values()]) {
-      refs.body.classList.remove("down", "hot", "lunge", "flinch", "healed", "broken", "charging", "targeted", "windup-shatter", "frozen");
+      refs.body.classList.remove(
+        "down",
+        "hot",
+        "lunge",
+        "flinch",
+        "healed",
+        "broken",
+        "charging",
+        "targeted",
+        "windup-shatter",
+        "frozen",
+        "bypassed",
+        "struck-back",
+      );
       refs.body.querySelectorAll(".impact-flash").forEach((el) => el.remove());
       refs.freezeRing.classList.remove("show");
       refs.status.classList.remove("show", "loud");
@@ -554,13 +603,23 @@ export class FightView {
       // now that a side's own flex-grow can no longer double as its width.
       refs.slot.style.width = `${((hero.maxHp / bothSidesMaxHp) * 100).toFixed(3)}%`;
       refs.slot.style.flex = "0 0 auto";
-      // The lean (FRONT_LEAN_PX) always points toward the centre line, which
-      // sits BELOW the enemy row and ABOVE the player row (see the
-      // constructor's DOM order) — so "toward centre" is +Y for the enemy
-      // row and -Y for the player row. Only .body-perch ever reads this; the
-      // slot's own box, and therefore the HP bar's width, never moves.
-      const lean = isFront ? FRONT_LEAN_PX : 0;
-      refs.perch.style.setProperty("--lean-y", `${side === "enemy" ? lean : -lean}px`);
+      // Depth (2026-09-16 back-row pass, replacing the old single --lean-y):
+      // the front rank leans toward the centre line, the back rank sits
+      // further away, smaller and dimmer — see the constants' own docstrings
+      // for the numbers and style.css's .body-perch for how the four
+      // properties below compose into one transform. "Toward centre" is +Y
+      // for the enemy row and -Y for the player row (the constructor's DOM
+      // order puts the enemy row above the centre line, the player row
+      // below it); "away from centre" is the opposite sign. Only
+      // .body-perch ever reads these; the slot's own box, and therefore the
+      // HP bar's width, never moves.
+      const away = side === "enemy" ? -1 : 1;
+      const depthY = isFront ? -away * FRONT_LEAN_PX : away * BACK_SET_BACK_PX;
+      refs.perch.style.setProperty("--depth-y", `${depthY}px`);
+      refs.perch.style.setProperty("--depth-scale", isFront ? "1" : String(BACK_SCALE));
+      refs.perch.style.setProperty("--depth-bright", isFront ? "1" : String(BACK_BRIGHTNESS));
+      refs.perch.style.setProperty("--depth-sat", isFront ? "1" : String(BACK_SATURATE));
+      refs.perch.style.setProperty("--depth-shadow-opacity", isFront ? "0.4" : String(BACK_SHADOW_OPACITY));
       container.appendChild(refs.slot);
       map.set(hero.id, refs);
       this.heroNames.set(hero.id, hero.name);
@@ -769,6 +828,13 @@ export class FightView {
         // line reads the same countdown the other way, growing 0 -> 1 so it
         // touches the victim exactly as the bar (and the hit) reaches empty.
         this.updateAimLine(aimLine, refs.body, target.body, 1 - fraction);
+        // The wind-up target is picked by the same weighted dice as a normal
+        // attack (fight.ts's pickWindupTargetId), so it can be someone
+        // behind a living tank too — dash the line for the whole telegraph
+        // rather than draw it solid straight through whoever's in the way
+        // (2026-09-16 back-row pass, same reasoning as showAttack's `bow`).
+        const slamBypasses = !this.heroIsFront.get(hero.windupTargetId as string) && this.frontGroupHasSurvivor("player");
+        aimLine.classList.toggle("bypass", slamBypasses);
       } else {
         this.hideAimLine(aimLine);
       }
@@ -993,6 +1059,42 @@ export class FightView {
     return heroes.some((h) => h.alive && this.heroIsFront.get(h.id));
   }
 
+  /** The first living front-rank hero on `side` (showAttack's "bypassed"
+   * tell) — same set frontGroupHasSurvivor above checks for, just handed
+   * back as a slot instead of a boolean so the one that got skipped can be
+   * marked. */
+  private firstFrontSurvivor(side: "player" | "enemy"): HeroSlot | undefined {
+    const heroes = side === "player" ? this.lastPlayerHeroes : this.lastEnemyHeroes;
+    const map = side === "player" ? this.playerHeroes : this.enemyHeroes;
+    const hero = heroes.find((h) => h.alive && this.heroIsFront.get(h.id));
+    return hero ? map.get(hero.id) : undefined;
+  }
+
+  /** Brings a struck back-rank body forward to full size and brightness for
+   * `ms`, then settles it back — showAttack's answer to "the back row is
+   * dim and small precisely so a hit reaching it becomes an event." Reuses
+   * the exact same four custom properties buildSide set once for the whole
+   * fight (style.css's .body-perch already transitions them), so this is a
+   * temporary override, not a second mechanism. */
+  private pulseDepthForward(perch: HTMLElement, ms: number): void {
+    const prev = {
+      y: perch.style.getPropertyValue("--depth-y"),
+      scale: perch.style.getPropertyValue("--depth-scale"),
+      bright: perch.style.getPropertyValue("--depth-bright"),
+      sat: perch.style.getPropertyValue("--depth-sat"),
+    };
+    perch.style.setProperty("--depth-y", "0px");
+    perch.style.setProperty("--depth-scale", "1");
+    perch.style.setProperty("--depth-bright", "1");
+    perch.style.setProperty("--depth-sat", "1");
+    setTimeout(() => {
+      perch.style.setProperty("--depth-y", prev.y);
+      perch.style.setProperty("--depth-scale", prev.scale);
+      perch.style.setProperty("--depth-bright", prev.bright);
+      perch.style.setProperty("--depth-sat", prev.sat);
+    }, ms);
+  }
+
   /** Arena-relative centre point of `el` — the shared basis for tracer
    * endpoints and aimed-lunge direction, so both point at the same spot. */
   private centerOf(el: HTMLElement): { x: number; y: number } {
@@ -1066,7 +1168,7 @@ export class FightView {
     const dx = end.x - start.x;
     const dy = end.y - start.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const lift = Math.min(FRONT_BOW_MAX_PX, Math.max(FRONT_BOW_MIN_PX, dist * 0.35));
+    const lift = Math.min(BOW_MAX_PX, Math.max(BOW_MIN_PX, dist * 0.35));
     const midX = (start.x + end.x) / 2 + (-dy / dist) * lift;
     const midY = (start.y + end.y) / 2 + (dx / dist) * lift;
     const startMs = performance.now();
@@ -1103,10 +1205,39 @@ export class FightView {
     if (!attacker || !target) return;
 
     const defenderSide: "player" | "enemy" = side === "player" ? "enemy" : "player";
-    const bow = !this.heroIsFront.get(targetId) && this.frontGroupHasSurvivor(defenderSide);
+    // A hit that actually reached a back-rank body past a living front rank
+    // (2026-09-16 back-row pass) — this is the enemy's weighted-dice
+    // targeting doing exactly what it's meant to (fight.ts's
+    // pickWeightedTargetId), not a bug; the job here is only to make it
+    // unmistakable that it happened and how.
+    const bypass = !this.heroIsFront.get(targetId) && this.frontGroupHasSurvivor(defenderSide);
+    const attackerIsFront = this.heroIsFront.get(attackerId) === true;
+    // Either reason flies the bowed path: a hit skipping the front rank, or
+    // a back-rank attacker's own shot arcing out of its row (see this
+    // file's LOB_TRACER_MS/BOW_MAX_PX docstrings).
+    const arced = bypass || !attackerIsFront;
+    const arcClass = bypass ? "bypass" : arced ? "lob" : undefined;
+    const flightMs = attackerIsFront ? TRACER_MS : LOB_TRACER_MS;
 
-    this.lungeToward(attacker.body, target.body, 14);
-    this.fireTracer(attacker.body, target.body, attacker.accent, 6, undefined, TRACER_MS, bow);
+    if (attackerIsFront) {
+      // The front rank steps into the clash line to trade the blow — see
+      // STEP_IN_PX's own docstring for why this lunge is bigger than a
+      // back-rank attacker's.
+      this.lungeToward(attacker.body, target.body, STEP_IN_PX);
+    } else {
+      // The back rank never leaves its row — a small recoil (lungeToward's
+      // negative maxDist) reads as "throwing," not "stepping forward."
+      this.lungeToward(attacker.body, target.body, -RECOIL_PX);
+    }
+    this.fireTracer(attacker.body, target.body, attacker.accent, bypass ? 9 : arced ? 8 : 6, arcClass, flightMs, arced);
+
+    // The front-rank body a bypass hit passed over — the quiet half of the
+    // tell, so a shadow visibly slips past someone still standing there
+    // rather than that body sitting inert while damage lands behind it.
+    if (bypass) {
+      const blocker = this.firstFrontSurvivor(defenderSide);
+      if (blocker) pulseClass(blocker.body, "bypassed", 300);
+    }
 
     // Fan simultaneous popups out horizontally by the attacker's fixed slot
     // index — e.g. every player hero targets the front-most enemy (see
@@ -1122,8 +1253,17 @@ export class FightView {
       target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
       pulseClass(target.body, "flinch", 300);
       this.showImpactFlash(target.body, frac);
-      this.showPopup(target.body, `-${damage}`, "normal", 1, 0, attacker.accent, offsetX);
-    }, TRACER_MS);
+      const label = bypass ? `↷-${damage}` : `-${damage}`;
+      this.showPopup(target.body, label, "normal", 1, 0, attacker.accent, offsetX);
+      if (bypass) {
+        // The loud half of the tell: the hero the back row keeps dim and
+        // small so a hit reaching it is unmistakable — see
+        // pulseDepthForward's own docstring.
+        target.body.style.setProperty("--hit-color", attacker.accent);
+        pulseClass(target.body, "struck-back", 420);
+        this.pulseDepthForward(target.perch, BACK_HIT_POP_MS);
+      }
+    }, flightMs);
   }
 
   private showHeal(healerId: string, targetId: string, amount: number): void {
@@ -1307,6 +1447,11 @@ export class FightView {
       if (originalTarget) {
         const isBackfire = redirect === "guardBackfire";
         const el = this.aimLineFor(sourceId);
+        // A guard's own colour language (green save / red betrayal) owns
+        // this element for the whole swing — drop any dashed "this was
+        // aiming past someone" mark the telegraph picked up beforehand, so
+        // the two never overlap and fight for the same background/box-shadow.
+        el.classList.remove("bypass");
         el.classList.toggle("swing-betray", isBackfire);
         el.classList.toggle("swing-save", !isBackfire);
 
