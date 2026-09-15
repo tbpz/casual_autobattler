@@ -10,6 +10,68 @@
 
 ---
 
+## [2026-09-15] Hollow's freeze becomes provable — snapshot-driven countdown, additive links, backfire tagged distinctly
+
+- **Decision:**
+  - The frozen tell is now driven off the snapshot every tick (`render/fightView.ts`'s
+    `updateFreezeTells`, reading `HeroState.stunnedUntilT`/`stunnedFromT`), with a standing
+    countdown row on the hero card — replaces a wall-clock `setTimeout` that raced playback's own
+    chain-time dilation.
+  - A chain's stun links now ADD to the freeze (`sim/fight.ts`'s `resolveChainHit` stun case)
+    instead of a `Math.max` overwrite that kept only the single longest link.
+  - `chainStunBaseSec` (`sim/config.ts`) is retuned downward to compensate for links now stacking —
+    a strawman pending further batch tuning, same convention as every other value in that file.
+  - A backfired freeze (landing on the player's own hero) renders in red, distinct from one landing
+    on the enemy; the chain end card now reports total seconds frozen, mirroring guard's
+    charge-count report instead of suppressing any number.
+- **Why:**
+  - Same complaint guard had before its own 2026-09-15 pass: the player could see THAT something was
+    frozen but not how long, how much was left, or when it ended.
+  - The wall-clock timer was found desynced from playback's own chain-time dilation by roughly
+    2.5-4.5x, dropping the frozen tint far too early.
+  - Links were found to silently not stack at all — a long chain's freeze equalled its own last link
+    alone, wasting every earlier one.
+  - Verified by two new `checks/chaindist.ts` behaviour checks (additive stacking across a forced
+    5-rung chain, chainEnd's total matching the sum of landed links), an n=1000 batch run holding
+    default-draft completion and failsafe rate roughly where they were pre-change, and a live browser
+    playtest confirming the countdown drains, pause holds it steady, and the end card reports real
+    per-chain totals.
+- **Replaces:**
+  - Extends, not supersedes, the 2026-09-13 "Chain identity: effect, not magnitude" entry and this
+    same date's guard entry below — same treatment now applied to stun.
+
+## [2026-09-15] Bracer's guard becomes provable — charge count, steered aim, backfire tagged distinctly
+
+- **Decision:**
+  - Guard's per-rung value changes from a time window to a charge count: one slam covered per rung,
+    waiting rather than expiring, instead of a duration that could lapse before any slam arrived.
+    Value lives in `sim/config.ts`'s `chainGuardChargesPerRung`.
+  - While a charge is live, the slam's telegraph steers away from the guardian — backfired, onto the
+    guardian instead — see `sim/fight.ts`'s `guardWindupAim`. The eventual redirect is now always a
+    real, visible change of target, not sometimes a no-op.
+  - `windupHit.redirect` gains `"guardBackfire"`, distinct from `"guard"` — a save and a betrayal
+    now render differently (colour, motion, wording) instead of the identical animation.
+- **Why:**
+  - Bracer is a tank, so the slam already targeted it most of the time while holding aggro — a
+    redirect that changes nothing gives the player nothing to attribute to their pick.
+  - A one-hit guard's window rarely survived to the enemy's next slam, so it usually protected
+    nobody.
+  - The backfire case was a plain bug, not just an opacity problem: it sent the hit to the squad's
+    weakest hero but played the identical "save" animation — FOOLED by `archive/ATTRIBUTION_TEST.md`'s
+    own scoring.
+  - `archive/FIGHT_DECIDING_FACTORS.md` had already named "who the enemy happens to hit" as a large,
+    unpriced factor worth offering as a pick — this makes that lever provable rather than redesigning
+    it.
+  - Verified by new `checks/chaindist.ts` behaviour checks (a real redirect, a distinctly-tagged
+    backfire, a 200-seed conservation sweep on Twins) and a live browser run confirming the render
+    fires with zero console errors.
+- **Replaces:**
+  - Reworks the unlogged 2026-09-13 "slam-visibility pass" (commit `f1b6126`), which introduced
+    `windupHit.redirect` and a 150ms swing tracer that couldn't tell a real save apart from a no-op
+    or a backfire.
+  - Extends, not supersedes, the 2026-09-13 "Chain identity: effect, not magnitude" entry below —
+    guard's identity is unchanged, only whether its effect is provable.
+
 ## [2026-09-13] Chain identity: effect, not magnitude — replaces all four prior levers
 
 - **Decision:**

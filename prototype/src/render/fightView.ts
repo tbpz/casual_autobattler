@@ -1,10 +1,16 @@
 import type { ChainEffect, FightConfig } from "../sim/config.js";
 import { chainEffectVerb } from "../sim/config.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
-import { MAX_CHAIN_AFFINITY, MIN_CHAIN_AFFINITY } from "../sim/heroes.js";
+import { MAX_CHAIN_AFFINITY, MIN_CHAIN_AFFINITY, ROLE_SORT_PRIORITY } from "../sim/heroes.js";
 
 interface HeroSlot {
   slot: HTMLElement;
+  /** The body's own depth cell (2026-09-16 upright-field pass) — status,
+   * body and freezeRing all live inside this one element (see makeHeroSlot)
+   * so buildSide's single --lean-y transform moves the whole unit forward
+   * or back as one piece, without touching name/hp-bar/counter below, which
+   * stay put as ordinary flow siblings underneath it. */
+  perch: HTMLElement;
   body: HTMLElement;
   hpFill: HTMLElement;
   /** Lags behind hpFill via a longer, delayed CSS transition (see
@@ -51,6 +57,31 @@ interface HeroSlot {
    * player heroes hitting the front-most enemy) so overlapping numbers
    * separate instead of stacking at one pixel. */
   offsetIndex: number;
+  /** A standing "N slams covered" row (2026-09-15 guard-visibility pass) —
+   * player-side only, built for every slot for simplicity and hidden by
+   * style.css on the enemy side (same convention as chargeFill). Snapshot-
+   * driven off SideState.guardHeroId/guardCharges/guardInverted every tick
+   * (updateSide), not event-driven, so it stays correct under pause/step/
+   * scrub and reflects "right now," not "the last rung that fired." */
+  guardPips: HTMLElement;
+  guardPipEls: HTMLElement[];
+  guardCount: HTMLElement;
+  /** Hollow's "stun" chain effect, as a ring drawn around the hero's own
+   * body (2026-09-16 freeze-layout pass — replaces a countdown ROW that
+   * lived inside the card's flex stack and shoved every card below it up
+   * and down each time a freeze started or ended) — built for every slot on
+   * both sides (unlike guardPips: a backfired freeze lands on a player
+   * hero, not just the enemy), driven per-frame off
+   * HeroSnapshot.stunnedUntilT/stunnedFromT (updateFreezeTells). An
+   * absolutely-positioned SIBLING of `body`, not a child of it — `body`
+   * gets its frozen tint via a `filter` (style.css's .body.frozen), and a
+   * filter repaints its children too, so a number drawn inside the body
+   * would get hue-shifted along with the circle. Sized off the same
+   * --body-size custom property `body` itself now reads (see
+   * .hero-slot.role-* in style.css), so the ring always matches whatever
+   * body it's drawn around without repeating per-role numbers. */
+  freezeRing: HTMLElement;
+  freezeSecs: HTMLElement;
 }
 
 /** How long a tracer takes to fly from attacker to target, in ms. Impact
@@ -74,11 +105,38 @@ const CHAIN_FAILURE_HOLD_MS = 600;
  * never clips the card mid-animation. */
 const CHAIN_END_CARD_HOLD_MS = 1700;
 
-/** How long a guard redirect's "aim swings onto the guardian" tracer takes
- * to fly, before the slam's impact plays on its new target (2026-09-13
- * slam-visibility pass) — short enough to read as a last-instant save, not
- * a second telegraph. */
-const GUARD_SWING_MS = 150;
+/** How many guard pips to draw before collapsing to a bare "⛨ ×N" count
+ * (2026-09-15 guard-visibility pass) — past this, individual pips stop being
+ * faster to read than the number itself. */
+const GUARD_PIP_CAP = 5;
+
+/** How long a guard redirect's aim line takes to swing from its original
+ * target to its real one, before the slam's impact plays (2026-09-15
+ * slam-provability pass — replaces the old GUARD_SWING_MS's 150ms). 150ms is
+ * roughly nine frames: long enough to notice a flick, too short to actually
+ * track the line and read WHICH body it stopped on before the impact
+ * flash/shake overwrite the frame — which is exactly what made the old swing
+ * unreadable as proof of anything. 420ms sits between the ordinary tracer
+ * (TRACER_MS, 200ms) and the chain-failure hold (CHAIN_FAILURE_HOLD_MS,
+ * 600ms) on this file's own loudness ladder — long enough to read as a
+ * deliberate reversal, short enough to still read as a consequence of the
+ * 1.5s telegraph rather than a second one of its own. Costs 0.4s once per
+ * slam in a fight that runs ~20s. */
+const SLAM_SWING_MS = 420;
+
+/** How far a FRONT-rank body leans toward the centre line, in px (2026-09-16
+ * upright-field pass) — the depth cue that makes a tank/bruiser read as
+ * standing ahead of its own row, not just first in a flat line. A small
+ * nudge, not a second row: the HP bars are the "who's winning" read (see
+ * style.css's .side docstring) and must never move, so the lean only ever
+ * touches .body-perch (buildSide), never the slot itself. */
+const FRONT_LEAN_PX = 7;
+
+/** How far a bowed tracer (a hit that skips a living front-rank body —
+ * showAttack) is pushed off the straight line to its target, in px. Scaled
+ * per-flight by distance (fireTracer) between FRONT_BOW_MIN_PX and this. */
+const FRONT_BOW_MAX_PX = 26;
+const FRONT_BOW_MIN_PX = 16;
 
 /** Heals share one colour regardless of healer identity — green reads as
  * "restoration" on sight, and a healer's own accent ring already carries
@@ -236,6 +294,20 @@ export class FightView {
    * near-miss check reads to find whoever ended closest to a chain without
    * firing one (2026-08-15). */
   private lastPlayerHeroes: HeroSnapshot[] = [];
+  /** Same as lastPlayerHeroes, enemy side (2026-09-16 upright-field pass) —
+   * what showAttack's bow check reads to see whether a front-rank enemy is
+   * still alive to arc a player attack around. */
+  private lastEnemyHeroes: HeroSnapshot[] = [];
+  /** Whether each hero (by id) sits in its side's FRONT rank — the leading
+   * run of that side's build-time roster order sharing index 0's own role
+   * tier (ROLE_SORT_PRIORITY), computed once in buildSide (2026-09-16
+   * upright-field pass). Fixed for the whole fight, same as heroMaxHp —
+   * drives both the lean/shadow depth cue (buildSide) and, at attack time,
+   * whether a hit that skips the front rank bows around it (showAttack,
+   * frontGroupHasSurvivor). Static rather than re-derived from who's
+   * currently alive: a dead front-ranker just means frontGroupHasSurvivor
+   * comes back false, not that some other body silently becomes "front". */
+  private heroIsFront: Map<string, boolean> = new Map();
   /** True once any chain has fired this fight (2026-08-15) — gates the
    * near-miss beat so it never competes with a chain that actually landed;
    * "so close" only means something when nothing else already happened. */
@@ -258,6 +330,29 @@ export class FightView {
    * nothing charging to break — it's equally true when a charge ends by
    * firing normally, but only the stun path ever consults it. */
   private windupJustCancelled: Map<string, boolean> = new Map();
+  /** Whether each hero (by id, either side) was frozen as of the LAST tick's
+   * updateFreezeTells call — the only way to notice "the freeze just ended"
+   * on the tick it happens, since HeroSnapshot.stunnedUntilT simply stops
+   * being in the future rather than emitting an event of its own (2026-09-15
+   * freeze-visibility pass). Same device as windupChargingState above. */
+  private frozenState: Map<string, boolean> = new Map();
+  /** One entry per bruiser CURRENTLY mid-swing (2026-09-15 slam-provability
+   * pass) — while present, updateWindupTells yields the aim line and that
+   * `destId` body's `.targeted` mark to startAimSwing instead of driving them
+   * itself off the snapshot, since the swing has to visibly rotate the line
+   * from its original target to its real one rather than have the tick loop
+   * silently hide-then-show it (fight.ts clears windupFireT BEFORE this
+   * tick's snapshot is pushed, so by the time this runs, the ordinary
+   * snapshot-driven path has already hidden the line this same tick — this
+   * is the one sanctioned exception to updateWindupTells being purely
+   * snapshot-driven, see its own docstring). */
+  private aimSwings: Map<string, { rafId: number; destId: string }> = new Map();
+  /** Invalidates any in-flight windupHit impact deferred behind a swing or a
+   * tracer flight (showWindupHit's `land`) when a reset happens mid-flight —
+   * same device as chainGen, for the same reason: without it, a reset during
+   * the swing/tracer window would fire a stale impact into the torn-down
+   * next fight's view. */
+  private windupGen = 0;
 
   constructor(container: HTMLElement, cfg: FightConfig) {
     this.cfg = cfg;
@@ -266,12 +361,22 @@ export class FightView {
 
     this.arena = document.createElement("div");
     this.arena.className = "arena";
-    this.playerSlots = document.createElement("div");
-    this.playerSlots.className = "side player-side";
+    // Stacked, not side by side (2026-09-16 upright-field pass): the enemy
+    // row sits on top, the player row on the bottom, so front-to-back order
+    // (both sides sorted front-first — see heroes.ts/roster.ts) reads as
+    // depth toward a shared centre line instead of left/right adjacency,
+    // which is what let the player's own tank end up drawn furthest from
+    // the fight. DOM order here is what puts them top/bottom — .arena's own
+    // flex-direction:column does the rest (style.css).
     this.enemySlots = document.createElement("div");
     this.enemySlots.className = "side enemy-side";
-    this.arena.appendChild(this.playerSlots);
+    const centreLine = document.createElement("div");
+    centreLine.className = "centre-line";
+    this.playerSlots = document.createElement("div");
+    this.playerSlots.className = "side player-side";
     this.arena.appendChild(this.enemySlots);
+    this.arena.appendChild(centreLine);
+    this.arena.appendChild(this.playerSlots);
     container.appendChild(this.arena);
 
     this.chainHud = document.createElement("div");
@@ -326,8 +431,16 @@ export class FightView {
 
   render(snapshot: TickSnapshot, eventsThisTick: FightEvent[]): void {
     if (!this.built) {
-      this.buildSide(this.playerSlots, this.playerHeroes, snapshot.playerHeroes, "player");
-      this.buildSide(this.enemySlots, this.enemyHeroes, snapshot.enemyHeroes, "enemy");
+      // One shared pixel-per-HP scale across BOTH sides (style.css's .side
+      // docstring) — each card's width is a direct fraction of the two
+      // sides' combined maxHp, computed once here rather than via nested
+      // flex-grow (2026-09-16 upright-field pass: flex-grow sized *height*
+      // once the sides stacked instead of sitting side by side, which broke
+      // the shared scale). Same formula as the old two-level flex, one step.
+      const bothSidesMaxHp =
+        snapshot.playerHeroes.reduce((sum, h) => sum + h.maxHp, 0) + snapshot.enemyHeroes.reduce((sum, h) => sum + h.maxHp, 0) || 1;
+      this.buildSide(this.playerSlots, this.playerHeroes, snapshot.playerHeroes, "player", bothSidesMaxHp);
+      this.buildSide(this.enemySlots, this.enemyHeroes, snapshot.enemyHeroes, "enemy", bothSidesMaxHp);
       this.built = true;
     }
 
@@ -353,9 +466,11 @@ export class FightView {
     this.updateSide(this.playerHeroes, snapshot.playerHeroes, snapshot);
     this.updateSide(this.enemyHeroes, snapshot.enemyHeroes, snapshot);
     this.updateWindupTells(snapshot);
+    this.updateFreezeTells(snapshot);
 
     this.lastPlayerHpFraction = snapshot.playerMaxHp > 0 ? snapshot.playerHp / snapshot.playerMaxHp : 0;
     this.lastPlayerHeroes = snapshot.playerHeroes;
+    this.lastEnemyHeroes = snapshot.enemyHeroes;
 
     for (const e of eventsThisTick) {
       this.handleEvent(e);
@@ -374,6 +489,7 @@ export class FightView {
     // docstring) — a reset mid-resolution shouldn't let a stale failure
     // hold/card/teardown callback fire into this torn-down view later.
     this.chainGen++;
+    this.windupGen++;
     this.chainPhase = "idle";
     this.chainHud.classList.remove("show", "emphasize");
     this.chainHudTitle.textContent = "";
@@ -386,15 +502,21 @@ export class FightView {
     this.arena.classList.remove("shake", "chain-live", "chain-backfire");
     this.lastPlayerHpFraction = 1;
     this.lastPlayerHeroes = [];
+    this.lastEnemyHeroes = [];
     this.anyChainFiredThisFight = false;
     this.windupChargingState.clear();
     this.windupJustCancelled.clear();
+    this.frozenState.clear();
+    for (const swing of this.aimSwings.values()) cancelAnimationFrame(swing.rafId);
+    this.aimSwings.clear();
     for (const el of this.aimLines.values()) el.remove();
     this.aimLines.clear();
     for (const refs of [...this.playerHeroes.values(), ...this.enemyHeroes.values()]) {
-      refs.body.classList.remove("down", "hot", "lunge", "flinch", "healed", "broken", "charging", "targeted", "windup-shatter");
+      refs.body.classList.remove("down", "hot", "lunge", "flinch", "healed", "broken", "charging", "targeted", "windup-shatter", "frozen");
       refs.body.querySelectorAll(".impact-flash").forEach((el) => el.remove());
-      refs.status.classList.remove("show");
+      refs.freezeRing.classList.remove("show");
+      refs.status.classList.remove("show", "loud");
+      refs.status.style.color = "";
       // Drop back to 0 without animating the sweep — a restart isn't a fire,
       // so it must skip --charge-rise entirely, not play it backwards.
       refs.chargeFill.classList.add("instant");
@@ -410,12 +532,35 @@ export class FightView {
     map: Map<string, HeroSlot>,
     heroes: HeroSnapshot[],
     side: "player" | "enemy",
+    bothSidesMaxHp: number,
   ): void {
-    const totalMaxHp = heroes.reduce((sum, h) => sum + h.maxHp, 0) || 1;
-    container.style.flexGrow = String(totalMaxHp);
+    // The FRONT rank (2026-09-16 upright-field pass) is the leading run of
+    // this side's build-time roster order that shares index 0's own role
+    // tier — tank/bruiser, then damage/grunt, then support (heroes.ts's
+    // ROLE_SORT_PRIORITY, the same key both sides are already sorted by).
+    // A double-tank draft gets two front bodies; an all-grunt crowd with no
+    // bruiser is entirely "front", reading as exactly that — a flat line
+    // with no leader, not a false single body ahead of the rest.
+    const frontRank = heroes.length > 0 ? ROLE_SORT_PRIORITY[(heroes[0] as HeroSnapshot).role] : 0;
+    let stillFront = true;
     heroes.forEach((hero, i) => {
+      if (stillFront && ROLE_SORT_PRIORITY[hero.role] !== frontRank) stillFront = false;
+      const isFront = stillFront;
+      this.heroIsFront.set(hero.id, isFront);
+
       const refs = makeHeroSlot(hero, side, accentFor(i), i);
-      refs.slot.style.flex = `${hero.maxHp} 0 0`;
+      // Direct fraction of the two sides' combined maxHp (see render()'s
+      // own comment) — same pixel-per-HP scale the old two-level flex gave,
+      // now that a side's own flex-grow can no longer double as its width.
+      refs.slot.style.width = `${((hero.maxHp / bothSidesMaxHp) * 100).toFixed(3)}%`;
+      refs.slot.style.flex = "0 0 auto";
+      // The lean (FRONT_LEAN_PX) always points toward the centre line, which
+      // sits BELOW the enemy row and ABOVE the player row (see the
+      // constructor's DOM order) — so "toward centre" is +Y for the enemy
+      // row and -Y for the player row. Only .body-perch ever reads this; the
+      // slot's own box, and therefore the HP bar's width, never moves.
+      const lean = isFront ? FRONT_LEAN_PX : 0;
+      refs.perch.style.setProperty("--lean-y", `${side === "enemy" ? lean : -lean}px`);
       container.appendChild(refs.slot);
       map.set(hero.id, refs);
       this.heroNames.set(hero.id, hero.name);
@@ -535,6 +680,23 @@ export class FightView {
         // the bar closing in on firing without knowing which way it'll go.
         refs.chargeFill.classList.toggle("near-full", chargeFraction >= 0.85 && chargeFraction < 1);
       }
+      // Guard row (2026-09-15 guard-visibility pass) — snapshot-driven, same
+      // discipline as the charge bar above. guardHeroId is always a player
+      // hero id (SideState.guardHeroId's own docstring), so this naturally
+      // stays hidden on the enemy side without checking which side we're in.
+      const isGuardian = hero.id === snapshot.guardHeroId && snapshot.guardCharges > 0;
+      refs.guardPips.classList.toggle("show", isGuardian);
+      if (isGuardian) {
+        refs.guardPips.classList.toggle("inverted", snapshot.guardInverted);
+        const overCap = snapshot.guardCharges > GUARD_PIP_CAP;
+        for (let i = 0; i < refs.guardPipEls.length; i++) {
+          const pip = refs.guardPipEls[i] as HTMLElement;
+          pip.classList.toggle("hidden", overCap);
+          pip.classList.toggle("filled", !overCap && i < snapshot.guardCharges);
+        }
+        refs.guardCount.classList.toggle("hidden", !overCap);
+        refs.guardCount.textContent = overCap ? `⛨ ×${snapshot.guardCharges}` : "";
+      }
       refs.counter.textContent = counterText(hero);
     }
   }
@@ -555,7 +717,13 @@ export class FightView {
    *    line grows from this body toward the victim's, its length the same
    *    countdown the bar is draining. */
   private updateWindupTells(snapshot: TickSnapshot): void {
-    for (const refs of this.playerHeroes.values()) refs.body.classList.remove("targeted");
+    // A body mid-swing (see aimSwings' own docstring) keeps its .targeted
+    // mark until the swing itself decides to drop it — the blanket clear
+    // below would otherwise strobe it off between animation frames.
+    const swingingDestIds = new Set([...this.aimSwings.values()].map((s) => s.destId));
+    for (const [heroId, refs] of this.playerHeroes) {
+      if (!swingingDestIds.has(heroId)) refs.body.classList.remove("targeted");
+    }
 
     for (const hero of snapshot.enemyHeroes) {
       if (hero.role !== "bruiser") continue;
@@ -588,6 +756,11 @@ export class FightView {
       refs.chargeFill.style.width = `${(fraction * 100).toFixed(1)}%`;
       refs.chargeGhostFill.style.width = `${(fraction * 100).toFixed(1)}%`;
 
+      // This bruiser's aim line is mid-swing (startAimSwing) — it owns the
+      // line's position for the swing's own duration; the ordinary
+      // snapshot-driven positioning below would fight it every tick.
+      if (this.aimSwings.has(hero.id)) continue;
+
       const aimLine = this.aimLineFor(hero.id);
       const target = isCharging && hero.windupTargetId ? this.playerHeroes.get(hero.windupTargetId) : undefined;
       if (target) {
@@ -598,6 +771,49 @@ export class FightView {
         this.updateAimLine(aimLine, refs.body, target.body, 1 - fraction);
       } else {
         this.hideAimLine(aimLine);
+      }
+    }
+  }
+
+  /** Drives Hollow's "stun" freeze — the ring around the body and the
+   * .frozen tint on it — for every hero on EITHER side (2026-09-15
+   * freeze-visibility pass, replacing a wall-clock setTimeout that raced
+   * playback's own chain-time dilation; ring replaces a countdown ROW as of
+   * 2026-09-16, see HeroSlot's freezeRing docstring). Purely snapshot-driven,
+   * same discipline as updateWindupTells: correct under pause/step/scrub,
+   * and a reset can't leave a stale frozen body behind.
+   *
+   * hero.stunnedHeld (2026-09-16 freeze-layout pass) tells this apart from
+   * two different beats that would otherwise look identical on the ring:
+   * while a chain is still buying this freeze, the ring reads FULL and the
+   * seconds count UP (fight.ts's per-tick hold keeps re-pinning
+   * stunnedUntilT, so remaining is the running total, not a countdown);
+   * once the chain ends and the hold releases, the ring switches to
+   * draining down from full — same fraction math as before — anchored to
+   * stunnedFromT, which fight.ts re-anchors to the instant the hold let go,
+   * not to whenever the freeze first began. */
+  private updateFreezeTells(snapshot: TickSnapshot): void {
+    for (const hero of [...snapshot.playerHeroes, ...snapshot.enemyHeroes]) {
+      const refs = this.slotFor(hero.id);
+      if (!refs) continue;
+
+      const remaining = hero.alive && hero.stunnedUntilT !== undefined ? hero.stunnedUntilT - snapshot.t : 0;
+      const isFrozen = remaining > 0;
+      const wasFrozen = this.frozenState.get(hero.id) ?? false;
+      this.frozenState.set(hero.id, isFrozen);
+
+      refs.body.classList.toggle("frozen", isFrozen);
+      refs.freezeRing.classList.toggle("show", isFrozen);
+      if (isFrozen) {
+        let fraction = 1;
+        if (!hero.stunnedHeld) {
+          const total = (hero.stunnedUntilT ?? 0) - (hero.stunnedFromT ?? snapshot.t);
+          fraction = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0;
+        }
+        refs.freezeRing.style.setProperty("--freeze-frac", fraction.toFixed(3));
+        refs.freezeSecs.textContent = `${remaining.toFixed(1)}s`;
+      } else if (wasFrozen) {
+        this.showHeroStatusTell(hero.id, "WAKES UP");
       }
     }
   }
@@ -640,6 +856,73 @@ export class FightView {
     el.style.width = "0px";
   }
 
+  /** Rotates a bruiser's aim line from `sparedBody` (where the telegraph had
+   * it locked) to `destBody` (where the slam actually lands) — the moment
+   * that makes Bracer's guard provable (2026-09-15 slam-provability pass,
+   * replaces the old fireTracer-based "swing" between two unrelated dots).
+   * Swings AROUND the attacker — the angle eases, the length interpolates
+   * separately — rather than sliding the tip sideways, so it reads as the
+   * SAME aim changing its mind, not a new line appearing. Driven by
+   * requestAnimationFrame, not CSS: .aim-line deliberately carries no
+   * transition (updateWindupTells rewrites it every tick), so a CSS
+   * transition would fight that rewrite and could strand mid-flight if the
+   * fight is paused. `destId` (not the element) is what updateWindupTells
+   * checks each tick to know to leave this bruiser's line alone — see
+   * aimSwings' own docstring. Calls `onDone` once the swing completes. */
+  private startAimSwing(
+    bruiserId: string,
+    fromEl: HTMLElement,
+    sparedBody: HTMLElement,
+    destId: string,
+    destBody: HTMLElement,
+    onDone: () => void,
+  ): void {
+    const prior = this.aimSwings.get(bruiserId);
+    if (prior) cancelAnimationFrame(prior.rafId);
+
+    const el = this.aimLineFor(bruiserId);
+    const a = this.centerOf(fromEl);
+    const b0 = this.centerOf(sparedBody);
+    const b1 = this.centerOf(destBody);
+    const angle0 = Math.atan2(b0.y - a.y, b0.x - a.x);
+    let delta = Math.atan2(b1.y - a.y, b1.x - a.x) - angle0;
+    while (delta > Math.PI) delta -= 2 * Math.PI;
+    while (delta < -Math.PI) delta += 2 * Math.PI;
+    const dist0 = Math.hypot(b0.x - a.x, b0.y - a.y);
+    const dist1 = Math.hypot(b1.x - a.x, b1.y - a.y);
+
+    // ease-out-back (standard constants) — a slight overshoot past the final
+    // angle before settling, so the line reads as whipping across rather
+    // than gliding, the difference between "the aim changed its mind" and
+    // "the aim drifted."
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    const easeOutBack = (x: number) => 1 + c3 * (x - 1) ** 3 + c1 * (x - 1) ** 2;
+
+    el.style.opacity = "1";
+    const startMs = performance.now();
+    const frame = (now: number) => {
+      const raw = Math.min(1, (now - startMs) / SLAM_SWING_MS);
+      const eased = raw < 1 ? easeOutBack(raw) : 1;
+      const angle = angle0 + delta * eased;
+      const dist = dist0 + (dist1 - dist0) * Math.min(1, eased);
+      el.style.left = `${a.x}px`;
+      el.style.top = `${a.y}px`;
+      el.style.width = `${Math.max(0, dist).toFixed(1)}px`;
+      el.style.transform = `rotate(${((angle * 180) / Math.PI).toFixed(2)}deg)`;
+      if (raw < 1) {
+        const rafId = requestAnimationFrame(frame);
+        this.aimSwings.set(bruiserId, { rafId, destId });
+      } else {
+        this.aimSwings.delete(bruiserId);
+        this.hideAimLine(el);
+        onDone();
+      }
+    };
+    const rafId = requestAnimationFrame(frame);
+    this.aimSwings.set(bruiserId, { rafId, destId });
+  }
+
   private handleEvent(e: FightEvent): void {
     switch (e.type) {
       case "attack":
@@ -658,10 +941,21 @@ export class FightView {
         this.showChainStart(e.heroId, e.backfire);
         break;
       case "chainHit":
-        this.showChainHit(e.hitIndex, e.damage, e.targetId, e.kind, e.backfire, e.sourceId, e.durationSec);
+        this.showChainHit(
+          e.hitIndex,
+          e.damage,
+          e.targetId,
+          e.kind,
+          e.backfire,
+          e.sourceId,
+          e.durationSec,
+          e.durationTotalSec,
+          e.charges,
+          e.chargesTotal,
+        );
         break;
       case "chainEnd":
-        this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.killedIds, e.backfire, e.reason, e.effect);
+        this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.totalStunSec, e.killedIds, e.backfire, e.reason, e.effect);
         break;
       case "heroDown":
         this.showHeroDown(e.heroId);
@@ -686,6 +980,17 @@ export class FightView {
 
   private slotFor(id: string): HeroSlot | undefined {
     return this.playerHeroes.get(id) ?? this.enemyHeroes.get(id);
+  }
+
+  /** True while at least one of `side`'s FRONT-rank heroes (heroIsFront,
+   * fixed at buildSide) is still alive as of the last tick rendered
+   * (2026-09-16 upright-field pass) — what showAttack checks before bowing
+   * a tracer: once every front-rank body on that side is actually dead,
+   * nothing is left standing in the way, so a straight hit stops being a
+   * lie even though the target itself was never "front". */
+  private frontGroupHasSurvivor(side: "player" | "enemy"): boolean {
+    const heroes = side === "player" ? this.lastPlayerHeroes : this.lastEnemyHeroes;
+    return heroes.some((h) => h.alive && this.heroIsFront.get(h.id));
   }
 
   /** Arena-relative centre point of `el` — the shared basis for tracer
@@ -722,6 +1027,7 @@ export class FightView {
     size = 6,
     extraClass?: string,
     durationMs = TRACER_MS,
+    bow = false,
   ): void {
     const start = this.centerOf(from);
     const end = this.centerOf(to);
@@ -731,14 +1037,49 @@ export class FightView {
     el.style.height = `${size}px`;
     el.style.marginLeft = `${-size / 2}px`;
     el.style.marginTop = `${-size / 2}px`;
-    el.style.left = `${start.x}px`;
-    el.style.top = `${start.y}px`;
     el.style.background = color;
     el.style.boxShadow = `0 0 6px 1px ${color}`;
     this.tracerLayer.appendChild(el);
-    void el.offsetWidth;
-    el.style.transform = `translate(${(end.x - start.x).toFixed(1)}px, ${(end.y - start.y).toFixed(1)}px)`;
-    setTimeout(() => el.remove(), durationMs + 60);
+
+    if (!bow) {
+      el.style.left = `${start.x}px`;
+      el.style.top = `${start.y}px`;
+      void el.offsetWidth;
+      el.style.transform = `translate(${(end.x - start.x).toFixed(1)}px, ${(end.y - start.y).toFixed(1)}px)`;
+      setTimeout(() => el.remove(), durationMs + 60);
+      return;
+    }
+
+    // Bowed flight (2026-09-16, upright-field pass) — showAttack asks for
+    // this when the hit is skipping past a living front-rank body to reach
+    // someone behind it, so the occasional dice roll that lands on the
+    // backline never reads as passing straight through the tank standing in
+    // the way. A quadratic bezier through one control point pushed
+    // perpendicular to the straight line, not sideways relative to the
+    // screen — attacks travel vertically now, so an up/down push would just
+    // make the dot arrive early or late, not visibly go around anything.
+    // No CSS transition (same reasoning as startAimSwing's own rAF loop):
+    // a per-frame position fights a transition instead of being shown by it.
+    el.style.transition = "none";
+    el.style.left = "0px";
+    el.style.top = "0px";
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const lift = Math.min(FRONT_BOW_MAX_PX, Math.max(FRONT_BOW_MIN_PX, dist * 0.35));
+    const midX = (start.x + end.x) / 2 + (-dy / dist) * lift;
+    const midY = (start.y + end.y) / 2 + (dx / dist) * lift;
+    const startMs = performance.now();
+    const frame = (now: number) => {
+      const t = Math.min(1, (now - startMs) / durationMs);
+      const inv = 1 - t;
+      const x = inv * inv * start.x + 2 * inv * t * midX + t * t * end.x;
+      const y = inv * inv * start.y + 2 * inv * t * midY + t * t * end.y;
+      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      if (t < 1) requestAnimationFrame(frame);
+      else setTimeout(() => el.remove(), 60);
+    };
+    requestAnimationFrame(frame);
   }
 
   /** An independent, additively-stacking flash on the target's own body —
@@ -761,8 +1102,11 @@ export class FightView {
     const target = defenderMap.get(targetId);
     if (!attacker || !target) return;
 
+    const defenderSide: "player" | "enemy" = side === "player" ? "enemy" : "player";
+    const bow = !this.heroIsFront.get(targetId) && this.frontGroupHasSurvivor(defenderSide);
+
     this.lungeToward(attacker.body, target.body, 14);
-    this.fireTracer(attacker.body, target.body, attacker.accent);
+    this.fireTracer(attacker.body, target.body, attacker.accent, 6, undefined, TRACER_MS, bow);
 
     // Fan simultaneous popups out horizontally by the attacker's fixed slot
     // index — e.g. every player hero targets the front-most enemy (see
@@ -805,10 +1149,18 @@ export class FightView {
    * spectacle), so events common enough to be normal beats — a tank
    * breaking, an ignition miss, a fizzled chain — never overwrite or get
    * overwritten by the rare payoff. No shake, no fanfare, by design. */
-  private showHeroStatusTell(heroId: string, text: string): void {
+  /** `color`/`loud` (2026-09-15 slam-provability pass) let a redirect's
+   * payoff tell — TAKES THE SLAM / STEPS ASIDE / SAFE — stand out from the
+   * routine tank-break/ignition-miss traffic this same line otherwise
+   * carries, without a second status-line element to keep in sync.
+   * `color` falls back to the base CSS's muted grey (an empty inline style
+   * defers to the stylesheet); `loud` toggles a bigger, glowing variant. */
+  private showHeroStatusTell(heroId: string, text: string, color?: string, loud = false): void {
     const refs = this.slotFor(heroId);
     if (!refs) return;
     refs.status.textContent = text;
+    refs.status.style.color = color ?? "";
+    refs.status.classList.toggle("loud", loud);
     refs.status.classList.remove("show");
     void refs.status.offsetWidth;
     refs.status.classList.add("show");
@@ -914,22 +1266,30 @@ export class FightView {
    * flashing the victim) — a heavier version of a normal attack: bigger
    * flash, its own damage-popup colour (WINDUP_ACCENT), and an arena shake,
    * since this is meant to be the single biggest hit the player watches for.
-   * `redirect` (events.ts) makes Bracer's guard provable: a real redirect
-   * gets its own short "aim swings onto the guardian" tracer before the
-   * impact plays; an ordinary mid-telegraph retarget (the locked hero died
-   * to something else) gets none, since nothing was actually saved. */
+   *
+   * `redirect` (events.ts) is what makes Bracer's guard provable (2026-09-15
+   * slam-provability pass — replaces the old single 150ms tracer, which
+   * played the SAME animation for a real save and a backfired betrayal). A
+   * real redirect — "guard" (a save) or "guardBackfire" (a betrayal) — swings
+   * the telegraph's own aim line from where it was locked to where the slam
+   * actually lands (startAimSwing), coloured and lunging opposite ways for
+   * the two cases, before the impact plays. "targetDied" (an ordinary
+   * mid-telegraph retarget, nothing saved) and null get no swing at all,
+   * same as before. */
   private showWindupHit(
     sourceId: string,
     targetId: string,
     damage: number,
     originalTargetId: string | null,
-    redirect: "guard" | "targetDied" | null,
+    redirect: "guard" | "guardBackfire" | "targetDied" | null,
   ): void {
     const attacker = this.enemyHeroes.get(sourceId);
     const target = this.playerHeroes.get(targetId);
     if (!target) return;
+    const gen = this.windupGen;
 
     const land = () => {
+      if (gen !== this.windupGen) return; // reset() happened mid-flight — see windupGen's docstring
       const maxHp = this.heroMaxHp.get(targetId) ?? 1;
       const frac = Math.max(0.3, Math.min(1, damage / maxHp));
       if (attacker) this.lungeToward(attacker.body, target.body, 14);
@@ -942,11 +1302,45 @@ export class FightView {
       this.arena.classList.add("shake");
     };
 
-    if (redirect === "guard" && originalTargetId) {
+    if ((redirect === "guard" || redirect === "guardBackfire") && originalTargetId && attacker) {
       const originalTarget = this.playerHeroes.get(originalTargetId);
       if (originalTarget) {
-        this.fireTracer(originalTarget.body, target.body, WINDUP_ACCENT, 8, undefined, GUARD_SWING_MS);
-        setTimeout(land, GUARD_SWING_MS);
+        const isBackfire = redirect === "guardBackfire";
+        const el = this.aimLineFor(sourceId);
+        el.classList.toggle("swing-betray", isBackfire);
+        el.classList.toggle("swing-save", !isBackfire);
+
+        // The hero the telegraph was locked onto — Bracer itself in a
+        // backfire (forced there), the OTHER hero in a save (excluded
+        // there) — comes off the hook the instant the swing starts: the
+        // same "this slam is not landing on you" mark a stun's cancelled
+        // telegraph already uses.
+        pulseClass(originalTarget.body, "windup-shatter", 400);
+        originalTarget.body.classList.remove("targeted");
+
+        // The body language and the words are the PAYOFF, not the trigger
+        // (DECISIONS.md, 2026-08-06 "spectacle gated on the outcome") — they
+        // land with the swing's own end, the same moment `land()` plays the
+        // impact, not at the swing's start.
+        this.startAimSwing(sourceId, attacker.body, originalTarget.body, targetId, target.body, () => {
+          el.classList.remove("swing-save", "swing-betray");
+          if (gen !== this.windupGen) return; // reset() happened mid-swing — see windupGen's docstring
+          if (isBackfire) {
+            // Bracer steps ASIDE, dumping the hit rather than blocking it —
+            // recoils away from its new victim (lungeToward's maxDist going
+            // negative just runs the same lunge backwards, see its own
+            // docstring) — distinct in both motion and colour from a save.
+            this.lungeToward(originalTarget.body, target.body, -10);
+            this.showHeroStatusTell(originalTargetId, "STEPS ASIDE", "var(--backfire)", true);
+          } else {
+            // The ordinary spared bystander, and Bracer stepping IN toward
+            // the attacker to take the hit.
+            this.showHeroStatusTell(originalTargetId, "SAFE");
+            this.lungeToward(target.body, attacker.body, 10);
+            this.showHeroStatusTell(targetId, "TAKES THE SLAM", HEAL_ACCENT, true);
+          }
+          land();
+        });
         return;
       }
     }
@@ -982,7 +1376,19 @@ export class FightView {
    * ChainEffect) — neither moves HP, so `amount` is 0 and `durationSec`
    * carries the real number instead. Both still lunge/tracer/pip exactly
    * like a damage/heal hit — only the popup text and the target-side flip
-   * differ. */
+   * differ. `charges` (2026-09-15 slam-provability pass) replaces
+   * `durationSec` for "guard" specifically, which stopped being a duration —
+   * see events.ts's chainHit docstring. `chargesTotal` (guard-visibility
+   * pass) is the pool's running total AFTER this rung — the popup reports
+   * that, not `charges` alone, so a multi-rung chain says "covers 3 slams
+   * now" instead of repeating "covers 1" on every rung; the standing pip row
+   * (updateSide) is the moment-to-moment readout, this popup is just the
+   * beat that announces a change to it. `durationTotalSec` (2026-09-15
+   * freeze-visibility pass) is "stun"'s own version of `chargesTotal` — the
+   * target's full remaining freeze after THIS link, since links now add up
+   * (fight.ts's resolveChainHit) — while `durationSec` stays what this one
+   * link alone added; the standing freeze ring (updateFreezeTells) is the
+   * moment-to-moment readout, same division of labour as guard's pips. */
   private showChainHit(
     hitIndex: number,
     amount: number,
@@ -991,6 +1397,9 @@ export class FightView {
     backfire: boolean,
     sourceId: string,
     durationSec?: number,
+    durationTotalSec?: number,
+    charges?: number,
+    chargesTotal?: number,
   ): void {
     // targetId is null on a WHIFF (2026-09-02, Phase 1 of the chain-targeting
     // plan — see events.ts's chainHit docstring). This is the minimal
@@ -1016,8 +1425,15 @@ export class FightView {
     const land = () => {
       if (target && targetId !== null) {
         if (kind === "guard") {
-          pulseClass(target.body, "healed", 500); // reuses the "protected" glow, not a heal
-          this.showPopup(target.body, `GUARD ${Math.round(durationSec ?? 0)}s`, "chain", scale, Math.min(hitIndex, 5), chainColor);
+          // No body glow here (2026-09-15 — dropped the old "healed" pulse
+          // reuse): the ignition-time popup is the TRIGGER, and DECISIONS.md's
+          // 2026-08-06 "spectacle gated on the outcome" rule says the loud
+          // moment belongs at the actual redirect (showWindupHit's swing),
+          // not here — a glow at both points would compete with, and dilute,
+          // the one that's actually provable.
+          const n = chargesTotal ?? charges ?? 0;
+          const label = backfire ? "GUARD GOES WRONG" : `GUARDS ${n} SLAM${n === 1 ? "" : "S"}`;
+          this.showPopup(target.body, label, "chain", scale, Math.min(hitIndex, 5), chainColor);
         } else if (kind === "stun") {
           // Hollow's whole point, made provable (2026-09-13 slam-visibility
           // pass): if this enemy was mid-telegraph the instant before this
@@ -1026,10 +1442,17 @@ export class FightView {
           // shatter on top of the ordinary freeze, so cancelling a live slam
           // reads as its own event instead of an identical frozen beat with
           // nothing behind it.
+          //
+          // The .frozen tint and the countdown itself are owned entirely by
+          // updateFreezeTells now (2026-09-15 freeze-visibility pass) —
+          // this popup only announces the LINK that just landed; it no
+          // longer sets or clears anything on the body, which is what let a
+          // wall-clock setTimeout here desync from playback's own chain-time
+          // dilation (see that method's docstring).
           if (this.windupJustCancelled.get(targetId)) pulseClass(target.body, "windup-shatter", 400);
-          target.body.classList.add("frozen");
-          setTimeout(() => target.body.classList.remove("frozen"), Math.round((durationSec ?? 0) * 1000));
-          this.showPopup(target.body, `FROZEN ${Math.round(durationSec ?? 0)}s`, "chain", scale, Math.min(hitIndex, 5), chainColor);
+          const total = durationTotalSec ?? durationSec ?? 0;
+          const label = `FROZEN +${(durationSec ?? 0).toFixed(1)}s (${total.toFixed(1)}s)`;
+          this.showPopup(target.body, label, "chain", scale, Math.min(hitIndex, 5), chainColor);
         } else {
           const maxHp = this.heroMaxHp.get(targetId) ?? 1;
           const frac = Math.max(0.15, Math.min(1, amount / maxHp));
@@ -1092,6 +1515,7 @@ export class FightView {
     heroId: string,
     chainLength: number,
     totalDamage: number,
+    totalStunSec: number,
     killedIds: string[],
     backfire: boolean,
     reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied",
@@ -1115,7 +1539,7 @@ export class FightView {
       // not a failure beat played first — this is the ONLY line that hides
       // it now (chainTeardown's own removal below is a defensive no-op).
       this.chainHud.classList.remove("show");
-      this.renderChainEndCard(heroId, chainLength, totalDamage, killedIds, backfire, reason, effect);
+      this.renderChainEndCard(heroId, chainLength, totalDamage, totalStunSec, killedIds, backfire, reason, effect);
       setTimeout(() => this.chainTeardown(gen, killedIds), CHAIN_END_CARD_HOLD_MS);
     };
 
@@ -1167,13 +1591,18 @@ export class FightView {
    * cap now instead of a per-hero fuse: how much of the chain actually ran
    * (`chainLength` of cfg.chainMaxHits possible hits) and what the chain WAS
    * (`effect`, in the same plain words the pick screen uses — config.ts's
-   * chainEffectVerb). For "guard"/"stun", `totalDamage` is 0 by construction
-   * (neither moves HP) — the headline's own number would read as a lie, so
-   * this reports the hit count only for those two, no damage figure. */
+   * chainEffectVerb). For "guard", `totalDamage` is 0 by construction (it
+   * doesn't move HP and has no other single number to report) — the
+   * headline's own number would read as a lie, so this reports the hit count
+   * only, no figure. "stun" gets its own figure instead (2026-09-15
+   * freeze-visibility pass) — `totalStunSec`, the sum of every landed link's
+   * duration, which is the attribution payoff this whole pass exists for:
+   * "my pick bought 6.4 seconds." */
   private renderChainEndCard(
     heroId: string,
     chainLength: number,
     totalDamage: number,
+    totalStunSec: number,
     killedIds: string[],
     backfire: boolean,
     reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied",
@@ -1186,8 +1615,8 @@ export class FightView {
     const killNote = killedIds.length > 0 ? ` — ${killedIds.map((id) => this.nameOf(id)).join(", ")} DOWN` : "";
     const hitWord = chainLength === 1 ? "hit" : "hits";
     const maxedNote = reason === "capped" ? " — MAXED" : "";
-    const isNoNumberEffect = effect === "guard" || effect === "stun";
-    const amountPart = isNoNumberEffect ? "" : `, ${Math.round(totalDamage)}`;
+    const amountPart =
+      effect === "guard" ? "" : effect === "stun" ? `, ${totalStunSec.toFixed(1)}s` : `, ${Math.round(totalDamage)}`;
 
     this.chainEndCard.innerHTML = "";
     const headline = document.createElement("div");
@@ -1369,7 +1798,18 @@ function counterText(hero: HeroSnapshot): string {
 
 function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: string, offsetIndex: number): HeroSlot {
   const slot = document.createElement("div");
-  slot.className = "hero-slot";
+  // role-* here (2026-09-16 freeze-layout pass) declares --body-size once
+  // per role (style.css) so .body.role-* and .freeze-ring can both read the
+  // same number instead of repeating each role's size twice.
+  slot.className = `hero-slot role-${hero.role}`;
+
+  // The perch (2026-09-16 upright-field pass) — see HeroSlot's own
+  // docstring. status/body/freezeRing are built into it below instead of
+  // straight into `slot`; nothing about their own positioning changes,
+  // since the perch's top-left coincides with where slot's own top-left
+  // used to be.
+  const perch = document.createElement("div");
+  perch.className = "body-perch";
 
   const body = document.createElement("div");
   body.className = `body ${side}-body role-${hero.role}`;
@@ -1378,7 +1818,7 @@ function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: stri
 
   const status = document.createElement("div");
   status.className = "hero-status";
-  slot.appendChild(status);
+  perch.appendChild(status);
 
   const name = document.createElement("div");
   name.className = "body-name";
@@ -1431,16 +1871,55 @@ function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: stri
   chargeLabel.className = isSlamBar ? "charge-label windup" : "charge-label";
   chargeLabel.textContent = isSlamBar ? "SLAM" : "CHAIN";
 
-  slot.appendChild(body);
+  // Guard row (2026-09-15 guard-visibility pass) — built for every slot for
+  // simplicity, same convention as chargeTrack above; style.css hides it on
+  // the enemy side, since only a player hero is ever the guardian. Hidden by
+  // default (updateSide only reveals it while this hero IS the live
+  // guardian with charges > 0).
+  const guardPips = document.createElement("div");
+  guardPips.className = "guard-pips";
+  const guardPipEls: HTMLElement[] = [];
+  for (let i = 0; i < GUARD_PIP_CAP; i++) {
+    const pip = document.createElement("div");
+    pip.className = "guard-pip";
+    guardPips.appendChild(pip);
+    guardPipEls.push(pip);
+  }
+  const guardCount = document.createElement("div");
+  guardCount.className = "guard-count";
+  guardPips.appendChild(guardCount);
+
+  // Freeze ring (2026-09-16 freeze-layout pass, replacing the 2026-09-15
+  // freeze-visibility pass's countdown ROW) — a ring drawn around the
+  // hero's own body instead of a row inside the card's stack, so a freeze
+  // starting or ending never changes the card's height. An absolutely-
+  // positioned SIBLING of `body` (appended straight to `slot`, not nested
+  // under `body`) — see HeroSlot's freezeRing docstring for why. Built for
+  // every slot on BOTH sides, unlike guardPips: a backfired stun lands on a
+  // player hero. Hidden by default via opacity, not display (updateFreezeTells
+  // only reveals it while this hero is currently frozen) — opacity gives a
+  // short fade instead of a hard cut, and never affects layout either way.
+  const freezeRing = document.createElement("div");
+  freezeRing.className = "freeze-ring";
+  const freezeSecs = document.createElement("div");
+  freezeSecs.className = "freeze-secs";
+  freezeRing.appendChild(freezeSecs);
+
+  perch.appendChild(body);
+  perch.appendChild(freezeRing);
+
+  slot.appendChild(perch);
   slot.appendChild(name);
   slot.appendChild(hpTrack);
   slot.appendChild(hpLabel);
   slot.appendChild(chargeTrack);
   slot.appendChild(chargeLabel);
+  slot.appendChild(guardPips);
   slot.appendChild(counter);
 
   return {
     slot,
+    perch,
     body,
     hpFill,
     hpGhostFill,
@@ -1453,6 +1932,11 @@ function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: stri
     status,
     accent,
     offsetIndex,
+    guardPips,
+    guardPipEls,
+    guardCount,
+    freezeRing,
+    freezeSecs,
   };
 }
 

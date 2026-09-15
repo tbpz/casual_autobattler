@@ -84,6 +84,7 @@
  * see the per-effect block below, which replaces both deleted blocks.
  */
 import { Rng } from "../sim/rng.js";
+import type { FightConfig } from "../sim/config.js";
 import { DEFAULT_RUN_CONFIG, backfireChanceFor, prdLookup, chainEscalationFactor } from "../sim/config.js";
 import { makePlayerSide, PLAYER_HERO_POOL } from "../sim/heroes.js";
 import { makePolicy, runRun } from "../sim/run.js";
@@ -245,6 +246,32 @@ between("fraction of fired chains with length >= 3 (composition of the table alo
     >[];
   }
 
+  /** Unlike firstRungHits above, runs the fight to completion and returns
+   * every event — for guard's behaviour checks below, which need to see
+   * past the chain's own end to the slam(s) its charge(s) actually cover. */
+  function fullFightEvents(
+    heroIds: string[],
+    boardName: string,
+    hpOverrides?: Record<string, number>,
+    cfgOverride?: Partial<FightConfig>,
+  ) {
+    return fullFightResult(heroIds, boardName, hpOverrides, cfgOverride).events;
+  }
+
+  /** Same as fullFightEvents, but returns the whole result — for the
+   * no-lapse check below (2026-09-16 freeze-layout pass), which needs to
+   * walk snapshots, not just events. */
+  function fullFightResult(
+    heroIds: string[],
+    boardName: string,
+    hpOverrides?: Record<string, number>,
+    cfgOverride?: Partial<FightConfig>,
+  ) {
+    const setup = forcedSetup(heroIds, boardName, hpOverrides);
+    const runCfg = cfgOverride ? { ...forcedCfg, ...cfgOverride } : forcedCfg;
+    return runFight(setup, runCfg, new Rng(1), 1);
+  }
+
   // Vex (strikeAll) on Pack (5 full-HP grunts): the first rung should hit
   // several of them at once, not just one.
   {
@@ -291,23 +318,262 @@ between("fraction of fired chains with length >= 3 (composition of the table alo
     );
   }
 
-  // Bracer (guard) and Hollow (stun): existence + shape only — both are
-  // side-level/duration effects rather than a damage or heal number, so
-  // "non-zero output" means a real positive duration, not an amount.
+  // Bracer (guard): a rung produces a positive charge count.
   {
     const hits = firstRungHits(["bracer"], "The Wall");
     check(
-      "Bracer's guard fires with a positive duration",
-      hits.length === 1 && hits[0]!.kind === "guard" && (hits[0]!.durationSec ?? 0) > 0,
-      `${hits.length} hits, durationSec=${hits[0]?.durationSec}`,
+      "Bracer's guard fires with a positive charge count",
+      hits.length === 1 && hits[0]!.kind === "guard" && (hits[0]!.charges ?? 0) > 0,
+      `${hits.length} hits, charges=${hits[0]?.charges}`,
     );
   }
+
+  // Hollow (stun): existence + shape only — still a side-level/duration
+  // effect rather than a damage or heal number, so "non-zero output" means a
+  // real positive duration, not an amount.
   {
     const hits = firstRungHits(["hollow"], "The Wall");
     check(
       "Hollow's stun fires against the enemy with a positive duration",
       hits.length === 1 && hits[0]!.kind === "stun" && (hits[0]!.durationSec ?? 0) > 0,
       `${hits.length} hits, durationSec=${hits[0]?.durationSec}`,
+    );
+  }
+
+  // Hollow (stun), additive behaviour (2026-09-15 freeze-visibility pass):
+  // a long chain must buy a STRICTLY longer freeze than its own last rung
+  // alone would — this is the thing that was silently untrue before this
+  // pass (fight.ts's old Math.max overwrote instead of adding, so a long
+  // chain froze for exactly as long as a length-1 one). chainChanceByHitsSoFar
+  // forced to [1,1,1,1,1,0] — table[N] gates the roll AFTER N hits have
+  // landed, so this guarantees exactly 5 (fire x5, then miss) rather than
+  // running to chainMaxHits (prdLookup would otherwise clamp every later
+  // index to the table's own last entry and keep continuing forever). 5, not
+  // 3: it's the same rung count the no-lapse check right below reuses, since
+  // that's the one that actually needs several rungs stacked to mean
+  // anything. Restricted to the FIRST chain's own window, same reasoning as
+  // firstRungHits above — otherwise a second full chain refiring later in
+  // the same fight would double-count here.
+  {
+    const events = fullFightEvents(["hollow"], "The Wall", undefined, {
+      chainChanceByHitsSoFar: [1, 1, 1, 1, 1, 0],
+    });
+    const firstEndIdx = events.findIndex((e) => e.type === "chainEnd");
+    const window = firstEndIdx >= 0 ? events.slice(0, firstEndIdx + 1) : events;
+    const stunHits = window.filter((e) => e.type === "chainHit" && e.kind === "stun") as Extract<
+      (typeof events)[number],
+      { type: "chainHit" }
+    >[];
+    const last = stunHits[stunHits.length - 1];
+    check(
+      "Hollow's stun links ADD UP — a 5-rung chain freezes longer than its last rung alone",
+      stunHits.length === 5 && (last?.durationTotalSec ?? 0) > (last?.durationSec ?? 0),
+      `${stunHits.length} rungs, last durationSec=${last?.durationSec}, durationTotalSec=${last?.durationTotalSec}`,
+    );
+
+    const chainEnd = window.find((e) => e.type === "chainEnd") as Extract<(typeof events)[number], { type: "chainEnd" }> | undefined;
+    const summedDuration = stunHits.reduce((sum, h) => sum + (h.durationSec ?? 0), 0);
+    check(
+      "Hollow's chainEnd reports the SUM of every landed link's duration, not just the last",
+      chainEnd !== undefined && Math.abs(chainEnd.totalStunSec - summedDuration) < 1e-9,
+      `totalStunSec=${chainEnd?.totalStunSec}, summed=${summedDuration}`,
+    );
+  }
+
+  // Hollow (stun), no-lapse behaviour (2026-09-16 freeze-layout pass): this
+  // is the actual board-jitter bug the layout pass fixed — rungs land on
+  // Hollow's own ~0.66s cadence, faster than an early rung's own escalated
+  // duration lasts, so the ADD-across-the-chain behaviour proved above
+  // wasn't by itself enough; the target still thawed and re-froze between
+  // rungs 1-2 and 2-3 (fight.ts's old code reset stunnedFromT whenever the
+  // running total had already lapsed, discarding it). fight.ts's per-tick
+  // freeze-hold block now re-pins the target every tick a "stun" chain is
+  // still live, so it must never once read as un-frozen from the first rung
+  // to land through the chain's own end. Same forced 5-rung setup as the
+  // additive check above — walks every SNAPSHOT (not just events) inside
+  // that window and asserts stunnedUntilT stays strictly ahead of the sim
+  // clock throughout.
+  {
+    const result = fullFightResult(["hollow"], "The Wall", undefined, {
+      chainChanceByHitsSoFar: [1, 1, 1, 1, 1, 0],
+    });
+    const firstEndIdx = result.events.findIndex((e) => e.type === "chainEnd");
+    const endT =
+      firstEndIdx >= 0 ? (result.events[firstEndIdx] as Extract<(typeof result.events)[number], { type: "chainEnd" }>).t : Infinity;
+    const stunHits = result.events.filter((e) => e.type === "chainHit" && e.kind === "stun" && e.t <= endT) as Extract<
+      (typeof result.events)[number],
+      { type: "chainHit" }
+    >[];
+    const targetId = stunHits[0]?.targetId;
+    const firstStunT = stunHits[0]?.t ?? 0;
+    let lapsed = false;
+    for (const snap of result.snapshots) {
+      if (snap.t < firstStunT || snap.t > endT) continue;
+      const hero = [...snap.playerHeroes, ...snap.enemyHeroes].find((h) => h.id === targetId);
+      if (!hero || !hero.alive) continue;
+      if ((hero.stunnedUntilT ?? 0) <= snap.t) {
+        lapsed = true;
+        break;
+      }
+    }
+    check(
+      "Hollow's freeze never lapses mid-chain — a 5-rung chain holds its target frozen on every tick until the chain ends",
+      targetId !== undefined && stunHits.length === 5 && !lapsed,
+      `targetId=${targetId}, ${stunHits.length} rungs, lapsed=${lapsed}`,
+    );
+  }
+
+  // Bracer (guard), behaviour: the charge above is not just present, it
+  // actually redirects a slam ONTO Bracer (2026-09-15 slam-provability
+  // pass — replaces the old duration-only existence check for the "does a
+  // real redirect happen" question chaindist never asked before). Two
+  // player heroes are required, not one: the telegraph exclusion
+  // (fight.ts's guardWindupAim) filters the guardian out of the candidate
+  // pool, so a solo-Bracer squad has nothing left to aim at and falls back
+  // to Bracer anyway — a false negative, not a real absence of redirect.
+  // forcedCfg's chainChanceByHitsSoFar: [1] caps the chain at exactly one
+  // rung, so exactly one charge exists to prove.
+  {
+    const events = fullFightEvents(["bracer", "vex"], "The Wall");
+    const windupHits = events.filter((e) => e.type === "windupHit") as Extract<
+      (typeof events)[number],
+      { type: "windupHit" }
+    >[];
+    const redirect = windupHits.find((e) => e.redirect === "guard");
+    check(
+      "Bracer's guard redirects a slam onto Bracer, and the telegraph really did aim elsewhere first",
+      redirect !== undefined &&
+        redirect.targetId.endsWith("_bracer") &&
+        redirect.originalTargetId !== null &&
+        redirect.originalTargetId !== redirect.targetId,
+      redirect
+        ? `originalTargetId=${redirect.originalTargetId} targetId=${redirect.targetId}`
+        : `no "guard" redirect among ${windupHits.length} windupHit(s)`,
+    );
+  }
+
+  // Bracer (guard), backfire: the telegraph locks onto Bracer itself (the
+  // inverted mirror of the exclusion above), then the slam swings AWAY onto
+  // the other hero at impact — never an identical-looking "save" (the exact
+  // bug this whole pass exists to fix: fight.ts used to send both cases
+  // through the same "guard" redirect value).
+  {
+    const events = fullFightEvents(["bracer", "vex"], "The Wall", undefined, { forceBackfire: "always" });
+    const windupHits = events.filter((e) => e.type === "windupHit") as Extract<
+      (typeof events)[number],
+      { type: "windupHit" }
+    >[];
+    const redirect = windupHits.find((e) => e.redirect === "guardBackfire");
+    check(
+      "A backfired guard swings the slam away from Bracer onto the other hero, tagged distinctly from a save",
+      redirect !== undefined &&
+        (redirect.originalTargetId ?? "").endsWith("_bracer") &&
+        !redirect.targetId.endsWith("_bracer"),
+      redirect
+        ? `originalTargetId=${redirect.originalTargetId} targetId=${redirect.targetId}`
+        : `no "guardBackfire" redirect among ${windupHits.length} windupHit(s)`,
+    );
+  }
+
+  // Bracer (guard), conservation, swept across seeds on Twins (two bruisers
+  // sharing one guard pool — the case the guardClaims reservation exists
+  // for, see types.ts's SideState docstring): no redirect ever claims a
+  // "save"/"betrayal" with an unchanged target (that would be a tell lying
+  // about a no-op), and no fight's real redirects exceed the charges its
+  // own chain(s) actually granted. Runs the REAL config (chains fire and
+  // roll naturally), not forcedCfg — this is a population sweep, not a
+  // single mechanism probe.
+  {
+    let checked = 0;
+    let violation: string | null = null;
+    for (let seed = 93_600; seed < 93_600 + 200 && !violation; seed++) {
+      const player = makePlayerSide(["bracer", "vex", "cairn"]);
+      const enemy = makeEncounterEnemySide(DEFAULT_RUN_CONFIG, 0, encounterIndex("Twins"));
+      const result = runFight({ player, enemy }, cfg, new Rng(seed), seed);
+      checked++;
+      const chargesGranted = result.events
+        .filter((e) => e.type === "chainHit" && e.kind === "guard")
+        .reduce((sum, e) => sum + ((e as { charges?: number }).charges ?? 0), 0);
+      const redirects = result.events.filter(
+        (e) => e.type === "windupHit" && (e.redirect === "guard" || e.redirect === "guardBackfire"),
+      ) as Extract<(typeof result.events)[number], { type: "windupHit" }>[];
+      const noOp = redirects.find((r) => r.targetId === r.originalTargetId);
+      if (noOp) {
+        violation = `seed ${seed}: ${noOp.redirect} claimed a redirect with no target change`;
+      } else if (redirects.length > chargesGranted) {
+        violation = `seed ${seed}: ${redirects.length} redirects exceed ${chargesGranted} charges granted`;
+      }
+    }
+    check(
+      `guard never reports a same-target redirect, and redirects never exceed charges granted (${checked} seeds, Twins)`,
+      violation === null,
+      violation ?? "",
+    );
+  }
+
+  // Bracer (guard), running total (2026-09 guard-visibility pass): forcedCfg's
+  // chainChanceByHitsSoFar: [1] doesn't cap the chain at one rung — prdLookup
+  // repeats a single-entry table's only value forever, so this actually
+  // guarantees continuation all the way to chainMaxHits (see prdLookup's own
+  // docstring). That's exactly what this check wants: several guard rungs in
+  // one chain, so chargesTotal (the pool's running total, added alongside the
+  // pre-existing per-rung `charges`) can be checked against the running sum
+  // instead of just existing.
+  {
+    const events = fullFightEvents(["bracer", "vex"], "The Wall");
+    const hits = events.filter((e) => e.type === "chainHit" && e.kind === "guard") as Extract<
+      (typeof events)[number],
+      { type: "chainHit" }
+    >[];
+    let running = 0;
+    let mismatch: string | null = null;
+    for (const hit of hits) {
+      running += hit.charges ?? 0;
+      if (hit.chargesTotal !== running) {
+        mismatch = `hitIndex ${hit.hitIndex}: chargesTotal=${hit.chargesTotal}, expected running total ${running}`;
+        break;
+      }
+    }
+    check(
+      "Guard's chainHit.chargesTotal is the pool's running total, not this rung's own grant repeated",
+      hits.length > 1 && mismatch === null,
+      mismatch ?? `${hits.length} guard rung(s), totals: ${hits.map((h) => h.chargesTotal).join(",")}`,
+    );
+  }
+
+  // Bracer (guard), death (2026-09 guard-visibility pass): a standing guard
+  // readout makes a stale pool a visible lie the instant the guardian dies,
+  // not just an invisible gap until the enemy's next telegraph tears it down
+  // (guardWindupAim). hp=1 means the very first thing that touches Bracer
+  // kills it while charges still stand (this board's only damage source, a
+  // single bruiser, hasn't even reached its first telegraph yet — see the
+  // heroDown/snapshot timing this was checked against).
+  {
+    const result = (() => {
+      const player = makePlayerSide(["bracer", "vex"]);
+      const bracer = player.heroes.find((h) => h.id.endsWith("_bracer"))!;
+      bracer.charge = forcedCfg.chargeThreshold;
+      bracer.hp = 1;
+      const enemy = makeEncounterEnemySide(forcedRunCfg, 0, encounterIndex("The Wall"));
+      return runFight({ player, enemy }, forcedCfg, new Rng(1), 1);
+    })();
+    const death = result.events.find((e) => e.type === "heroDown" && e.heroId.endsWith("_bracer"));
+    const chargedBeforeDeath = death
+      ? result.snapshots.some((s) => s.t < death.t && s.guardHeroId?.endsWith("_bracer") && s.guardCharges > 0)
+      : false;
+    const afterDeath = death ? result.snapshots.filter((s) => s.t >= death.t) : [];
+    const stillShowing = afterDeath.find((s) => s.guardCharges > 0 || s.guardHeroId !== null);
+    const ok = death !== undefined && chargedBeforeDeath && stillShowing === undefined;
+    check(
+      "A dead guardian's charges clear immediately, not just on the enemy's next telegraph",
+      ok,
+      !death
+        ? "Bracer never died"
+        : !chargedBeforeDeath
+          ? "Bracer died before ever holding a charge to strand"
+          : ok
+            ? `died at t=${death.t} holding charges; cleared same tick, ${afterDeath.length} snapshot(s) checked after`
+            : `still guardCharges=${stillShowing?.guardCharges} guardHeroId=${stillShowing?.guardHeroId} at t=${stillShowing?.t} (death at t=${death.t})`,
     );
   }
 }

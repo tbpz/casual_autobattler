@@ -271,14 +271,16 @@ export interface FightConfig {
   /**
    * Base magnitude for each ChainEffect (2026-09-13, "a hero's chain names
    * its own enemy" rebuild — see DECISIONS.md). A chain rung's actual
-   * strength is always `base * chainEscalationFactor(cfg, hitIndex)` — one
-   * shared curve for all six effects, same as every hero used before this
-   * rebuild. `chainStrikeAllBase`/`chainPoundBase` are damage; `chainMendAllBase`/
-   * `chainMendOneBase` are healing; `chainStunBaseSec`/`chainGuardBaseSec` are
-   * SECONDS, not damage — a duration escalates on the identical curve as a
-   * damage number, which is what lets one curve stay honest across six
-   * different verbs. See fight.ts's resolveChainHit for the switch that reads
-   * these.
+   * strength is `base * chainEscalationFactor(cfg, hitIndex)` — one shared
+   * curve, for five of the six effects. `chainStrikeAllBase`/`chainPoundBase`
+   * are damage; `chainMendAllBase`/`chainMendOneBase` are healing;
+   * `chainStunBaseSec` is SECONDS, not damage — a duration escalates on the
+   * identical curve as a damage number, which is what lets one curve stay
+   * honest across five different verbs. See fight.ts's resolveChainHit for
+   * the switch that reads these.
+   *
+   * `chainGuardChargesPerRung` is the exception (2026-09-15 slam-provability
+   * pass — see its own docstring below): a flat count, not escalated at all.
    *
    * Starting values derived, not guessed, from the pre-rebuild pool: the
    * escalation curve summed against chainChanceByHitsSoFar (below) gives
@@ -287,12 +289,19 @@ export interface FightConfig {
    * reproduces the old single-target attacker's output almost exactly.
    * chainStrikeAllBase and chainMendAllBase are cut roughly by the pool's
    * median living-enemy count (3) so an "everyone at once" effect doesn't
-   * simply dominate a single-target one on every board. chainStunBaseSec/
-   * chainGuardBaseSec are picked in SECONDS directly against
-   * windupIntervalSec/windupTelegraphSec below (a rung-1 guard covers one
-   * telegraph; a rung-7 stun removes a bruiser for roughly two of its own
-   * wind-up cycles) — these are strawmen for the batch harness to move, same
-   * convention as every other value in this file.
+   * simply dominate a single-target one on every board. chainStunBaseSec is
+   * a PER-LINK seconds value, not the whole chain's payoff — fight.ts's
+   * resolveChainHit stun case adds each link's escalated duration onto the
+   * running total the CHAIN has bought so far (2026-09-15 freeze-visibility
+   * pass, replacing an earlier version that kept only the single longest
+   * link), and runFight HOLDS that target frozen at the running total for
+   * as long as the chain stays live (2026-09-16 freeze-layout pass — a
+   * short early link otherwise lapsed before the next one landed, since
+   * links arrive faster than they individually last), draining only once
+   * the chain ends. So the chain's total freeze is the SUM of every landed
+   * link's duration, not just the last one, and it never blinks off
+   * mid-chain. See chainStunBaseSec's own field docstring for the resulting
+   * full-chain math.
    *
    * chainMendOneBase is capped by the heal-clamp guard
    * (chainHealMaxFractionOfTargetMaxHp), not by the old CHAIN_EV_TARGET_HEAL —
@@ -306,8 +315,40 @@ export interface FightConfig {
   chainPoundBase: number;
   chainMendAllBase: number;
   chainMendOneBase: number;
+  /** Per-link freeze duration in seconds, escalated by chainEscalationFactor
+   * like any other base above, then SUMMED across every link that lands
+   * (2026-09-15 freeze-visibility pass — see fight.ts's resolveChainHit stun
+   * case) and HELD without lapsing for as long as the chain stays live
+   * (2026-09-16 freeze-layout pass — see runFight's per-tick freeze-hold
+   * block). A full 7-link chain's total freeze is
+   * `base * sum(chainEscalationFactor(1..7))` = `base * ~40` at this file's
+   * own escalation constants — batch-verify against completion rate and the
+   * failsafe-termination rate before trusting this value played. Checked
+   * at 0.25 (this file's current value) against the 2026-09-16 hold, n=1000,
+   * default draft, always-heal: 18.4% completion / 13.1% dip / 0.1%
+   * failsafe, against an 18.7% / 13.0% / 0.0% pre-hold baseline — the hold
+   * mostly recovers seconds that were being lapsed away between rungs 1-2
+   * and 2-3, not new seconds on top, so it moved overall difficulty by
+   * noise, not by a real amount. No retune needed FOR THE HOLD ITSELF; this
+   * remains otherwise untuned, per the batch-verify note above. */
   chainStunBaseSec: number;
-  chainGuardBaseSec: number;
+
+  /**
+   * How many slam-redirects one "guard" rung buys (2026-09-15,
+   * slam-provability pass — replaces chainGuardBaseSec's time window). The
+   * old window (1.5s) expired before most slams arrived at all — the enemy's
+   * own windupIntervalSec (5) plus windupTelegraphSec (1.5) is a 6.5s cycle —
+   * so a one-hit guard usually did nothing, and the pick screen's own promise
+   * ("Takes the next slam for the squad.", chainEffectLines below) wasn't
+   * actually true. A charge count that waits instead of expiring makes it
+   * true: a rung-1 guard covers exactly one slam, however long the wait.
+   *
+   * Flat, not escalated by chainEscalationFactor — see resolveChainHit's
+   * guard case for why running a charge count through the same curve as a
+   * damage number would produce more charges than a fight has slams to spend
+   * them on.
+   */
+  chainGuardChargesPerRung: number;
 
   /**
    * 2026-09-04 (deciding-factors measurement rig — see
@@ -363,8 +404,8 @@ export interface FightConfig {
  *    (Vex). Good against a crowd.
  *  - "poundBiggest" — damage to the highest-current-HP living body on the
  *    target side, re-picked every rung (Rook). Good against one huge body.
- *  - "guard" — redirects the target side's next telegraphed hit(s) onto the
- *    firing hero for a duration (Bracer). Good against anything that winds
+ *  - "guard" — redirects the target side's next N telegraphed hits onto the
+ *    firing hero, one per rung (Bracer). Good against anything that winds
  *    up.
  *  - "stun" — the front-most living body on the target side can't act for a
  *    duration, cancelling an in-progress wind-up (Hollow). Good against a
@@ -621,8 +662,14 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   chainPoundBase: 6,
   chainMendAllBase: 1,
   chainMendOneBase: 1.5,
-  chainStunBaseSec: 0.8,
-  chainGuardBaseSec: 1.5,
+  // 2026-09-15 freeze-visibility pass: cut from 0.8 now that links ADD UP
+  // instead of a Math.max overwrite (fight.ts's resolveChainHit stun case) —
+  // at the old value a full 7-link chain would freeze a body for ~32s in a
+  // ~20s fight. A strawman for the batch harness to move, same convention as
+  // every other value in this file — not yet re-verified against completion
+  // rate or the failsafe-termination rate.
+  chainStunBaseSec: 0.25,
+  chainGuardChargesPerRung: 1,
 
   // See this field's own docstring above — default "weighted" is today's
   // shipped behaviour (pickWeightedTargetId's dice roll), not a change.

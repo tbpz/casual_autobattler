@@ -69,12 +69,41 @@ export interface HeroState {
    * file's ChainPlan docstring. Undefined until fight.ts's cloneHeroes sets
    * it; enemies get one too (harmless — never read). */
   chainPlan?: ChainPlan;
-  /** Set by an enemy's "stun" chain effect (config.ts's ChainEffect) —
+  /** Set by Hollow's "stun" chain effect (config.ts's ChainEffect) —
    * sim-clock time this hero is unable to act until. Read by the beat loop
    * (fight.ts) to push nextAttackT/nextWindupT past it, and by a bruiser's
    * wind-up start to cancel an in-progress telegraph. Undefined when not
-   * stunned; the render layer uses it for the frozen marker and countdown. */
+   * stunned. Additive across chain links (2026-09-15 freeze-visibility
+   * pass) — each new link extends this past its current value rather than
+   * replacing it, so a longer chain reliably buys a longer freeze.
+   * 2026-09-16 (freeze-layout pass): while stunnedHeld is true, fight.ts
+   * re-pins this to `t + (this chain's running total for this target)`
+   * EVERY tick, not just when a link lands — a chain's links land on
+   * Hollow's own ~0.66s cadence, faster than early links alone last, so
+   * without the hold this value would count down toward the clock and
+   * lapse between links instead of only draining once the whole chain is
+   * over. Snapshot-carried (see events.ts's HeroSnapshot) so fightView.ts
+   * can draw a live countdown instead of racing a wall-clock timer. */
   stunnedUntilT?: number;
+  /** Sim-clock time the CURRENT freeze began — set the instant a stun first
+   * lands on a body that wasn't already frozen, left untouched while later
+   * links extend stunnedUntilT above. Together the two give the render layer
+   * a stable "how full was this bar to start" for a draining countdown;
+   * without it, an extending freeze would have no fixed point to drain
+   * from. 2026-09-16: reset again the instant the CHAIN ends (not just the
+   * freeze) — see fight.ts's releaseStunHold — so a freeze that was HELD for
+   * several seconds still drains its actual final length starting from
+   * "full" at release, rather than looking mostly-drained already. */
+  stunnedFromT?: number;
+  /** True for as long as the CURRENT chain is still buying this hero's
+   * freeze (2026-09-16 freeze-layout pass) — fight.ts sets it the instant a
+   * stun link first lands on this hero and clears it (via releaseStunHold)
+   * the instant that chain ends, wherever that happens. While true, the
+   * freeze is being HELD (fightView.ts shows it full, with the seconds
+   * counting up as links add to it) rather than draining; once false, it
+   * drains normally from stunnedUntilT down to stunnedFromT. Undefined
+   * outside of a stun chain currently touching this hero. */
+  stunnedHeld?: boolean;
 
   /** Per-fight job counters (2026-08-06 legibility pass) — zeroed at fight
    * start by cloneHeroes, never carried between fights. These are the
@@ -125,6 +154,12 @@ export interface HeroState {
    * ("can your squishies survive"), deliberately bypassing tank aggro
    * entirely for this one threat. */
   windupTargeting?: "weighted" | "lowestHp";
+  /** Enemy bruiser only: true while the CURRENT telegraph reserved a guard
+   * charge at pick time (fight.ts's guardWindupAim/handleBruiserBeat,
+   * 2026-09-15) — released back to SideState.guardClaims the instant this
+   * telegraph resolves, whether or not it ends up spending a real charge.
+   * Only matters when two bruisers wind up under one shared guard. */
+  windupGuardClaimed?: boolean;
 }
 
 export interface SideState {
@@ -135,15 +170,30 @@ export interface SideState {
   dpsBonus: number;
 
   /** Set by a "guard" chain effect (config.ts's ChainEffect, Bracer's
-   * identity) — while sim-clock time is before guardUntilT, an enemy wind-up
-   * that would land on this side redirects (fight.ts's handleBruiserBeat).
-   * Always set on the PLAYER side, since only the enemy ever winds up.
-   * guardInverted (set by a backfired guard) redirects onto the player's
-   * OWN lowest-HP hero instead of onto the guarding hero — Bracer stepping
-   * aside rather than stepping in. Per-fight only; never carried by roster.ts. */
+   * identity) — while guardCharges > 0, an enemy wind-up that would land on
+   * this side aims away from the guardian instead (fight.ts's
+   * guardWindupAim), then redirects onto the guardian at impact
+   * (handleBruiserBeat), spending one charge. A count, not a deadline
+   * (2026-09-15 slam-provability pass) — the pick screen already promises
+   * "the next slam," and a charge that waits instead of expiring is the only
+   * way to make that literally true. Always set on the PLAYER side, since
+   * only the enemy ever winds up. guardInverted (set by a backfired guard)
+   * forces the telegraph ONTO the guardian instead, then swings the slam
+   * away onto the player's own lowest-HP hero (excluding the guardian) at
+   * impact — Bracer stepping aside rather than stepping in. Per-fight only;
+   * never carried by roster.ts. */
   guardHeroId?: string | null;
-  guardUntilT?: number;
+  guardCharges?: number;
   guardInverted?: boolean;
+  /** Charges already claimed by a telegraph in flight but not yet spent at
+   * impact — reserved the instant an aim is forced/excluded (fight.ts's
+   * guardWindupAim) and released when that slam resolves. Only matters when
+   * more than one bruiser winds up under the same guard (Twins, Glass Pair):
+   * without a reservation, two telegraphs would both aim away from the
+   * guardian off a single charge, and the second slam would land on a
+   * squishy it would otherwise have missed — a harder fight than before the
+   * fix. guardCharges - guardClaims is the count still available to aim by. */
+  guardClaims?: number;
 }
 
 export function sideMaxHp(side: SideState): number {

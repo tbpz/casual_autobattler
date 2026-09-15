@@ -69,6 +69,31 @@ import type { RunResult } from "../sim/run.js";
  *  - fractionChainsWhileLosing: of all fired chains, what fraction fired
  *    while the player's pool was below 40% of its fight-start max.
  *
+ * Two more added for the 2026-09-15 slam-provability pass (see DECISIONS.md
+ * — Bracer's guard became a charge count instead of a time window
+ * specifically because nothing measured how often a redirect actually
+ * happened; without a number, the fix's own claim couldn't be checked):
+ *  - guardChargesGranted / slamsRedirected: totals across all fights, not
+ *    rates — a rate alone can't show whether the DENOMINATOR moved (are
+ *    guards firing at all) or just the ratio.
+ *  - fractionGuardChargesSpent: slamsRedirected / guardChargesGranted. NOT a
+ *    "should approach 100%" number — measured at 31.2% on the default draft
+ *    (n=1000), and that is expected, not a sign of a broken redirect. Two
+ *    structural caps keep it well under 100% even when the mechanism is
+ *    working perfectly: 3 of the 11 encounters (Pack, Anvil, Ambush) field
+ *    no bruiser at all, so a guard that fires there can never spend a single
+ *    charge that fight (per-fight only, never carried by roster.ts — see
+ *    types.ts's SideState docstring); and a long chain can grant more
+ *    charges (up to chainMaxHits) than a ~20s fight has slam cycles
+ *    (windupIntervalSec) left to spend them on before it ends. What this
+ *    metric actually proves the fix did: it was ~0% before (a guard usually
+ *    expired before any slam arrived, or the slam it caught was already
+ *    headed for the guardian) and is now bounded only by opportunity, not by
+ *    the mechanism failing to use an opportunity it had — checks/chaindist.ts's
+ *    guard behaviour checks verify THAT more directly (every redirect is
+ *    real, never a same-target no-op), this metric is the population-level
+ *    corroboration.
+ *
  * One more added 2026-08-26, and kept after the CLOCK/WOUNDED removal
  * (2026-08-27 — see DECISIONS.md) since it answers a question about the
  * fight in general, not about that mechanism:
@@ -145,6 +170,10 @@ export interface BatchReport {
   backfireRate: number;
   fractionChainsBackfired: number;
   durationPercentiles: { p10: number; p25: number; median: number; p75: number; p90: number; p99: number };
+  /** See this file's top docstring, 2026-09-15 slam-provability entry. */
+  guardChargesGranted: number;
+  slamsRedirected: number;
+  fractionGuardChargesSpent: number;
 }
 
 /**
@@ -177,6 +206,8 @@ export class BatchAggregator {
   private chainsBackfired = 0;
   private backfireFights = 0;
   private fightsWithChain5Plus = 0;
+  private guardChargesGranted = 0;
+  private slamsRedirected = 0;
   // One scalar per fight (fr.durationSec), not the fight's own per-tick
   // snapshot array — see this file's top docstring, 2026-08-26 entry.
   private durations: number[] = [];
@@ -211,6 +242,7 @@ export class BatchAggregator {
       if (fr.chainLength >= this.cfg.fight.chainFullTellThreshold) this.fullSpectacleFights++;
       if (fr.chainLength >= 5) this.fightsWithChain5Plus++;
       if (this.hasWindupDeath(fr.events)) this.windupDeathFights++;
+      this.countGuardActivity(fr.events);
       this.totalDuration += fr.durationSec;
       this.totalDurationSq += fr.durationSec * fr.durationSec;
       this.durations.push(fr.durationSec);
@@ -254,6 +286,17 @@ export class BatchAggregator {
       if (snap && snap.playerMaxHp > 0 && snap.playerHp / snap.playerMaxHp < 0.4) this.chainsWhileLosing++;
     }
     if (sawBackfire) this.backfireFights++;
+  }
+
+  /** Tallies this fight's guard activity — how many charges its chain(s)
+   * granted (chainHit events of kind "guard") against how many slams
+   * actually got redirected (windupHit events with redirect "guard" or
+   * "guardBackfire") — see this file's top docstring, 2026-09-15 entry. */
+  private countGuardActivity(events: RunResult["fightResults"][number]["events"]): void {
+    for (const e of events) {
+      if (e.type === "chainHit" && e.kind === "guard") this.guardChargesGranted += e.charges ?? 0;
+      else if (e.type === "windupHit" && (e.redirect === "guard" || e.redirect === "guardBackfire")) this.slamsRedirected++;
+    }
   }
 
   /** True if some player hero's death (a heroDown event) landed on the same
@@ -310,6 +353,9 @@ export class BatchAggregator {
       backfireRate: this.totalFights > 0 ? this.backfireFights / this.totalFights : 0,
       fractionChainsBackfired: this.chainsFired > 0 ? this.chainsBackfired / this.chainsFired : 0,
       durationPercentiles,
+      guardChargesGranted: this.guardChargesGranted,
+      slamsRedirected: this.slamsRedirected,
+      fractionGuardChargesSpent: this.guardChargesGranted > 0 ? this.slamsRedirected / this.guardChargesGranted : 0,
     };
   }
 }
@@ -341,6 +387,7 @@ export function formatReport(report: BatchReport, label: string): string {
     `  chains while losing:   ${(report.fractionChainsWhileLosing * 100).toFixed(1)}%  (<40% pool when fired)`,
     `  backfire rate:         ${(report.backfireRate * 100).toFixed(1)}%  (fraction of fights with >=1 backfire)`,
     `  chains backfired:      ${(report.fractionChainsBackfired * 100).toFixed(1)}%  (tracks the pool's chain-weighted mean backfireChanceFor)`,
+    `  guard charges spent:   ${(report.fractionGuardChargesSpent * 100).toFixed(1)}%  (${report.slamsRedirected}/${report.guardChargesGranted} — bounded by opportunity, not by the mechanism; see this file's docstring)`,
   ];
   return lines.join("\n");
 }

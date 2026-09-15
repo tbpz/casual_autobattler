@@ -51,13 +51,16 @@ export interface HeroDef {
  *   Cairn   mendAll        steady chip damage from many small hits
  *   Ward    mendOne        a threat that hunts one hero to kill it
  *
- * All six escalate on the SAME curve (config.ts's chainEscalationFactor) and
- * the same continuation table (chainChanceByHitsSoFar) — heroes no longer
- * carry their own fuse length or steepness. The run still escalates and still
- * carries the same surprise (it might be 2 rungs, might be 7); it just
- * carries a verb now instead of a bare number. See config.ts's ChainEffect
- * and FightConfig's chainStrikeAllBase/chainPoundBase/chainMendAllBase/
- * chainMendOneBase/chainStunBaseSec/chainGuardBaseSec for the per-effect base
+ * All six share the same continuation table (chainChanceByHitsSoFar), and
+ * five of six escalate on the same curve (config.ts's chainEscalationFactor)
+ * — heroes no longer carry their own fuse length or steepness. guard is the
+ * one exception: its per-rung value is a flat charge rather than an
+ * escalating number (2026-09-15 — see fight.ts's resolveChainHit guard case
+ * for why). The run still escalates and still carries the same surprise (it
+ * might be 2 rungs, might be 7); it just carries a verb now instead of a bare
+ * number. See config.ts's ChainEffect and FightConfig's
+ * chainStrikeAllBase/chainPoundBase/chainMendAllBase/chainMendOneBase/
+ * chainStunBaseSec/chainGuardChargesPerRung for the per-effect base
  * magnitudes, and fight.ts's resolveChainHit for the switch that reads them.
  *
  * `chainAffinity` is untouched by this pass — it is still purely the

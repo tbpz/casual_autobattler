@@ -59,12 +59,20 @@ body {
   overflow: hidden;
 }
 
+/* Enemy row on top, player row on the bottom, front ranks meeting in the
+   middle (2026-09-16 upright-field pass — replaces the old side-by-side
+   row, which drew the player's own tank furthest from the fight and its
+   healer at the clash line, since both sides shared one left-to-right
+   order). fightView.ts's constructor appends enemySlots, .centre-line, then
+   playerSlots in that order; this column direction is what turns that DOM
+   order into top/bottom on screen. */
 .arena {
   position: relative;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 14px;
   min-height: 160px;
   padding: 12px 12px 0;
   /* Headroom for .chain-hud/.chain-end-card, which sit well above this box
@@ -73,6 +81,17 @@ body {
      moved out of this band entirely (see .callout-band below), so this is
      now purely about the clipping edge, not a collision with .callout. */
   margin-top: 46px;
+}
+
+/* Marks where the two rows meet (2026-09-16 upright-field pass) — a real
+   element rather than a border/pseudo-element on .arena, so it sits exactly
+   at the gap between the rows instead of at a guessed midpoint. */
+.centre-line {
+  width: 100%;
+  height: 1px;
+  margin: 1px 0;
+  background: linear-gradient(90deg, transparent, var(--muted) 15%, var(--muted) 85%, transparent);
+  opacity: 0.3;
 }
 
 .arena.shake {
@@ -98,20 +117,22 @@ body {
   }
 }
 
-/* Each side's flex-grow is set inline to that side's total maxHp (see
-   fightView.ts's buildSide) — this is the outer half of the two-level
-   proportional-bar scheme: total width given to a side of the arena tracks
-   that side's total HP, and within a side, each hero-slot's flex-grow (also
-   inline, per-hero maxHp) subdivides it further. Together this gives one
-   shared pixel-per-HP scale across all six-or-fewer bars, which is what lets
-   a glancing player still read "who's winning" from per-hero bars alone
-   (2026-08-06 — see DECISIONS.md's "per-hero HP bars" entry, which
-   supersedes the old two-aggregate-meter design specifically to fix this). */
+/* Each hero-slot's WIDTH is set inline to a direct fraction of the two
+   sides' COMBINED maxHp (fightView.ts's buildSide) — one shared
+   pixel-per-HP scale across all six-or-fewer bars on screen, which is what
+   lets a glancing player still read "who's winning" from per-hero bars
+   alone (2026-08-06 — see DECISIONS.md's "per-hero HP bars" entry). Before
+   the 2026-09-16 upright-field pass this came from two nested levels of
+   flex-grow (a side's total maxHp, subdividing further per hero); once the
+   two sides stacked instead of sitting side by side, a side's flex-grow
+   would have sized its HEIGHT instead of its width, so the scale now comes
+   from one direct number instead. */
 .side {
   display: flex;
   align-items: flex-start;
+  justify-content: center;
   gap: 10px;
-  flex: 1 1 0;
+  width: 100%;
   min-width: 0;
 }
 
@@ -124,10 +145,76 @@ body {
   min-width: 44px;
 }
 
+/* --body-size, one per role (2026-09-16 freeze-layout pass) — declared once
+   here instead of twice (once on .body.role-*, once on .freeze-ring below),
+   since the ring has to track whatever size the body actually renders at.
+   Values unchanged from .body.role-* below; role-support/role-bruiser's own
+   shape and colour stay on .body itself, only sizing moved. */
+.hero-slot.role-tank {
+  --body-size: 52px;
+}
+
+.hero-slot.role-damage,
+.hero-slot.role-grunt {
+  --body-size: 34px;
+}
+
+.hero-slot.role-support {
+  --body-size: 40px;
+}
+
+.hero-slot.role-bruiser {
+  --body-size: 68px;
+}
+
+/* The body's own depth cell (2026-09-16 upright-field pass — see
+   fightView.ts's makeHeroSlot/HeroSlot). status/body/freeze-ring live
+   inside this instead of straight in .hero-slot, so buildSide's single
+   --lean-y transform can move the whole unit toward or away from the
+   centre line as one piece, without touching name/hp-bar/counter below —
+   those stay ordinary flow siblings underneath, at a fixed position.
+   Height reserves --body-size (the biggest thing inside) plus a little
+   slack for the lean itself; body sits flush at the TOP of that box (flex's
+   own default alignment, one in-flow child), which is exactly where it sat
+   as .hero-slot's own first child before — the reason .hero-status/
+   .freeze-ring below need no position change despite now anchoring to this
+   element instead of .hero-slot directly. */
+.body-perch {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: calc(var(--body-size, 40px) + 10px);
+  transform: translateY(var(--lean-y, 0px));
+}
+
+/* A faint ground shadow under the body (2026-09-16 upright-field pass) —
+   the depth cue a lean alone can't carry on its own: something to visibly
+   sit ON, not just float at a different height. ::before so it paints
+   BEHIND the body (a real DOM child, painted after generated content in the
+   same stacking context) rather than over it. */
+.body-perch::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--body-size, 40px) - 5px);
+  left: 50%;
+  width: calc(var(--body-size, 40px) * 0.85);
+  height: 6px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  filter: blur(2px);
+  pointer-events: none;
+}
+
 /* A tank-break/recover tell, anchored to its own hero (2026-08-06
    attributability pass) instead of the shared arena .callout — see
    fightView.ts's showTankTransition. Quiet by design: small, muted, no
-   shake. */
+   shake. 2026-09-16: now a child of .body-perch, not .hero-slot directly
+   (see .body-perch's own docstring) — top:-14px reads the same either way,
+   since the perch's top-left is where .hero-slot's own top-left used to
+   be. */
 .hero-status {
   position: absolute;
   top: -14px;
@@ -143,6 +230,16 @@ body {
 
 .hero-status.show {
   animation: heroStatusPop 1s ease-out forwards;
+}
+
+/* The redirect payoff register (2026-09-15 slam-provability pass) — TAKES
+   THE SLAM / STEPS ASIDE need to stand out from the routine traffic this
+   same line otherwise carries (tank-break, ignition miss). Colour comes from
+   an inline style set by fightView.ts's showHeroStatusTell; this only sizes
+   and glows it. */
+.hero-status.loud {
+  font-size: 0.72em;
+  text-shadow: 0 0 6px currentColor;
 }
 
 @keyframes heroStatusPop {
@@ -368,6 +465,151 @@ body {
   background: var(--windup);
 }
 
+/* Bracer's guard, as a standing "N slams covered" row (2026-09-15
+   guard-visibility pass) — a direct slot child, same shape as
+   .charge-track/.charge-label above. Hidden by default; fightView.ts's
+   updateSide reveals it (.show) only on the hero who is the CURRENT
+   guardian, with charges > 0 (SideState.guardHeroId/guardCharges) — never on
+   the enemy side, since guardHeroId is always a player hero id. */
+.guard-pips {
+  display: none;
+  align-items: center;
+  gap: 3px;
+}
+
+.guard-pips.show {
+  display: flex;
+}
+
+.enemy-side .guard-pips {
+  display: none !important;
+}
+
+.guard-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: #2a2e3a;
+  border: 1px solid #3a3f4e;
+  transition:
+    background 0.15s ease-out,
+    border-color 0.15s ease-out;
+}
+
+.guard-pip.filled {
+  background: var(--chain);
+  border-color: var(--chain);
+}
+
+.guard-pip.hidden {
+  display: none;
+}
+
+/* A backfired pool (guardInverted) redirects the slam onto the player's OWN
+   weakest hero instead of eating it — a threat, not protection — so the
+   row flips to the same red as a backfired chain rather than staying gold. */
+.guard-pips.inverted .guard-pip.filled {
+  background: var(--backfire);
+  border-color: var(--backfire);
+}
+
+/* Past GUARD_PIP_CAP, individual pips stop being faster to read than the
+   number — the row collapses to this instead (see fightView.ts). */
+.guard-count {
+  font-size: 0.6em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--chain);
+  white-space: nowrap;
+}
+
+.guard-pips.inverted .guard-count {
+  color: var(--backfire);
+}
+
+.guard-count.hidden {
+  display: none;
+}
+
+/* Hollow's "stun" chain effect, as a ring drawn around the hero's own body
+   (2026-09-16 freeze-layout pass — replaces a countdown ROW that lived
+   inside .hero-slot's own flex stack: appearing/disappearing there grew and
+   shrank the card itself, shoving every card below it up and down each time
+   a freeze started or ended). An absolutely-positioned SIBLING of .body
+   (fightView.ts's makeHeroSlot appends it straight to .hero-slot), so it
+   never occupies layout either way — shown/hidden with opacity, not
+   display, for the same reason plus a short fade instead of a hard cut.
+   Sized off --body-size (declared per role on .hero-slot.role-* above) so
+   it always matches whatever body it surrounds without its own copy of
+   those four numbers. Built on BOTH sides (unlike .guard-pips): a backfired
+   freeze lands on a player hero. fightView.ts's updateFreezeTells reveals it
+   (.show) only while this hero's own HeroSnapshot.stunnedUntilT is still
+   ahead of the current tick, and drives --freeze-frac (0..1, how much of the
+   ring is still full) every tick it's visible. */
+.freeze-ring {
+  --ring: 4px;
+  position: absolute;
+  /* .body is the first IN-FLOW child of .body-perch (.hero-status above it
+     is itself position:absolute, so it doesn't count) — anchoring to the
+     perch's own top edge and centering horizontally, rather than centering
+     on the whole card's box, is what keeps this aligned to the BODY
+     specifically instead of drifting down toward the HP bar/name/counters
+     stacked below it. 2026-09-16: the perch (not .hero-slot) is now the
+     nearest positioned ancestor, but its top-left is exactly where
+     .hero-slot's own used to be, so this math is unchanged. */
+  top: calc(var(--ring) * -1);
+  left: 50%;
+  width: calc(var(--body-size, 40px) + var(--ring) * 2);
+  height: calc(var(--body-size, 40px) + var(--ring) * 2);
+  transform: translateX(-50%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.12s ease-out;
+  pointer-events: none;
+  /* The sweep drains right-to-left with the remaining time, same read as a
+     telegraph's own SLAM bar (.charge-fill.windup) — full means "just
+     landed" (or "still being bought," see updateFreezeTells's stunnedHeld
+     branch), empty means "about to act again." No transition on the
+     gradient itself: fightView.ts already recomputes --freeze-frac every
+     tick straight off the sim clock, so an added CSS transition would only
+     lag a value that's already smooth. Masked to a ring (radial-gradient
+     with a transparent centre) so .body shows through the hole instead of
+     being covered by it. */
+  background: conic-gradient(#7ec8ff calc(var(--freeze-frac, 0) * 360deg), #2a2e3a 0deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring) - 1px), white calc(100% - var(--ring)));
+  mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring) - 1px), white calc(100% - var(--ring)));
+}
+
+.freeze-ring.show {
+  opacity: 1;
+}
+
+.freeze-secs {
+  font-size: 0.55em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
+  color: #7ec8ff;
+  background: rgba(20, 22, 28, 0.85);
+  padding: 1px 4px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* A backfired freeze lands on the player's own hero, not the enemy — same
+   "this went wrong" red every other backfired tell uses, so it never reads
+   as indistinguishable from freezing the boss on purpose. */
+.player-side .freeze-ring {
+  background: conic-gradient(var(--backfire) calc(var(--freeze-frac, 0) * 360deg), #2a2e3a 0deg);
+}
+
+.player-side .freeze-secs {
+  color: var(--backfire);
+}
+
 .body {
   position: relative;
   border-radius: 50%;
@@ -383,42 +625,41 @@ body {
     filter 0.15s ease-out;
 }
 
+/* --flinch-y (2026-09-16 upright-field pass) — the rows are stacked now, so
+   a hit lands from above the player row and from below the enemy row; a
+   flinch should knock a body away from whoever hit it, not sideways
+   regardless of side (see @keyframes flinch below). */
 .body.player-body {
   background: var(--player);
+  --flinch-y: 4px;
 }
 
 .body.enemy-body {
   background: var(--enemy);
+  --flinch-y: -4px;
 }
 
 /* Role sizing/shape — a tank or bruiser reads as bigger and tougher at a
    glance; support gets a squarish shape to hint "utility" rather than a
    fighter; the bruiser is the biggest and most saturated body on screen,
-   since killing it is meant to be the dip's legible turnaround. */
-.body.role-tank {
-  width: 52px;
-  height: 52px;
-}
-
-.body.role-damage {
-  width: 34px;
-  height: 34px;
+   since killing it is meant to be the dip's legible turnaround. Sizes come
+   from --body-size (2026-09-16 freeze-layout pass, declared once per role on
+   .hero-slot.role-* above) so .freeze-ring can read the same number instead
+   of a second copy of these four values. */
+.body.role-tank,
+.body.role-damage,
+.body.role-support,
+.body.role-grunt,
+.body.role-bruiser {
+  width: var(--body-size);
+  height: var(--body-size);
 }
 
 .body.role-support {
-  width: 40px;
-  height: 40px;
   border-radius: 10px;
 }
 
-.body.role-grunt {
-  width: 34px;
-  height: 34px;
-}
-
 .body.role-bruiser {
-  width: 68px;
-  height: 68px;
   background: #b23b3b;
   box-shadow: 0 0 10px 2px rgba(178, 59, 59, 0.5);
 }
@@ -549,11 +790,17 @@ body {
 
 /* Hollow's "stun" chain effect (2026-09-13 rebuild) — a frozen body reads as
  * visibly unable to act, distinct from .broken (a tank's line failing) and
- * .charging (a wind-up in progress, which a stun cancels outright). */
+ * .charging (a wind-up in progress, which a stun cancels outright). Toggled
+ * by fightView.ts's updateFreezeTells off the snapshot every tick (2026-09-15
+ * freeze-visibility pass) — no longer a wall-clock setTimeout, so this stays
+ * correct under pause/step/scrub and through a chain's own time dilation
+ * instead of dropping 2.5-4.5x too early. No outline of its own (2026-09-16
+ * freeze-layout pass dropped the old fixed 2px ring) — .freeze-ring sits
+ * directly against this body's edge and already carries that band, now as a
+ * sweep that empties instead of a ring that's always fully drawn regardless
+ * of how much freeze is left. */
 .body.frozen {
   filter: saturate(0.3) brightness(1.3) hue-rotate(160deg);
-  outline: 2px solid #7ec8ff;
-  outline-offset: 2px;
 }
 
 /* Ambient dimming while a chain is live (2026-08-14 pacing pass) — the
@@ -612,18 +859,21 @@ body {
 /* --flinch-scale (0.15-1, set per-hit by fightView.ts from damage as a
    fraction of the target's maxHp) makes a heavy hit visibly heavier than a
    graze — a graze barely brightens or shifts, a near-max hit does both
-   hard. */
+   hard. --flinch-y (2026-09-16 upright-field pass, .body.player-body/
+   .body.enemy-body above) knocks the body away from whoever hit it — down
+   for the player row (hit from above), up for the enemy row (hit from
+   below) — replacing the old side-blind translateX. */
 @keyframes flinch {
   0% {
     filter: brightness(1);
   }
   30% {
     filter: brightness(calc(1 + 0.9 * var(--flinch-scale, 1))) saturate(1.4);
-    transform: translateX(calc(-4px * var(--flinch-scale, 1)));
+    transform: translateY(calc(var(--flinch-y, -4px) * var(--flinch-scale, 1)));
   }
   100% {
     filter: brightness(1);
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
@@ -689,6 +939,25 @@ body {
   transform-origin: 0 50%;
   pointer-events: none;
   transition: opacity 0.15s linear;
+}
+
+/* The redirect swing's own colour (2026-09-15 slam-provability pass,
+   fightView.ts's startAimSwing) — overrides .aim-line's default slam-red for
+   the swing's duration only (both classes are removed again once it ends),
+   so a save and a betrayal can never be mistaken for each other even at a
+   glance. swing-save reuses the heal colour (#6ee7a0, matches
+   fightView.ts's HEAL_ACCENT and .damage-popup.heal above) rather than a new
+   hue — "protected" already reads as green everywhere else in the fight;
+   swing-betray reuses --backfire, same as every other "this went wrong"
+   tell. */
+.aim-line.swing-save {
+  background: #6ee7a0;
+  box-shadow: 0 0 6px 2px #6ee7a0;
+}
+
+.aim-line.swing-betray {
+  background: var(--backfire);
+  box-shadow: 0 0 6px 2px var(--backfire);
 }
 
 /* A chain tracer (see fightView.ts's showChainHit) — bigger and glowier

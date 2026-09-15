@@ -48,6 +48,16 @@ function applyDamageFrom(
     }
     if (!spillOverkill) break;
   }
+  // A dead guardian stops covering anything (2026-09-15 guard-visibility
+  // pass) — otherwise the pool only tears down on the enemy's NEXT wind-up
+  // (guardWindupAim below), and a standing guard readout would keep showing
+  // charges nobody is left to spend on Bracer's behalf.
+  if (side.guardHeroId && died.includes(side.guardHeroId)) {
+    side.guardCharges = 0;
+    side.guardClaims = 0;
+    side.guardHeroId = null;
+    side.guardInverted = false;
+  }
   return { died, applied: amount - remaining, lost: remaining };
 }
 
@@ -161,25 +171,82 @@ function pickEnemyTargetId(
   return pickRoundRobinTargetId(side, cfg, tally);
 }
 
+/** Who a live guard forces the telegraph toward or away from — resolved once
+ * per telegraph pick (2026-09-15 slam-provability pass, see types.ts's
+ * SideState.guardCharges docstring). `excludeId` is the ordinary case: a
+ * protective guard has charges, so the bruiser must lock onto someone else,
+ * leaving the guard's eventual redirect a real, visible change of target.
+ * `forceId` is the backfired mirror: the slam must lock onto the guardian
+ * ITSELF so a backfire can swing visibly AWAY at impact — excluding the
+ * eventual victim wouldn't work, since the lowest-HP hero at telegraph time
+ * isn't necessarily the lowest-HP hero 1.5s later when the hit lands. Returns
+ * null when there's no usable guard: no charges left after reservations, or
+ * the guardian has died (in which case the guard is torn down here too, so a
+ * stale guardHeroId doesn't linger on the snapshot). */
+interface GuardAim {
+  forceId?: string;
+  excludeId?: string;
+}
+function guardWindupAim(player: SideState): GuardAim | null {
+  const available = (player.guardCharges ?? 0) - (player.guardClaims ?? 0);
+  if (available <= 0) return null;
+  const guardian = player.guardHeroId ? player.heroes.find((h) => h.id === player.guardHeroId) : undefined;
+  if (!guardian || !guardian.alive || guardian.hp <= 0) {
+    player.guardCharges = 0;
+    player.guardClaims = 0;
+    player.guardHeroId = null;
+    return null;
+  }
+  return player.guardInverted ? { forceId: guardian.id } : { excludeId: guardian.id };
+}
+
 /** Picks a wind-up's target per the bruiser's own windupTargeting rule
  * (2026-08-09, encounter-table pass — see types.ts's HeroState docstring and
  * sim/encounters.ts). Falls back to the normal weighted rule when unset, so
- * every pre-existing bruiser (no field set) behaves exactly as before. */
+ * every pre-existing bruiser (no field set) behaves exactly as before.
+ *
+ * `aim` (guardWindupAim above) is applied on top of that rule rather than
+ * instead of it — a forced target short-circuits everything, an excluded
+ * target is filtered from the candidate pool before either targeting rule
+ * runs, and a pool a filter empties (the guardian is the only living hero)
+ * falls back to the unfiltered pick so a telegraph never comes back empty. */
 function pickWindupTargetId(
   hero: HeroState,
   player: SideState,
   rng: Rng,
   cfg: FightConfig,
   enemyTargetTally: Map<string, number> | undefined,
+  aim?: GuardAim | null,
 ): string | undefined {
-  if (hero.windupTargeting === "lowestHp") return lowestHpAliveHero(player)?.id;
-  return pickEnemyTargetId(player, rng, cfg, enemyTargetTally);
+  if (aim?.forceId) {
+    const forced = player.heroes.find((h) => h.id === aim.forceId && h.alive && h.hp > 0);
+    if (forced) return forced.id;
+  }
+  const pool: SideState =
+    aim?.excludeId && player.heroes.some((h) => h.id === aim.excludeId)
+      ? { ...player, heroes: player.heroes.filter((h) => h.id !== aim.excludeId) }
+      : player;
+  const pick =
+    hero.windupTargeting === "lowestHp"
+      ? lowestHpAliveHero(pool)?.id
+      : pickEnemyTargetId(pool, rng, cfg, enemyTargetTally);
+  if (pick) return pick;
+  // Excluding the guardian emptied the pool (it's the only living hero) —
+  // fall back to the unfiltered pick rather than return no target at all.
+  return pool === player
+    ? undefined
+    : hero.windupTargeting === "lowestHp"
+      ? lowestHpAliveHero(player)?.id
+      : pickEnemyTargetId(player, rng, cfg, enemyTargetTally);
 }
 
-function lowestHpAliveHero(side: SideState): HeroState | undefined {
+/** excludeId skips the guardian when a backfired guard needs a NEW victim —
+ * without it, a backfire whose guardian happens to already be the lowest-HP
+ * hero would silently resolve as a protective save (2026-09-15). */
+function lowestHpAliveHero(side: SideState, excludeId?: string): HeroState | undefined {
   let best: HeroState | undefined;
   for (const h of side.heroes) {
-    if (!h.alive || h.hp <= 0) continue;
+    if (!h.alive || h.hp <= 0 || h.id === excludeId) continue;
     if (!best || h.hp < best.hp) best = h;
   }
   return best;
@@ -235,6 +302,9 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
     windupTargetId: h.windupTargetId,
     nextWindupT: h.nextWindupT,
     windupIntervalSec: h.windupIntervalSec,
+    stunnedUntilT: h.stunnedUntilT,
+    stunnedFromT: h.stunnedFromT,
+    stunnedHeld: h.stunnedHeld,
   }));
 }
 
@@ -360,35 +430,58 @@ function handleBruiserBeat(
     if (t < hero.windupFireT) return false; // still telegraphing
     // Charge resolves. If the locked target died to something else first,
     // retarget fresh — the threat was real, just not to that hero anymore.
+    // The fresh pick still honors a live guard's exclusion (guardWindupAim)
+    // so a mid-telegraph death can't hand the guardian back to the RNG.
     const originalTargetId = hero.windupTargetId ?? null;
     const lockedAlive = originalTargetId !== null && player.heroes.some((h) => h.id === originalTargetId && h.alive);
-    let targetId = lockedAlive ? (originalTargetId as string) : pickWindupTargetId(hero, player, rng, cfg, enemyTargetTally);
-    // `redirect` (2026-09-13 slam-visibility pass) names WHY the final
-    // target differs from the locked one — a plain retarget (the locked
-    // hero died to something else) vs. Bracer's guard stepping in below —
-    // so the render layer can tell the two apart instead of only seeing an
-    // unexplained diff between windupStart's target and this hit's.
-    let redirect: "guard" | "targetDied" | null = !lockedAlive && originalTargetId !== null ? "targetDied" : null;
+    let targetId = lockedAlive
+      ? (originalTargetId as string | undefined)
+      : pickWindupTargetId(hero, player, rng, cfg, enemyTargetTally, guardWindupAim(player));
+    // `redirect` (2026-09-13 slam-visibility pass, reworked 2026-09-15) names
+    // WHY the final target differs from the locked one — a plain retarget
+    // (the locked hero died to something else) vs. Bracer's guard stepping
+    // in or aside below — so the render layer can tell them apart instead of
+    // only seeing an unexplained diff between windupStart's target and this
+    // hit's.
+    let redirect: "guard" | "guardBackfire" | "targetDied" | null =
+      !lockedAlive && originalTargetId !== null ? "targetDied" : null;
+
+    // Release this telegraph's own reservation (if the pick above applied
+    // one) before deciding whether a charge is actually spendable — the
+    // reservation's only job was keeping a SECOND bruiser's telegraph
+    // (Twins, Glass Pair) from also excluding the guardian off the same
+    // charge; it plays no further role once this slam is resolving.
+    if (hero.windupGuardClaimed) {
+      player.guardClaims = Math.max(0, (player.guardClaims ?? 0) - 1);
+      hero.windupGuardClaimed = false;
+    }
+
     // Bracer's "guard" chain effect (config.ts's ChainEffect) redirects a
     // telegraphed hit at the moment it lands, not at telegraph start — a
     // real payoff sends it to the guarding hero; a backfire (guardInverted)
-    // sends it to the player's own lowest-HP hero instead, Bracer stepping
-    // aside rather than stepping in. A window in time (guardUntilT), not a
-    // single consumable charge — every wind-up that fires before it expires
-    // redirects, which is what lets a long chain guard several cycles.
-    if (player.guardUntilT !== undefined && t < player.guardUntilT) {
+    // sends it to the player's own lowest-HP hero (excluding the guardian)
+    // instead, Bracer stepping aside rather than stepping in. Spends exactly
+    // one charge, and only when the target actually changes — with
+    // guardWindupAim steering the telegraph away from (or, backfired, onto)
+    // the guardian, a same-target no-op should now be rare, but a guard that
+    // became live only after this telegraph already locked its target can
+    // still produce one.
+    const guardian = player.guardHeroId ? player.heroes.find((h) => h.id === player.guardHeroId) : undefined;
+    if (targetId && guardian && guardian.alive && guardian.hp > 0 && (player.guardCharges ?? 0) > 0) {
       if (player.guardInverted) {
-        const inverted = lowestHpAliveHero(player)?.id ?? targetId;
-        if (inverted !== targetId) redirect = "guard";
-        targetId = inverted;
-      } else {
-        const guardian = player.heroes.find((h) => h.id === player.guardHeroId && h.alive);
-        if (guardian) {
-          if (guardian.id !== targetId) redirect = "guard";
-          targetId = guardian.id;
+        const inverted = lowestHpAliveHero(player, guardian.id)?.id;
+        if (inverted && inverted !== targetId) {
+          targetId = inverted;
+          redirect = "guardBackfire";
+          player.guardCharges = (player.guardCharges ?? 0) - 1;
         }
+      } else if (guardian.id !== targetId) {
+        targetId = guardian.id;
+        redirect = "guard";
+        player.guardCharges = (player.guardCharges ?? 0) - 1;
       }
     }
+
     hero.windupFireT = undefined;
     hero.windupTargetId = undefined;
     hero.nextWindupT = t + (hero.windupIntervalSec ?? cfg.windupIntervalSec);
@@ -402,7 +495,15 @@ function handleBruiserBeat(
     return isWiped(player);
   }
   if (hero.nextWindupT !== undefined && t >= hero.nextWindupT) {
-    const targetId = pickWindupTargetId(hero, player, rng, cfg, enemyTargetTally) ?? null;
+    // A live guard steers the telegraph itself, not just the eventual hit
+    // (2026-09-15 slam-provability pass) — see guardWindupAim's docstring.
+    // Reserving a claim here (released when this slam resolves, above) is
+    // what stops a second bruiser's telegraph from also excluding the
+    // guardian off a single shared charge.
+    const aim = guardWindupAim(player);
+    if (aim) player.guardClaims = (player.guardClaims ?? 0) + 1;
+    hero.windupGuardClaimed = aim !== null;
+    const targetId = pickWindupTargetId(hero, player, rng, cfg, enemyTargetTally, aim) ?? null;
     hero.windupTargetId = targetId;
     hero.windupFireT = t + cfg.windupTelegraphSec;
     events.push({ type: "windupStart", t, sourceId: hero.id, targetId, fireT: hero.windupFireT });
@@ -427,8 +528,11 @@ function escalatedMagnitude(cfg: FightConfig, base: number, hitIndex: number): n
   return Math.max(1, Math.round(base * cfg.chainHitMultiplier * chainEscalationFactor(cfg, hitIndex)));
 }
 
-/** Same curve as escalatedMagnitude, for a "guard"/"stun" rung's duration in
- * seconds — no rounding, no chainHitMultiplier (a duration is not damage). */
+/** Same curve as escalatedMagnitude, for a "stun" rung's duration in seconds
+ * — no rounding, no chainHitMultiplier (a duration is not damage). "guard"
+ * no longer escalates on this curve (see resolveChainHit's guard case,
+ * 2026-09-15) — its per-rung value is a flat charge, since a charge has no
+ * magnitude of its own to escalate. */
 function escalatedDurationSec(cfg: FightConfig, baseSec: number, hitIndex: number): number {
   return baseSec * chainEscalationFactor(cfg, hitIndex);
 }
@@ -438,16 +542,28 @@ function escalatedDurationSec(cfg: FightConfig, baseSec: number, hitIndex: numbe
  * living body; the caller (runFight) pushes one chainHit event per entry, all
  * sharing the same hitIndex and tick — which is what makes strikeAll read as
  * "everyone at once" on the same frame instead of needing its own event
- * shape. "guard" produces a single entry with no targetId (the effect is
- * side-level, not aimed at a body) and durationSec set; "stun" produces a
- * single entry with the frozen body's id and durationSec set. */
+ * shape. "guard" produces a single entry with the guarding hero's own id as
+ * targetId (side-level, but the guardian is who the pip belongs to) and
+ * charges set; "stun" produces a single entry with the frozen body's id and
+ * durationSec/durationTotalSec set. */
 interface ChainHitEntry {
   kind: "damage" | "heal" | "guard" | "stun";
   targetId: string | null;
   amount: number;
   intended: number;
   died: string[];
+  /** "stun" only — how many seconds THIS link alone added. */
   durationSec?: number;
+  /** "stun" only — the target's full remaining freeze after this link lands
+   * (target.stunnedUntilT - t), same convention as guard's chargesTotal
+   * below: links are additive, so this is the running total a player has
+   * bought so far, not a repeat of durationSec. */
+  durationTotalSec?: number;
+  /** "guard" only — how many slams this rung adds to the guard's charge
+   * count. See resolveChainHit's guard case. */
+  charges?: number;
+  /** "guard" only — the guardian's full pool after this rung's grant. */
+  chargesTotal?: number;
 }
 
 /** Resolves one rung of the currently-hot hero's chain (2026-09-13, "a
@@ -471,6 +587,12 @@ function resolveChainHit(
   hero: HeroState,
   hitIndex: number,
   backfire: boolean,
+  // "stun" only — this CHAIN's running total of freeze seconds bought so far,
+  // per target id (2026-09-16 freeze-layout pass). Owned by runFight, reset
+  // at chain start and released at chain end (see releaseStunHold); this
+  // function only reads and adds to it, so a hold that spans several rungs
+  // stays correct even though each rung is resolved by a separate call.
+  stunHeld: Map<string, number>,
 ): ChainHitEntry[] | null {
   const effect: ChainEffect = hero.chainPlan?.effect ?? "poundBiggest";
   // A damage effect's real payoff lands on the enemy, backfire on the
@@ -536,11 +658,31 @@ function resolveChainHit(
       // the player's own lowest-HP hero instead (handleBruiserBeat reads
       // guardInverted) — Bracer stepping aside rather than stepping in.
       // Never whiffs: the player side always exists while the fight runs.
-      const sec = escalatedDurationSec(cfg, cfg.chainGuardBaseSec, hitIndex);
-      player.guardUntilT = Math.max(player.guardUntilT ?? t, t + sec);
+      //
+      // A flat charge per rung, not this file's escalation curve (2026-09-15
+      // slam-provability pass) — the curve escalates the SIZE of one
+      // instance of an effect, and a charge has no size of its own; the
+      // number it moves is the bruiser's own damage, authored elsewhere.
+      // Running the curve would give a rung-7 chain more charges than a
+      // ~20-second fight has slams to spend them on. Total protection still
+      // rises with chain length, which is what the curve is linear on below
+      // the knee — this just stops pretending a 7th rung buys 7x as much of
+      // something a player could ever observe.
+      const charges = cfg.chainGuardChargesPerRung;
+      player.guardCharges = (player.guardCharges ?? 0) + charges;
       player.guardHeroId = hero.id;
       player.guardInverted = backfire;
-      return [{ kind: "guard" as const, targetId: hero.id, amount: 0, intended: 0, died: [] as string[], durationSec: sec }];
+      return [
+        {
+          kind: "guard" as const,
+          targetId: hero.id,
+          amount: 0,
+          intended: 0,
+          died: [] as string[],
+          charges,
+          chargesTotal: player.guardCharges,
+        },
+      ];
     }
     case "stun": {
       // Payoff: deterministic front-most, same reasoning as a normal player
@@ -553,14 +695,41 @@ function resolveChainHit(
       const target = targetId ? targetSideForLookup.heroes.find((h) => h.id === targetId) : undefined;
       if (!target) return null;
       const sec = escalatedDurationSec(cfg, cfg.chainStunBaseSec, hitIndex);
-      target.stunnedUntilT = Math.max(target.stunnedUntilT ?? t, t + sec);
+      // Additive across the whole CHAIN (2026-09-15 freeze-visibility pass,
+      // held continuously since 2026-09-16 — see runFight's per-tick pin
+      // below, which is what actually keeps this from lapsing between
+      // rungs; this function only grows the running total each rung adds
+      // to). stunHeld carries the total for THIS chain; if the target
+      // walked in already frozen by something else (a still-draining
+      // freeze left over from an earlier chain), that leftover is folded in
+      // once, on the first rung to touch this target, so nothing already
+      // bought is wasted. stunnedFromT anchors the render layer's drain
+      // once the chain releases the hold (releaseStunHold) — only moved
+      // here when the body wasn't already frozen by anything.
+      const alreadyFrozen = (target.stunnedUntilT ?? t) > t;
+      if (!alreadyFrozen) target.stunnedFromT = t;
+      const carryover = stunHeld.get(target.id) ?? (alreadyFrozen ? target.stunnedUntilT! - t : 0);
+      const total = carryover + sec;
+      stunHeld.set(target.id, total);
+      target.stunnedUntilT = t + total;
+      target.stunnedHeld = true;
       target.nextAttackT = Math.max(target.nextAttackT, target.stunnedUntilT);
       if (target.nextWindupT !== undefined) target.nextWindupT = Math.max(target.nextWindupT, target.stunnedUntilT);
       // Cancels an in-progress telegraph outright — this is Hollow's whole
       // point ("cancelling a wind-up in progress"), not merely delaying it.
       target.windupFireT = undefined;
       target.windupTargetId = undefined;
-      return [{ kind: "stun" as const, targetId: target.id, amount: 0, intended: 0, died: [] as string[], durationSec: sec }];
+      return [
+        {
+          kind: "stun" as const,
+          targetId: target.id,
+          amount: 0,
+          intended: 0,
+          died: [] as string[],
+          durationSec: sec,
+          durationTotalSec: total,
+        },
+      ];
     }
   }
 }
@@ -605,6 +774,20 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   // events itself.
   let chainDamageSoFar = 0;
   let chainKillIds: string[] = [];
+  // "stun" links don't move HP (chainDamageSoFar stays 0 for them by
+  // construction), so the end card needs its own running total to report
+  // what a freeze chain actually bought (2026-09-15 freeze-visibility pass —
+  // see fightView.ts's renderChainEndCard, which used to suppress any number
+  // for "stun" because there was nothing honest to show).
+  let chainStunSoFar = 0;
+  // "stun" only (2026-09-16 freeze-layout pass) — per target id, this CHAIN's
+  // running total of freeze seconds bought so far. Reset alongside
+  // chainStunSoFar at chain start; resolveChainHit adds to it every rung
+  // that lands; the per-tick hold below reads it every tick to re-pin each
+  // held target's stunnedUntilT so the freeze can't lapse between rungs;
+  // releaseStunHold clears it (and each target's own stunnedHeld) the
+  // instant the chain ends, wherever that happens.
+  let chainStunHeld: Map<string, number> = new Map();
   // A tankless comp is living dangerously from the first tick — counted as a
   // dip immediately, same as the old gate's "no living tank" clause.
   let dipOccurred = !player.heroes.some((h) => h.role === "tank" && h.alive);
@@ -616,6 +799,29 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   let outcome: "win" | "loss" | null = null;
   let endReason: "wipe" | "failsafe" = "wipe";
   let endT = 0;
+
+  // Ends the CURRENT chain's freeze hold (2026-09-16 freeze-layout pass) —
+  // called at every site that ends a chain, right before hotHeroId/hotEffect
+  // themselves get cleared. Leaves stunnedUntilT exactly where the last hold
+  // tick pinned it (still correctly in the future, still tickable down to
+  // zero on its own from here) but re-anchors stunnedFromT to THIS instant,
+  // so the render layer's post-chain drain starts from "full" at the moment
+  // the chain actually ended, not from whenever the freeze first began —
+  // that's what makes a freeze held for several seconds still visibly drain
+  // its own real length, not look mostly-drained already at the moment the
+  // hold lets go. No-op (empty map) for every chain whose effect isn't
+  // "stun".
+  function releaseStunHold(atT: number): void {
+    if (chainStunHeld.size === 0) return;
+    for (const id of chainStunHeld.keys()) {
+      const held = player.heroes.find((h) => h.id === id) ?? enemy.heroes.find((h) => h.id === id);
+      if (held) {
+        held.stunnedHeld = false;
+        held.stunnedFromT = atT;
+      }
+    }
+    chainStunHeld = new Map();
+  }
 
   for (let tick = 1; tick <= maxTicks; tick++) {
     const t = tick * dt;
@@ -649,7 +855,9 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         const capped = bonusHitsLanded >= cfg.chainMaxHits;
         const chance = capped ? 0 : chainContinuationChance(cfg, bonusHitsLanded);
         const rolled = rng.chance(chance);
-        const hits = rolled ? resolveChainHit(t, rng, cfg, player, enemy, hero, bonusHitsLanded + 1, chainBackfire) : null;
+        const hits = rolled
+          ? resolveChainHit(t, rng, cfg, player, enemy, hero, bonusHitsLanded + 1, chainBackfire, chainStunHeld)
+          : null;
         if (hits) {
           const hitIndex = bonusHitsLanded + 1;
           const downSide: Side = chainBackfire ? "player" : "enemy";
@@ -665,9 +873,13 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
               backfire: chainBackfire,
               sourceId: hero.id,
               durationSec: hit.durationSec,
+              durationTotalSec: hit.durationTotalSec,
+              charges: hit.charges,
+              chargesTotal: hit.chargesTotal,
             });
             for (const id of hit.died) events.push({ type: "heroDown", t, side: downSide, heroId: id });
             chainDamageSoFar += hit.amount;
+            chainStunSoFar += hit.durationSec ?? 0;
             chainKillIds.push(...hit.died);
           }
           bonusHitsLanded = hitIndex;
@@ -687,12 +899,14 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
             // hotHeroId's declared type stays `string | null`.
             heroId: hero.id,
             totalDamage: chainDamageSoFar,
+            totalStunSec: chainStunSoFar,
             killedIds: chainKillIds,
             backfire: chainBackfire,
             reason,
             effect: hotEffect!,
           });
           finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
+          releaseStunHold(t);
           hotHeroId = null;
           hotEffect = null;
         }
@@ -745,6 +959,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
           chainLength: bonusHitsLanded,
           heroId: hotHeroId,
           totalDamage: chainDamageSoFar,
+          totalStunSec: chainStunSoFar,
           killedIds: chainKillIds,
           backfire: chainBackfire,
           reason: "sourceDied",
@@ -753,6 +968,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
           effect: hotEffect!,
         });
         finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
+        releaseStunHold(t);
         hotHeroId = null;
         hotEffect = null;
       }
@@ -785,8 +1001,34 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         hotEffect = ready.chainPlan?.effect ?? "poundBiggest";
         bonusHitsLanded = 0;
         chainDamageSoFar = 0;
+        chainStunSoFar = 0;
         chainKillIds = [];
+        chainStunHeld = new Map();
         events.push({ type: "chainStart", t, heroId: ready.id, backfire: chainBackfire, effect: hotEffect });
+      }
+    }
+
+    // Freeze hold (2026-09-16 freeze-layout pass) — while a "stun" chain is
+    // still live, re-pin every target it has frozen so far to
+    // `t + (this chain's running total for that target)`, EVERY tick, not
+    // just on the tick a rung lands. Rungs land on Hollow's own ~0.66s
+    // cadence; the running total after only one or two rungs is often
+    // shorter than that gap, so without this the freeze would still lapse
+    // between rungs even though the total never resets (resolveChainHit
+    // alone isn't enough — see that function's own stun case). Also re-pins
+    // nextAttackT/nextWindupT past the held stunnedUntilT, same as
+    // resolveChainHit does at hit time, so the body stays unable to act for
+    // exactly as long as it visibly reads frozen. Once the chain ends
+    // (releaseStunHold, above), this block simply stops running for that
+    // chain's targets and they drain normally from wherever this left them.
+    if (!outcome && hotHeroId !== null && hotEffect === "stun" && chainStunHeld.size > 0) {
+      const stunSide = chainBackfire ? player : enemy;
+      for (const [id, total] of chainStunHeld) {
+        const held = stunSide.heroes.find((h) => h.id === id);
+        if (!held) continue;
+        held.stunnedUntilT = t + total;
+        held.nextAttackT = Math.max(held.nextAttackT, held.stunnedUntilT);
+        if (held.nextWindupT !== undefined) held.nextWindupT = Math.max(held.nextWindupT, held.stunnedUntilT);
       }
     }
 
@@ -803,6 +1045,9 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       visibleChainLength: bonusHitsLanded,
       chainDamageSoFar: hotHeroId ? chainDamageSoFar : 0,
       chainEffect: hotHeroId ? hotEffect : null,
+      guardHeroId: player.guardHeroId ?? null,
+      guardCharges: player.guardCharges ?? 0,
+      guardInverted: player.guardInverted ?? false,
     });
 
     if (outcome) break;
@@ -825,6 +1070,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       chainLength: bonusHitsLanded,
       heroId: hotHeroId,
       totalDamage: chainDamageSoFar,
+      totalStunSec: chainStunSoFar,
       killedIds: chainKillIds,
       backfire: chainBackfire,
       reason: "fightEnd",
@@ -833,6 +1079,9 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       effect: hotEffect!,
     });
     finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
+    // No more ticks/snapshots follow the fight ending, so this has nothing
+    // left to render — closes out HeroState consistently regardless.
+    releaseStunHold(endT);
   }
 
   events.push({ type: "resolve", t: endT, outcome, reason: endReason });
