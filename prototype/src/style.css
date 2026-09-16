@@ -5,6 +5,33 @@
   --player: #4da6ff;
   --enemy: #ff5d5d;
   --ignite: #ffcf4d;
+  /* The four greys every track/border/card-background on screen was typed
+     out by hand from (2026-09-16 token pass, ahead of the design-canvas
+     hand-off in DECISIONS.md — one named value here is one line to change,
+     instead of finding every literal). --track-bg is the sunken fill behind
+     a bar or a pip (HP/CHAIN tracks, pips, plain buttons); --track-border is
+     the 1px line around those same pips/buttons; --surface is a raised
+     card's own background (a pick row, a pre-fight panel); --surface-selected
+     is that same card once chosen. */
+  --track-bg: #2a2e3a;
+  --track-border: #3a3f4e;
+  --surface: #20232c;
+  --surface-selected: #1c2a3a;
+  /* The heal tint and the freeze ring's blue (2026-09-16 token pass) — both
+     repeated as raw hex in this file already; --heal also mirrors
+     fightView.ts's HEAL_ACCENT constant, which now reads this token instead
+     of restating it (see accentFor/HEAL_ACCENT there). */
+  --heal: #6ee7a0;
+  --freeze: #7ec8ff;
+  /* A hero's own identity ring colour, one slot per fixed index within a
+     side (2026-08-06 attributability pass) — fightView.ts's accentFor reads
+     these six instead of restating its own copy (ACCENT_PALETTE). */
+  --accent-0: #ffb454;
+  --accent-1: #5ad1a0;
+  --accent-2: #b98cff;
+  --accent-3: #4dd9e8;
+  --accent-4: #ff8ac2;
+  --accent-5: #d9e34d;
   /* The chain's own token (2026-08-14 chain rebuild) — split off from
      --ignite, which stays reserved for unrelated UI (coin, the projection's
      "tight" band) so changing the chain's colour never leaks into those. */
@@ -19,6 +46,17 @@
   --windup: #ff5252;
   --text: #e8e8ee;
   --muted: #8a8fa3;
+  /* The back rank's own scale (2026-09-16 second back-row pass) — read by
+     .hero-slot.rank-back below AND by fightView.ts's BACK_RANK_SCALE (which
+     now reads this token at startup instead of restating 0.72), since a
+     struck body's forward pop has to land at exactly front-rank size via the
+     reciprocal 1/this value. One number, not two. */
+  --back-rank-scale: 0.72;
+  /* How long a tracer's flight takes (2026-08-06) — .tracer's own transition
+     duration below AND fightView.ts's TRACER_MS (read at startup instead of
+     restating 200), since the JS setTimeout that lands the hit has to fire
+     the instant the CSS transition finishes, not before or after. */
+  --tracer-ms: 0.2s;
   /* How long a CHAIN bar rise takes to glide into place (2026-08-15
      chain-bar-visibility fix) — tuned against attackIntervalSec (0.9-1.5s
      across the pool, see sim/heroes.ts) so one action's charge gain is still
@@ -79,8 +117,12 @@ body {
      (see their own negative top offsets) — .fight-view's overflow:hidden
      would otherwise clip their multi-line content. 2026-08-19: .callout
      moved out of this band entirely (see .callout-band below), so this is
-     now purely about the clipping edge, not a collision with .callout. */
-  margin-top: 46px;
+     now purely about the clipping edge, not a collision with .callout.
+     46px -> 56px (2026-09-16 second back-row pass): the enemy back rank now
+     sits BACK_RANK_OFFSET_PX further from the centre line than the front
+     rank, pushing its own damage popups (which rise ~30px above a body's
+     own top — fightView.ts's popUp) closer to this band. */
+  margin-top: 56px;
 }
 
 /* Marks where the two rows meet (2026-09-16 upright-field pass) — a real
@@ -136,6 +178,18 @@ body {
   min-width: 0;
 }
 
+/* The enemy row hangs its bodies UP from the centre line (the constructor
+   appends it above .centre-line, into .arena's own reserved headroom), so
+   its slots align to their own BOTTOM instead of their top (2026-09-16
+   second back-row pass) — every enemy HP bar then sits the same distance
+   from the clash line regardless of a slot's own height. With flex-start (a
+   side-wide default that was never enemy-specific) a 68px bruiser's HP bar
+   sat lower on screen than a 34px grunt's, since both grew DOWN from a
+   shared top edge despite the row itself growing upward. */
+.enemy-side {
+  align-items: flex-end;
+}
+
 .hero-slot {
   position: relative;
   display: flex;
@@ -145,52 +199,86 @@ body {
   min-width: 44px;
 }
 
-/* --body-size, one per role (2026-09-16 freeze-layout pass) — declared once
-   here instead of twice (once on .body.role-*, once on .freeze-ring below),
-   since the ring has to track whatever size the body actually renders at.
-   Values unchanged from .body.role-* below; role-support/role-bruiser's own
-   shape and colour stay on .body itself, only sizing moved. */
+/* --role-size, one per role (2026-09-16 freeze-layout pass, renamed by the
+   same day's second back-row pass) — declared once here instead of twice
+   (once on .body.role-*, once on .freeze-ring below), since the ring has to
+   track whatever size the body actually renders at. Values unchanged from
+   .body.role-* below; role-support/role-bruiser's own shape and colour stay
+   on .body itself, only sizing moved.
+   --body-size (what everything else actually reads) folds --rank-scale in
+   below, so a back-rank hero's ring, perch height and ground shadow all
+   shrink and reposition together instead of a scaled body floating inside a
+   full-size layout box (see .hero-slot.rank-back below for why this is
+   --body-size, not a transform). */
+.hero-slot {
+  --rank-scale: 1;
+  --body-size: calc(var(--role-size, 40px) * var(--rank-scale));
+}
+
 .hero-slot.role-tank {
-  --body-size: 52px;
+  --role-size: 52px;
 }
 
 .hero-slot.role-damage,
 .hero-slot.role-grunt {
-  --body-size: 34px;
+  --role-size: 34px;
 }
 
 .hero-slot.role-support {
-  --body-size: 40px;
+  --role-size: 40px;
 }
 
 .hero-slot.role-bruiser {
-  --body-size: 68px;
+  --role-size: 68px;
 }
 
-/* The body's own depth cell (2026-09-16 upright-field pass, deepened by the
-   same day's back-row pass — see fightView.ts's makeHeroSlot/HeroSlot and
-   buildSide). status/body/freeze-ring live inside this instead of straight
-   in .hero-slot, so ONE transform can move the whole unit — depth AND the
-   attack-beat step-in both live in the four custom properties below — as
-   one piece, without touching name/hp-bar/counter below, which stay put as
-   ordinary flow siblings underneath, at a fixed position (this is what
-   keeps the per-hero HP bars, the "who's winning" read, from ever moving —
-   see .side's own docstring).
-   --depth-y/--depth-scale/--depth-bright/--depth-sat are set once per hero
-   at buildSide time (0px/1/1/1 for the front rank; pushed back, shrunk and
-   dimmed for everyone behind it — see buildSide's own comment for the
-   numbers) and are the ONLY thing that ever changes for the whole fight,
-   short of the brief "a back-row hit just landed" pop (showAttack's
-   pulseDepthForward) that borrows the same four properties to bring a
-   struck hero forward for a moment. The transition is what makes both of
-   those reads — and the attack lunge on .body below, a DIFFERENT element —
-   compose instead of collide.
-   Height only grows on the player's own perch (see .player-side override
-   below): the enemy's "away from centre" direction is upward, into the
-   arena's own already-reserved headroom above it, so it never needs extra
-   room of its own; the player's is downward, straight at its own name/HP
-   bar 3px below (.hero-slot's gap), which is why THAT direction alone needs
-   reserved space. */
+/* The back rank draws smaller and quieter than the front (2026-09-16 second
+   back-row pass) — via --rank-scale (above), which --body-size folds in, so
+   this is a real layout size, not a scale() transform: the perch reserves
+   less height, the ground shadow shrinks and moves with it, and the freeze
+   ring stays flush against the body's actual edge. Set once here, not
+   per-hero in buildSide, since it's the same number for every role.
+   0.72, not something rounder, so a struck body's forward pop
+   (fightView.ts's pulseDepthForward/BACK_POP_SCALE) lands it at exactly
+   front-rank size via the reciprocal 1/0.72 — that reciprocal, and every
+   other reader, now comes from --back-rank-scale in :root above (2026-09-16
+   token pass), not a second literal here. */
+.hero-slot.rank-back {
+  --rank-scale: var(--back-rank-scale);
+}
+
+.hero-slot.rank-back .body-perch {
+  --depth-bright: 0.84;
+  --depth-sat: 0.88;
+  --depth-shadow-opacity: 0.24;
+}
+
+/* The freeze-secs pill (style.css's .freeze-secs, sized in em off the body's
+   own font-size context) doesn't shrink with --body-size on its own — at a
+   back-rank body's smaller ring it would read wider than the ring itself. */
+.hero-slot.rank-back .freeze-secs {
+  font-size: 0.46em;
+  padding: 0 3px;
+}
+
+/* The body's own depth cell (2026-09-16 upright-field pass — see
+   fightView.ts's makeHeroSlot/HeroSlot). status/body/freeze-ring live inside
+   this instead of straight in .hero-slot, so ONE transform can move the
+   whole unit — the attack-beat lunge below reaches this via .body directly,
+   this element's own transform is reserved for depth — without touching
+   name/hp-bar/counter below, which stay put as ordinary flow siblings
+   underneath, at a fixed position (this is what keeps the per-hero HP bars,
+   the "who's winning" read, from ever moving — see .side's own docstring).
+   As of the second back-row pass, --depth-y/--depth-scale/--depth-bright/
+   --depth-sat carry ONLY the transient "a hit just reached the back row"
+   pop (showAttack's pulseDepthForward) — 0px/1/1/1 at rest for everyone.
+   Permanent depth (which rank a hero renders in) moved to layout instead:
+   buildSide's rank-front/rank-back class and margin, and this file's
+   .hero-slot.rank-back rule for the resting dim/shadow/size. That split is
+   also why this element no longer needs the player-side's old +26px height
+   reserve — the old --depth-y nudge that reserve existed for is gone; the
+   transient pop leans by BACK_POP_LIFT_PX only, which never needs a
+   standing reserve. */
 .body-perch {
   position: relative;
   width: 100%;
@@ -205,24 +293,23 @@ body {
     filter 0.16s ease-out;
 }
 
-.player-side .body-perch {
-  height: calc(var(--body-size, 40px) + 10px + 26px);
-}
-
 /* A faint ground shadow under the body (2026-09-16 upright-field pass) —
-   the depth cue a lean alone can't carry on its own: something to visibly
-   sit ON, not just float at a different height. ::before so it paints
-   BEHIND the body (a real DOM child, painted after generated content in the
-   same stacking context) rather than over it. Opacity is a custom property
-   (--depth-shadow-opacity, back-row pass) so a receded body's shadow fades
-   with it instead of staying a bright disc under a dim, distant figure. */
+   the depth cue rank/size alone can't carry on its own: something to
+   visibly sit ON, not just float at a different height. ::before so it
+   paints BEHIND the body (a real DOM child, painted after generated content
+   in the same stacking context) rather than over it. Opacity is a custom
+   property (--depth-shadow-opacity, set to rest at 0.24 on the back rank by
+   .hero-slot.rank-back above) so a receded body's shadow fades with it
+   instead of staying a bright disc under a dim, distant figure. Height
+   scales with --body-size too (second back-row pass) — a fixed 6px used to
+   look proportionally fatter under a shrunk back-rank body. */
 .body-perch::before {
   content: "";
   position: absolute;
   top: calc(var(--body-size, 40px) - 5px);
   left: 50%;
   width: calc(var(--body-size, 40px) * 0.85);
-  height: 6px;
+  height: calc(var(--body-size, 40px) * 0.12);
   transform: translateX(-50%);
   border-radius: 50%;
   background: rgba(0, 0, 0, var(--depth-shadow-opacity, 0.4));
@@ -298,7 +385,7 @@ body {
   width: 100%;
   height: 8px;
   border-radius: 4px;
-  background: #2a2e3a;
+  background: var(--track-bg);
   overflow: hidden;
 }
 
@@ -378,7 +465,7 @@ body {
   width: 100%;
   height: 8px;
   border-radius: 4px;
-  background: #2a2e3a;
+  background: var(--track-bg);
   overflow: hidden;
 }
 
@@ -511,8 +598,8 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 2px;
-  background: #2a2e3a;
-  border: 1px solid #3a3f4e;
+  background: var(--track-bg);
+  border: 1px solid var(--track-border);
   transition:
     background 0.15s ease-out,
     border-color 0.15s ease-out;
@@ -600,7 +687,7 @@ body {
      lag a value that's already smooth. Masked to a ring (radial-gradient
      with a transparent centre) so .body shows through the hole instead of
      being covered by it. */
-  background: conic-gradient(#7ec8ff calc(var(--freeze-frac, 0) * 360deg), #2a2e3a 0deg);
+  background: conic-gradient(var(--freeze) calc(var(--freeze-frac, 0) * 360deg), var(--track-bg) 0deg);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring) - 1px), white calc(100% - var(--ring)));
   mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring) - 1px), white calc(100% - var(--ring)));
 }
@@ -614,7 +701,7 @@ body {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.3px;
-  color: #7ec8ff;
+  color: var(--freeze);
   background: rgba(20, 22, 28, 0.85);
   padding: 1px 4px;
   border-radius: 6px;
@@ -625,7 +712,7 @@ body {
    "this went wrong" red every other backfired tell uses, so it never reads
    as indistinguishable from freezing the boss on purpose. */
 .player-side .freeze-ring {
-  background: conic-gradient(var(--backfire) calc(var(--freeze-frac, 0) * 360deg), #2a2e3a 0deg);
+  background: conic-gradient(var(--backfire) calc(var(--freeze-frac, 0) * 360deg), var(--track-bg) 0deg);
 }
 
 .player-side .freeze-secs {
@@ -964,8 +1051,9 @@ body {
 /* The tracer layer sits between the callout and the popup layer so a
    travelling dot passes under the damage number it's about to spawn. Each
    .tracer is a single flight (attacker -> target), coloured by the
-   source's accent — see fightView.ts's fireTracer. Keep the transition
-   duration in sync with TRACER_MS there. */
+   source's accent — see fightView.ts's fireTracer. The transition duration
+   comes from --tracer-ms in :root above; fightView.ts's TRACER_MS reads the
+   same token at startup, so there is one number, not two to keep in sync. */
 .tracer-layer {
   position: absolute;
   inset: 0;
@@ -977,8 +1065,8 @@ body {
   border-radius: 50%;
   transform: translate(0, 0);
   transition:
-    transform 0.2s ease-out,
-    opacity 0.2s ease-out;
+    transform var(--tracer-ms) ease-out,
+    opacity var(--tracer-ms) ease-out;
 }
 
 /* The line from a charging bruiser to its locked target (2026-09-13
@@ -1002,14 +1090,14 @@ body {
    fightView.ts's startAimSwing) — overrides .aim-line's default slam-red for
    the swing's duration only (both classes are removed again once it ends),
    so a save and a betrayal can never be mistaken for each other even at a
-   glance. swing-save reuses the heal colour (#6ee7a0, matches
+   glance. swing-save reuses the heal colour (var(--heal), matches
    fightView.ts's HEAL_ACCENT and .damage-popup.heal above) rather than a new
    hue — "protected" already reads as green everywhere else in the fight;
    swing-betray reuses --backfire, same as every other "this went wrong"
    tell. */
 .aim-line.swing-save {
-  background: #6ee7a0;
-  box-shadow: 0 0 6px 2px #6ee7a0;
+  background: var(--heal);
+  box-shadow: 0 0 6px 2px var(--heal);
 }
 
 .aim-line.swing-betray {
@@ -1146,8 +1234,8 @@ body {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #2a2e3a;
-  border: 1px solid #3a3f4e;
+  background: var(--track-bg);
+  border: 1px solid var(--track-border);
   transition:
     background 0.15s ease-out,
     border-color 0.15s ease-out;
@@ -1399,7 +1487,7 @@ body {
 }
 
 .damage-popup.heal {
-  color: #6ee7a0;
+  color: var(--heal);
 }
 
 /* The slam's own popup tier (2026-09-13 slam-visibility pass) — this tier
@@ -1516,9 +1604,9 @@ body {
 
 button {
   font: inherit;
-  background: #2a2e3a;
+  background: var(--track-bg);
   color: var(--text);
-  border: 1px solid #3a3f4e;
+  border: 1px solid var(--track-border);
   border-radius: 8px;
   padding: 8px 16px;
   cursor: pointer;
@@ -1550,7 +1638,7 @@ button:disabled {
   display: flex;
   justify-content: space-between;
   padding: 6px 0;
-  border-bottom: 1px solid #2a2e3a;
+  border-bottom: 1px solid var(--track-bg);
   font-size: 0.95em;
 }
 
@@ -1609,7 +1697,7 @@ button:disabled {
 }
 
 .play-btn:disabled {
-  background: #2a2e3a;
+  background: var(--track-bg);
   color: var(--muted);
 }
 
@@ -1640,14 +1728,14 @@ button:disabled {
   width: 100%;
   padding: 10px 14px;
   border-radius: 8px;
-  border: 1px solid #3a3f4e;
-  background: #20232c;
+  border: 1px solid var(--track-border);
+  background: var(--surface);
   cursor: pointer;
 }
 
 .hero-pick-row.selected {
   border-color: var(--player);
-  background: #1c2a3a;
+  background: var(--surface-selected);
 }
 
 .hero-pick-check {
@@ -1750,7 +1838,7 @@ button:disabled {
 
 .pre-fight-side {
   flex: 1;
-  background: #20232c;
+  background: var(--surface);
   border-radius: 8px;
   padding: 14px;
 }
@@ -1771,7 +1859,7 @@ button:disabled {
 /* ---------- Projection (2026-08-06) ---------- */
 
 .pre-fight-projection {
-  background: #20232c;
+  background: var(--surface);
   border-radius: 8px;
   padding: 12px 14px;
   margin-bottom: 8px;
@@ -1859,7 +1947,7 @@ button:disabled {
 .answer-key {
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px dashed #3a3f4e;
+  border-top: 1px dashed var(--track-border);
   font-size: 0.85em;
   color: var(--muted);
 }
@@ -1898,7 +1986,7 @@ button:disabled {
 
 .lab-mode-btn.selected {
   border-color: var(--player);
-  background: #1c2a3a;
+  background: var(--surface-selected);
 }
 
 .lab-setup-columns {
@@ -1916,8 +2004,8 @@ button:disabled {
 .lab-setup-column {
   flex: 1 1 0;
   min-width: 0;
-  background: #20232c;
-  border: 1px solid #3a3f4e;
+  background: var(--surface);
+  border: 1px solid var(--track-border);
   border-radius: 8px;
   padding: 14px;
 }
@@ -1974,14 +2062,14 @@ button:disabled {
   gap: 2px;
   padding: 6px 10px;
   border-radius: 6px;
-  border: 1px solid #3a3f4e;
+  border: 1px solid var(--track-border);
   background: #1a1d24;
   cursor: pointer;
 }
 
 .lab-encounter-row.selected {
   border-color: var(--player);
-  background: #1c2a3a;
+  background: var(--surface-selected);
 }
 
 .lab-encounter-name {
@@ -2076,7 +2164,7 @@ button:disabled {
 .lab-stats-table td {
   padding: 3px 6px;
   text-align: right;
-  border-bottom: 1px solid #2a2e3a;
+  border-bottom: 1px solid var(--track-bg);
 }
 
 .lab-stats-table th:first-child,
@@ -2098,7 +2186,7 @@ button:disabled {
 
 .lab-speed-btn.selected {
   border-color: var(--player);
-  background: #1c2a3a;
+  background: var(--surface-selected);
 }
 
 /* This is the file's first @media rule (2026-09-12, lab pass): every other

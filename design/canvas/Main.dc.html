@@ -1,0 +1,156 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+</style>
+</helmet>
+
+<div style="background: #14161c; width: 390px; min-height: 780px; display: flex; justify-content: center; padding-top: 32px;">
+  <div style="width: 100%; max-width: 640px; padding: 24px; box-sizing: border-box;">
+
+    <!-- fight-view panel -->
+    <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 20px; overflow: hidden; box-sizing: border-box;">
+
+      <!-- reserved HUD band — empty at rest (no chain live) -->
+      <div style="min-height: 40px;"></div>
+
+      <!-- arena -->
+      <div style="display: flex; flex-direction: column; gap: 14px; padding: 12px 12px 0 12px;">
+
+        <!-- enemy row -->
+        <div style="display: flex; align-items: flex-end; justify-content: center; gap: 10px; width: 100%;">
+
+          <!-- Guard (grunt, back rank) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 44px; margin-bottom: 48px;">
+            <div style="position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; height: 34px; filter: brightness(0.84) saturate(0.88);">
+              <div style="position: absolute; top: 19px; left: 50%; width: 20px; height: 3px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
+              <div style="position: relative; width: 24px; height: 24px; border-radius: 50%; background: #ff5d5d; box-shadow: 0 0 0 3px #5ad1a0;"></div>
+            </div>
+            <div style="font-size: 10px; color: #e8e8ee; white-space: nowrap;">Guard</div>
+            <div style="position: relative; width: 100%; height: 8px; border-radius: 4px; background: #2a2e3a; overflow: hidden;">
+              <div style="position: absolute; inset: 0; width: 100%; background: #ff5d5d;"></div>
+            </div>
+            <div style="font-size: 9px; color: #8a8fa3; white-space: nowrap;">55/55</div>
+            <div style="font-size: 9px; color: #8a8fa3; white-space: nowrap;">dealt 0</div>
+          </div>
+
+          <!-- Executioner (bruiser, front rank) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 44px;">
+            <div style="position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; height: 78px;">
+              <div style="position: absolute; top: 63px; left: 50%; width: 58px; height: 8px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+              <div style="position: relative; width: 68px; height: 68px; border-radius: 50%; background: #b23b3b; box-shadow: 0 0 0 3px #ffb454, 0 0 10px 2px rgba(178,59,59,0.5);"></div>
+            </div>
+            <div style="font-size: 12px; color: #e8e8ee; white-space: nowrap;">Executioner</div>
+            <div style="position: relative; width: 100%; height: 8px; border-radius: 4px; background: #2a2e3a; overflow: hidden;">
+              <div style="position: absolute; inset: 0; width: 100%; background: #ff5d5d;"></div>
+            </div>
+            <div style="font-size: 10px; color: #8a8fa3; white-space: nowrap;">190/190</div>
+            <!-- slam (windup) bar — bruiser only, calmly winding, not yet committed -->
+            <div style="position: relative; width: 100%; height: 8px; border-radius: 4px; background: #2a2e3a; overflow: hidden;">
+              <div style="position: absolute; inset: 0; width: 30%; background: #7a2b2b;"></div>
+            </div>
+            <div style="font-size: 9px; color: #8a8fa3; white-space: nowrap;">dealt 0</div>
+          </div>
+
+          <!-- Guard (grunt, back rank) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 44px; margin-bottom: 48px;">
+            <div style="position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; height: 34px; filter: brightness(0.84) saturate(0.88);">
+              <div style="position: absolute; top: 19px; left: 50%; width: 20px; height: 3px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
+              <div style="position: relative; width: 24px; height: 24px; border-radius: 50%; background: #ff5d5d; box-shadow: 0 0 0 3px #b98cff;"></div>
+            </div>
+            <div style="font-size: 10px; color: #e8e8ee; white-space: nowrap;">Guard</div>
+            <div style="position: relative; width: 100%; height: 8px; border-radius: 4px; background: #2a2e3a; overflow: hidden;">
+              <div style="position: absolute; inset: 0; width: 100%; background: #ff5d5d;"></div>
+            </div>
+            <div style="font-size: 9px; color: #8a8fa3; white-space: nowrap;">55/55</div>
+            <div style="font-size: 9px; color: #8a8fa3; white-space: nowrap;">dealt 0</div>
+          </div>
+
+        </div>
+
+        <!-- centre line -->
+        <div style="width: 100%; height: 1px; margin: 1px 0; background: linear-gradient(90deg, transparent, #8a8fa3 15%, #8a8fa3 85%, transparent); opacity: 0.3;"></div>
+
+        <!-- player row -->
+        <div style="display: flex; align-items: flex-start; justify-content: center; gap: 10px; width: 100%;">
+
+          <!-- Rook (damage, back rank) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 44px; margin-top: 48px;">
+            <div style="position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; height: 34px; filter: brightness(0.84) saturate(0.88);">
+              <div style="position: absolute; top: 19px; left: 50%; width: 20px; height: 3px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
+              <div style="position: relative; width: 24px; height: 24px; border-radius: 50%; background: #4da6ff; box-shadow: 0 0 0 3px #b98cff;"></div>
+            </div>
+            <div style="font-size: 10px; color: #e8e8ee; white-space: nowrap;">Rook</div>
+            <div style="position: relative; width: 100%; height: 8px; border-radius: 4px; background: #2a2e3a; overflow: hidden;">
+              <div style="position: absolute; inset: 0; width: 100%; background: #4da6ff;"></div>
+            </div>
+            <div style="font-size: 9px; color: #8a8fa3; white-space: nowrap;">85/85</div>
+            <div style="position: relative; width: 100%; height: 8px; border-radius: 4px; background: #2a2e3a; overflow: hidden;">
+              <div style="position: absolute; inset: 0; width: 25%; background: #ffcf4d;"></div>
+            </div>
+            <div style="font-size: 9px; color: #ffcf4d; font-weight: 700; white-space: nowrap;">CHAIN 25%</div>
+            <div style="font-size: 9px; color: #8a8fa3; white-space: nowrap;">dealt 0</div>
+          </div>
+
+          <!-- Bracer (tank, front rank) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 44px;">
+            <div style="position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; height: 62px;">
+              <div style="position: absolute; top: 47px; left: 50%; width: 44px; height: 6px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+              <div style="position: relative; width: 52px; height: 52px; border-radius: 50%; background: #4da6ff; box-shadow: 0 0 0 3px #ffb454;"></div>
+            </div>
+            <div style="font-size: 12px; color: #e8e8ee; white-space: nowrap;">Bracer</div>
+            <div style="position: relative; width: 100%; height: 8px; border-radius: 4px; background: #2a2e3a; overflow: hidden;">
+              <div style="position: absolute; inset: 0; width: 100%; background: #4da6ff;"></div>
+            </div>
+            <div style="font-size: 10px; color: #8a8fa3; white-space: nowrap;">195/195</div>
+            <div style="position: relative; width: 100%; height: 8px; border-radius: 4px; background: #2a2e3a; overflow: hidden;">
+              <div style="position: absolute; inset: 0; width: 15%; background: #ffcf4d;"></div>
+            </div>
+            <div style="font-size: 9px; color: #ffcf4d; font-weight: 700; white-space: nowrap;">CHAIN 15%</div>
+            <div style="font-size: 9px; color: #8a8fa3; white-space: nowrap;">soaked 0</div>
+          </div>
+
+          <!-- Hollow (tank, front rank) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 44px;">
+            <div style="position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; height: 62px;">
+              <div style="position: absolute; top: 47px; left: 50%; width: 44px; height: 6px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+              <div style="position: relative; width: 52px; height: 52px; border-radius: 50%; background: #4da6ff; box-shadow: 0 0 0 3px #5ad1a0;"></div>
+            </div>
+            <div style="font-size: 12px; color: #e8e8ee; white-space: nowrap;">Hollow</div>
+            <div style="position: relative; width: 100%; height: 8px; border-radius: 4px; background: #2a2e3a; overflow: hidden;">
+              <div style="position: absolute; inset: 0; width: 100%; background: #4da6ff;"></div>
+            </div>
+            <div style="font-size: 10px; color: #8a8fa3; white-space: nowrap;">180/180</div>
+            <div style="position: relative; width: 100%; height: 8px; border-radius: 4px; background: #2a2e3a; overflow: hidden;">
+              <div style="position: absolute; inset: 0; width: 40%; background: #ffcf4d;"></div>
+            </div>
+            <div style="font-size: 9px; color: #ffcf4d; font-weight: 700; white-space: nowrap;">CHAIN 40%</div>
+            <div style="font-size: 9px; color: #8a8fa3; white-space: nowrap;">soaked 0</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- callout band -->
+      <div style="min-height: 26px; margin-top: 6px;"></div>
+    </div>
+
+    <!-- controls -->
+    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px;">
+      <button style="font: inherit; background: #2a2e3a; color: #e8e8ee; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 16px;">Pause</button>
+      <button style="font: inherit; background: #2a2e3a; color: #e8e8ee; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 16px;">Step</button>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

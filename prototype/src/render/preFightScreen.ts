@@ -101,7 +101,13 @@ function makeSidePreview(label: string, side: SideState, kind: "player" | "enemy
   row.className = "pre-fight-bodies";
   for (const hero of side.heroes) {
     const slot = document.createElement("div");
-    slot.className = "hero-slot";
+    // role-${hero.role} here too, not just on `body` below — --body-size is
+    // declared on .hero-slot.role-* (style.css), and .body.role-* reads it
+    // with no fallback; without this class it was undefined, so every body
+    // on this screen rendered at width/height auto instead of its role size
+    // (pre-existing bug, caught while renaming this same variable for the
+    // 2026-09-16 second back-row pass).
+    slot.className = `hero-slot role-${hero.role}`;
     const body = document.createElement("div");
     body.className = `body ${kind}-body role-${hero.role}`;
     const fraction = hero.maxHp > 0 ? hero.hp / hero.maxHp : 0;

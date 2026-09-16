@@ -1,0 +1,15 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 780 },
+    { "file": "MidChain.dc.html", "x": 550, "y": 0, "w": 390, "h": 780 },
+    { "file": "Freeze.dc.html", "x": 1100, "y": 0, "w": 390, "h": 780 },
+    { "file": "EndCard.dc.html", "x": 1650, "y": 0, "w": 390, "h": 780 }
+  ],
+  "annotations": [
+    { "id": "label-main", "x": 0, "y": -60, "w": 390, "text": "1. Turn 1 — resting" },
+    { "id": "label-midchain", "x": 550, "y": -60, "w": 390, "text": "2. Mid-chain — Rook fires on Executioner" },
+    { "id": "label-freeze", "x": 1100, "y": -60, "w": 390, "text": "3. Freeze — Hollow's stun holds Executioner" },
+    { "id": "label-endcard", "x": 1650, "y": -60, "w": 390, "text": "4. End card — Rook's chain resolves" }
+  ],
+  "launch": { "view": "canvas" }
+}
