@@ -1,0 +1,57 @@
+# 260920_ATTRIBUTION_TEST
+
+- Run against: Pack
+    - Problem: a large number of enemies
+    - How to win: Vex + any combination. Because Vex chains is good for crowded.
+    - Result after applying: Works. But not because of Vex, it seems Pack is too weak that any combination can win easily
+    - What to do differently next time: No. Because any combination seems fine.
+- Run against: The Wall
+    - Problem: one big enemy with large HP
+    - How to win: Rook. Because his chain is focus on one. Since the description said he has nothing else other than his huge body, it make me things he’s pretty weak
+    - Result after applying: Works. But same as Pack, it seems any combination can win easily, even without Rook.
+    - What to do differently next time: Rush 2 damage + 1 tanker to finish him off quickly or 1 damage + 1 healer to kill him without losing much HP. But oh wait does that also mean any combination is fine?
+- Run against: Twins
+    - Problem: 2 slam at once can deal a lot of damage
+    - How to win: Bracer to take all the damage. Ward to heal him. Rook to focus one off quickly
+    - Result after applying: All heroes chain were broken. But I can still win the game. Does that mean the enemies too weak?
+    - What to do differently next time: No. Because any combination seems fine.
+- Run against: Execution
+    - Problem: Slam go to my weakest hero can kill him quickly
+    - How to win: Bracer take the Slam. Or Hollow freeze him. Go 2 dam dealers so if one dead the other can still finish him off
+    - Result after applying: Works. But he can only slam my damage dealer like max 2 times then dead. So the threat is not that great at all. I tried different comb but result is the same. Any comb can beat this run.
+    - What to do differently next time: No. Because any combination seems fine.
+- Run against: Champion
+    - Problem: Champion’s stats is a lot better than the other.
+    - How to win: Bracer + Hollow at the same time to hold him back. Rook to burst one by one
+    - Result after applying: Works. But also every other combination can still will which is considered the strongest one.
+    - What to do differently next time: No. Because any combination seems fine.
+- Run against: Anvil
+    - Problem: one big enemy with large HP. Sounds no different that the Wall
+    - How to win: Rook. Same reason with the Wall
+    - Result after applying: Works. But still, I find even a Tanker + 2 Healer can win this fight.
+    - What to do differently next time: No. Because any combination seems fine.
+- Run against: Ambush
+    - Problem: A lot of low HP enemies but deal a lot of damage with fast attack
+    - How to win: Hollow to slow them down. Bracer for extra tank. And Vex to spread damage
+    - Result after applying: Works. But don’t even need chain. Just hitting back and forth and win
+    - What to do differently next time: No. Because any combination seems fine.
+- Run against: Duelist
+    - Problem: Slam go much faster and its potentiall dangerous
+    - How to win: Bracer + Hollow up front to cancel slam & attack. Rook behind to burst
+    - Result after applying: Work. But don’t even need Chain. Duelist dies pretty quick
+    - What to do differently next time: No. Because any combination seems fine. Bracer + 2 healers still can win
+- Run against: Warden
+    - Problem: Heal his own HP so would take a lot of time to take him off
+    - How to win: Rook. To burst fast with his chain.
+    - Result after applying: Work. But don’t even need Chain. He can regen but he doesn’t dangerous anyway. I just need to wait a litter longer than usual
+    - What to do differently next time: No. What to do if the weakest combination with 2 healers still work?
+- Run against: Glass Pair
+    - Problem: High damages enemies
+    - How to win: Bracer + Hollow combination to cancel slam and slow down attack
+    - Result after applying: Work. But don’t even need Chain
+    - What to do differently next time:  No. What to do if the weakest combination with 2 healers still work?
+- Run against: Vanguard
+    - Problem: Slam goes weakest hero can burst my damage dealer.
+    - How to win: Bracer + Hollow to stop Vanguard. Vex to spread damage to all other
+    - Result after applying: Not works. I tried mutiple strategy but this enemy seems too strong. Without chain this is nearly impossible to win.
+    - What to do differently next time: Don’t know. I’ve tried multiple ways but seems can’t find one. But this one got me to think, that’s good. A little downside is that it seems an impossible round. But that’s maybe just me haven’t think of a way to win yet.

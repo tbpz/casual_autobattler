@@ -4,6 +4,7 @@ import { fieldSquad } from "../sim/roster.js";
 import { FightView } from "./fightView.js";
 import { Playback } from "./playback.js";
 import { RunSession } from "./runSession.js";
+import { downloadRunLog } from "../log/download.js";
 import { renderRunCompleteScreen, renderRunOverScreen, renderSpendScreen } from "./runScreens.js";
 import { renderSquadPickScreen } from "./squadPickScreen.js";
 import { renderFieldPickScreen } from "./fieldPickScreen.js";
@@ -12,7 +13,7 @@ import { renderPreFightScreen } from "./preFightScreen.js";
 const cfg = DEFAULT_RUN_CONFIG;
 
 /**
- * Attribution self-test instrumentation (prototype/ATTRIBUTION_TEST.md) —
+ * Attribution self-test instrumentation (archive/ATTRIBUTION_TEST.md) —
  * two URL params, both no-ops when absent so ordinary play is unaffected:
  *  - ?seed=N pins the run seed (otherwise random, as before) and displays it
  *    in a corner badge on every screen, so a fight worth arguing about can be
@@ -26,10 +27,28 @@ const urlParams = new URLSearchParams(location.search);
 const testMode = urlParams.get("test") === "1";
 const pinnedSeed = urlParams.get("seed");
 
-function appendSeedBadge(root: HTMLElement, seed: number): void {
+/** The seed corner badge, present on every screen. Once a run exists,
+ * `session` also grows a quiet "export" link (2026-09-20, export-log
+ * instrumentation — see log/download.ts) that downloads everything the game
+ * has seen so far this run, as a file the attribution test's written answers
+ * can be checked against. No `session` yet (the squad-pick screen, before a
+ * run starts) just shows the seed, same as before. */
+function appendSeedBadge(root: HTMLElement, seed: number, session?: RunSession): void {
   const badge = document.createElement("div");
   badge.className = "seed-badge";
   badge.textContent = `seed ${seed}`;
+  if (session) {
+    badge.append(" · ");
+    const exportLink = document.createElement("a");
+    exportLink.className = "export-log-link";
+    exportLink.href = "#";
+    exportLink.textContent = "export";
+    exportLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      downloadRunLog(session, cfg);
+    });
+    badge.appendChild(exportLink);
+  }
   root.appendChild(badge);
 }
 
@@ -66,13 +85,13 @@ export function mountApp(root: HTMLElement): void {
         showPreFightScreen();
       },
     );
-    appendSeedBadge(root, session.seed);
+    appendSeedBadge(root, session.seed, session);
   }
 
   function showPreFightScreen(): void {
     const player = fieldSquad(session.currentRoster, pendingFieldedIds);
     renderPreFightScreen(root, cfg, session.currentFightIndex, session.currentEncounterIndex, player, playCurrentFight);
-    appendSeedBadge(root, session.seed);
+    appendSeedBadge(root, session.seed, session);
   }
 
   function playCurrentFight(): void {
@@ -114,7 +133,7 @@ export function mountApp(root: HTMLElement): void {
     controls.appendChild(stepBtn);
 
     playback.play();
-    appendSeedBadge(root, session.seed);
+    appendSeedBadge(root, session.seed, session);
   }
 
   function onFightEnd(result: ReturnType<RunSession["playNextFight"]>): void {
@@ -131,7 +150,7 @@ export function mountApp(root: HTMLElement): void {
           startNewRun,
           testMode,
         );
-        appendSeedBadge(root, session.seed);
+        appendSeedBadge(root, session.seed, session);
         return;
       }
       renderSpendScreen(
@@ -145,7 +164,7 @@ export function mountApp(root: HTMLElement): void {
         onSpendChoice,
         testMode,
       );
-      appendSeedBadge(root, session.seed);
+      appendSeedBadge(root, session.seed, session);
     }, 900);
   }
 
@@ -153,7 +172,7 @@ export function mountApp(root: HTMLElement): void {
     session.resolveSpend(choice);
     if (session.status === "complete") {
       renderRunCompleteScreen(root, session.coinBalance, startNewRun);
-      appendSeedBadge(root, session.seed);
+      appendSeedBadge(root, session.seed, session);
       return;
     }
     // 2026-08-09 (roster/bench pass): a WIN can still end the run here — the
@@ -171,7 +190,7 @@ export function mountApp(root: HTMLElement): void {
         startNewRun,
         testMode,
       );
-      appendSeedBadge(root, session.seed);
+      appendSeedBadge(root, session.seed, session);
       return;
     }
     showFieldPickScreen();

@@ -25,6 +25,32 @@ import {
   type SpendChoice,
 } from "../sim/run.js";
 
+/** One fight's full context, for the export log (log/runLog.ts) — a superset
+ * of FightSummary that also carries what the roster/enemy/projection looked
+ * like BEFORE the fight, and the roster after the (optional) spend. Pushed
+ * once per fight in playNextFight; the post-spend fields (spend/coinAfter/
+ * rosterAfter) start out mirroring the pre-spend state and are patched in
+ * place by resolveSpend — a LOSS never calls resolveSpend, so its entry
+ * keeps spend: null permanently, which is itself the correct signal (no
+ * spend decision was ever reached). */
+export interface RoundLog {
+  fightIndex: number;
+  encounterIndex: number;
+  encounterName: string | null;
+  rosterBefore: RosterState;
+  coinBefore: number;
+  defaultFieldedIds: string[];
+  fieldedIds: string[];
+  enemyBefore: SideState;
+  projection: Projection;
+  fightResult: FightResult;
+  outcome: "win" | "loss";
+  spend: SpendChoice | null;
+  coinAwarded: number;
+  coinAfter: number;
+  rosterAfter: RosterState | null;
+}
+
 /**
  * Drives a run one fight at a time, waiting for real player taps on both
  * decision points — which 3 of the living roster to field, and the
@@ -53,8 +79,17 @@ export class RunSession {
    * encounterOrderFor's docstring), so it's stable for the whole run and
    * reproducible from the seed alone, same as every other run-level draw. */
   private encounterOrder: number[];
+  private draftIdsValue: string[];
 
   fights: FightSummary[] = [];
+  /** Every fight played this run, in order — unlike lastFightResult (kept
+   * for the existing single-fight-replay call sites), this never overwrites,
+   * so the export log (log/runLog.ts) can write out the whole run, not just
+   * whichever fight resolved most recently. */
+  fightResults: FightResult[] = [];
+  /** Full per-fight context, one entry per fight played — see RoundLog's own
+   * docstring. Export-log-only; nothing in the render layer reads this. */
+  roundLogs: RoundLog[] = [];
   lastFightResult: FightResult | null = null;
   /** The projection computed just before the fight just resolved was run —
    * stashed here so the post-fight recap (runScreens.ts's fightRecap) can
@@ -73,8 +108,23 @@ export class RunSession {
     this.cfg = cfg;
     this.seedValue = seed;
     this.rng = new Rng(seed);
-    this.roster = makePlayerSide(draftIds ?? DEFAULT_DRAFT_ROSTER_IDS);
+    this.draftIdsValue = draftIds ?? DEFAULT_DRAFT_ROSTER_IDS;
+    this.roster = makePlayerSide(this.draftIdsValue);
     this.encounterOrder = encounterOrderFor(seed, cfg.fightsPerRun);
+  }
+
+  /** The 5 hero ids drafted at run start (2026-09-20, export-log instrumentation)
+   * — render-facing so the export log can record the draft itself, not just
+   * the roster it produced. */
+  get draftIds(): string[] {
+    return this.draftIdsValue;
+  }
+
+  /** This run's full drawn fight order (2026-09-20, export-log instrumentation)
+   * — a copy, so a caller can't mutate the session's own array. See
+   * currentEncounterIndex for the single-fight lookup this backs. */
+  get encounterOrderFull(): number[] {
+    return [...this.encounterOrder];
   }
 
   get currentFightIndex(): number {
@@ -150,7 +200,14 @@ export class RunSession {
    * resolveSpend() after the player (or the accept-default) decides. */
   playNextFight(fieldedIds?: string[]): FightResult {
     const ids = fieldedIds ?? this.defaultFielding;
+    const defaultIds = this.defaultFielding;
     this.fieldedThisFight = ids;
+    // Both captured BEFORE the fight/roster update below, for the export
+    // log's RoundLog.rosterBefore/coinBefore — roster.ts's helpers never
+    // mutate in place (applyFightResultToRoster returns a new object), so
+    // holding this reference is safe; it won't change out from under us.
+    const rosterBefore = this.roster;
+    const coinBefore = this.coin;
     const player = fieldSquad(this.roster, ids);
     const enemy = makeEnemySide(this.cfg, this.fightIndex, this.currentEncounterIndex);
     // Computed BEFORE runFight so the recap compares against what was
@@ -160,9 +217,27 @@ export class RunSession {
     const setup: FightSetup = { player, enemy };
     const result = runFight(setup, this.cfg.fight, this.rng, this.seedValue);
     this.lastFightResult = result;
+    this.fightResults.push(result);
 
     if (result.outcome === "loss") {
       this.fights.push(summarizeLoss(this.fightIndex, result, sideMaxHp(this.roster), ids));
+      this.roundLogs.push({
+        fightIndex: this.fightIndex,
+        encounterIndex: this.currentEncounterIndex,
+        encounterName: this.currentEncounterName,
+        rosterBefore,
+        coinBefore,
+        defaultFieldedIds: defaultIds,
+        fieldedIds: ids,
+        enemyBefore: enemy,
+        projection: this.lastProjection,
+        fightResult: result,
+        outcome: "loss",
+        spend: null,
+        coinAwarded: 0,
+        coinAfter: coinBefore,
+        rosterAfter: null,
+      });
       this.status = "over";
       this.overReason = "loss";
       return result;
@@ -171,6 +246,25 @@ export class RunSession {
     this.pendingCoinAwarded = coinAwardFor(this.cfg, result);
     this.roster = applyFightResultToRoster(this.roster, player, result, this.cfg);
     this.coin += this.pendingCoinAwarded;
+    // spend/coinAfter/rosterAfter start out pre-spend and get patched in
+    // place by resolveSpend, once the spend choice actually resolves.
+    this.roundLogs.push({
+      fightIndex: this.fightIndex,
+      encounterIndex: this.currentEncounterIndex,
+      encounterName: this.currentEncounterName,
+      rosterBefore,
+      coinBefore,
+      defaultFieldedIds: defaultIds,
+      fieldedIds: ids,
+      enemyBefore: enemy,
+      projection: this.lastProjection,
+      fightResult: result,
+      outcome: "win",
+      spend: null,
+      coinAwarded: this.pendingCoinAwarded,
+      coinAfter: this.coin,
+      rosterAfter: this.roster,
+    });
     return result;
   }
 
@@ -186,6 +280,13 @@ export class RunSession {
     if (!result) throw new Error("resolveSpend called before playNextFight");
     const summary = summarizeWin(this.fightIndex, result, this.pendingCoinAwarded, applied.spend, this.roster, this.fieldedThisFight);
     this.fights.push(summary);
+
+    const round = this.roundLogs[this.roundLogs.length - 1];
+    if (round && round.fightIndex === this.fightIndex) {
+      round.spend = applied.spend;
+      round.coinAfter = this.coin;
+      round.rosterAfter = this.roster;
+    }
 
     this.fightIndex++;
     if (this.fightIndex >= this.cfg.fightsPerRun) {

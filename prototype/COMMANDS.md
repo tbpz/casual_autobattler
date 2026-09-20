@@ -24,6 +24,13 @@ npm run measure:deciding-factors -- --block 0|1|2|3|4|5|all
                                     # src/batch/decidingFactors.ts's header.
                                     # (--quick on any measure:* is a harness smoke test only —
                                     # the numbers it prints are not trustworthy.)
+npm run readlog -- run-8412-r3-1830.json
+                                    # reads one exported run log (the "export" link next to the
+                                    # seed badge, every screen): prints what the game says decided
+                                    # each fight, cross-checks that against fight.ts's own totals,
+                                    # and re-runs each fight 300x per bench swap to price out
+                                    # "what if I'd fielded X instead." See src/tools/readLog.ts and
+                                    # src/log/.
 npm run build                      # tsc + vite production build
 ```
 
@@ -32,9 +39,11 @@ the way they are; `src/sim/config.ts` holds every tunable constant in one
 place.
 
 `npm run dev` with `?test=1&seed=N` runs the attribution self-test protocol —
-see `ATTRIBUTION_TEST.md`. Holds each fight's recap behind a "Show what
-happened" button and pins/displays the run seed; both are no-ops without the
-query params.
+see `../archive/ATTRIBUTION_TEST.md`. Holds each fight's recap behind a "Show
+what happened" button and pins/displays the run seed; both are no-ops
+without the query params. The "export" link beside the seed badge is always
+present (not test-mode-gated) and downloads everything the game has seen
+this run, for `npm run readlog` above.
 
 `npm run dev` with `?lab=1` opens the lab instead of the real game — pick any
 3 heroes, any encounter, a starting charge % per hero, and watch; optionally

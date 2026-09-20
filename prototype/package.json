@@ -17,7 +17,8 @@
     "check:determinism": "tsx src/checks/determinism.ts",
     "check:beatsheet": "tsx src/checks/beatsheet.ts",
     "check:chaindist": "tsx src/checks/chaindist.ts",
-    "check:projection": "tsx src/checks/projection.ts"
+    "check:projection": "tsx src/checks/projection.ts",
+    "readlog": "tsx src/tools/readLog.ts"
   },
   "devDependencies": {
     "vite": "^8.2.0",

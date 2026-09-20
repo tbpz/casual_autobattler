@@ -102,7 +102,7 @@ function nameLookup(result: FightResult): Map<string, string> {
 
 /** Every chain this fight fired (not just the longest — chainRecapLine only
  * ever reports one), plus every death, in order — the answer key the
- * attribution self-test (prototype/ATTRIBUTION_TEST.md) scores a written
+ * attribution self-test (archive/ATTRIBUTION_TEST.md) scores a written
  * cause against. Pairs each chainStart with the next chainEnd sharing its
  * heroId and backfire flag (chain state is per-hero and never overlaps
  * itself — see fight.ts — so this pairing can't cross-match two different

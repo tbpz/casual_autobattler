@@ -32,6 +32,18 @@ export interface LabSetup {
    * makeEncounterEnemySide's own two independent parameters. */
   rampIndex: number;
   seed: number;
+  /** Starting HP per SLOT, 0-100 (of that slot's own maxHp) — same
+   * slot-not-array-position convention as chargePercents. Undefined slots
+   * default to 100 (fresh). Added for the export-log what-if replay (see
+   * tools/readLog.ts): a mid-run fight starts with whatever attrition the
+   * roster already carries, not full HP, so re-running "what if I'd fielded
+   * Hollow instead" needs to start from the same HP the real fight did. */
+  hpPercents?: number[];
+  /** The roster's accumulated coin-upgrade bonus (SideState.dpsBonus) at the
+   * moment of this fight — same reasoning as hpPercents: a what-if replay of
+   * fight 3 should carry fight 1-2's upgrade spend, not start unbought.
+   * Undefined defaults to 0 (makePlayerSide's own default). */
+  dpsBonus?: number;
 }
 
 /** Builds the FightSetup runFight actually consumes, from a LabSetup.
@@ -44,7 +56,7 @@ export interface LabSetup {
  * would silently attach a slider to the wrong hero the moment the squad isn't
  * already tank-first. */
 export function buildLabFightSetup(setup: LabSetup, cfg: RunConfig): FightSetup {
-  const player = makePlayerSide(setup.heroIds);
+  const player = makePlayerSide(setup.heroIds, setup.dpsBonus ?? 0);
   const byInstanceId = new Map(player.heroes.map((h) => [h.id, h]));
   setup.heroIds.forEach((heroId, slot) => {
     const instanceId = `p${slot}_${heroId}`;
@@ -54,6 +66,9 @@ export function buildLabFightSetup(setup: LabSetup, cfg: RunConfig): FightSetup 
     }
     const pct = setup.chargePercents[slot] ?? 0;
     hero.charge = Math.round((pct / 100) * cfg.fight.chargeThreshold);
+    const hpPct = setup.hpPercents?.[slot] ?? 100;
+    hero.hp = Math.max(0, Math.round((hpPct / 100) * hero.maxHp));
+    hero.alive = hero.hp > 0;
   });
   const enemy = makeEncounterEnemySide(cfg, setup.rampIndex, setup.encounterIndex);
   return { player, enemy };

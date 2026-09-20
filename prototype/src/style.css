@@ -1929,7 +1929,7 @@ button:disabled {
 }
 
 /* ---------- Attribution self-test instrumentation (2026-08-20) ----------
- * See prototype/ATTRIBUTION_TEST.md and render/app.ts's ?seed=/?test=1
+ * See archive/ATTRIBUTION_TEST.md and render/app.ts's ?seed=/?test=1
  * handling. Both are inert outside those query params. */
 
 .seed-badge {
@@ -1941,6 +1941,24 @@ button:disabled {
   opacity: 0.6;
   letter-spacing: 0.02em;
   pointer-events: none;
+}
+
+/* The badge itself ignores clicks (pointer-events: none above) so it never
+ * sits on top of anything a player needs to tap; the export link inside it
+ * opts back in and gets a hover state, since it's the one live control here
+ * (2026-09-20, export-log instrumentation — see render/app.ts's
+ * appendSeedBadge and log/download.ts). Always present, not test-mode-gated:
+ * unlike the reveal button, grabbing a log is never a spoiler risk to
+ * ordinary play. */
+.export-log-link {
+  pointer-events: auto;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.export-log-link:hover {
+  opacity: 1;
 }
 
 .reveal-container.hidden {
