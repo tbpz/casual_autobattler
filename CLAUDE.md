@@ -32,6 +32,21 @@ I cannot reliably detect on my own when a decision is final — in design talk, 
    - **Invoke the `decision-log` skill**, which carries the entry format, the word budget, and the rules that keep entries small and grep-safe. Never write a DECISIONS.md entry freehand.
 3. Never auto-write a decision the user hasn't confirmed. Their confirmation is what makes the log auditable.
 
+## When I make a mistake
+
+A mistake here means: I stated something, then had to reverse it — because Tu pushed back, asked a
+question that exposed it, or I caught it myself. When that happens:
+
+1. Append one entry to `MISTAKES.md` immediately, in the format its own header describes. No need
+   to ask first — Tu has already said logging alone doesn't need his sign-off.
+2. Tell him in one line that it happened and point at the entry. Don't make it a bigger
+   interruption than that.
+3. Never edit or delete a past entry, even a stale one — same append-only rule as `DECISIONS.md`.
+   A pattern found later gets a new note, not a rewrite of the old one.
+
+Finding a pattern across entries and deciding what to fix is a separate, later step — not
+triggered by this file alone.
+
 ## Rewriting STATE.md
 
 `STATE.md` is regenerated **only when the user asks** ("sync", "update the state") — never automatically, because a wholesale rewrite is high-stakes and the user should be present to audit it. When asked, **invoke the `state-sync` skill**, which carries the reader framework, the section skeleton, and the four sizing rules. Never regenerate `STATE.md` freehand.
