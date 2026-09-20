@@ -24,6 +24,13 @@ npm run measure:deciding-factors -- --block 0|1|2|3|4|5|all
                                     # src/batch/decidingFactors.ts's header.
                                     # (--quick on any measure:* is a harness smoke test only —
                                     # the numbers it prints are not trustworthy.)
+npm run measure:encounters -- --block matrix|run|all [--n N]
+                                    # per-encounter x per-squad win-rate matrix (all 20 possible
+                                    # 3-hero squads) plus the real-run loss breakdown by fight
+                                    # number and by encounter. REPORT, built for the difficulty
+                                    # pass (DECISIONS.md, 2026-09-20) — re-run after any
+                                    # encounters.ts change. See src/batch/encounterMatrix.ts's
+                                    # header.
 npm run readlog -- run-8412-r3-1830.json
                                     # reads one exported run log (the "export" link next to the
                                     # seed badge, every screen): prints what the game says decided

@@ -66,6 +66,24 @@ export interface EncounterDef {
   gruntAttackIntervalSec: number;
 }
 
+// --- 2026-09-20 difficulty pass (see DECISIONS.md this date, and
+// `npm run measure:encounters`): every damage number below (bruiser
+// `damage`, `gruntDamage`) moved from an authored strawman that let all 20
+// possible 3-hero squads win nine of the eleven encounters with 41-80% of
+// their team's health left. Values are 80% of the raise a per-encounter
+// win-rate sweep found (all 20 squads x 25 seeds, ramp 0, full HP, zero
+// starting charge) — the full raise held each encounter's average win rate
+// near Champion's 65% but crashed run completion 18.3% -> 7.6%, since a
+// 5-fight run compounds five separately-tuned-to-75% fights into something
+// much harder than 75%. 80% keeps run completion where it already sat
+// (~18-19%) while moving losses out of fight 5 (which held 603 of 654 losses
+// across an 800-run sweep) and into every fight. `maxHp` and
+// `attackIntervalSec` are untouched — this pass changes how hard each
+// encounter hits, not its shape or length. Two named exceptions to the
+// uniform "80% of the raise" rule, each noted at its own entry below: Pack
+// needed MORE than 80% (its worst-squad win rate didn't close smoothly at
+// 80%), and Anvil couldn't be brought into band at any multiple this pass
+// tried.
 export const ENCOUNTERS: EncounterDef[] = [
   {
     name: "Pack",
@@ -75,7 +93,17 @@ export const ENCOUNTERS: EncounterDef[] = [
     gruntCount: 5,
     gruntNamePrefix: "Skirmisher",
     gruntMaxHp: 48,
-    gruntDamage: 3.6,
+    // 3.6 -> 5.8 (x1.6) — a bigger raise than most of this pass's other
+    // encounters (see the top-of-file comment's "80% of the raise"
+    // convention). At x1.48 (80% of Pack's own full raise) the worst squad
+    // still won 30-44% depending on seed sample — well above every other
+    // encounter's worst-squad reading — and the gap didn't close smoothly:
+    // x1.65 crashed the worst squad to 0% while the average was still a
+    // comfortable 78%. x1.6 is the value actually measured, not derived by
+    // formula: avg win rate 80%, worst squad 1% (in line with the rest of
+    // the pool, most of which already sit at 0-20%), health left on a win
+    // 29% (was 60%), a hero dead in 12% of wins (was 0%).
+    gruntDamage: 5.8,
     gruntAttackIntervalSec: 0.9,
   },
   {
@@ -83,7 +111,10 @@ export const ENCOUNTERS: EncounterDef[] = [
     blurb: "One huge body, nothing else. Can you kill it before the fight grinds you down?",
     tier: "early",
     bruisers: [
-      { namePrefix: "Wall", maxHp: 310, damage: 10, attackIntervalSec: 1.2, windupTargeting: "weighted" },
+      // 10 -> 16.4 (x1.64). Measured: avg win rate 84%, worst squad 8%
+      // (was 96%), health left on a win 32% (was 62%), a hero dead in 34%
+      // of wins (was 1%).
+      { namePrefix: "Wall", maxHp: 310, damage: 16.4, attackIntervalSec: 1.2, windupTargeting: "weighted" },
     ],
     gruntCount: 0,
     gruntNamePrefix: "",
@@ -96,8 +127,11 @@ export const ENCOUNTERS: EncounterDef[] = [
     blurb: "Two slams, offset. Can you take both without a break?",
     tier: "mid",
     bruisers: [
-      { namePrefix: "Twin", maxHp: 150, damage: 8.5, attackIntervalSec: 1.15, windupPhase: 0, windupTargeting: "weighted" },
-      { namePrefix: "Twin", maxHp: 150, damage: 8.5, attackIntervalSec: 1.15, windupPhase: 0.5, windupTargeting: "weighted" },
+      // 8.5 -> 11.2 (x1.32) each. Measured: avg win rate 89%, worst squad
+      // 24% (was 100%), health left on a win 34% (was 53%), a hero dead in
+      // 23% of wins (was 2%).
+      { namePrefix: "Twin", maxHp: 150, damage: 11.2, attackIntervalSec: 1.15, windupPhase: 0, windupTargeting: "weighted" },
+      { namePrefix: "Twin", maxHp: 150, damage: 11.2, attackIntervalSec: 1.15, windupPhase: 0.5, windupTargeting: "weighted" },
     ],
     gruntCount: 0,
     gruntNamePrefix: "",
@@ -110,18 +144,29 @@ export const ENCOUNTERS: EncounterDef[] = [
     blurb: "Its slam goes straight for your weakest hero, tank or no tank. Can they survive?",
     tier: "mid",
     bruisers: [
-      { namePrefix: "Executioner", maxHp: 190, damage: 10, attackIntervalSec: 1.1, windupTargeting: "lowestHp" },
+      // 10 -> 11.6 (x1.16). Measured (with the grunt change below): avg win
+      // rate 77%, worst squad 0% (was 48%), health left on a win 30%
+      // (was 41%), a hero dead in 23% of wins (was 9%).
+      { namePrefix: "Executioner", maxHp: 190, damage: 11.6, attackIntervalSec: 1.1, windupTargeting: "lowestHp" },
     ],
     gruntCount: 2,
     gruntNamePrefix: "Guard",
     gruntMaxHp: 55,
-    gruntDamage: 4.5,
+    // 4.5 -> 5.2 (x1.16), same multiplier as the bruiser above.
+    gruntDamage: 5.2,
     gruntAttackIntervalSec: 1,
   },
   {
     name: "Champion",
     blurb: "The finale — everything the run has taught you, at once.",
     tier: "finale",
+    // Unchanged — this pass's reference point. Already lands at ~59% average
+    // win rate (measured n=150, `npm run measure:encounters`; an earlier
+    // n=25 read said 65% — seed-population noise, not a real number, and the
+    // reason this pass's own target band's floor sits at 55% rather than
+    // 65%), worst squad 0%, health left on a win 20%, a hero dead in ~48% of
+    // wins. Every other encounter above was moved toward this fight's
+    // numbers, not away from them.
     bruisers: [
       { namePrefix: "Champion", maxHp: 230, damage: 11, attackIntervalSec: 1, windupTargeting: "weighted" },
     ],
@@ -146,7 +191,15 @@ export const ENCOUNTERS: EncounterDef[] = [
     gruntCount: 1,
     gruntNamePrefix: "Anvil",
     gruntMaxHp: 420,
-    gruntDamage: 4,
+    // 4 -> 13.6 (x3.4) — the KNOWN EXCEPTION to this pass's targets (see the
+    // top-of-file 2026-09-20 comment). At 4 damage every 1.3s (~3/s) this
+    // encounter could not out-damage one healer's own output (~5/s) no
+    // matter how any squad played it; even at x3.4 it measures avg win rate
+    // 99%, worst squad 96%, no squad landing between 40-90%. Raised as far
+    // as a damage-only change reaches; the shape itself ("no wind-up, no
+    // telegraph, zero jeopardy") is the open question this pass could not
+    // close — see DECISIONS.md's 2026-09-20 entry and STATE.md.
+    gruntDamage: 13.6,
     gruntAttackIntervalSec: 1.3,
   },
   {
@@ -157,7 +210,10 @@ export const ENCOUNTERS: EncounterDef[] = [
     gruntCount: 4,
     gruntNamePrefix: "Raider",
     gruntMaxHp: 40,
-    gruntDamage: 5,
+    // 5 -> 5.8 (x1.16). Measured: avg win rate 83%, worst squad 0%
+    // (was 88%), health left on a win 34% (was 41%), a hero dead in 7% of
+    // wins (was 2%).
+    gruntDamage: 5.8,
     gruntAttackIntervalSec: 0.6,
   },
   {
@@ -165,7 +221,12 @@ export const ENCOUNTERS: EncounterDef[] = [
     blurb: "Its slam lands twice as often. Can you take steady pressure, not just one big hit?",
     tier: "mid",
     bruisers: [
-      { namePrefix: "Duelist", maxHp: 200, damage: 9, attackIntervalSec: 1.1, windupTargeting: "weighted", windupIntervalSec: 2.5 },
+      // 9 -> 19.8 (x2.2) — the biggest raise besides Anvil, because Duelist
+      // delivered only 9% of a team's health over a whole fight before this
+      // pass. Measured: avg win rate 82%, worst squad 16% (was 100%),
+      // health left on a win 36% (was 74%), a hero dead in 32% of wins
+      // (was 0%).
+      { namePrefix: "Duelist", maxHp: 200, damage: 19.8, attackIntervalSec: 1.1, windupTargeting: "weighted", windupIntervalSec: 2.5 },
     ],
     gruntCount: 0,
     gruntNamePrefix: "",
@@ -178,12 +239,17 @@ export const ENCOUNTERS: EncounterDef[] = [
     blurb: "It heals as fast as you can hurt it. Can you burst through faster than it mends?",
     tier: "mid",
     bruisers: [
-      { namePrefix: "Warden", maxHp: 210, damage: 8, attackIntervalSec: 1.3, windupTargeting: "weighted", healPerBeat: 6 },
+      // 8 -> 13.1 (x1.64), same multiplier as The Wall. Measured (with the
+      // grunt change below): avg win rate 87%, worst squad 12% (was 96%),
+      // health left on a win 33% (was 63%), a hero dead in 14% of wins
+      // (was 0%).
+      { namePrefix: "Warden", maxHp: 210, damage: 13.1, attackIntervalSec: 1.3, windupTargeting: "weighted", healPerBeat: 6 },
     ],
     gruntCount: 2,
     gruntNamePrefix: "Acolyte",
     gruntMaxHp: 55,
-    gruntDamage: 4,
+    // 4 -> 6.6 (x1.64), same multiplier as the bruiser above.
+    gruntDamage: 6.6,
     gruntAttackIntervalSec: 1,
   },
   {
@@ -191,8 +257,11 @@ export const ENCOUNTERS: EncounterDef[] = [
     blurb: "Two glass cannons, high damage each. Can you drop the first before it costs you?",
     tier: "mid",
     bruisers: [
-      { namePrefix: "Glass", maxHp: 90, damage: 14, attackIntervalSec: 1.4, windupPhase: 0, windupTargeting: "weighted" },
-      { namePrefix: "Glass", maxHp: 90, damage: 14, attackIntervalSec: 1.4, windupPhase: 0.5, windupTargeting: "weighted" },
+      // 14 -> 19.6 (x1.4) each. Measured: avg win rate 80%, worst squad 4%
+      // (was 100%), health left on a win 38% (was 57%), a hero dead in 28%
+      // of wins (was 2%).
+      { namePrefix: "Glass", maxHp: 90, damage: 19.6, attackIntervalSec: 1.4, windupPhase: 0, windupTargeting: "weighted" },
+      { namePrefix: "Glass", maxHp: 90, damage: 19.6, attackIntervalSec: 1.4, windupPhase: 0.5, windupTargeting: "weighted" },
     ],
     gruntCount: 0,
     gruntNamePrefix: "",
@@ -205,12 +274,19 @@ export const ENCOUNTERS: EncounterDef[] = [
     blurb: "Its slam goes for your weakest hero — and small hits keep changing who that is. Can they survive?",
     tier: "finale",
     bruisers: [
-      { namePrefix: "Vanguard", maxHp: 240, damage: 11, attackIntervalSec: 1, windupTargeting: "lowestHp" },
+      // 11 -> 6.6 (x0.6) — DOWN, not up. Before this pass Vanguard was
+      // unbeatable for all 20 possible squads (0% average win rate): three
+      // fast grunts (below) softened a hero and this slam finished whoever
+      // they'd softened, every time. At x0.6 it measures avg win rate 73%,
+      // the best middling-squad spread in the pool (9 of 20 squads land
+      // between 40-90%, more than Champion's 8).
+      { namePrefix: "Vanguard", maxHp: 240, damage: 6.6, attackIntervalSec: 1, windupTargeting: "lowestHp" },
     ],
     gruntCount: 3,
     gruntNamePrefix: "Outrider",
     gruntMaxHp: 50,
-    gruntDamage: 5,
+    // 5 -> 3 (x0.6), same multiplier as the bruiser above.
+    gruntDamage: 3,
     gruntAttackIntervalSec: 0.7,
   },
 ];
