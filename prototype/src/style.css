@@ -1811,10 +1811,18 @@ button:disabled {
 }
 
 /* The "good against" half of the chain line — same rebuild as above. Dimmer
- * and un-tracked: it's the answer to "why pick this," not a stat to scan. */
+ * and un-tracked: it's the answer to "why pick this," not a stat to scan.
+ * 2026-09-18 multi-answer pass: this now reads per-ENCOUNTER for guard, stun,
+ * and the two heals (see sim/projection.ts's chainVsEncounterLine) instead of
+ * one fixed ~40-char constant, so it can run longer than .hero-pick-stats'
+ * shared nowrap allows — wraps instead of forcing the new sentences into
+ * short fragments, bounded so it doesn't stretch the whole row. */
 .hero-pick-chain-against {
   color: var(--muted);
   font-size: 0.85em;
+  white-space: normal;
+  max-width: 220px;
+  text-align: right;
 }
 
 /* BACKFIRE risk pips (2026-08-20, pick-screen honesty pass) — same shape as

@@ -2,7 +2,7 @@
 
 > **What this file is:** where the project stands right now, and what to do next. Present tense only.
 > **Read this first** in every session. Layer 1 ends at the rule — that's the 60-second read. Layer 2 is the working index.
-> **Last synced:** 2026-09-15
+> **Last synced:** 2026-09-18
 
 ## What this is
 
@@ -22,23 +22,23 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 ## Where it stands
 
-The fight is legible and the player can name a true cause. Chain identity's six per-hero effects are
-built and batch-verified, not played. Two of those effects — Bracer's guard and Hollow's stun —
-now render provably on screen (a redirect that visibly moves, a freeze that counts down) instead of
-usually invisible or a wall-clock guess; neither is played yet. The run stays deliberately easier
-than intended, pending a difficulty decision; the field pick still collapses to a forced answer under
-attrition, and the coin spend still goes unused.
+The fight is legible and the player can name a true cause, but only two of the six chain effects can
+touch the game's one threat type (a bruiser's slam) — the other four never read or write that state,
+so the pick reads as one obvious answer. A fix is designed — enemy-anchored effects, multiple routes
+per threat — but not yet built; see DECISIONS.md's 2026-09-18 entry and
+`archive/DESIGN_MULTIPLE_ANSWERS.md`. Bracer's guard and Hollow's stun both render provably on screen,
+unplayed either way. The run stays deliberately easier than intended, the field pick still collapses
+to a forced answer under attrition, and the coin spend still goes unused.
 
 ## Next up
 
-1. **Play-test the chain-effect design, guard and stun included.** At the squad pick screen, read
-   each hero's two-line chain block cold and name one enemy you'd bring it against; in a guard fight,
-   confirm the redirect reads as a save (or a betrayal); in a Hollow fight, confirm you can say how
-   long the freeze is, how much is left, and when it ended — all without checking the code. See
-   DECISIONS.md's 2026-09-13 entry and both 2026-09-15 entries.
+1. **Build the multi-answer chain design** — flinch, dual-pressure encounters, enemy-side setup — per
+   `archive/DESIGN_MULTIPLE_ANSWERS.md`, then read it cold at the field-pick screen: name two routes
+   per encounter, and which is the safer one. See DECISIONS.md's 2026-09-18 entry.
 2. Decide whether the field-pick collapse is upstream of #1 — chain identity lives on the
    field-pick screen, so a forced pick is a lever nobody pulls.
-3. Decide difficulty: the run still reads easier than intended — re-tune, or accept it.
+3. Decide difficulty: the run still reads easier than intended — hold off retuning until #1 lands,
+   since its dual-pressure encounters change difficulty too.
 4. Decide whether the coin spend becomes something worth using, or is cut — it appeared in none of the 12 played cards.
 5. Widen the pool beyond encounters — offers/modifiers next, heroes after.
 
@@ -50,6 +50,7 @@ attrition, and the coin spend still goes unused.
 |---|---|---|
 | Fight mechanics — charge accrual, threshold, persistence | played-verified | `sim/fight.ts`, `sim/config.ts` |
 | Chain identity — six per-hero effects and their backfires, replaces four failed levers | batch-verified | `sim/fight.ts`, `sim/config.ts`, `sim/heroes.ts` |
+| Multi-answer counterplay — flinch, dual-pressure encounters, enemy-side setup, encounter-aware pick copy | not started | `archive/DESIGN_MULTIPLE_ANSWERS.md` |
 | Chain legibility — pacing, HUD, pips, end card, now per-effect | built | `render/playback.ts`, `render/fightView.ts` |
 | Charge bar — the one lever reaching "change it" | played-verified | `render/fieldPickScreen.ts` |
 | In-fight threat — bruiser wind-up; guard's redirect and Hollow's freeze both now provable | batch-verified | `sim/fight.ts`, `render/fightView.ts` |
@@ -62,8 +63,9 @@ attrition, and the coin spend still goes unused.
 
 ## Unverified bets
 
-- A per-hero chain EFFECT, not a per-hero number, can become a pick a player reasons about before
-  the fight — built and batch-verified, not yet played. See DECISIONS.md's 2026-09-13 entry.
+- Enemy-anchored, multi-route counterplay (flinch, dual-pressure encounters, enemy-side setup —
+  `archive/DESIGN_MULTIPLE_ANSWERS.md`) makes a hero's chain effect a live pick, not a forced one —
+  designed 2026-09-18, not yet built or played.
 - The fight keeps enough pressure with no in-fight escalation beyond the bruiser wind-up.
 - One backfire should not durably shrink the live roster — Rook sat out 8 straight fights after a single betrayal.
 - Combat stays watch-only as more levers get added.
@@ -71,12 +73,12 @@ attrition, and the coin spend still goes unused.
 
 ## Open questions
 
-- Does the six-effect chain design actually read at the pick screen — can each hero's line be
-  matched to an enemy cold, before playing? Gates Next up #1.
+- Does the multi-answer design actually produce two live routes per encounter at the pick screen,
+  once built? Gates Next up #1.
 - What makes a field pick live when attrition has already forced the answer?
 - Does the coin spend need a real answer to a backfire, or should it be cut?
-- How much further to retune fights 1-3 against a double-tank draft — and does Bracer's now-provable
-  guard, strictly stronger than before, add to that gap?
+- How much further to retune fights 1-3 against a double-tank draft — deferred until the
+  multi-answer build lands, since its dual-pressure encounters change difficulty too.
 
 ## How to work here
 

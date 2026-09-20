@@ -10,6 +10,57 @@
 
 ---
 
+## [2026-09-19] Flinch is cut: built, measured, found nearly inert
+
+- **Decision:**
+  - Flinch (a chain hit mid-wind-up knocking a bruiser's pending slam down) is
+    removed outright — config flag, state, events, sim function, render
+    effects, batch/check instrumentation all deleted.
+  - The 2026-09-18 decision that chain answers must be enemy-anchored, and a
+    threat must take more than one route, still stands.
+  - Parts B (dual-pressure encounters) and C (enemy-side setup) from
+    `archive/DESIGN_MULTIPLE_ANSWERS.md` were never built and stay open.
+  - Part D (per-encounter pick-screen copy for guard/stun/heals) stays — it
+    needs no flag and states true things about those three effects regardless
+    of flinch.
+- **Why:**
+  - Measured across the full batch matrix
+    (`archive/260919_BATCH_FLINCH_ON.md`): only 2.3%-3.2% of slams ever got
+    chipped, and run completion moved by well under a point either way — seed
+    noise, not a real effect.
+  - The design doc's own kill condition (cut, don't retune, if damage heroes
+    pull ahead pool-wide) came back real in direction but too small and too
+    low-baseline to be conclusive on the one isolated test built to trip it.
+  - An inert mechanism with no clean pass either way isn't worth the surface
+    it adds — same bar the four prior failed chain-identity levers were held
+    to (`decidingFactors.ts`'s block-4 comment: "deleted outright").
+  - The same measurement surfaced a real, unrelated finding worth keeping:
+    about a third of an average run's fights carry no slam at all, which is
+    why Hollow's stun beats Bracer's guard across a whole run despite guard
+    winning the per-fight argument.
+- **Replaces:** Extends, not supersedes, the 2026-09-18 "Chain answers must be
+  enemy-anchored" entry — same rule, one failed implementation of it removed.
+
+## [2026-09-18] Chain answers must be enemy-anchored, and a threat must take more than one route
+
+- **Decision:**
+  - A chain effect earns its place by naming something the *enemy* has — a state, a trait — never a
+    number or curve on the hero's own chain.
+  - Every threat must be answerable by more than one chain effect, each in a different currency
+    (damage, heal, redirect, freeze) — never one full counter and nothing else.
+  - Full design in `archive/DESIGN_MULTIPLE_ANSWERS.md`.
+- **Why:**
+  - The chain pick collapses to one obvious answer (slam → Bracer) because only `guard` and `stun`
+    read or write a bruiser's wind-up state — the other four chain effects never touch it.
+    "Several ways to answer a threat" was false in the mechanics, not just unclear on the pick
+    screen.
+  - The four prior chain-identity levers (payoff size, backfire-as-risk, chain shape, chain
+    targeting; see 2026-09-13 entry) all described something the hero's own chain does, with
+    nothing on the enemy side to be weak to. This decision fixes that shape going forward: anchor
+    every effect on the enemy, by rule.
+- **Replaces:** Extends, not supersedes, the 2026-09-13 "Chain identity: effect, not magnitude"
+  entry.
+
 ## [2026-09-15] Hollow's freeze becomes provable — snapshot-driven countdown, additive links, backfire tagged distinctly
 
 - **Decision:**

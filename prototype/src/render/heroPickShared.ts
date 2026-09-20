@@ -1,6 +1,7 @@
 import { backfireChanceFor, chainEffectLines, type FightConfig } from "../sim/config.js";
+import { chainVsEncounterLine } from "../sim/projection.js";
 
-export { chainEffectLines };
+export { chainEffectLines, chainVsEncounterLine };
 
 /** Renders a hero's BACKFIRE risk (config.ts's backfireChanceFor, a function
  * of the hero's own chainAffinity) as a filled/empty pip row in the danger

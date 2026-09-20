@@ -4,7 +4,7 @@ import { MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY } from "../sim/heroes.js";
 import { defaultFieldPick, fieldSquad, livingRosterHeroes, type RosterState } from "../sim/roster.js";
 import { makeEnemySide } from "../sim/run.js";
 import { project } from "../sim/projection.js";
-import { chainEffectLines, backfireRiskPips, chargeBarHtml } from "./heroPickShared.js";
+import { chainEffectLines, chainVsEncounterLine, backfireRiskPips, chargeBarHtml } from "./heroPickShared.js";
 
 /**
  * Per-fight FIELD pick (2026-08-09 roster/bench pass — see config.ts's
@@ -119,7 +119,7 @@ export function renderFieldPickScreen(
       <span class="hero-pick-stats">
         <span class="hero-pick-numbers">${Math.round(h.hp)}/${Math.round(h.maxHp)}hp / ${h.damage}dmg / ${h.attackIntervalSec}s${h.healPerBeat ? ` +${h.healPerBeat}heal` : ""}${h.attacksWhileHealing ? " +atk" : ""}</span>
         <span class="hero-pick-chain">CHAIN: ${chain.does}</span>
-        <span class="hero-pick-chain-against">${chain.against}</span>
+        <span class="hero-pick-chain-against">${chainVsEncounterLine(h.chainEffect ?? "poundBiggest", enemyPreview)}</span>
         <span class="hero-pick-backfire">BACKFIRE ${backfireRiskPips(cfg.fight, h.chainAffinity, MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY)}</span>
       </span>
     `;

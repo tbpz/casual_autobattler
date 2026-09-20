@@ -576,6 +576,7 @@ between("fraction of fired chains with length >= 3 (composition of the table alo
             : `still guardCharges=${stillShowing?.guardCharges} guardHeroId=${stillShowing?.guardHeroId} at t=${stillShowing?.t} (death at t=${death.t})`,
     );
   }
+
 }
 
 const DEFAULT_DRAFT = ["bracer", "hollow", "rook", "cairn", "ward"];

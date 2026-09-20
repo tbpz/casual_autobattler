@@ -1,5 +1,5 @@
-import type { FightConfig } from "./config.js";
-import { chainEffectVerb } from "./config.js";
+import type { ChainEffect, FightConfig } from "./config.js";
+import { chainEffectLines, chainEffectVerb } from "./config.js";
 import type { HeroState, SideState } from "./types.js";
 import { sideHp } from "./types.js";
 
@@ -114,6 +114,43 @@ function verdictFor(band: MarginBand, tankName: string | null): string {
         : "Tight. No one's holding the line — a slam could end this early.";
     case "losing":
       return "Rough floor. You'll need a break — or a fast chain — to pull this out.";
+  }
+}
+
+/** What a hero's chain effect would do against THIS drawn encounter — the
+ * per-encounter answer to config.ts's chainEffectLines' fixed `against`
+ * string (2026-09-18 multi-answer pass — see DECISIONS.md and
+ * archive/DESIGN_MULTIPLE_ANSWERS.md). Read at the field-pick screen, which
+ * already has a real enemy side in scope; the squad-pick (draft) screen has
+ * no encounter yet and keeps the static `against` line instead — see
+ * render/squadPickScreen.ts.
+ *
+ * A slam is the only threat this can speak to today — Part B/C of the design
+ * (a second pressure per encounter, enemy-side setup) are a separate pass.
+ * An encounter with no living bruiser falls back to the unchanged static
+ * line unconditionally, so Pack/Anvil/Ambush keep their honest
+ * crowd/huge-body/chip-damage framing. strikeAll and poundBiggest also fall
+ * back against a slam — neither has a mechanism that touches a wind-up (the
+ * "flinch" attempt at one was built, measured nearly inert, and cut; see
+ * DECISIONS.md's 2026-09-19 entry) — leaving guard and stun as the only
+ * live routes against one until parts B/C land. */
+export function chainVsEncounterLine(effect: ChainEffect, enemy: SideState): string {
+  const bruisers = enemy.heroes.filter((h) => h.role === "bruiser" && h.alive);
+  const fallback = chainEffectLines(effect).against;
+  if (bruisers.length === 0) return fallback;
+  const plural = bruisers.length > 1;
+
+  switch (effect) {
+    case "guard":
+      return plural ? `${bruisers.length} slammers — covers one at a time.` : "Takes the slam for the squad.";
+    case "stun":
+      return plural ? "Freezes whichever's in front, cancelling its slam." : "Cancels the slam outright.";
+    case "poundBiggest":
+    case "strikeAll":
+      return fallback;
+    case "mendAll":
+    case "mendOne":
+      return "Heals back about one slam's worth per chain.";
   }
 }
 
