@@ -2,7 +2,7 @@
 
 > **What this file is:** where the project stands right now, and what to do next. Present tense only.
 > **Read this first** in every session. Layer 1 ends at the rule — that's the 60-second read. Layer 2 is the working index.
-> **Last synced:** 2026-09-18
+> **Last synced:** 2026-09-20
 
 ## What this is
 
@@ -24,22 +24,22 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 The fight is legible and the player can name a true cause, but only two of the six chain effects can
 touch the game's one threat type (a bruiser's slam) — the other four never read or write that state,
-so the pick reads as one obvious answer. A fix is designed — enemy-anchored effects, multiple routes
-per threat — but not yet built; see DECISIONS.md's 2026-09-18 entry and
-`archive/DESIGN_MULTIPLE_ANSWERS.md`. Bracer's guard and Hollow's stun both render provably on screen,
-unplayed either way. The run stays deliberately easier than intended, the field pick still collapses
-to a forced answer under attrition, and the coin spend still goes unused.
+so the pick still reads as one obvious answer; a fix is designed but not yet built
+(archive/DESIGN_MULTIPLE_ANSWERS.md). Every encounter can be lost by some squad, with stakes spread
+across all five fights instead of concentrated in the finale — Anvil is the one holdout, still
+unloseable at its authored shape. The field pick still collapses to a forced answer under attrition,
+and the coin spend still goes unused in real play.
 
 ## Next up
 
-1. **Build the multi-answer chain design** — flinch, dual-pressure encounters, enemy-side setup — per
-   `archive/DESIGN_MULTIPLE_ANSWERS.md`, then read it cold at the field-pick screen: name two routes
-   per encounter, and which is the safer one. See DECISIONS.md's 2026-09-18 entry.
-2. Decide whether the field-pick collapse is upstream of #1 — chain identity lives on the
-   field-pick screen, so a forced pick is a lever nobody pulls.
-3. Decide difficulty: the run still reads easier than intended — hold off retuning until #1 lands,
-   since its dual-pressure encounters change difficulty too.
-4. Decide whether the coin spend becomes something worth using, or is cut — it appeared in none of the 12 played cards.
+1. **Build the multi-answer chain design** — dual-pressure encounters, enemy-side setup, encounter-aware
+   pick copy (flinch itself is cut, DECISIONS.md 2026-09-19) — per `archive/DESIGN_MULTIPLE_ANSWERS.md`.
+   Genuinely next now: the difficulty pass that had to come first (DECISIONS.md 2026-09-20) is done.
+2. Decide Anvil's fate — give it a threat (a wind-up, a telegraph) or cut it from the pool; its damage
+   was pushed as far as this pass's approach reaches and it's still unloseable (DECISIONS.md 2026-09-20).
+3. Decide whether the field-pick collapse under attrition is upstream of #1.
+4. Decide whether the coin spend becomes something worth using in real play, or is cut — its simulated
+   batch gap closed (DECISIONS.md 2026-09-20), but that's a different question from played-game use.
 5. Widen the pool beyond encounters — offers/modifiers next, heroes after.
 
 ---
@@ -50,35 +50,35 @@ to a forced answer under attrition, and the coin spend still goes unused.
 |---|---|---|
 | Fight mechanics — charge accrual, threshold, persistence | played-verified | `sim/fight.ts`, `sim/config.ts` |
 | Chain identity — six per-hero effects and their backfires, replaces four failed levers | batch-verified | `sim/fight.ts`, `sim/config.ts`, `sim/heroes.ts` |
-| Multi-answer counterplay — flinch, dual-pressure encounters, enemy-side setup, encounter-aware pick copy | not started | `archive/DESIGN_MULTIPLE_ANSWERS.md` |
-| Chain legibility — pacing, HUD, pips, end card, now per-effect | built | `render/playback.ts`, `render/fightView.ts` |
+| Multi-answer counterplay — dual-pressure encounters, enemy-side setup, encounter-aware pick copy | not started | `archive/DESIGN_MULTIPLE_ANSWERS.md` |
+| Chain legibility — pacing, HUD, pips, end card, per-effect | built | `render/playback.ts`, `render/fightView.ts` |
 | Charge bar — the one lever reaching "change it" | played-verified | `render/fieldPickScreen.ts` |
-| In-fight threat — bruiser wind-up; guard's redirect and Hollow's freeze both now provable | batch-verified | `sim/fight.ts`, `render/fightView.ts` |
+| In-fight threat — bruiser wind-up; guard's redirect and Hollow's freeze both provable | batch-verified | `sim/fight.ts`, `render/fightView.ts` |
 | Field pick — collapses to a forced answer under attrition | played-verified | `sim/roster.ts`, `render/fieldPickScreen.ts` |
 | Coin spend — absent from all 12 played cards | played-verified | `sim/run.ts`, `render/runScreens.ts` |
 | Pre-play chain signal — expected count + effect | batch-verified | `sim/projection.ts` |
-| Enemies — the 11-encounter tiered pool | batch-verified | `sim/encounters.ts` |
-| Difficulty — ~20% completion for the default draft, all checks passing | batch-verified | `checks/chaindist.ts` |
+| Enemies — the 11-encounter tiered pool, each retuned so some squad can lose it | batch-verified | `sim/encounters.ts`, `npm run measure:encounters` |
+| Difficulty — ~19% completion for the default draft, losses spread across all five fights | batch-verified | `checks/chaindist.ts` |
 | Real game build | not started | — |
 
 ## Unverified bets
 
-- Enemy-anchored, multi-route counterplay (flinch, dual-pressure encounters, enemy-side setup —
-  `archive/DESIGN_MULTIPLE_ANSWERS.md`) makes a hero's chain effect a live pick, not a forced one —
-  designed 2026-09-18, not yet built or played.
-- The fight keeps enough pressure with no in-fight escalation beyond the bruiser wind-up.
+- Enemy-anchored, multi-route counterplay (`archive/DESIGN_MULTIPLE_ANSWERS.md`) makes a hero's chain
+  effect a live pick, not a forced one — designed 2026-09-18, not yet built or played.
+- Raising each encounter's steady damage, not adding new in-fight escalation, is enough to keep a fight
+  feel tense while watching — batch-verified at the squad level (`npm run measure:encounters`), not yet played.
 - One backfire should not durably shrink the live roster — Rook sat out 8 straight fights after a single betrayal.
 - Combat stays watch-only as more levers get added.
-- Hollow's freeze base duration (`sim/config.ts`'s `chainStunBaseSec`) is a retuned strawman, not yet fully re-tuned against the batch.
+- Hollow's freeze base duration (`sim/config.ts`'s `chainStunBaseSec`) is a retuned strawman, not yet
+  fully re-tuned against the harder batch.
 
 ## Open questions
 
 - Does the multi-answer design actually produce two live routes per encounter at the pick screen,
   once built? Gates Next up #1.
-- What makes a field pick live when attrition has already forced the answer?
-- Does the coin spend need a real answer to a backfire, or should it be cut?
-- How much further to retune fights 1-3 against a double-tank draft — deferred until the
-  multi-answer build lands, since its dual-pressure encounters change difficulty too.
+- Does Anvil need an added threat, or should it be cut from the pool? Gates Next up #2.
+- What makes a field pick live when attrition has already forced the answer? Gates Next up #3.
+- Does the coin spend need a real answer to a backfire, or should it be cut? Gates Next up #4.
 
 ## How to work here
 
@@ -86,5 +86,5 @@ to a forced answer under attrition, and the coin spend still goes unused.
 - `DECISIONS.md` has an archive rule; entries below it predate the 2026-07-18 pivot and describe a superseded design.
 - Decisions are proposed, never silently logged — on a confirmed yes, append via the `decision-log` skill.
 - This file is regenerated only when asked, via the `state-sync` skill; `REFERENCE.md` is not regenerated by a sync.
-- Commands: `npm run dev` to play (`?test=1&seed=N` runs the `ATTRIBUTION_TEST.md` protocol), `npm run check` for regressions, `npm run batch -- --n 1000` for distributions — full list in `prototype/COMMANDS.md`.
+- Commands: `npm run dev` to play (`?test=1&seed=N` runs the `ATTRIBUTION_TEST.md` protocol), `npm run check` for regressions, `npm run batch -- --n 1000` for distributions, `npm run measure:encounters` for the per-squad/per-encounter difficulty matrix — full list in `prototype/COMMANDS.md`.
 - Code: `prototype/src/sim/` (`config.ts` holds every tunable in one place), `src/render/`, `src/batch/`, `src/checks/`.

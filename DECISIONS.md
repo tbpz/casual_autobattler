@@ -10,6 +10,84 @@
 
 ---
 
+## [2026-09-20] Difficulty pass goes before the multi-answer chain build
+
+- **Decision:**
+  - The 2026-09-20 difficulty pass — giving every encounter real stakes, not
+    just the finale — lands before STATE.md's previously-planned next step,
+    the multi-answer chain design (`archive/DESIGN_MULTIPLE_ANSWERS.md`).
+  - That build is not cancelled, only reordered to after this pass.
+- **Why:**
+  - The attribution playtest this pass responds to
+    (`260920_ATTRIBUTION_TEST.md`) found 9 of 11 encounters unloseable by any
+    of the 20 possible 3-hero squads — measured 0-3% of wins costing a hero,
+    41-80% team health left on every win.
+  - Building a second answer-route into a threat that cannot kill the player
+    would reproduce the same "any combination is fine" finding, with more
+    unused mechanism underneath it.
+  - A threat has to be able to win before how many routes answer it can
+    matter.
+- **Replaces:** Reorders, does not cancel, STATE.md's "Next up #1."
+
+## [2026-09-20] Champion is the difficulty pass's reference fight
+
+- **Decision:**
+  - Every other encounter's damage was tuned toward Champion's own win-rate
+    distribution across all 20 squads, not an independently invented target
+    band.
+  - Champion's own numbers are untouched by this pass — see
+    `sim/encounters.ts`'s Champion entry for its current values.
+- **Why:**
+  - Champion was the only encounter, of eleven, the pre-pass attribution
+    playtest read as a real fight (`260920_ATTRIBUTION_TEST.md`'s per-
+    encounter notes name it the one round the player couldn't blind-spam).
+  - It's the one fixture in the pool with a distribution already trusted, so
+    tuning toward it means tuning toward a known-good shape, not a guess.
+  - Measured at a stable sample (n=150, `npm run measure:encounters`): ~59%
+    average win rate across the 20 squads, worst squad 0%, health left on a
+    win ~20%, a hero dead in ~48% of wins — an earlier n=25 read of 65% was
+    seed noise, not a real number (see `sim/encounters.ts`'s own comment on
+    the entry).
+- **Replaces:** None.
+
+## [2026-09-20] Anvil's shape, not its numbers, is the open question
+
+- **Decision:**
+  - Anvil's damage was raised as far as this pass's damage-only approach
+    reaches (`sim/encounters.ts`'s Anvil entry) and left there, rather than
+    forced into the pass's target band by an even larger multiplier.
+  - Whether it needs an added threat (a wind-up, a telegraph) or should be
+    cut from the pool is left open for a separate decision.
+- **Why:**
+  - Even at that raise, Anvil measures ~98-99% average win rate across the
+    20 squads with the worst squad still 88-96% — no squad lands in the
+    pass's target middle band, and the gap didn't close by scaling further.
+  - Anvil was authored deliberately as "no wind-up, no telegraph, zero
+    jeopardy," a pure DPS check (`sim/encounters.ts`'s own comment on the
+    entry) — a shape a damage number alone can't turn into real jeopardy.
+- **Replaces:** None.
+
+## [2026-09-20] The coin economy's known gap is closed, not left open for further work
+
+- **Decision:** No further work is planned on the coin spend's protective
+  value against backfire — the gap the 2026-08-14 chain rebuild flagged
+  (`checks/chaindist.ts`) is treated as closed, not a standing TODO.
+- **Why:**
+  - That gap was itself a side effect of low steady damage, not of the coin
+    spend's own design: post-rebuild, always-heal and never-spend were
+    statistically indistinguishable (27.2% vs 28.1% completion, n=3000)
+    because a flat heal couldn't counter a backfire's burst damage.
+  - Raising every encounter's steady damage — this pass's actual target —
+    gave the flat heal something it's effective against again; post-pass,
+    always-heal beats never-spend by a real margin
+    (`checks/chaindist.ts`'s re-derived floor check carries the current
+    numbers).
+  - This was a side effect of a change aimed at something else, not a fix
+    earned by touching the spend itself — it doesn't validate the spend's
+    design, only closes this specific gap.
+- **Replaces:** Closes, without editing, the 2026-08-14 chain rebuild entry's
+  "KNOWN GAP" note on this topic.
+
 ## [2026-09-19] Flinch is cut: built, measured, found nearly inert
 
 - **Decision:**
