@@ -13,9 +13,11 @@ export { chainEffectLines, chainVsEncounterLine };
  * stated the tradeoff in words ("bigger pips land a bigger payoff AND carry
  * a bigger backfire risk"), but a tooltip doesn't exist on a touch device,
  * and the risk half had no color, number, or bar of its own. Unlike the old
- * CHAIN pips (see chainShapeSparkline above, its Step 3 replacement), this
- * one still ranks heroes on a real, un-equalized number — chainAffinity is
- * volatility now, full stop, so more pips genuinely means more risk.
+ * CHAIN shape pips it sat beside (removed with per-hero chain shape in the
+ * 2026-09-13 rebuild — heroes differ by effect now, and nothing about a
+ * chain's SIZE varies by hero), this one still ranks heroes on a real,
+ * un-equalized number: chainAffinity is volatility and nothing else, so more
+ * pips genuinely means more risk.
  * Normalized against the POOL's own
  * backfire range (min/max chainAffinity in the pool, via backfireChanceFor),
  * not against [0,1], so the pips actually spread across the pool's real

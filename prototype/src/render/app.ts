@@ -110,7 +110,12 @@ export function mountApp(root: HTMLElement): void {
       result,
       (snapshot, events) => view.render(snapshot, events),
       () => onFightEnd(result),
-      cfg.fight.chainEscalationKneeHit,
+      // The hit where playback's slow-motion deepens. Was
+      // chainEscalationKneeHit until 2026-09-21; the curve flattening moved
+      // that knee to 1, which would have run every beat past the first at the
+      // deep rate. chainFullTellThreshold is the threshold the shake, the
+      // popup jump and the end-card already share — see its docstring.
+      cfg.fight.chainFullTellThreshold,
     );
 
     const pauseBtn = document.createElement("button");

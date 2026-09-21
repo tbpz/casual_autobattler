@@ -10,6 +10,37 @@
 
 ---
 
+## [2026-09-21] A chain's spread comes from length at 13:1, not 40:1
+
+- **Decision:**
+  - The escalation curve flattens to one near-linear slope, and every
+    per-effect base rises to hold each chain's full-length total where it was
+    (`sim/config.ts`'s `chainEscalationKneeHit`/`StepMultiplier` and the
+    `chain*Base` values — the two move together, always).
+  - `chainMaxHits` and the continuation table are untouched: the pass changes
+    how big a rung is, not how many there are or how likely.
+  - Playback's slow-motion now deepens at `chainFullTellThreshold` instead of
+    the escalation knee (`render/playback.ts`).
+- **Why:**
+  - 58% of chains stop at one or two rungs, and a 2-rung Rook chain did 18
+    damage against bruisers of 90-310 HP — the played complaint was "chain
+    damage feel weak" (`logs/260921_2127`).
+  - Raising the bases alone cannot fix that: at 40:1 a point of base moves the
+    top forty times as far as the bottom.
+  - Measured on `checks/chaindist.ts`'s own funnel (n=1500, seed base 70_000):
+    a 2-rung chain 18 -> 42, run completion 15.1% -> 17.9%, back inside the
+    17-22% target the 2026-09-21 heal fix had pushed it below.
+  - Priced, not waved away: chain length's share of a fight's outcome variance
+    fell from 47% to 31% (n=600 x 11 encounters, freezing each die in turn).
+  - Every variant that kept a knee was inert — measured across five shapes,
+    none moved a 2-rung chain past 26 damage, because the knee formula pins
+    rung 2 at exactly twice rung 1.
+- **Replaces:**
+  - Reverses the back-loaded curve of the 2026-08-15 payoff-axis entry. That
+    pass built steepness so hero identity would stop explaining a chain's
+    size; the 2026-09-13 rebuild removed identity from magnitude entirely, so
+    the steepness was guarding a threat that no longer existed.
+
 ## [2026-09-21] Healers triage by missing HP, not lowest absolute HP
 
 - **Decision:**

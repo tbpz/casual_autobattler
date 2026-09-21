@@ -8,11 +8,18 @@ const RATE_EASE_SEC = 0.15;
 
 /** Sim-time-advancement rate applied to the gap between chain beats — this
  * is the "is it still going?" suspense window a player reported as having no
- * visible state at all. Deepens past the escalation knee (sim/config.ts's
- * chainEscalationKneeHit) so the mechanical and pacing escalation land on the
- * same hit, same self-consistency rule the 2026-08-15 spectacle pass used. */
-const GAP_RATE_PRE_KNEE = 0.4;
-const GAP_RATE_POST_KNEE = 0.22;
+ * visible state at all. Deepens once a chain reaches the hit where the rest
+ * of the spectacle also steps up (sim/config.ts's chainFullTellThreshold —
+ * the shake, the popup jump and the end-card all share it), so the pacing
+ * and the show land together.
+ *
+ * 2026-09-21: this used to deepen past chainEscalationKneeHit instead, back
+ * when that knee was where the damage curve genuinely stepped. Flattening the
+ * curve moved the knee to 1, which would have run every beat past the first
+ * at the deep rate — so the pacing follows the spectacle threshold now, not
+ * the escalation one. */
+const GAP_RATE_EARLY = 0.4;
+const GAP_RATE_DEEP = 0.22;
 
 /** Sim-time duration of the "resolution tail" appended after a chain's own
  * ending (2026-08-19, chain-ending pass) — extra breathing room so the
@@ -86,11 +93,13 @@ function capTotalAddedTime(segments: Segment[]): Segment[] {
  * "did it just land, or is it still rolling?" `upcomingHitIndex` (1-based)
  * is which hit (or the final continuation roll before chainEnd) that gap is
  * leading to. */
-function buildSegments(points: number[], kneeHit: number): Segment[] {
+function buildSegments(points: number[], deepenAtHit: number): Segment[] {
   const raw: Segment[] = [];
   for (let i = 0; i < points.length - 1; i++) {
     const upcomingHitIndex = i + 1;
-    const rate = upcomingHitIndex > kneeHit ? GAP_RATE_POST_KNEE : GAP_RATE_PRE_KNEE;
+    // >= not >: the gap LEADING TO the full-tell hit is the one worth
+    // slowing, so the deepening and the hit it announces arrive together.
+    const rate = upcomingHitIndex >= deepenAtHit ? GAP_RATE_DEEP : GAP_RATE_EARLY;
     raw.push({ from: points[i] as number, to: points[i + 1] as number, rate });
   }
   return capTotalAddedTime(raw);
@@ -111,12 +120,11 @@ function buildSegments(points: number[], kneeHit: number): Segment[] {
  * start would shadow that chain's own (real) gap rates with the stale
  * tail's rate instead.
  *
- * 2026-09-13 rebuild: every hero shares one escalation knee again
- * (config.ts's chainEscalationKneeHit — no more per-hero fuse shape), so
- * `fallbackKneeHit` (the constructor's own param, ultimately app.ts's
- * cfg.fight.chainEscalationKneeHit) is used for every window, not just as a
- * defensive fallback. */
-function buildChainWindows(events: FightEvent[], fallbackKneeHit: number): ChainWindow[] {
+ * 2026-09-13 rebuild: every hero shares one curve again (no more per-hero
+ * fuse shape), so `deepenAtHit` (the constructor's own param, ultimately
+ * app.ts's cfg.fight.chainFullTellThreshold) is used for every window, not
+ * just as a defensive fallback. */
+function buildChainWindows(events: FightEvent[], deepenAtHit: number): ChainWindow[] {
   const windows: ChainWindow[] = [];
   let openStartT: number | null = null;
   let openBackfire = false;
@@ -130,7 +138,7 @@ function buildChainWindows(events: FightEvent[], fallbackKneeHit: number): Chain
       hitTs.push(e.t);
     } else if (e.type === "chainEnd" && openStartT !== null) {
       const points = [openStartT, ...hitTs, e.t];
-      const segments = buildSegments(points, fallbackKneeHit);
+      const segments = buildSegments(points, deepenAtHit);
       let endT = e.t;
       if (e.reason !== "fightEnd") {
         segments.push({ from: e.t, to: e.t + TAIL_SIM_SEC, rate: TAIL_RATE });
@@ -199,11 +207,11 @@ export class Playback {
   private rafId: number | null = null;
   private lastEmittedIndex = -1;
 
-  constructor(result: FightResult, onTick: PlaybackListener, onEnd?: () => void, chainEscalationKneeHit = 4) {
+  constructor(result: FightResult, onTick: PlaybackListener, onEnd?: () => void, deepenAtHit = 5) {
     this.result = result;
     this.onTick = onTick;
     this.onEnd = onEnd ?? null;
-    this.chainWindows = buildChainWindows(result.events, chainEscalationKneeHit);
+    this.chainWindows = buildChainWindows(result.events, deepenAtHit);
   }
 
   get isPaused(): boolean {

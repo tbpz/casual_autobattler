@@ -163,43 +163,52 @@ export interface FightConfig {
    * after ignition lands, last entry repeats (capped) beyond that. */
   chainChanceByHitsSoFar: number[];
   /** Bonus hit N magnitude = round(base * chainHitMultiplier *
-   * chainEscalationFactor(N) * hero.chainAffinity), where base is the hot
-   * hero's own damage stat for an attacker or its own healPerBeat for a
-   * healer. Applies identically whether the chain is aimed right or
-   * backfiring (2026-08-14 chain rebuild) — a high-affinity hero's backfire
-   * is exactly as loud as its payoff.
+   * chainEscalationFactor(N)), where base is the per-effect constant for
+   * whichever ChainEffect the hot hero carries (chainStrikeAllBase and the
+   * rest, below). Applies identically whether the chain is aimed right or
+   * backfiring (2026-08-14 chain rebuild) — a backfire is exactly as loud as
+   * the payoff it replaces.
    *
-   * 2026-08-15 (chain-payoff-axis pass): N was replaced by
-   * chainEscalationFactor(N) — see chainEscalationKneeHit/StepMultiplier
-   * below and config.ts's chainEscalationFactor() — so the payoff's
-   * unpredictable spread now comes from how LONG a chain runs (decided live,
-   * hit by hit) rather than from chainAffinity (known at draft time,
-   * compressed 0.3-1.6 -> 0.7-1.4 in heroes.ts for exactly this reason). */
+   * No hero term. `chainAffinity` was dropped from this formula by the
+   * 2026-09-13 rebuild (heroes differ by EFFECT now, not by magnitude) and
+   * is purely the backfire-risk lever — see backfireChanceFor. The base was
+   * also the hot hero's own damage/healPerBeat stat before that rebuild;
+   * it is a per-effect constant now. This docstring claimed both until
+   * 2026-09-21. */
   chainHitMultiplier: number;
-  /** Hits 1..chainEscalationKneeHit escalate linearly (factor = hitIndex,
-   * unchanged from the pre-2026-08-15 formula). Beyond the knee, each
-   * additional hit adds chainEscalationStepMultiplier instead of 1 — see
-   * chainEscalationFactor() below. Deliberately the same hit count as
-   * chainFullTellThreshold (5) so the mechanical jump and the visual jump
-   * (fightView.ts's chain spectacle ladder) land on the same hit. */
+  /** Hits 1..chainEscalationKneeHit escalate linearly (factor = hitIndex).
+   * Beyond the knee, each additional hit adds chainEscalationStepMultiplier
+   * instead of 1 — see chainEscalationFactor() below.
+   *
+   * At the current knee of 1 the whole curve is the "beyond" branch, so the
+   * factor is simply 1 + (hitIndex - 1) * step — a single near-flat slope
+   * with no knee at all (2026-09-21, see chainEscalationStepMultiplier). The
+   * knee is kept rather than removed because the formula still needs a hinge
+   * point and a future pass may want one again. It no longer aligns with
+   * chainFullTellThreshold; render/playback.ts, which used to read this for
+   * its slow-motion pacing, reads that threshold directly now. */
   chainEscalationKneeHit: number;
-  /** See chainEscalationKneeHit above. 3 means a chain that reaches hit 7
-   * escalates to knee + (7-knee)*3 = 4 + 9 = 13, vs. a pre-2026-08-15 flat 7
-   * — the length axis now carries roughly a 40x spread between a 1-hit and a
-   * 7-hit chain (sum of the escalation curve across a full chain, divided by
-   * the first hit's own factor), which is what makes chain LENGTH — not
-   * which hero fired it — the thing a player genuinely cannot call in
-   * advance. See checks/chaindist.ts's escalation-vs-identity assertion. */
+  /** See chainEscalationKneeHit above.
+   *
+   * 2026-09-21: 3 -> 0.3, with knee 4 -> 1 and every per-effect base raised
+   * ~3x to hold a full 7-rung chain at the same total. The old pair gave a
+   * 40x spread between a 1-rung and a full chain, which meant 58% of chains
+   * — the ones that stop at one or two rungs — delivered almost nothing: a
+   * 2-rung Rook chain did 18 damage against bruisers of 90-310 HP. The
+   * current pair puts that at 42 and the spread at 13x. Measured cost: chain
+   * length's share of a fight's outcome variance fell from 47% to 31%, and
+   * run completion rose 15.1% -> 18.1%. See DECISIONS.md this date. */
   chainEscalationStepMultiplier: number;
   /** Hard cap on chain length — added after the first batch pass found
    * chains running to 15-16 hits: chainChanceByHitsSoFar's last entry (0.9)
    * repeats forever once past the table, so the geometric tail averages 10
-   * MORE hits past that point with no natural stop. Uncapped, multiplicative
-   * per-hit damage means a chain that gets going almost never ends before
-   * the enemy is deleted outright, and the fight's outcome collapses to
-   * "did ignition fire" rather than staying a race. This caps the escalation
-   * without touching the PRD table's shape (still easier to extend once a
-   * chain is going — see chainChanceByHitsSoFar). */
+   * MORE hits past that point with no natural stop.
+   *
+   * The original reason was runaway MULTIPLICATIVE escalation: a chain that
+   * got going deleted the enemy outright and the outcome collapsed to "did
+   * ignition fire." The 2026-09-21 flattening removes that pressure, so this
+   * cap may no longer be load-bearing — it is left untouched and unexamined
+   * by that pass rather than assumed still necessary. */
   chainMaxHits: number;
   /** Global multiplier applied on top of chainChanceByHitsSoFar (see
    * chainContinuationChance below). Default 1 (inert). Exists so a check that
@@ -212,19 +221,22 @@ export interface FightConfig {
    * visibly accelerates the hot hero's cadence. */
   hotBeatIntervalFactor: number;
 
-  /** Chain length (bonusHitsLanded) at/above which the render layer shows a
-   * quiet callout on top of the base hit. Below this, a chain hit gets only
-   * a slightly bigger damage number. Unlike before the 2026-08-14 chain
-   * rebuild, this no longer gates WHETHER a chain glows or attributes — a
-   * hero going hot, and whether it's a backfire, is loud from hit 1 (see
-   * events.ts's TickSnapshot.chainBackfire) — this only gates the callout's
-   * escalating LOUDNESS tier. */
-  chainTellThreshold: number;
   /** Chain length at/above which the render layer shows the FULL spectacle
-   * (shake, escalating font, loud callout). This is deliberately the same
-   * threshold batch/report.ts's fractionWinsWithChain3Plus already tracks,
-   * so tuning "how rare is the big moment" and "how rare is the show" stay
-   * the same knob. */
+   * (shake, escalating font, loud callout — fightView.ts's chainPopupScale,
+   * arena shake and end-card, all keyed on rung COUNT rather than on the
+   * damage number). Also read by render/playback.ts as the hit where its
+   * slow-motion between chain beats deepens (2026-09-21 — it read
+   * chainEscalationKneeHit until that date, which the curve flattening made
+   * meaningless). Deliberately the same threshold batch/report.ts's
+   * chain-length-5-plus fraction already tracks, so "how rare is the big
+   * moment" and "how rare is the show" stay the same knob.
+   *
+   * Note (2026-09-21): the mechanical jump this was aligned to is gone. Under
+   * the flattened curve rung 5 is only ~16% bigger than rung 4, not ~75%. The
+   * tier still marks something real — a chain reaching 5 is ~32% likely and
+   * has delivered ~8x a 1-rung chain in total — but nothing in the check
+   * suite would catch it if the shake starts to feel unearned. That is a
+   * played judgement, not a measurable one. */
   chainFullTellThreshold: number;
 
   /** Weight multiplier applied to a tank's chance of being the enemy's
@@ -282,14 +294,19 @@ export interface FightConfig {
    * `chainGuardChargesPerRung` is the exception (2026-09-15 slam-provability
    * pass — see its own docstring below): a flat count, not escalated at all.
    *
-   * Starting values derived, not guessed, from the pre-rebuild pool: the
-   * escalation curve summed against chainChanceByHitsSoFar (below) gives
-   * ~12.955 expected escalation units per fired chain, and the old
-   * CHAIN_EV_TARGET_DAMAGE was 76 — so chainPoundBase: 6 (6 * 12.955 ~= 76)
-   * reproduces the old single-target attacker's output almost exactly.
-   * chainStrikeAllBase and chainMendAllBase are cut roughly by the pool's
-   * median living-enemy count (3) so an "everyone at once" effect doesn't
-   * simply dominate a single-target one on every board. chainStunBaseSec is
+   * Values are pinned to the FULL-CHAIN total, not to the base itself. The
+   * original 2026-09-13 set was derived from the pre-rebuild pool: the
+   * escalation curve summed against chainChanceByHitsSoFar gave ~12.955
+   * expected escalation units per fired chain against an old
+   * CHAIN_EV_TARGET_DAMAGE of 76, so chainPoundBase: 6 reproduced the old
+   * single-target attacker almost exactly. The 2026-09-21 flattening cut the
+   * curve's sum from 40 to 13.3, so every base here was raised ~3.01x to keep
+   * each effect's 7-rung total where it was — poundBiggest still totals ~240,
+   * strikeAll ~80 per body, mendAll ~41 per ally, mendOne ~61, stun ~10s. The
+   * ratios between effects are unchanged: chainStrikeAllBase and
+   * chainMendAllBase stay cut roughly by the pool's median living-enemy count
+   * (3) so an "everyone at once" effect doesn't simply dominate a
+   * single-target one on every board. chainStunBaseSec is
    * a PER-LINK seconds value, not the whole chain's payoff — fight.ts's
    * resolveChainHit stun case adds each link's escalated duration onto the
    * running total the CHAIN has bought so far (2026-09-15 freeze-visibility
@@ -304,12 +321,14 @@ export interface FightConfig {
    * full-chain math.
    *
    * chainMendOneBase is capped by the heal-clamp guard
-   * (chainHealMaxFractionOfTargetMaxHp), not by the old CHAIN_EV_TARGET_HEAL —
-   * 2.5 (the value that would land near the old ~28 target, same convention
-   * as chainPoundBase) puts the LAST rung's raw heal at 2.5 * 13 = 32.5,
-   * comfortably over checks/chaindist.ts's clamp ceiling on a normal-sized
-   * body. 1.5 keeps the last rung (1.5 * 13 = 19.5) under that ceiling with
-   * room to spare — see that check's own heal-cap block.
+   * (chainHealMaxFractionOfTargetMaxHp) rather than by an EV target: at the
+   * pre-2026-09-21 curve its last rung sat at 1.5 * 13 = 19.5 against
+   * checks/chaindist.ts's ceiling of 20.2, which was tight. The flattened
+   * curve's last factor is 2.8, so 4.5 puts that rung at 12.6 — the same
+   * full-chain total with real room under the clamp. That also means the
+   * clamp no longer binds mendAll at all; it is left in place, not tuned to
+   * re-bind, since a cap that never fires is harmless and the next curve
+   * change may need it again.
    */
   chainStrikeAllBase: number;
   chainPoundBase: number;
@@ -321,10 +340,12 @@ export interface FightConfig {
    * case) and HELD without lapsing for as long as the chain stays live
    * (2026-09-16 freeze-layout pass — see runFight's per-tick freeze-hold
    * block). A full 7-link chain's total freeze is
-   * `base * sum(chainEscalationFactor(1..7))` = `base * ~40` at this file's
-   * own escalation constants — batch-verify against completion rate and the
-   * failsafe-termination rate before trusting this value played. Checked
-   * at 0.25 (this file's current value) against the 2026-09-16 hold, n=1000,
+   * `base * sum(chainEscalationFactor(1..7))` = `base * ~13.3` at this file's
+   * own escalation constants (it was `base * ~40` before the 2026-09-21
+   * flattening, which is why the base tripled in the same pass — the ~10s
+   * full-chain total is unchanged) — batch-verify against completion rate and
+   * the failsafe-termination rate before trusting this value played. Checked
+   * at 0.25 against the 2026-09-16 hold, n=1000,
    * default draft, always-heal: 18.4% completion / 13.1% dip / 0.1%
    * failsafe, against an 18.7% / 13.0% / 0.0% pre-hold baseline — the hold
    * mostly recovers seconds that were being lapsed away between rungs 1-2
@@ -610,28 +631,31 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   windupDamageMultiplier: 2.0,
 
   chainChanceByHitsSoFar: [0.7, 0.75, 0.8, 0.85, 0.9],
-  // Multiplicative off the hot hero's own damage (2026-08-07 rebuild,
-  // replaces the flat bonusHitStep/bonusHitCap table) — see this file's
-  // FightConfig docstring.
+  // A plain multiplier on the per-effect base (chainStrikeAllBase and the
+  // rest below), left inert at 1 — see this file's FightConfig docstring.
   chainHitMultiplier: 1,
   chainMaxHits: 7,
   chainContinuationScale: 1,
   hotBeatIntervalFactor: 0.6,
 
-  // 2026-08-15 chain-payoff-axis pass — see chainEscalationKneeHit/
-  // StepMultiplier's own docstrings above.
-  chainEscalationKneeHit: 4,
-  chainEscalationStepMultiplier: 3,
+  // 2026-09-21 curve-flattening pass (was 4 / 3 from the 2026-08-15
+  // chain-payoff-axis pass). knee 1 means the whole curve is one near-flat
+  // slope: factors 1, 1.3, 1.6, 1.9, 2.2, 2.5, 2.8. Measured on
+  // checks/chaindist.ts's own funnel (n=1500, seed base 70_000): a 2-rung
+  // Rook chain 18 -> 42 damage, run completion 15.1% -> 18.1%, chain length's
+  // share of a fight's outcome variance 47% -> 31%. Every per-effect base
+  // below was raised ~3.01x in the same pass to hold a full 7-rung chain at
+  // the same total it had before — the pass moved where a chain's value sits,
+  // not how much a maxed one is worth. Re-measure both together, never one
+  // without the other.
+  chainEscalationKneeHit: 1,
+  chainEscalationStepMultiplier: 0.3,
 
-  // 2026-08-15 chain-payoff-axis pass: raised from 2/3 to 3/5, matching the
-  // escalation knee above so the mechanical jump (hit 5 starts escalating 3x
-  // as fast) and the visual jump (fightView.ts's spectacle ladder) land on
-  // the same hit — a player should be able to tell a cascade from a good
-  // chain without reading the number. Below chainTellThreshold (hits 1-2), a
-  // chain hit is legible (tracer, popup, HUD) but gets no callout at all —
-  // deliberately, per the "no chain is silent but escalation is back-loaded"
-  // rule this pass is built around.
-  chainTellThreshold: 3,
+  // 2026-08-15 chain-payoff-axis pass: raised from 3 to 5. It matched the
+  // escalation knee at the time so the mechanical and visual jumps landed on
+  // the same hit; the 2026-09-21 flattening removed that jump, and this
+  // threshold now stands on its own as "the chain went long" — see its
+  // docstring above. render/playback.ts reads it for pacing.
   chainFullTellThreshold: 5,
 
   tankTargetWeight: 3,
@@ -655,20 +679,25 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // hit) without letting a single chain hit fully top up a squishy ally.
   chainHealMaxFractionOfTargetMaxHp: 0.2,
 
-  // See this field's own docstring above — derived from the pre-rebuild
-  // pool's own numbers, not guessed. Re-batch (npm run batch) before trusting
-  // any of these once played.
-  chainStrikeAllBase: 2,
-  chainPoundBase: 6,
-  chainMendAllBase: 1,
-  chainMendOneBase: 1.5,
+  // See this field's own docstring above. All four raised ~3.01x on
+  // 2026-09-21 (from 2 / 6 / 1 / 1.5) when chainEscalationStepMultiplier went
+  // 3 -> 0.3: the curve's sum fell 40 -> 13.3, so these hold each effect's
+  // FULL-chain total where it was. These two numbers move together — changing
+  // one without the other silently rescales every chain in the game.
+  chainStrikeAllBase: 6,
+  chainPoundBase: 18,
+  chainMendAllBase: 3,
+  chainMendOneBase: 4.5,
   // 2026-09-15 freeze-visibility pass: cut from 0.8 now that links ADD UP
   // instead of a Math.max overwrite (fight.ts's resolveChainHit stun case) —
   // at the old value a full 7-link chain would freeze a body for ~32s in a
-  // ~20s fight. A strawman for the batch harness to move, same convention as
-  // every other value in this file — not yet re-verified against completion
-  // rate or the failsafe-termination rate.
-  chainStunBaseSec: 0.25,
+  // ~20s fight. 0.25 -> 0.75 on 2026-09-21, same ~3x as the four bases above
+  // and for the same reason; a full chain still totals ~10s of freeze. Still
+  // not re-verified against completion rate or the failsafe-termination rate
+  // in its own right.
+  chainStunBaseSec: 0.75,
+  // NOT rescaled by the 2026-09-21 pass: guard is a flat charge per rung and
+  // never reads the escalation curve (see its docstring above).
   chainGuardChargesPerRung: 1,
 
   // See this field's own docstring above — default "weighted" is today's
@@ -751,11 +780,15 @@ export function prdLookup(table: number[], countSoFar: number): number {
 
 /** A chain bonus hit's escalation factor at `hitIndex` (1-based) — replaces
  * the pre-2026-08-15 formula's raw `hitIndex` (see FightConfig's
- * chainHitMultiplier/chainEscalationKneeHit/StepMultiplier docstrings and
- * fight.ts's chainAttackMagnitude/resolveChainHit, the two call sites).
- * Linear through the knee, then steeper by stepMultiplier per hit beyond it
- * — pure and hero-agnostic, so the same curve applies to every hero's own
- * base stat and chainAffinity multiplicatively. */
+ * chainHitMultiplier/chainEscalationKneeHit/StepMultiplier docstrings, and
+ * fight.ts's escalatedMagnitude/escalatedDurationSec, the two call sites).
+ * Linear through the knee, then stepMultiplier per hit beyond it.
+ *
+ * Pure and hero-agnostic: the SAME factor applies to every hero, multiplied
+ * only by whichever per-effect base its ChainEffect carries. No hero term —
+ * chainAffinity has not entered this since the 2026-09-13 rebuild, and buys
+ * backfire risk only. At the current knee of 1 there is effectively no knee:
+ * the curve is one near-flat slope (2026-09-21). */
 export function chainEscalationFactor(cfg: FightConfig, hitIndex: number): number {
   if (hitIndex <= cfg.chainEscalationKneeHit) return hitIndex;
   return cfg.chainEscalationKneeHit + (hitIndex - cfg.chainEscalationKneeHit) * cfg.chainEscalationStepMultiplier;
