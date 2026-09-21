@@ -39,9 +39,16 @@ export interface EncounterBruiser {
   /** Enemy support (2026-08-15, encounter-deck pass) — same mechanism as a
    * player support's healPerBeat (types.ts's HeroState docstring, wired
    * generically in fight.ts's performHeroAction, which already heals
-   * whichever side is acting): this bruiser heals its own side's lowest-HP
-   * living body on its normal beat instead of attacking. Makes a slow grind
-   * lose and a burst comp (or a chain) matter directly (Warden, below). */
+   * whichever side is acting): this bruiser heals its own side's MOST
+   * WOUNDED living body on its normal beat instead of attacking. Makes a
+   * slow grind lose and a burst comp (or a chain) matter directly (Warden,
+   * below).
+   *
+   * "Most wounded" since 2026-09-21 (was lowest absolute HP, which meant a
+   * big healer bruiser guarding small grunts healed nobody and, because the
+   * heal replaces the attack, did nothing at all for a whole fight — see
+   * fight.ts's mostWoundedAliveHero). Any measured numbers on an encounter
+   * below that predate that date were taken with that defect live. */
   healPerBeat?: number;
 }
 

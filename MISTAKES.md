@@ -16,6 +16,19 @@
 
 ---
 
+### [2026-09-21 #1] Asked Tu to re-decide two calls he'd already made
+
+- **Said:** Two questions before planning — how far the charge bar should drop on the field-pick
+  row, and whether to re-tune the Warden's damage in the same pass as its fix.
+- **Actually:** Both were already settled. Tu had approved "current HP outranks the charge bar,"
+  which decides that the bar goes below HP; how thin or grey it ends up is craft, not a decision.
+  And he asked for a defect fix on the Warden — re-tuning its damage is a separate change that
+  obviously shouldn't ride along, so the default was never in doubt.
+- **Caught by:** "Why you ask me about the charge bar?"
+- **Why:** I treated "this has some risk attached" as the test for whether to ask. The right test
+  is whether two answers would lead to materially different work. Neither would have.
+- **Tag:** handed back a call I should have made
+
 ### [2026-09-20 #4] Tuned each fight alone, didn't check what five of them add up to
 
 - **Said:** A table of new enemy-damage numbers, each picked so that one fight's own average win

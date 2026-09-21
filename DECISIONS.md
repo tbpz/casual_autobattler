@@ -10,6 +10,57 @@
 
 ---
 
+## [2026-09-21] Healers triage by missing HP, not lowest absolute HP
+
+- **Decision:**
+  - Every heal picks the living body missing the most HP — the per-beat heal and
+    the `mendOne` chain rung, on both sides (`sim/fight.ts`'s
+    `mostWoundedAliveHero`).
+  - Slam targeting and the guard-backfire redirect keep lowest absolute HP: they
+    ask who is closest to dying, not who is most hurt.
+  - A healer with nobody hurt still skips its attack — "heals instead of
+    attacking" is unchanged.
+- **Why:**
+  - Played 2026-09-21 (`logs/260921_2127`, seed 4866404): the Warden acted four
+    times in 11.5 seconds — one slam, two heals of 2 and 6, zero attacks.
+  - Its bruiser body never compared as lower than a full-health Acolyte, so it
+    healed nothing, and because a heal replaces the attack it did nothing at all.
+  - Its blurb asks "can you burst through faster than it mends?" — a question
+    that fight never actually put.
+  - The same rule on the player side sent Cairn's heals to a near-full Rook
+    while Bracer died in the same fight.
+- **Replaces:**
+  - Supersedes the 2026-09-13 entry's hold on healer targeting, which named the
+    rule "Triage" without changing it.
+  - Marks the 2026-09-20 difficulty pass's Warden measurements stale — they were
+    taken with this defect live.
+
+## [2026-09-21] Current HP outranks the charge bar on the field-pick row
+
+- **Decision:**
+  - A hero's current HP is the loudest element on the field-pick row, and a
+    critically hurt hero is marked on the whole row
+    (`render/fieldPickScreen.ts`'s `hpSeverity`).
+  - The chain effect and backfire risk keep their weight — the chain stays the
+    reason to pick a hero.
+  - The charge bar moves to the row's last line and renders muted until it is
+    close to firing (`render/heroPickShared.ts`'s `chargeBarHtml`).
+- **Why:**
+  - Played 2026-09-21 (`logs/260921_2127`, seed 4866404): a 180/180 Hollow was
+    benched and a 133/195 Bracer fielded, on the stated reason "Hollow is low
+    chain bar."
+  - Bracer died in that fight; the run ended the next one with no living bench.
+  - Re-run 300x per bench swap (`npm run readlog`): the squad played won 45%,
+    fielding Hollow won 74-83%.
+  - `sim/roster.ts`'s `defaultFieldPick` already ranks on HP fraction and ignores
+    charge — its own pick beat the override. The screen was hiding reasoning the
+    game already uses.
+  - Current HP was the row's smallest, greyest text while the charge bar carried
+    full chain colour at every value.
+- **Replaces:**
+  - Qualifies the 2026-08-25 entry, which found the charge bar the only lever
+    reaching "change it" — reading well is not the same as being the right input.
+
 ## [2026-09-20] Difficulty pass goes before the multi-answer chain build
 
 - **Decision:**

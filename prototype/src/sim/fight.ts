@@ -240,7 +240,16 @@ function pickWindupTargetId(
       : pickEnemyTargetId(player, rng, cfg, enemyTargetTally);
 }
 
-/** excludeId skips the guardian when a backfired guard needs a NEW victim —
+/** The living body with the lowest ABSOLUTE hp — "who is closest to dying,"
+ * which is what a finisher aims at. Used by the slam's "lowestHp" targeting
+ * (Vanguard, whose blurb promises "your weakest hero") and by the guard
+ * backfire's redirect.
+ *
+ * NOT used by healing — see mostWoundedAliveHero below. The two questions
+ * look alike and are different: a finisher wants the body nearest zero, a
+ * healer wants the body furthest from full. Don't unify them back.
+ *
+ * excludeId skips the guardian when a backfired guard needs a NEW victim —
  * without it, a backfire whose guardian happens to already be the lowest-HP
  * hero would silently resolve as a protective save (2026-09-15). */
 function lowestHpAliveHero(side: SideState, excludeId?: string): HeroState | undefined {
@@ -248,6 +257,39 @@ function lowestHpAliveHero(side: SideState, excludeId?: string): HeroState | und
   for (const h of side.heroes) {
     if (!h.alive || h.hp <= 0 || h.id === excludeId) continue;
     if (!best || h.hp < best.hp) best = h;
+  }
+  return best;
+}
+
+/** The living body missing the most HP — triage. Every heal picks its target
+ * with this: the per-beat heal in performHeroAction and the "mendOne" chain
+ * rung in resolveChainHit. Returns undefined when nobody on the side is
+ * damaged, which both callers already treat as "nothing to do."
+ *
+ * Split out from lowestHpAliveHero on 2026-09-21 (the played run in
+ * logs/260921_2127 — see DECISIONS.md). Healing used to pick by absolute hp,
+ * which asks "who is smallest," not "who is hurt." Two things went wrong with
+ * that. The Warden (a 210 HP bruiser with healPerBeat, guarding two 55 HP
+ * Acolytes) never compared as lower than a full-health Acolyte, so it healed
+ * zero and — since a healer skips its attack, see performHeroAction — stood
+ * still for the whole fight: four actions in 11.5 seconds, none of them an
+ * attack. On the player side, Cairn topped up an 80/85 Rook instead of a
+ * 120/195 Bracer, because 80 < 120.
+ *
+ * DECISIONS.md's 2026-09-13 entry had held this rule fixed and named it
+ * "Triage" without changing it. This makes the rule match the name. */
+function mostWoundedAliveHero(side: SideState): HeroState | undefined {
+  let best: HeroState | undefined;
+  let bestMissing = 0;
+  for (const h of side.heroes) {
+    if (!h.alive || h.hp <= 0) continue;
+    const missing = h.maxHp - h.hp;
+    // Strict `>` so the FIRST body in list order wins an exact tie, matching
+    // lowestHpAliveHero/highestHpAliveHero's own convention.
+    if (missing > bestMissing) {
+      best = h;
+      bestMissing = missing;
+    }
   }
   return best;
 }
@@ -336,8 +378,11 @@ function cloneHeroes(heroes: HeroState[], cfg: FightConfig): HeroState[] {
   }));
 }
 
-/** One hero's beat: support heroes heal their lowest-HP living ally instead
- * of attacking. Everyone else deals damage to a target picked by `targeting`
+/** One hero's beat: support heroes heal their most-wounded living ally
+ * (mostWoundedAliveHero) instead of attacking — and still skip the attack on
+ * a beat where nobody needs healing, which is the authored shape for an
+ * enemy healer (see encounters.ts's healPerBeat docstring), not an oversight.
+ * Everyone else deals damage to a target picked by `targeting`
  * — "front" (deterministic, player attackers) or "weighted" (enemy
  * attackers). Pushes the attack/heal event and any resulting heroDown
  * events, and credits the acting hero's dealt/restored counters. */
@@ -357,7 +402,7 @@ function performHeroAction(
   enemyTargetTally?: Map<string, number>,
 ): void {
   if (hero.healPerBeat) {
-    const target = lowestHpAliveHero(attackerSide);
+    const target = mostWoundedAliveHero(attackerSide);
     if (target) {
       // Capped against the TARGET's own maxHp (2026-08-08 root-cause pass —
       // see config.ts's healMaxFractionOfTargetMaxHp docstring): flat healing
@@ -636,7 +681,7 @@ function resolveChainHit(
       });
     }
     case "mendOne": {
-      const target = lowestHpAliveHero(targetSide);
+      const target = mostWoundedAliveHero(targetSide);
       if (!target) return null;
       const room = target.maxHp - target.hp;
       if (room <= 0) return null;

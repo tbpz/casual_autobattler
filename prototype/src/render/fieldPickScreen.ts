@@ -6,6 +6,39 @@ import { makeEnemySide } from "../sim/run.js";
 import { project } from "../sim/projection.js";
 import { chainEffectLines, chainVsEncounterLine, backfireRiskPips, chargeBarHtml } from "./heroPickShared.js";
 
+/** HP fractions where the field-pick row changes how loudly it reads
+ * (2026-09-21 — see hpSeverity below).
+ *
+ * Checked against every roster in the played run these came from
+ * (logs/260921_2127): at 0.75/0.4, fight 2 marks the 30% Bracer critical (he
+ * was correctly benched), fight 3 marks the 67% Hollow, and fight 4 marks the
+ * 68% Bracer while leaving the 100% Hollow clean — which is exactly the
+ * contrast that fight needed and didn't have. Fights 1 and 5 stay entirely
+ * unmarked, so the mark still means something.
+ *
+ * An earlier 0.6/0.33 pair was discarded for failing that test: it read all
+ * four of fight 4's heroes as fine, including the Bracer who died. */
+const HP_HURT_FRACTION = 0.75;
+const HP_CRITICAL_FRACTION = 0.4;
+
+/** Which of the three HP bands a hero is in, as a CSS-class suffix.
+ *
+ * Exists because of the 2026-09-21 played run (logs/260921_2127, seed
+ * 4866404): a full-HP Hollow sat on the bench while a two-thirds Bracer was
+ * fielded and died, costing the run — and the row showed current HP as the
+ * smallest, greyest text on it while the charge bar carried the color. The
+ * chain is still the reason to PICK a hero (that's the game — see STATE.md's
+ * bet); current HP is the reason to NOT field one, and it had no way to say
+ * so. roster.ts's defaultFieldPick already sorts on exactly this number and
+ * ignores charge entirely; this makes the screen show the same reasoning the
+ * accept-default is already using. */
+function hpSeverity(h: HeroState): "ok" | "hurt" | "critical" {
+  const frac = h.maxHp > 0 ? h.hp / h.maxHp : 0;
+  if (frac < HP_CRITICAL_FRACTION) return "critical";
+  if (frac < HP_HURT_FRACTION) return "hurt";
+  return "ok";
+}
+
 /**
  * Per-fight FIELD pick (2026-08-09 roster/bench pass — see config.ts's
  * DeathPolicy-removal docstring and squadPickScreen.ts's updated top
@@ -107,20 +140,20 @@ export function renderFieldPickScreen(
   }
 
   function heroRowHtml(h: HeroState): string {
-    const hpFrac = h.maxHp > 0 ? Math.round((h.hp / h.maxHp) * 100) : 0;
     const chain = chainEffectLines(h.chainEffect ?? "poundBiggest");
     return `
       <span class="hero-pick-check"></span>
       <span class="hero-pick-info">
         <span class="hero-pick-name">${h.name}</span>
-        <span class="hero-pick-role">${h.role} — ${hpFrac}% hp</span>
-        ${chargeBarHtml(h.charge, cfg.fight.chargeThreshold)}
+        <span class="hero-pick-hp hp-${hpSeverity(h)}">${Math.round(h.hp)}<span class="hero-pick-hp-max">/${Math.round(h.maxHp)}</span></span>
+        <span class="hero-pick-role">${h.role}</span>
       </span>
       <span class="hero-pick-stats">
-        <span class="hero-pick-numbers">${Math.round(h.hp)}/${Math.round(h.maxHp)}hp / ${h.damage}dmg / ${h.attackIntervalSec}s${h.healPerBeat ? ` +${h.healPerBeat}heal` : ""}${h.attacksWhileHealing ? " +atk" : ""}</span>
+        <span class="hero-pick-numbers">${h.damage}dmg / ${h.attackIntervalSec}s${h.healPerBeat ? ` +${h.healPerBeat}heal` : ""}${h.attacksWhileHealing ? " +atk" : ""}</span>
         <span class="hero-pick-chain">CHAIN: ${chain.does}</span>
         <span class="hero-pick-chain-against">${chainVsEncounterLine(h.chainEffect ?? "poundBiggest", enemyPreview)}</span>
         <span class="hero-pick-backfire">BACKFIRE ${backfireRiskPips(cfg.fight, h.chainAffinity, MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY)}</span>
+        ${chargeBarHtml(h.charge, cfg.fight.chargeThreshold)}
       </span>
     `;
   }
@@ -128,7 +161,7 @@ export function renderFieldPickScreen(
   for (const h of living) {
     const row = document.createElement("button");
     row.type = "button";
-    row.className = "hero-pick-row";
+    row.className = `hero-pick-row hp-row-${hpSeverity(h)}`;
     row.innerHTML = heroRowHtml(h);
     row.addEventListener("click", () => {
       if (selected.has(h.id)) {

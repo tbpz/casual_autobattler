@@ -44,6 +44,14 @@
      fightView.ts's WINDUP_ACCENT constant so the bar, the aim line, and the
      attacker/victim body marks all read as one category of threat. */
   --windup: #ff5252;
+  /* The field-pick row's two "this hero is hurt" steps (2026-09-21 — see
+     fieldPickScreen.ts's hpSeverity and .hero-pick-hp below). Their own
+     tokens rather than a reuse: --backfire and --windup are both spoken for
+     as threat colours and --backfire's pips sit in the same row, while
+     --ignite is the same hex as --chain. An orange that is clearly not the
+     chain's yellow, and a red that is clearly not the backfire's. */
+  --hp-hurt: #e8913c;
+  --hp-critical: #e2564b;
   --text: #e8e8ee;
   --muted: #8a8fa3;
   /* The back rank's own scale (2026-09-16 second back-row pass) — read by
@@ -1762,6 +1770,44 @@ button:disabled {
   text-transform: capitalize;
 }
 
+/* Current HP on the FIELD-pick row (2026-09-21 — see fieldPickScreen.ts's
+ * hpSeverity docstring for the played run that forced this). Deliberately
+ * the largest thing on the row, above .hero-pick-chain's 0.9em: the chain
+ * is why you pick a hero, this is why you don't field one. Field-pick only
+ * — the draft screen has no current HP, so it never emits this class even
+ * though it shares every other class on the row. */
+.hero-pick-hp {
+  font-size: 1.15em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  color: var(--text);
+}
+
+/* The "/195" half stays quiet — the number that matters is what's left, and
+   the pool size is context for reading it, not a second figure to compare. */
+.hero-pick-hp-max {
+  font-size: 0.7em;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.hero-pick-hp.hp-hurt {
+  color: var(--hp-hurt);
+}
+
+.hero-pick-hp.hp-critical {
+  color: var(--hp-critical);
+}
+
+/* A critically hurt hero is marked on the whole row, not just in its HP
+   text: colour alone competes with the backfire pips sitting two lines
+   below, and the point is that the row should read as "not this one" before
+   anything on it is actually read. */
+.hero-pick-row.hp-row-critical {
+  border-left: 3px solid var(--hp-critical);
+}
+
 .hero-pick-stats {
   display: flex;
   flex-direction: column;
@@ -1775,26 +1821,51 @@ button:disabled {
 /* A hero-pick row's mini charge bar (2026-08-14 chain rebuild) —
  * fieldPickScreen.ts's chargeBarHtml, reusing the same .charge-track/
  * .charge-fill classes as the in-fight bar (style.css above) at a fixed
- * small width so it drops into the pick row's info column cleanly. This is
- * what makes charge's persistence across fights actually visible at the one
- * moment a player can act on it: field a near-full hero to cash in, or bench
- * them to hold the charge. */
+ * small width. This is what makes charge's persistence across fights
+ * visible at the one moment a player can act on it: field a near-full hero
+ * to cash in, or bench them to hold the charge.
+ *
+ * 2026-09-21: moved out of the info column to the LAST line of
+ * .hero-pick-stats, and muted below chargeBarHtml's near-threshold cut. It
+ * used to sit second on the row in full chain colour, which made it the
+ * first thing the eye reached on a screen where current HP decides the
+ * fight — see fieldPickScreen.ts's hpSeverity docstring. Every rule here is
+ * scoped under .hero-pick-charge-row so the in-fight bar and the enemy slam
+ * bar, which share .charge-track/.charge-fill, are untouched. */
 .hero-pick-charge-row {
   display: flex;
   align-items: center;
-  gap: 5px;
-  margin-top: 2px;
+  gap: 4px;
+  margin-top: 3px;
+  opacity: 0.75;
 }
 
 .hero-pick-charge-row .charge-track {
-  width: 56px;
-  height: 6px;
+  width: 44px;
+  height: 4px;
   flex-shrink: 0;
+}
+
+/* Grey by default, chain-coloured only once it's genuinely about to fire.
+   Also kills the inherited width transition and the near-full pulse: this
+   bar is built once at its final width, so neither has anything to play. */
+.hero-pick-charge-row .charge-fill {
+  background: var(--muted);
+  transition: none;
+  animation: none;
+}
+
+.hero-pick-charge-row.near-threshold {
+  opacity: 1;
+}
+
+.hero-pick-charge-row.near-threshold .charge-fill {
+  background: var(--chain);
 }
 
 .hero-pick-charge-label,
 .hero-pick-charge-pct {
-  font-size: 0.6em;
+  font-size: 0.55em;
   color: var(--muted);
   white-space: nowrap;
 }

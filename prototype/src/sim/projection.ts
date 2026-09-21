@@ -164,12 +164,22 @@ export function chainVsEncounterLine(effect: ChainEffect, enemy: SideState): str
  * 2026-08-08 (root-cause pass): each healer's per-beat amount is capped
  * against cfg.healMaxFractionOfTargetMaxHp, same as fight.ts's
  * performHeroAction — otherwise this projection understates incoming
- * pressure on a squishy ally exactly the way the pre-fix sim did. A heal
- * always lands on the lowest-HP living ally (fight.ts's lowestHpAliveHero),
- * which trends toward the squishiest body in the side, so this approximates
- * the cap against the SMALLEST living ally's maxHp rather than the healer's
- * own — a mean-value estimate, not a per-tick replay (see this file's top
- * docstring). */
+ * pressure on a squishy ally exactly the way the pre-fix sim did. The cap is
+ * approximated against the SMALLEST living ally's maxHp rather than the
+ * healer's own — a mean-value estimate, not a per-tick replay (see this
+ * file's top docstring).
+ *
+ * KNOWN DRIFT (2026-09-21): that approximation was derived from the old heal
+ * rule, where a heal landed on the lowest-ABSOLUTE-HP ally and so trended
+ * toward the squishiest body. Heals now go to the most wounded body
+ * (fight.ts's mostWoundedAliveHero), which trends toward the TANK — the
+ * biggest pool in the side, not the smallest. So this cap is now too tight
+ * and healPerSec reads low, making the projection more pessimistic than the
+ * sim it models. Left as-is deliberately: the projection's calibration is
+ * its own pass (STATE.md), and it was already miscalibrated in this same
+ * direction before the heal change — see the 2026-09-21 played run, where
+ * three fights banded "losing" and measured 89-93% win rates. Fix the model
+ * there, with a measurement, not here. */
 function sideRates(heroes: HeroState[], cfg: FightConfig): { dps: number; healPerSec: number } {
   let dps = 0;
   let healPerSec = 0;

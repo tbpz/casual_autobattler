@@ -29,6 +29,12 @@ export function backfireRiskPips(cfg: FightConfig, chainAffinity: number, poolMi
   return "●".repeat(filled) + "○".repeat(5 - filled);
 }
 
+/** At or above this fraction of the charge threshold, the pick-row bar keeps
+ * the full chain color; below it the bar renders muted (2026-09-21 — see
+ * chargeBarHtml below). Deliberately high: the bar is only worth the eye's
+ * attention when it is genuinely about to fire THIS fight. */
+export const CHARGE_NEAR_THRESHOLD_FRACTION = 0.75;
+
 /** A mini charge bar for a hero-pick row (2026-08-14 chain rebuild) — the
  * same visual language as the in-fight CHAIN bar (see fightView.ts,
  * .charge-track/.charge-fill in style.css), so a player recognizes it
@@ -38,12 +44,20 @@ export function backfireRiskPips(cfg: FightConfig, chainAffinity: number, poolMi
  * Unlike the in-fight bar, this one is static — built once via innerHTML at
  * its final width, no transition ever plays (see .hero-pick-charge-row's
  * fixed-width override in style.css) — a pick row doesn't need to animate a
- * value that was already true before the screen opened. */
+ * value that was already true before the screen opened.
+ *
+ * 2026-09-21 (the played run in logs/260921_2127 — see DECISIONS.md): the
+ * bar is muted unless it clears CHARGE_NEAR_THRESHOLD_FRACTION, at which
+ * point `.near-threshold` restores the chain color. It used to carry full
+ * chain color at every value, which made "this hero is 5% charged" shout as
+ * loudly as "this hero fires in the first seconds" — and a full-HP tank got
+ * benched on a 5% reading. A bar that is not about to fire is not news. */
 export function chargeBarHtml(charge: number, threshold: number): string {
   const pct = threshold > 0 ? Math.max(0, Math.min(100, Math.round((charge / threshold) * 100))) : 0;
+  const near = threshold > 0 && charge / threshold >= CHARGE_NEAR_THRESHOLD_FRACTION;
   return `
-    <span class="hero-pick-charge-row" title="Charge — carries into this fight from how the roster has fought so far">
-      <span class="hero-pick-charge-label">CHARGE</span>
+    <span class="hero-pick-charge-row${near ? " near-threshold" : ""}" title="Charge — carries into this fight from how the roster has fought so far">
+      <span class="hero-pick-charge-label">CHG</span>
       <span class="charge-track"><span class="charge-fill" style="width:${pct}%"></span></span>
       <span class="hero-pick-charge-pct">${pct}%</span>
     </span>
