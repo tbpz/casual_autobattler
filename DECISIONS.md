@@ -10,6 +10,63 @@
 
 ---
 
+## [2026-09-23] Three roles and a 20-round run replace six named heroes and a 5-fight run
+
+- **Decision:**
+  - The six named heroes, the run-start draft, and the coin economy are cut.
+  - A run starts from three units named by role — Tank, Damage, Healer (`sim/roles.ts`) — each
+    carrying the base chain effect of the hero that anchored that role.
+  - A chain upgrade belongs to the role, not the unit: `sim/progress.ts`'s `RunProgress.chain` is
+    stamped onto every fielded unit of that role at squad-build time (`sim/roster.ts`).
+  - The squad-mix pick moves to every round, merged with the old pre-fight read into one screen
+    (`render/roundScreen.ts`).
+  - A win draws 3 reward cards from a wide pool (`sim/offers.ts`), weighted small-early/big-late,
+    replacing the fixed heal/upgrade/skip coin choice.
+  - The run is 20 rounds (`sim/rounds.ts`'s `ROUND_PLAN`), mini-bosses at rounds 7 and 14, a boss at
+    round 20 — replaces the fixed 5-fight run.
+- **Why:**
+  - Tu played his own game and didn't choose it over other games to kill time.
+  - The run-start draft asked him to judge six invented names and their chain effects before he'd
+    seen a single enemy.
+  - A run could also only ever shrink (heroes die, nothing new appears), so a second run had
+    nothing left to discover.
+- **Replaces:**
+  - Supersedes every existing entry about the six-hero pool, the run-start draft, and the coin
+    spend as live design — those entries stay as history of the superseded build, same convention
+    as the pre-2026-07-18 archive boundary.
+
+## [2026-09-23] The offer draw guarantees a way back when the roster has no cushion
+
+- **Decision:**
+  - `sim/offers.ts`'s `drawOffers` always includes a revive (or, if nobody's fallen, a recruit for
+    the thinnest role) among its 3 offers whenever a unit has fallen and living units are at or
+    below the round's fielded squad size, or whenever living has dropped strictly below it.
+  - Everything else about the draw (weighting, eligibility) is unchanged.
+- **Why:**
+  - Found by playing: a unit died in a won fight, the ordinary weighted draw's 3 offers happened
+    not to include revive or recruit, and the run ended immediately after with nothing the player
+    could have done differently.
+  - `checks/runShape.ts`'s 300-seed population still completes about the same fraction of runs
+    after this change as before it — the fix targets the single unlucky-draw case found by playing,
+    not the run's overall difficulty.
+- **Replaces:**
+  - Refines the same-day "three roles and a 20-round run" entry's `drawOffers` behavior — that
+    entry didn't specify this guarantee.
+
+## [2026-09-23] The 20-round curve was pulled back to be completable at all
+
+- **Decision:**
+  - `sim/rounds.ts`'s round-to-round scale and the new boss encounter's own stats were both cut
+    back from their first-authored values.
+- **Why:**
+  - Measured directly: a completely fresh, undamaged starting squad lost to a mini-boss round
+    (round 7) and to the new boss encounter, both at their first-authored, unscaled stats.
+  - That is not a hard fight — it is an impossible one, on the very first attempt, with nothing the
+    player could have done differently.
+- **Replaces:**
+  - n/a — first pass; no prior entry to supersede. Current numbers live in `sim/rounds.ts` and
+    `sim/encounters.ts`, not restated here.
+
 ## [2026-09-21] A chain's spread comes from length at 13:1, not 40:1
 
 - **Decision:**

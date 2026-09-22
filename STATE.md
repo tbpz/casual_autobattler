@@ -2,7 +2,7 @@
 
 > **What this file is:** where the project stands right now, and what to do next. Present tense only.
 > **Read this first** in every session. Layer 1 ends at the rule — that's the 60-second read. Layer 2 is the working index.
-> **Last synced:** 2026-09-20
+> **Last synced:** 2026-09-23
 
 ## What this is
 
@@ -18,29 +18,30 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 - **Watch-native** — every screen is accept-default, so the minimum path is Play → watch → Play.
 - **Unpredictable** — chain length is the loudest dice; per-hit variance, backfire, and the encounter draw are the rest.
 - **Losable** — a run can genuinely be lost, and a backfire can create a losing position outright.
-- **Attributable** — attribution is Tu's need, not the friend's; the draft states the lever and the encounter is named before the field pick.
+- **Attributable** — the round screen names each role's chain and the encounter before the squad-mix pick, not a run-start draft.
 
 ## Where it stands
 
-The fight is legible and the player can name a true cause, but only two of the six chain effects can
-touch the game's one threat type (a bruiser's slam) — the other four never read or write that state,
-so the pick still reads as one obvious answer; a fix is designed but not yet built
-(archive/DESIGN_MULTIPLE_ANSWERS.md). Every encounter can be lost by some squad, with stakes spread
-across all five fights instead of concentrated in the finale — Anvil is the one holdout, still
-unloseable at its authored shape. The field pick still collapses to a forced answer under attrition,
-and the coin spend still goes unused in real play.
+The six named heroes, the run-start draft, and the coin spend are gone — a run now starts from three
+role-named units and grows through 20 rounds via reward cards drawn after each win (DECISIONS.md
+2026-09-23, "Three roles and a 20-round run..."). Played through a full round in the browser after
+building: the fight, chain bars, recap, and offer screen all confirmed working. A 300-seed headless
+population currently completes about 2% of runs — a first-pass number, not yet a tuned one. The old
+multi-answer chain design and the six-hero encounter-pool tuning both targeted a design that no
+longer exists and need to be re-read against roles before either is live again.
 
 ## Next up
 
-1. **Build the multi-answer chain design** — dual-pressure encounters, enemy-side setup, encounter-aware
-   pick copy (flinch itself is cut, DECISIONS.md 2026-09-19) — per `archive/DESIGN_MULTIPLE_ANSWERS.md`.
-   Genuinely next now: the difficulty pass that had to come first (DECISIONS.md 2026-09-20) is done.
-2. Decide Anvil's fate — give it a threat (a wind-up, a telegraph) or cut it from the pool; its damage
-   was pushed as far as this pass's approach reaches and it's still unloseable (DECISIONS.md 2026-09-20).
-3. Decide whether the field-pick collapse under attrition is upstream of #1.
-4. Decide whether the coin spend becomes something worth using in real play, or is cut — its simulated
-   batch gap closed (DECISIONS.md 2026-09-20), but that's a different question from played-game use.
-5. Widen the pool beyond encounters — offers/modifiers next, heroes after.
+1. **Re-read the multi-answer chain design against roles** — `archive/DESIGN_MULTIPLE_ANSWERS.md` was
+   written for named heroes (Bracer's guard vs. Hollow's stun); check whether its claims still hold
+   for a role's base chain vs. its earned upgrade before treating it as next.
+2. **Playtest a full run** — only three rounds have been played end-to-end since the rebuild; the
+   20-round arc, the mini-boss/boss step-up, and the offer variety are all unverified past round 3.
+3. Decide whether the offer pool needs widening — three roles may read as thin once the novelty
+   passes (see Unverified bets).
+4. Decide whether the two rough edges found by playing (see Unverified bets) are worth a pass.
+5. `REFERENCE.md`'s core-loop section still describes the six-hero draft and the 5-fight run — it
+   needs a direct correction (not a sync) once the new shape has had more play time to settle.
 
 ---
 
@@ -49,42 +50,50 @@ and the coin spend still goes unused in real play.
 | Piece | State | Where it lives |
 |---|---|---|
 | Fight mechanics — charge accrual, threshold, persistence | played-verified | `sim/fight.ts`, `sim/config.ts` |
-| Chain identity — six per-hero effects and their backfires, replaces four failed levers | batch-verified | `sim/fight.ts`, `sim/config.ts`, `sim/heroes.ts` |
-| Multi-answer counterplay — dual-pressure encounters, enemy-side setup, encounter-aware pick copy | not started | `archive/DESIGN_MULTIPLE_ANSWERS.md` |
-| Chain legibility — pacing, HUD, pips, end card, per-effect | built | `render/playback.ts`, `render/fightView.ts` |
-| Charge bar — the one lever reaching "change it" | played-verified | `render/fieldPickScreen.ts` |
-| In-fight threat — bruiser wind-up; guard's redirect and Hollow's freeze both provable | batch-verified | `sim/fight.ts`, `render/fightView.ts` |
-| Field pick — collapses to a forced answer under attrition | played-verified | `sim/roster.ts`, `render/fieldPickScreen.ts` |
-| Coin spend — absent from all 12 played cards | played-verified | `sim/run.ts`, `render/runScreens.ts` |
-| Pre-play chain signal — expected count + effect | batch-verified | `sim/projection.ts` |
-| Enemies — the 11-encounter tiered pool, each retuned so some squad can lose it | batch-verified | `sim/encounters.ts`, `npm run measure:encounters` |
-| Difficulty — ~19% completion for the default draft, losses spread across all five fights | batch-verified | `checks/chaindist.ts` |
+| Chain identity — a role's base effect plus one earned upgrade, both role-wide | played-verified | `sim/roles.ts`, `sim/progress.ts`, `sim/fight.ts` |
+| Chain legibility — pacing, HUD, pips, end card, per-effect | played-verified | `render/playback.ts`, `render/fightView.ts` |
+| Round screen — squad-mix pick merged with the pre-fight read | played-verified | `render/roundScreen.ts` |
+| Offer pool — 3 reward cards per win, weighted by round | played-verified | `sim/offers.ts`, `render/offerScreen.ts` |
+| Offer safety net — guarantees a revive/recruit when the roster has no cushion | played-verified | `sim/offers.ts`, DECISIONS.md 2026-09-23 |
+| 20-round plan — mini-bosses at 7/14, boss at 20 | batch-verified | `sim/rounds.ts`, `checks/runShape.ts` |
+| Enemy shapes — the encounter pool, reused from the old design | batch-verified | `sim/encounters.ts` |
+| Difficulty — ~2% run completion under a fixed heuristic, first pass | batch-verified | `checks/runShape.ts` |
+| Multi-answer counterplay — needs re-reading against roles before it's live | not started | `archive/DESIGN_MULTIPLE_ANSWERS.md` |
 | Real game build | not started | — |
 
 ## Unverified bets
 
-- Enemy-anchored, multi-route counterplay (`archive/DESIGN_MULTIPLE_ANSWERS.md`) makes a hero's chain
-  effect a live pick, not a forced one — designed 2026-09-18, not yet built or played.
-- Raising each encounter's steady damage, not adding new in-fight escalation, is enough to keep a fight
-  feel tense while watching — batch-verified at the squad level (`npm run measure:encounters`), not yet played.
-- One backfire should not durably shrink the live roster — Rook sat out 8 straight fights after a single betrayal.
-- Combat stays watch-only as more levers get added.
-- Hollow's freeze base duration (`sim/config.ts`'s `chainStunBaseSec`) is a retuned strawman, not yet
-  fully re-tuned against the harder batch.
+- A run's difficulty curve holds up under real (not heuristic) play — three rounds played by hand so
+  far, ~2% completion measured headless (`checks/runShape.ts`).
+- Role-wide upgrades don't compound faster than a real player can be surprised by, once someone is
+  actually choosing instead of a fixed heuristic.
+- Three roles carry enough variety on their own once the novelty passes; the offer pool is the lever
+  if not.
+- The guard chain's round-screen "against" line reads as a near-duplicate of its "does" line against
+  a single bruiser — found by playing, not fixed.
+- The post-fight recap reports a fired guard/stun chain as "for 0" — it only has real phrasing for
+  damage/heal chains, so a real save reads like a dud.
 
 ## Open questions
 
-- Does the multi-answer design actually produce two live routes per encounter at the pick screen,
-  once built? Gates Next up #1.
-- Does Anvil need an added threat, or should it be cut from the pool? Gates Next up #2.
-- What makes a field pick live when attrition has already forced the answer? Gates Next up #3.
-- Does the coin spend need a real answer to a backfire, or should it be cut? Gates Next up #4.
+- Does the multi-answer design's claims still hold once "a hero's chain" becomes "a role's chain"?
+  Gates Next up #1.
+- Does a full run played by hand feel like the twenty rounds it's built to be, or does it drag?
+  Gates Next up #2.
+- Is three roles enough, or does the offer pool need to carry more of the variety? Gates Next up #3.
 
 ## How to work here
 
-- Read order: this file → [REFERENCE.md](REFERENCE.md) for the game's shape → [DECISIONS.md](DECISIONS.md) **by grep only**, never top-to-bottom.
-- `DECISIONS.md` has an archive rule; entries below it predate the 2026-07-18 pivot and describe a superseded design.
-- Decisions are proposed, never silently logged — on a confirmed yes, append via the `decision-log` skill.
-- This file is regenerated only when asked, via the `state-sync` skill; `REFERENCE.md` is not regenerated by a sync.
-- Commands: `npm run dev` to play (`?test=1&seed=N` runs the `ATTRIBUTION_TEST.md` protocol), `npm run check` for regressions, `npm run batch -- --n 1000` for distributions, `npm run measure:encounters` for the per-squad/per-encounter difficulty matrix — full list in `prototype/COMMANDS.md`.
-- Code: `prototype/src/sim/` (`config.ts` holds every tunable in one place), `src/render/`, `src/batch/`, `src/checks/`.
+- Read order: this file → [REFERENCE.md](REFERENCE.md) for the game's shape (currently stale on the
+  core loop, see Next up #5) → [DECISIONS.md](DECISIONS.md) **by grep only**, never top-to-bottom.
+- `DECISIONS.md` has an archive rule; entries below it predate the 2026-07-18 pivot and describe a
+  superseded design.
+- Decisions are proposed, never silently logged — on a confirmed yes, append via the `decision-log`
+  skill.
+- This file is regenerated only when asked, via the `state-sync` skill; `REFERENCE.md` is not
+  regenerated by a sync.
+- Commands: `npm run dev` to play (`?test=1&seed=N` runs the `ATTRIBUTION_TEST.md` protocol), `npm
+  run check` for regressions, `npm run batch -- --n 1000 --offers greedy` for distributions — full
+  list in `prototype/COMMANDS.md`.
+- Code: `prototype/src/sim/` (`config.ts` holds every tunable, `rounds.ts` holds the round plan),
+  `src/render/`, `src/batch/`, `src/checks/`.

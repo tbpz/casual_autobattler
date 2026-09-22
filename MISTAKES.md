@@ -16,6 +16,22 @@
 
 ---
 
+### [2026-09-23 #1] First safety-net fix forced a recruit into round 1 of every run
+
+- **Said:** Fixed "a run can end from one early death because the offer draw skipped revive/recruit"
+  by forcing a safety-net offer whenever living units are at or below the round's fielded squad size.
+- **Actually:** That condition (`living <= slots`) is true from round 1 of every run — a run starts
+  with exactly as many units as it fields, before anyone has ever died. The fix forced a recruit or
+  revive into every single win's offers until the player took one, crowding out the small-early/
+  big-late variety the offer pool is supposed to have.
+- **Caught by:** Replaying the same seed in the browser after the first fix and reading round 1's own
+  offer screen — it showed "Recruit a tank" and "Recruit a damage" on a fully healthy round 1, which
+  is what exposed the over-trigger.
+- **Why:** I guarded against the state that made the bug POSSIBLE ("no cushion") instead of the state
+  that made it ACTUAL ("no cushion AND something has already gone wrong") — the two are identical the
+  moment a run starts, and only diverge once a death happens.
+- **Tag:** guarded the possible case, not the actual one
+
 ### [2026-09-21 #1] Asked Tu to re-decide two calls he'd already made
 
 - **Said:** Two questions before planning — how far the charge bar should drop on the field-pick
