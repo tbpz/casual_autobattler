@@ -2,43 +2,35 @@ import type { RunConfig } from "./config.js";
 import type { HeroState, Role, SideState } from "./types.js";
 import { sideHp, sideMaxHp } from "./types.js";
 import type { FightResult } from "./events.js";
-import { ROLE_SORT_PRIORITY } from "./heroes.js";
+import { ROLE_SORT_PRIORITY } from "./roles.js";
+import type { RunProgress } from "./progress.js";
 
 /**
- * The run-level roster (2026-08-09 "boring-middle" root-cause pass — see
- * config.ts's DeathPolicy-removal docstring for why this replaced
- * deathPolicy rather than sitting alongside it). rosterSize heroes (5) are
- * drafted once at run start; each fight fields exactly playerN (3) of the
- * LIVING roster. This is what turns the run's difficulty cliff into a curve
- * without softening death: every fight is always a fair fight, fielding a
- * full squad, never short-handed — but the SET of three answering it
- * narrows and degrades in quality as roster members die, permanently,
- * exactly as before.
+ * The run-level roster — units drafted over the course of the run (starting
+ * at cfg.startingSlots, growing via a "recruit"/"slot" offer — see
+ * sim/offers.ts), of which `progress.slots` are fielded each round. Every
+ * round is always a fair fight, fielding a full squad — but the SET
+ * answering it narrows if units die, permanently, and widens again if the
+ * run offers a recruit.
  *
  * A RosterState has the exact same shape as a fight's SideState (heroes +
  * dpsBonus) — it's a wider one that persists across the whole run rather
- * than being rebuilt each fight. Reusing the type means sideHp/sideMaxHp and
- * heroes.ts's makePlayerSide work on a roster for free; makePlayerSide IS
- * how a roster gets built (pass 5 ids instead of 3).
+ * than being rebuilt each round.
  */
 export type RosterState = SideState;
 
-/** Per-fight context handed to a FieldPick alongside the roster (2026-08-19,
- * affinity-measurement pass — see DECISIONS.md/STATE.md's attribution
- * investigation). Nothing today reads it; it exists so a future fielding
- * policy CAN key off which fight/encounter is next without another signature
- * change. */
+/** Per-round context handed to a FieldPick alongside the roster — nothing
+ * today reads it; it exists so a future fielding policy CAN key off which
+ * round/encounter is next without another signature change. */
 export interface FieldPickContext {
   fightIndex: number;
   encounterIndex: number;
 }
 
 /** A fielding policy: given the living roster and how many slots to fill,
- * returns the chosen hero ids. defaultFieldPick (below) is one instance of
- * this shape — its existing (roster, fieldSize) signature is structurally
- * assignable, since TS ignores an unused trailing parameter. Introduced so
- * run.ts's runRun can be handed an alternate policy for measurement (see
- * batch/fieldPolicies.ts) without touching the shipped accept-default path. */
+ * returns the chosen unit ids. defaultFieldPick (below) is one instance of
+ * this shape. Introduced so sim/run.ts's runRun can be handed an alternate
+ * policy for measurement without touching the shipped accept-default path. */
 export type FieldPick = (roster: RosterState, fieldSize: number, ctx: FieldPickContext) => string[];
 
 const FIELD_ROLE_ORDER: Role[] = ["tank", "damage", "support"];
@@ -47,22 +39,17 @@ export function livingRosterHeroes(roster: RosterState): HeroState[] {
   return roster.heroes.filter((h) => h.alive);
 }
 
-/** Whether the roster can field a full squad for the next fight — false
- * means the run ends here (roster exhausted), the new counterpart to a fight
- * LOSS ending the run. See run.ts's runRun. */
+/** Whether the roster can field a full squad for the next round — false
+ * means the run ends here (roster exhausted). */
 export function canFieldSquad(roster: RosterState, fieldSize: number): boolean {
   return livingRosterHeroes(roster).length >= fieldSize;
 }
 
-/** The accept-default field pick (2026-08-09): one living hero per role in
+/** The accept-default squad-mix pick: one living unit per role in
  * tank -> damage -> support priority (ties broken by current HP fraction,
  * highest first), then fills any remaining slots from the rest of the
- * living roster by HP fraction. This is what keeps the minimum path
- * Play -> watch -> Play even with a bench: the default adapts automatically
- * as the roster degrades, no player input required. Also the ONLY fielding
- * policy the headless batch harness uses — see run.ts's runRun — since batch
- * measures the accept-default path, same as it always has for the coin
- * spend. */
+ * living roster by HP fraction. Keeps the minimum path Play -> watch -> Play
+ * even as the roster grows or shrinks — the default adapts automatically. */
 export function defaultFieldPick(roster: RosterState, fieldSize: number): string[] {
   const living = livingRosterHeroes(roster);
   const hpFrac = (h: HeroState) => (h.maxHp > 0 ? h.hp / h.maxHp : 0);
@@ -90,39 +77,52 @@ export function defaultFieldPick(roster: RosterState, fieldSize: number): string
   return picked;
 }
 
-/** Builds one fight's SideState from the chosen roster members — copies
- * (not references) so fight.ts's cloneHeroes mutating the fight-local state
- * never touches the persisted roster. Sorted tank-first, same convention as
- * heroes.ts's makePlayerSide, so the tank draws the front-row visual slot. */
-export function fieldSquad(roster: RosterState, fieldedIds: string[]): SideState {
+/** Stamps a role's current chain effect/level (RunProgress.chain — see
+ * progress.ts) onto every unit of that role — 2026-09-23 (roles/rounds
+ * rebuild): a chain upgrade belongs to the ROLE, not to one unit, so this is
+ * what makes "upgrade Tank chain once" reach every tank already in the
+ * roster, and every tank recruited after. Called on the FIELDED squad, right
+ * before a fight — never on the persisted roster itself, so nothing needs
+ * to be re-synced when an offer changes progress.chain later. */
+function stampProgressOntoSquad(side: SideState, progress: RunProgress): SideState {
+  return {
+    ...side,
+    heroes: side.heroes.map((h) => {
+      const roleProgress = h.role === "tank" || h.role === "damage" || h.role === "support" ? progress.chain[h.role] : undefined;
+      return roleProgress ? { ...h, chainEffect: roleProgress.effect, chainLevel: roleProgress.level } : h;
+    }),
+  };
+}
+
+/** Builds one round's SideState from the chosen roster members — copies (not
+ * references) so fight.ts's cloneHeroes mutating the fight-local state never
+ * touches the persisted roster. Sorted tank-first, and stamped with the
+ * run's current per-role chain effect/level (see stampProgressOntoSquad
+ * above). */
+export function fieldSquad(roster: RosterState, fieldedIds: string[], progress: RunProgress): SideState {
   const byId = new Map(roster.heroes.map((h) => [h.id, h]));
   const heroes = fieldedIds
     .map((id) => byId.get(id))
     .filter((h): h is HeroState => !!h)
     .map((h) => ({ ...h }))
     .sort((a, b) => ROLE_SORT_PRIORITY[a.role] - ROLE_SORT_PRIORITY[b.role]);
-  return { heroes, dpsBonus: roster.dpsBonus };
+  return stampProgressOntoSquad({ heroes, dpsBonus: roster.dpsBonus }, progress);
 }
 
 /**
- * Folds a fight's outcome back into the persisted roster (only called after
- * a WIN — a loss ends the run before this runs, same convention the old
- * applyFightResultToPlayer used). HP/alive/charge come from the fight for
- * whoever was fielded; a hero that wasn't fielded this fight is untouched by
- * the fight itself. THEN recovery applies asymmetrically to HP: a fielded
- * hero gets cfg.autoRecoverFraction, a living benched hero gets the higher
- * cfg.benchedRecoverFraction — the rotation pressure that makes the bench a
- * real decision (see config.ts's benchedRecoverFraction docstring). `charge`
- * is untouched by the recovery tick — it isn't HP, it's a run-long resource
- * (2026-08-14 chain rebuild): a fielded hero keeps whatever charge the fight
- * left it with, and a benched hero keeps exactly what it went in with,
- * unchanged, since it never fought.
+ * Folds a round's outcome back into the persisted roster (only called after
+ * a WIN — a loss ends the run before this runs). HP/alive/charge come from
+ * the fight for whoever was fielded; a unit that wasn't fielded this round
+ * is untouched by the fight itself. THEN recovery applies asymmetrically to
+ * HP: a fielded unit gets cfg.autoRecoverFraction, a living benched unit
+ * gets the higher cfg.benchedRecoverFraction — the rotation pressure that
+ * makes the squad-mix pick a real decision. `charge` is untouched by the
+ * recovery tick — it's a run-long resource, not HP.
  *
- * Death stays permanent — a roster hero whose hp hit 0 is marked !alive here
- * and never revives, exactly as the pre-2026-08-09 downAtFightEnd policy
- * did. Unlike that policy, the dead hero is kept in the array (not spliced
- * out) so a field-pick screen can still show "Cairn has fallen" instead of
- * the hero silently vanishing from the list.
+ * Death stays permanent — a roster unit whose hp hit 0 is marked !alive here
+ * and never revives on its own (a "revive" offer is the only way back). The
+ * dead unit is kept in the array (not spliced out) so the round screen can
+ * still show "Tank 1 has fallen."
  */
 export function applyFightResultToRoster(
   roster: RosterState,
@@ -133,7 +133,7 @@ export function applyFightResultToRoster(
   const finalById = new Map(result.finalPlayerHeroes.map((h) => [h.id, h]));
   const fieldedIds = new Set(fielded.heroes.map((h) => h.id));
   const heroes = roster.heroes.map((h) => {
-    if (!h.alive) return h; // already permanently dead — no-op, never revives
+    if (!h.alive) return h; // already permanently dead — no-op, never revives on its own
     const wasFielded = fieldedIds.has(h.id);
     const final = wasFielded ? finalById.get(h.id) : undefined;
     const afterFight: HeroState = final ? { ...h, hp: final.hp, alive: final.alive, charge: final.charge } : h;
@@ -145,8 +145,6 @@ export function applyFightResultToRoster(
 }
 
 /** Roster-wide HP reading (bench included) — the "how healthy is my whole
- * draft" figure the run-complete/spend screens show, broader than any one
- * fight's per-hero recap. Thin re-export so callers don't need to remember
- * RosterState is just a SideState under the hood. */
+ * roster" figure the round/run screens show. */
 export const rosterHp = sideHp;
 export const rosterMaxHp = sideMaxHp;

@@ -1,8 +1,5 @@
-import type { RunConfig } from "../sim/config.js";
 import type { FightEvent, FightResult } from "../sim/events.js";
-import type { SpendChoice } from "../sim/run.js";
 import type { Projection } from "../sim/projection.js";
-import type { RunSession } from "./runSession.js";
 
 /** The per-hero job lines (soaked/dealt/restored) plus a projected-vs-actual
  * spare-time line — the surprise-carrier "bigger than I expected" needs a
@@ -182,18 +179,16 @@ function appendAnswerKey(revealContainer: HTMLElement, result: FightResult): voi
   revealContainer.appendChild(answerKey);
 }
 
-/** After a won fight: what the chain did (or didn't), coin awarded, the
- * run's one decision point (heal / upgrade / skip), with skip as a working
- * accept-default. */
-export function renderSpendScreen(
+/** After a won round: what the chain did (or didn't) — the offer screen
+ * (render/offerScreen.ts) is what follows this, not this file's job. Called
+ * by app.ts right before showing the offer screen so the player sees the
+ * recap of what just happened before being asked to pick a reward. */
+export function renderRoundRecap(
   container: HTMLElement,
-  cfg: RunConfig,
-  session: RunSession,
-  fightIndex: number,
-  coinAwarded: number,
+  roundIndex: number,
   result: FightResult,
   projection: Projection | null,
-  onChoose: (choice: SpendChoice) => void,
+  onContinue: () => void,
   testMode = false,
 ): void {
   container.innerHTML = "";
@@ -201,14 +196,14 @@ export function renderSpendScreen(
   screen.className = "screen";
 
   const h1 = document.createElement("h1");
-  h1.textContent = `Fight ${fightIndex + 1} — Victory`;
+  h1.textContent = `Round ${roundIndex + 1} — Victory`;
   screen.appendChild(h1);
 
   // 2026-08-20 (attribution-test instrumentation — see makeRevealContainer's
   // docstring): in test mode, everything the game claims about WHY this
-  // fight went the way it did sits behind a reveal button, so the player
-  // writes their own cause first (fight card moment ③) instead of reading
-  // this and rationalizing backwards.
+  // round went the way it did sits behind a reveal button, so the player
+  // writes their own cause first before reading this and rationalizing
+  // backwards.
   const revealContainer = makeRevealContainer(screen, testMode);
 
   const recap = document.createElement("div");
@@ -228,7 +223,7 @@ export function renderSpendScreen(
     const chainLine = chainRecapLine(result);
     const tag = document.createElement("p");
     tag.className = chainLine?.backfire ? "recap-chain backfire" : "recap-chain";
-    tag.textContent = `${chainLine?.text ?? "A chain fired this fight."} — bonus coin.`;
+    tag.textContent = chainLine?.text ?? "A chain fired this round.";
     revealContainer.appendChild(tag);
   } else {
     const missLine = noChainRecapLine(result);
@@ -242,51 +237,16 @@ export function renderSpendScreen(
 
   if (testMode) appendAnswerKey(revealContainer, result);
 
-  const coinRow = document.createElement("p");
-  coinRow.innerHTML = `+<span class="coin">${coinAwarded} coin</span> — balance: <span class="coin">${session.coinBalance}</span>`;
-  screen.appendChild(coinRow);
-
-  // 2026-08-09 (roster/bench pass): both figures are roster-wide (bench
-  // included) — see RunSession's livingHeroes/playerHp getters — since
-  // that's the run-wide "how are we doing" reading, not just this fight's
-  // fielded-3 recap (already shown above).
-  const hp = session.playerHp;
-  const statRow = document.createElement("div");
-  statRow.className = "stat-row";
-  statRow.innerHTML = `<span>Roster</span><span>${session.livingHeroes} living, ${Math.round(hp.hp)}/${Math.round(hp.maxHp)} HP</span>`;
-  screen.appendChild(statRow);
-
-  const choices = document.createElement("div");
-  choices.className = "spend-choices";
-
-  const healBtn = makeChoiceButton(
-    "Heal now",
-    // 2026-08-09 fix: this claimed "+${healHpAmount} HP" like a single grant;
-    // healFlat (sim/run.ts) actually applies it to every living hero.
-    `${cfg.healCoinCost} coin -> +${cfg.healHpAmount} HP to each living hero`,
-    session.canAfford("heal"),
-    () => onChoose("heal"),
-  );
-  const upgradeBtn = makeChoiceButton(
-    "Bank upgrade",
-    // 2026-08-09 fix: this said "dmg/sec"; applySpend (sim/run.ts) adds a
-    // flat dpsBonus per ATTACK (fight.ts's performHeroAction), not per
-    // second — actual DPS gain varies by attacker cadence.
-    `${cfg.upgradeCoinCost} coin -> +${cfg.upgradeDpsBonus} dmg per attack, rest of run`,
-    session.canAfford("upgrade"),
-    () => onChoose("upgrade"),
-  );
-  const skipBtn = makeChoiceButton("Skip", "Keep the coin, no spend", true, () => onChoose("skip"));
-
-  choices.appendChild(healBtn);
-  choices.appendChild(upgradeBtn);
-  choices.appendChild(skipBtn);
-  screen.appendChild(choices);
+  const continueBtn = document.createElement("button");
+  continueBtn.className = "play-btn";
+  continueBtn.textContent = "Continue";
+  continueBtn.addEventListener("click", onContinue);
+  screen.appendChild(continueBtn);
 
   container.appendChild(screen);
 }
 
-/** 2026-08-09 (roster/bench pass): a run can now end two structurally
+/** A run can now end two structurally
  * different ways (see sim/run.ts's RunResult.overReason) — a fight LOST
  * outright, or the living roster falling below cfg.playerN so the next
  * fight can't even be fielded. They read very differently to a player
@@ -319,13 +279,13 @@ export function renderRunOverScreen(
   const wonNote = `after ${fightsWon} win${fightsWon === 1 ? "" : "s"}`;
   const body =
     overReason === "rosterExhausted"
-      ? `Your roster couldn't field a full squad ${wonNote} — too many fallen. All coin is lost.`
-      : `Your fielded squad was wiped ${wonNote}. All coin is lost.`;
+      ? `Your roster couldn't field a full squad ${wonNote} — too many fallen.`
+      : `Your fielded squad was wiped ${wonNote}.`;
   screen.innerHTML = `<h1>Run over</h1><p>${body}</p>`;
 
   if (overReason === "loss" && lastFightResult) {
     // 2026-08-20 (attribution-test instrumentation) — same reveal-behind-a-
-    // button treatment as renderSpendScreen, see makeRevealContainer.
+    // button treatment as the round recap, see makeRevealContainer.
     const revealContainer = makeRevealContainer(screen, testMode);
 
     const recap = document.createElement("div");
@@ -369,22 +329,14 @@ export function renderRunOverScreen(
   container.appendChild(screen);
 }
 
-export function renderRunCompleteScreen(container: HTMLElement, finalCoin: number, onRetry: () => void): void {
+export function renderRunCompleteScreen(container: HTMLElement, roundsPlayed: number, onRetry: () => void): void {
   container.innerHTML = "";
   const screen = document.createElement("div");
   screen.className = "screen";
-  screen.innerHTML = `<h1>Run complete</h1><p>All 5 fights won. Final coin: <span class="coin">${finalCoin}</span>.</p>`;
+  screen.innerHTML = `<h1>Run complete</h1><p>All ${roundsPlayed} rounds won.</p>`;
   const retry = document.createElement("button");
   retry.textContent = "New run";
   retry.addEventListener("click", onRetry);
   screen.appendChild(retry);
   container.appendChild(screen);
-}
-
-function makeChoiceButton(title: string, detail: string, enabled: boolean, onClick: () => void): HTMLElement {
-  const btn = document.createElement("button");
-  btn.innerHTML = `<span class="title">${title}</span><span class="detail">${detail}</span>`;
-  btn.disabled = !enabled;
-  btn.addEventListener("click", onClick);
-  return btn;
 }

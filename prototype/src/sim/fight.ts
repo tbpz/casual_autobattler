@@ -568,18 +568,25 @@ function handleBruiserBeat(
  * fields authored. Rounded and floored at 1, same convention the pre-rebuild
  * formula used. Not used for "guard"/"stun" — those escalate a DURATION, see
  * escalatedDurationSec below, which deliberately skips both the rounding and
- * chainHitMultiplier (a duration isn't damage). */
-function escalatedMagnitude(cfg: FightConfig, base: number, hitIndex: number): number {
-  return Math.max(1, Math.round(base * cfg.chainHitMultiplier * chainEscalationFactor(cfg, hitIndex)));
+ * chainHitMultiplier (a duration isn't damage).
+ *
+ * `level` (2026-09-23, roles/rounds rebuild — see sim/progress.ts's
+ * RoleProgress and roster.ts's stampProgressOntoSquad) is the firing unit's
+ * OWN chainLevel, a role-wide upgrade earned via an offer: level 1 (the
+ * default — every pre-existing call site that never passes it) is a no-op
+ * multiplier. */
+function escalatedMagnitude(cfg: FightConfig, base: number, hitIndex: number, level = 1): number {
+  return Math.max(1, Math.round(base * cfg.chainHitMultiplier * chainEscalationFactor(cfg, hitIndex) * level));
 }
 
 /** Same curve as escalatedMagnitude, for a "stun" rung's duration in seconds
  * — no rounding, no chainHitMultiplier (a duration is not damage). "guard"
  * no longer escalates on this curve (see resolveChainHit's guard case,
  * 2026-09-15) — its per-rung value is a flat charge, since a charge has no
- * magnitude of its own to escalate. */
-function escalatedDurationSec(cfg: FightConfig, baseSec: number, hitIndex: number): number {
-  return baseSec * chainEscalationFactor(cfg, hitIndex);
+ * magnitude of its own to escalate. See escalatedMagnitude's own docstring
+ * for `level`. */
+function escalatedDurationSec(cfg: FightConfig, baseSec: number, hitIndex: number, level = 1): number {
+  return baseSec * chainEscalationFactor(cfg, hitIndex) * level;
 }
 
 /** One target's outcome from a single chain rung. Attack/heal effects that
@@ -648,12 +655,17 @@ function resolveChainHit(
   // reads this.
   const isHealEffect = effect === "mendAll" || effect === "mendOne";
   const targetSide = isHealEffect ? (backfire ? enemy : player) : backfire ? player : enemy;
+  // The firing unit's own role-wide chain level (2026-09-23, roles/rounds
+  // rebuild — see escalatedMagnitude's docstring). 1 (no-op) for anything
+  // that never sets it, e.g. an enemy — enemies never chain, so this is only
+  // ever read for a player unit here.
+  const level = hero.chainLevel ?? 1;
 
   switch (effect) {
     case "strikeAll": {
       const targets = targetSide.heroes.filter((h) => h.alive && h.hp > 0);
       if (targets.length === 0) return null;
-      const damage = escalatedMagnitude(cfg, cfg.chainStrikeAllBase, hitIndex);
+      const damage = escalatedMagnitude(cfg, cfg.chainStrikeAllBase, hitIndex, level);
       return targets.map((target) => {
         const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false);
         hero.dealt += applied;
@@ -663,7 +675,7 @@ function resolveChainHit(
     case "poundBiggest": {
       const target = highestHpAliveHero(targetSide);
       if (!target) return null;
-      const damage = escalatedMagnitude(cfg, cfg.chainPoundBase, hitIndex);
+      const damage = escalatedMagnitude(cfg, cfg.chainPoundBase, hitIndex, level);
       const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false);
       hero.dealt += applied;
       return [{ kind: "damage" as const, targetId: target.id, amount: applied, intended: damage, died }];
@@ -671,7 +683,7 @@ function resolveChainHit(
     case "mendAll": {
       const allies = targetSide.heroes.filter((h) => h.alive && h.hp > 0 && h.hp < h.maxHp);
       if (allies.length === 0) return null;
-      const raw = escalatedMagnitude(cfg, cfg.chainMendAllBase, hitIndex);
+      const raw = escalatedMagnitude(cfg, cfg.chainMendAllBase, hitIndex, level);
       return allies.map((target) => {
         const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
         const amount = Math.max(1, Math.min(raw, cap, target.maxHp - target.hp));
@@ -690,7 +702,7 @@ function resolveChainHit(
       // docstring): at the shared normal-beat cap, a support's chain was
       // capped to single digits regardless of length.
       const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
-      const raw = escalatedMagnitude(cfg, cfg.chainMendOneBase, hitIndex);
+      const raw = escalatedMagnitude(cfg, cfg.chainMendOneBase, hitIndex, level);
       const amount = Math.max(1, Math.min(raw, cap, room));
       target.hp += amount;
       if (!backfire) hero.restored += amount;
@@ -712,8 +724,10 @@ function resolveChainHit(
       // ~20-second fight has slams to spend them on. Total protection still
       // rises with chain length, which is what the curve is linear on below
       // the knee — this just stops pretending a 7th rung buys 7x as much of
-      // something a player could ever observe.
-      const charges = cfg.chainGuardChargesPerRung;
+      // something a player could ever observe. `level` still applies here
+      // (2026-09-23, roles/rounds rebuild) — a role-wide chain upgrade
+      // should make guard cover more slams too, not skip it.
+      const charges = Math.max(1, Math.round(cfg.chainGuardChargesPerRung * level));
       player.guardCharges = (player.guardCharges ?? 0) + charges;
       player.guardHeroId = hero.id;
       player.guardInverted = backfire;
@@ -739,7 +753,7 @@ function resolveChainHit(
       const targetSideForLookup = backfire ? player : enemy;
       const target = targetId ? targetSideForLookup.heroes.find((h) => h.id === targetId) : undefined;
       if (!target) return null;
-      const sec = escalatedDurationSec(cfg, cfg.chainStunBaseSec, hitIndex);
+      const sec = escalatedDurationSec(cfg, cfg.chainStunBaseSec, hitIndex, level);
       // Additive across the whole CHAIN (2026-09-15 freeze-visibility pass,
       // held continuously since 2026-09-16 — see runFight's per-tick pin
       // below, which is what actually keeps this from lapsing between

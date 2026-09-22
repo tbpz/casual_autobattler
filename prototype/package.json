@@ -11,15 +11,12 @@
     "lab": "tsx src/batch/cli.ts lab",
     "run": "tsx src/batch/cli.ts run",
     "batch": "tsx src/batch/cli.ts batch",
-    "measure:chain-proof": "tsx src/batch/chainProof.ts",
-    "measure:deciding-factors": "tsx src/batch/decidingFactors.ts",
-    "measure:encounters": "tsx src/batch/encounterMatrix.ts",
-    "check": "npm run check:determinism && npm run check:beatsheet && npm run check:chaindist && npm run check:projection",
+    "check": "npm run check:determinism && npm run check:beatsheet && npm run check:runshape && npm run check:offers && npm run check:projection",
     "check:determinism": "tsx src/checks/determinism.ts",
     "check:beatsheet": "tsx src/checks/beatsheet.ts",
-    "check:chaindist": "tsx src/checks/chaindist.ts",
-    "check:projection": "tsx src/checks/projection.ts",
-    "readlog": "tsx src/tools/readLog.ts"
+    "check:runshape": "tsx src/checks/runShape.ts",
+    "check:offers": "tsx src/checks/offers.ts",
+    "check:projection": "tsx src/checks/projection.ts"
   },
   "devDependencies": {
     "vite": "^8.2.0",

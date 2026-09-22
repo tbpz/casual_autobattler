@@ -2,8 +2,9 @@ import { Rng } from "../sim/rng.js";
 import type { RunConfig } from "../sim/config.js";
 import type { FightSetup, SideState } from "../sim/types.js";
 import { sideHp, sideMaxHp } from "../sim/types.js";
-import { makePlayerSide, DEFAULT_DRAFT_ROSTER_IDS } from "../sim/heroes.js";
-import { encounterAt, encounterOrderFor } from "../sim/encounters.js";
+import { makeStartingRoster } from "../sim/roles.js";
+import { encounterAt } from "../sim/encounters.js";
+import { drawRoundEncounters, roundDef, roundEnemySide } from "../sim/rounds.js";
 import { runFight } from "../sim/fight.js";
 import type { FightResult } from "../sim/events.js";
 import { project, type Projection } from "../sim/projection.js";
@@ -15,150 +16,89 @@ import {
   livingRosterHeroes,
   type RosterState,
 } from "../sim/roster.js";
-import {
-  applySpend,
-  coinAwardFor,
-  makeEnemySide,
-  summarizeLoss,
-  summarizeWin,
-  type FightSummary,
-  type SpendChoice,
-} from "../sim/run.js";
-
-/** One fight's full context, for the export log (log/runLog.ts) — a superset
- * of FightSummary that also carries what the roster/enemy/projection looked
- * like BEFORE the fight, and the roster after the (optional) spend. Pushed
- * once per fight in playNextFight; the post-spend fields (spend/coinAfter/
- * rosterAfter) start out mirroring the pre-spend state and are patched in
- * place by resolveSpend — a LOSS never calls resolveSpend, so its entry
- * keeps spend: null permanently, which is itself the correct signal (no
- * spend decision was ever reached). */
-export interface RoundLog {
-  fightIndex: number;
-  encounterIndex: number;
-  encounterName: string | null;
-  rosterBefore: RosterState;
-  coinBefore: number;
-  defaultFieldedIds: string[];
-  fieldedIds: string[];
-  enemyBefore: SideState;
-  projection: Projection;
-  fightResult: FightResult;
-  outcome: "win" | "loss";
-  spend: SpendChoice | null;
-  coinAwarded: number;
-  coinAfter: number;
-  rosterAfter: RosterState | null;
-}
+import { makeInitialProgress, type RunProgress } from "../sim/progress.js";
+import { applyOffer, drawOffers, type Offer } from "../sim/offers.js";
+import { summarizeLoss, summarizeWin, type RoundSummary } from "../sim/run.js";
 
 /**
- * Drives a run one fight at a time, waiting for real player taps on both
- * decision points — which 3 of the living roster to field, and the
- * coin-spend choice — instead of a synchronous policy function. Reuses the
- * exact per-fight step logic sim/run.ts and sim/roster.ts's headless runRun
- * uses (see those files' helpers), so the UI and the batch harness can never
- * drift apart on the rules — only on *when* each decision resolves and
- * *who* (a real player vs. the accept-default) makes it.
- *
- * 2026-08-09 (roster/bench pass — see config.ts's DeathPolicy-removal
- * docstring): the roster (up to cfg.rosterSize, drafted once at run start)
- * is now wider than what's fielded each fight (cfg.playerN) — see
- * sim/roster.ts's top docstring for why.
+ * Drives a run one round at a time, waiting for real player taps on both
+ * decision points — which units fill this round's squad, and which of the 3
+ * offers to take after a win — instead of a synchronous policy function.
+ * Reuses the exact per-round step logic sim/run.ts's headless runRun uses
+ * (roster.ts's helpers, sim/offers.ts's drawOffers/applyOffer), so the UI and
+ * the batch harness can never drift apart on the rules — only on *when* each
+ * decision resolves and *who* (a real player vs. the accept-default) makes
+ * it.
  */
 export class RunSession {
   private cfg: RunConfig;
   private rng: Rng;
+  private offerRng: Rng;
   private seedValue: number;
   private roster: RosterState;
-  private coin = 0;
-  private fightIndex = 0;
-  private fieldedThisFight: string[] = [];
-  /** This run's drawn fight order (2026-08-15, encounter-deck pass) — indices
-   * into sim/encounters.ts's ENCOUNTERS, one per fight. Built once at
+  private progressValue: RunProgress;
+  private roundIndex = 0;
+  private fieldedThisRound: string[] = [];
+  /** This run's drawn round-by-round encounter shapes — indices into
+   * sim/encounters.ts's ENCOUNTERS, one per round. Built once at
    * construction from the run's own seed via a separate RNG stream (see
-   * encounterOrderFor's docstring), so it's stable for the whole run and
-   * reproducible from the seed alone, same as every other run-level draw. */
-  private encounterOrder: number[];
-  private draftIdsValue: string[];
+   * sim/rounds.ts's drawRoundEncounters docstring). */
+  private roundOrder: number[];
 
-  fights: FightSummary[] = [];
-  /** Every fight played this run, in order — unlike lastFightResult (kept
-   * for the existing single-fight-replay call sites), this never overwrites,
-   * so the export log (log/runLog.ts) can write out the whole run, not just
-   * whichever fight resolved most recently. */
+  rounds: RoundSummary[] = [];
+  /** Every round played this run, in order. */
   fightResults: FightResult[] = [];
-  /** Full per-fight context, one entry per fight played — see RoundLog's own
-   * docstring. Export-log-only; nothing in the render layer reads this. */
-  roundLogs: RoundLog[] = [];
   lastFightResult: FightResult | null = null;
-  /** The projection computed just before the fight just resolved was run —
-   * stashed here so the post-fight recap (runScreens.ts's fightRecap) can
-   * compare projected vs. actual in the same units the pre-fight screen
-   * showed. See DECISIONS.md's 2026-08-06 "squad pick is the risk dial"
-   * entry. */
+  /** The projection computed just before the round just resolved was
+   * played — stashed here so the post-round recap can compare projected vs.
+   * actual in the same units the round screen showed. */
   lastProjection: Projection | null = null;
-  /** Coin earned by the fight just resolved, pending the spend decision. */
-  pendingCoinAwarded = 0;
+  /** The offers drawn for the round just won, pending the player's pick. */
+  pendingOffers: Offer[] = [];
   status: "in-progress" | "complete" | "over" = "in-progress";
-  /** Set only when status is "over" — see sim/run.ts's RunResult.overReason
-   * for why a run can now end two structurally different ways. */
   overReason: "loss" | "rosterExhausted" | null = null;
 
-  constructor(cfg: RunConfig, seed: number, draftIds?: string[]) {
+  constructor(cfg: RunConfig, seed: number) {
     this.cfg = cfg;
     this.seedValue = seed;
     this.rng = new Rng(seed);
-    this.draftIdsValue = draftIds ?? DEFAULT_DRAFT_ROSTER_IDS;
-    this.roster = makePlayerSide(this.draftIdsValue);
-    this.encounterOrder = encounterOrderFor(seed, cfg.fightsPerRun);
+    this.offerRng = new Rng((seed ^ 0x51ed270b) >>> 0);
+    this.progressValue = makeInitialProgress(cfg);
+    this.roster = makeStartingRoster(this.progressValue.bonus);
+    this.roundOrder = drawRoundEncounters(seed, cfg.roundsPerRun);
   }
 
-  /** The 5 hero ids drafted at run start (2026-09-20, export-log instrumentation)
-   * — render-facing so the export log can record the draft itself, not just
-   * the roster it produced. */
-  get draftIds(): string[] {
-    return this.draftIdsValue;
+  get progress(): RunProgress {
+    return this.progressValue;
   }
 
-  /** This run's full drawn fight order (2026-09-20, export-log instrumentation)
-   * — a copy, so a caller can't mutate the session's own array. See
-   * currentEncounterIndex for the single-fight lookup this backs. */
-  get encounterOrderFull(): number[] {
-    return [...this.encounterOrder];
+  get currentRoundIndex(): number {
+    return this.roundIndex;
   }
 
-  get currentFightIndex(): number {
-    return this.fightIndex;
-  }
-
-  /** This run's own seed (2026-08-20, attribution-test instrumentation) —
-   * render-facing so app.ts's seed badge can display it and a specific fight
-   * can be reproduced via ?seed=N. See prototype/ATTRIBUTION_TEST.md. */
   get seed(): number {
     return this.seedValue;
   }
 
-  /** This fight's drawn ENCOUNTERS index — what actually gets fought, as
-   * opposed to currentFightIndex (which only drives the difficulty ramp now
-   * — see sim/encounters.ts's makeEncounterEnemySide). */
+  /** This round's drawn ENCOUNTERS index — what actually gets fought. */
   get currentEncounterIndex(): number {
-    return this.encounterOrder[this.fightIndex] ?? this.fightIndex;
+    return this.roundOrder[this.roundIndex] ?? this.roundIndex;
   }
 
-  get currentEncounterName(): string | null {
-    return encounterAt(this.currentEncounterIndex)?.name ?? null;
+  get currentEncounterName(): string {
+    return encounterAt(this.currentEncounterIndex)?.name ?? "Unknown";
   }
 
-  get currentEncounterBlurb(): string | null {
-    return encounterAt(this.currentEncounterIndex)?.blurb ?? null;
+  get currentEncounterBlurb(): string {
+    return encounterAt(this.currentEncounterIndex)?.blurb ?? "";
   }
 
-  get coinBalance(): number {
-    return this.coin;
+  get currentRoundKind() {
+    return roundDef(this.roundIndex).kind;
   }
 
-  /** Living ROSTER heroes (out of cfg.rosterSize) — the run-wide "how much
-   * of my draft is left" figure. */
+  /** Living ROSTER units (bench included) — the run-wide "how much of my
+   * roster is left" figure. */
   get livingHeroes(): number {
     return livingRosterHeroes(this.roster).length;
   }
@@ -167,51 +107,43 @@ export class RunSession {
     return { hp: sideHp(this.roster), maxHp: sideMaxHp(this.roster) };
   }
 
-  /** The full roster (living and permanently-dead members both — see
-   * roster.ts), for the field-pick screen. */
+  /** The full roster (living and permanently-dead members both), for the
+   * round screen. */
   get currentRoster(): RosterState {
     return this.roster;
   }
 
-  /** The accept-default fielding for the upcoming fight — pre-checked on
-   * the field-pick screen so the minimum path stays Play -> watch -> Play. */
+  /** The accept-default squad-mix pick — pre-checked on the round screen so
+   * the minimum path stays Play -> watch -> Play. */
   get defaultFielding(): string[] {
-    return defaultFieldPick(this.roster, this.cfg.playerN);
+    return defaultFieldPick(this.roster, this.progressValue.slots);
   }
 
-  /** Whether the roster can even field a full squad for the next fight —
-   * false means the run is over before a fight is even offered (see
-   * sim/run.ts's runRun, which checks this the same way). */
-  get canFieldNextFight(): boolean {
-    return canFieldSquad(this.roster, this.cfg.playerN);
+  /** Whether the roster can even field a full squad for the next round. */
+  get canFieldNextRound(): boolean {
+    return canFieldSquad(this.roster, this.progressValue.slots);
   }
 
-  /** The current FIELDED side, once playNextFight has been called for this
-   * fight — for the pre-fight screen's preview. Falls back to the default
-   * fielding preview before a fight has actually been played. */
+  /** The current FIELDED side, once playNextRound has been called for this
+   * round — for a preview. Falls back to the default fielding before a
+   * round has actually been played. */
   get currentPlayerSide(): SideState {
-    const ids = this.fieldedThisFight.length > 0 ? this.fieldedThisFight : this.defaultFielding;
-    return fieldSquad(this.roster, ids);
+    const ids = this.fieldedThisRound.length > 0 ? this.fieldedThisRound : this.defaultFielding;
+    return fieldSquad(this.roster, ids, this.progressValue);
   }
 
-  /** Runs the next fight with the given fielded ids (defaults to the
+  /** Runs the next round with the given fielded ids (defaults to the
    * accept-default fielding) and returns its result for the FightView to
-   * replay. Does NOT advance fightIndex or apply the spend — call
-   * resolveSpend() after the player (or the accept-default) decides. */
-  playNextFight(fieldedIds?: string[]): FightResult {
+   * replay. On a win, draws this round's offers into pendingOffers but does
+   * NOT apply one — call resolveOffer() once the player (or the
+   * accept-default) picks. */
+  playNextRound(fieldedIds?: string[]): FightResult {
     const ids = fieldedIds ?? this.defaultFielding;
-    const defaultIds = this.defaultFielding;
-    this.fieldedThisFight = ids;
-    // Both captured BEFORE the fight/roster update below, for the export
-    // log's RoundLog.rosterBefore/coinBefore — roster.ts's helpers never
-    // mutate in place (applyFightResultToRoster returns a new object), so
-    // holding this reference is safe; it won't change out from under us.
-    const rosterBefore = this.roster;
-    const coinBefore = this.coin;
-    const player = fieldSquad(this.roster, ids);
-    const enemy = makeEnemySide(this.cfg, this.fightIndex, this.currentEncounterIndex);
+    this.fieldedThisRound = ids;
+    const player = fieldSquad(this.roster, ids, this.progressValue);
+    const enemy = roundEnemySide(this.cfg, this.roundIndex, this.currentEncounterIndex);
     // Computed BEFORE runFight so the recap compares against what was
-    // actually shown on the pre-fight screen, not a value derived after the
+    // actually shown on the round screen, not a value derived after the
     // fact from the outcome.
     this.lastProjection = project(player, enemy, this.cfg.fight);
     const setup: FightSetup = { player, enemy };
@@ -220,87 +152,43 @@ export class RunSession {
     this.fightResults.push(result);
 
     if (result.outcome === "loss") {
-      this.fights.push(summarizeLoss(this.fightIndex, result, sideMaxHp(this.roster), ids));
-      this.roundLogs.push({
-        fightIndex: this.fightIndex,
-        encounterIndex: this.currentEncounterIndex,
-        encounterName: this.currentEncounterName,
-        rosterBefore,
-        coinBefore,
-        defaultFieldedIds: defaultIds,
-        fieldedIds: ids,
-        enemyBefore: enemy,
-        projection: this.lastProjection,
-        fightResult: result,
-        outcome: "loss",
-        spend: null,
-        coinAwarded: 0,
-        coinAfter: coinBefore,
-        rosterAfter: null,
-      });
+      this.rounds.push(summarizeLoss(this.roundIndex, result, sideMaxHp(this.roster), ids));
       this.status = "over";
       this.overReason = "loss";
       return result;
     }
 
-    this.pendingCoinAwarded = coinAwardFor(this.cfg, result);
     this.roster = applyFightResultToRoster(this.roster, player, result, this.cfg);
-    this.coin += this.pendingCoinAwarded;
-    // spend/coinAfter/rosterAfter start out pre-spend and get patched in
-    // place by resolveSpend, once the spend choice actually resolves.
-    this.roundLogs.push({
-      fightIndex: this.fightIndex,
-      encounterIndex: this.currentEncounterIndex,
-      encounterName: this.currentEncounterName,
-      rosterBefore,
-      coinBefore,
-      defaultFieldedIds: defaultIds,
-      fieldedIds: ids,
-      enemyBefore: enemy,
-      projection: this.lastProjection,
-      fightResult: result,
-      outcome: "win",
-      spend: null,
-      coinAwarded: this.pendingCoinAwarded,
-      coinAfter: this.coin,
-      rosterAfter: this.roster,
-    });
+    this.pendingOffers = drawOffers(this.offerRng, this.progressValue, this.roster, this.cfg, this.roundIndex);
     return result;
   }
 
-  /** Applies the player's (or the default "skip") spend choice for the fight
-   * that just resolved, then advances to the next fight or run-complete (or
-   * run-over, if the roster can no longer field a full squad). */
-  resolveSpend(choice: SpendChoice): FightSummary {
-    const applied = applySpend(this.cfg, this.roster, this.coin, choice);
-    this.roster = applied.player;
-    this.coin = applied.coin;
+  /** Applies the player's (or the default) offer pick for the round that
+   * just resolved, then advances to the next round or run-complete (or
+   * run-over, if the roster can no longer field a full squad). Offers are
+   * always non-empty here (drawOffers falls back to whatever's eligible),
+   * except in the degenerate case where nothing at all is eligible — that
+   * round simply advances with no change. */
+  resolveOffer(offer: Offer | null): RoundSummary {
+    if (offer) {
+      const applied = applyOffer(this.progressValue, this.roster, offer, this.cfg);
+      this.progressValue = applied.progress;
+      this.roster = applied.roster;
+    }
+    this.pendingOffers = [];
 
     const result = this.lastFightResult;
-    if (!result) throw new Error("resolveSpend called before playNextFight");
-    const summary = summarizeWin(this.fightIndex, result, this.pendingCoinAwarded, applied.spend, this.roster, this.fieldedThisFight);
-    this.fights.push(summary);
+    if (!result) throw new Error("resolveOffer called before playNextRound");
+    const summary = summarizeWin(this.roundIndex, result, offer, this.roster, this.fieldedThisRound);
+    this.rounds.push(summary);
 
-    const round = this.roundLogs[this.roundLogs.length - 1];
-    if (round && round.fightIndex === this.fightIndex) {
-      round.spend = applied.spend;
-      round.coinAfter = this.coin;
-      round.rosterAfter = this.roster;
-    }
-
-    this.fightIndex++;
-    if (this.fightIndex >= this.cfg.fightsPerRun) {
+    this.roundIndex++;
+    if (this.roundIndex >= this.cfg.roundsPerRun) {
       this.status = "complete";
-    } else if (!this.canFieldNextFight) {
+    } else if (!this.canFieldNextRound) {
       this.status = "over";
       this.overReason = "rosterExhausted";
     }
     return summary;
-  }
-
-  canAfford(choice: SpendChoice): boolean {
-    if (choice === "heal") return this.coin >= this.cfg.healCoinCost;
-    if (choice === "upgrade") return this.coin >= this.cfg.upgradeCoinCost;
-    return true;
   }
 }

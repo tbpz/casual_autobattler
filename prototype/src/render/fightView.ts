@@ -1,7 +1,7 @@
 import type { ChainEffect, FightConfig } from "../sim/config.js";
 import { chainEffectVerb } from "../sim/config.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
-import { MAX_CHAIN_AFFINITY, MIN_CHAIN_AFFINITY, ROLE_SORT_PRIORITY } from "../sim/heroes.js";
+import { MAX_CHAIN_AFFINITY, MIN_CHAIN_AFFINITY, ROLE_SORT_PRIORITY } from "../sim/roles.js";
 
 /** Reads one custom property off :root — the single point where a number
  * that style.css also defines (a colour, a duration, a scale) enters this

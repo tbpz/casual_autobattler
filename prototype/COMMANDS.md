@@ -3,55 +3,29 @@
 ```
 npm install
 npm run dev                        # play it — http://localhost:5173
-npm run check                      # determinism + beatsheet + chain-distribution regression checks
-npm run fight -- --seed 7          # one fight, headless, prints the event log
-npm run lab -- --heroes bracer,rook,cairn --charge 0,90,0 --encounter 3 --seed 7
-                                    # one hand-picked fight, headless — arbitrary squad, arbitrary
-                                    # encounter, per-hero starting charge %. See src/lab/labFight.ts.
-npm run run -- --seed 7 --policy always-heal
-                                    # one 5-fight run, headless, prints per-fight summary
-npm run batch -- --n 1000          # distribution report across the 3-policy x 3-draft matrix
-npm run batch -- --n 1000 --policy always-upgrade --squad burst
-                                    # a single policy/draft combo
-npm run measure:chain-proof -- --block 1|2|3|4|all
-                                    # does the chain mechanic change outcomes at all, is chain
-                                    # length really the loudest dice, and can a backfire lose a
-                                    # fight outright? REPORT. See src/batch/chainProof.ts's header.
-npm run measure:deciding-factors -- --block 0|1|2|3|4|5|all
-                                    # ranks EVERY input to a fight's outcome — dice, carried
-                                    # state, and player choices — on one shared scale, at both
-                                    # the single-fight and whole-run level. REPORT. See
-                                    # src/batch/decidingFactors.ts's header.
-                                    # (--quick on any measure:* is a harness smoke test only —
-                                    # the numbers it prints are not trustworthy.)
-npm run measure:encounters -- --block matrix|run|all [--n N]
-                                    # per-encounter x per-squad win-rate matrix (all 20 possible
-                                    # 3-hero squads) plus the real-run loss breakdown by fight
-                                    # number and by encounter. REPORT, built for the difficulty
-                                    # pass (DECISIONS.md, 2026-09-20) — re-run after any
-                                    # encounters.ts change. See src/batch/encounterMatrix.ts's
-                                    # header.
-npm run readlog -- run-8412-r3-1830.json
-                                    # reads one exported run log (the "export" link next to the
-                                    # seed badge, every screen): prints what the game says decided
-                                    # each fight, cross-checks that against fight.ts's own totals,
-                                    # and re-runs each fight 300x per bench swap to price out
-                                    # "what if I'd fielded X instead." See src/tools/readLog.ts and
-                                    # src/log/.
+npm run check                      # determinism + beatsheet + run-shape + offers + projection regression checks
+npm run fight -- --seed 7          # one fight, headless (starting tank+damage+support squad vs. round 1), prints the event log
+npm run lab -- --roles tank,damage,support --charge 0,90,0 --encounter 3 --seed 7
+                                    # one hand-picked fight, headless — arbitrary role squad, arbitrary
+                                    # encounter, per-unit starting charge %. See src/lab/labFight.ts.
+npm run run -- --seed 7 --offers greedy
+                                    # one full 20-round run, headless, prints per-round summary.
+                                    # --offers: first | random | greedy (default first)
+npm run batch -- --n 1000 --offers greedy
+                                    # distribution report across N runs at one offer policy
 npm run build                      # tsc + vite production build
 ```
 
 See `../STATE.md` for current status and `../DECISIONS.md` for why things are
 the way they are; `src/sim/config.ts` holds every tunable constant in one
-place.
+place, `src/sim/rounds.ts`'s `ROUND_PLAN` holds the round-by-round difficulty
+curve, and `src/sim/offers.ts` holds the post-win reward pool.
 
-`npm run dev` with `?test=1&seed=N` runs the attribution self-test protocol —
-see `../archive/ATTRIBUTION_TEST.md`. Holds each fight's recap behind a "Show
+`npm run dev` with `?test=1&seed=N` holds each round's recap behind a "Show
 what happened" button and pins/displays the run seed; both are no-ops
-without the query params. The "export" link beside the seed badge is always
-present (not test-mode-gated) and downloads everything the game has seen
-this run, for `npm run readlog` above.
+without the query params.
 
-`npm run dev` with `?lab=1` opens the lab instead of the real game — pick any
-3 heroes, any encounter, a starting charge % per hero, and watch; optionally
-run two such fights side by side on one shared clock. See `src/lab/`.
+`npm run dev` with `?lab=1` opens the lab instead of the real game — pick a
+role per slot, any encounter, a starting charge % per unit, and watch;
+optionally run two such fights side by side on one shared clock. See
+`src/lab/`.

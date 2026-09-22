@@ -69,6 +69,14 @@ export interface HeroState {
    * file's ChainPlan docstring. Undefined until fight.ts's cloneHeroes sets
    * it; enemies get one too (harmless — never read). */
   chainPlan?: ChainPlan;
+  /** 2026-09-23 (roles/rounds rebuild): multiplies this hero's chain rung
+   * magnitude/duration (fight.ts's escalatedMagnitude/escalatedDurationSec)
+   * — a role-wide upgrade, earned via an offer (sim/offers.ts's
+   * "chainLevel") and stamped onto every fielded unit of that role at
+   * squad-build time (sim/roster.ts's stampProgressOntoSquad), not carried
+   * per-unit. Undefined/1 is a no-op, so every pre-existing call site that
+   * never sets this behaves exactly as before. */
+  chainLevel?: number;
   /** Set by Hollow's "stun" chain effect (config.ts's ChainEffect) —
    * sim-clock time this hero is unable to act until. Read by the beat loop
    * (fight.ts) to push nextAttackT/nextWindupT past it, and by a bruiser's

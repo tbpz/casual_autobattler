@@ -1,37 +1,19 @@
 import type { RunConfig } from "../sim/config.js";
 import type { HeroState } from "../sim/types.js";
-import { MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY } from "../sim/heroes.js";
+import { sideHp, sideMaxHp } from "../sim/types.js";
+import { MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY, PLAYER_ROLES, ROLE_LABEL } from "../sim/roles.js";
+import type { RunProgress } from "../sim/progress.js";
 import { defaultFieldPick, fieldSquad, livingRosterHeroes, type RosterState } from "../sim/roster.js";
-import { makeEnemySide } from "../sim/run.js";
+import { roundEnemySide, roundKindLabel } from "../sim/rounds.js";
+import type { EncounterKind } from "../sim/encounters.js";
 import { project } from "../sim/projection.js";
 import { chainEffectLines, chainVsEncounterLine, backfireRiskPips, chargeBarHtml } from "./heroPickShared.js";
 
-/** HP fractions where the field-pick row changes how loudly it reads
- * (2026-09-21 — see hpSeverity below).
- *
- * Checked against every roster in the played run these came from
- * (logs/260921_2127): at 0.75/0.4, fight 2 marks the 30% Bracer critical (he
- * was correctly benched), fight 3 marks the 67% Hollow, and fight 4 marks the
- * 68% Bracer while leaving the 100% Hollow clean — which is exactly the
- * contrast that fight needed and didn't have. Fights 1 and 5 stay entirely
- * unmarked, so the mark still means something.
- *
- * An earlier 0.6/0.33 pair was discarded for failing that test: it read all
- * four of fight 4's heroes as fine, including the Bracer who died. */
+/** HP fractions where a round-screen row changes how loudly it reads —
+ * carried over unchanged from the old fieldPickScreen.ts. */
 const HP_HURT_FRACTION = 0.75;
 const HP_CRITICAL_FRACTION = 0.4;
 
-/** Which of the three HP bands a hero is in, as a CSS-class suffix.
- *
- * Exists because of the 2026-09-21 played run (logs/260921_2127, seed
- * 4866404): a full-HP Hollow sat on the bench while a two-thirds Bracer was
- * fielded and died, costing the run — and the row showed current HP as the
- * smallest, greyest text on it while the charge bar carried the color. The
- * chain is still the reason to PICK a hero (that's the game — see STATE.md's
- * bet); current HP is the reason to NOT field one, and it had no way to say
- * so. roster.ts's defaultFieldPick already sorts on exactly this number and
- * ignores charge entirely; this makes the screen show the same reasoning the
- * accept-default is already using. */
 function hpSeverity(h: HeroState): "ok" | "hurt" | "critical" {
   const frac = h.maxHp > 0 ? h.hp / h.maxHp : 0;
   if (frac < HP_CRITICAL_FRACTION) return "critical";
@@ -40,76 +22,68 @@ function hpSeverity(h: HeroState): "ok" | "hurt" | "critical" {
 }
 
 /**
- * Per-fight FIELD pick (2026-08-09 roster/bench pass — see config.ts's
- * DeathPolicy-removal docstring and squadPickScreen.ts's updated top
- * docstring): which cfg.playerN (3) of the living roster answer THIS fight,
- * pre-checked with roster.ts's defaultFieldPick so the minimum path stays
- * Play -> watch -> Play. Distinct from the run-start draft screen — that one
- * commits the roster for the whole run; this one is a fresh, informed choice
- * every fight, the puzzle Into the Breach-style full info is meant to
- * support (STATE.md's reference-games row): rest a hurt hero on the bench
- * (it recovers faster there — see config.ts's benchedRecoverFraction) and
- * field someone else, or field your strongest three regardless.
+ * 2026-09-23 (roles/rounds rebuild — see DECISIONS.md and STATE.md). Merges
+ * the old field-pick screen and pre-fight screen into one: which units fill
+ * this round's squad, full information about the enemy, and a projection —
+ * all in one screen, one tap (Play) to accept the default. Fewer screens,
+ * less to read, per round, the same problem the run-start draft was in
+ * miniature.
  *
- * Also lists any permanently-dead roster members below the pick, greyed —
- * "Cairn has fallen" needs to stay visible at exactly the moment its absence
- * changes what's fieldable, not just flash by in a recap and be forgotten.
+ * Chain identity is shown ONCE PER ROLE, not once per unit — every tank
+ * shares the same chain effect/level (sim/roster.ts's
+ * stampProgressOntoSquad), so repeating it per row would just be noise.
  */
-export function renderFieldPickScreen(
+export function renderRoundScreen(
   container: HTMLElement,
   cfg: RunConfig,
-  fightIndex: number,
+  roundIndex: number,
   encounterIndex: number,
   roster: RosterState,
-  encounterName: string | null,
-  encounterBlurb: string | null,
-  onField: (fieldedIds: string[]) => void,
+  progress: RunProgress,
+  encounterName: string,
+  encounterBlurb: string,
+  roundKind: EncounterKind,
+  onPlay: (fieldedIds: string[]) => void,
 ): void {
   container.innerHTML = "";
   const screen = document.createElement("div");
   screen.className = "screen squad-pick field-pick";
 
   const h1 = document.createElement("h1");
-  h1.textContent = `Field for fight ${fightIndex + 1}${encounterName ? ` — ${encounterName}` : ""}`;
+  h1.textContent = `${roundKindLabel(roundKind)} ${roundIndex + 1} of ${cfg.roundsPerRun} — ${encounterName}`;
   screen.appendChild(h1);
 
-  // 2026-08-15 (encounter-deck pass, Chunk 3.6): the "question it asks" line
-  // — written since the original 5-encounter table but never rendered
-  // anywhere until now (see sim/encounters.ts's EncounterDef.blurb
-  // docstring) — is what makes a DRAWN encounter readable rather than just a
-  // name the player hasn't learned yet.
-  if (encounterBlurb) {
-    const blurb = document.createElement("p");
-    blurb.className = "hint encounter-blurb";
-    blurb.textContent = encounterBlurb;
-    screen.appendChild(blurb);
-  }
+  const blurb = document.createElement("p");
+  blurb.className = "hint encounter-blurb";
+  blurb.textContent = encounterBlurb;
+  screen.appendChild(blurb);
 
-  const fieldSize = cfg.playerN;
+  const fieldSize = progress.slots;
   const hint = document.createElement("p");
   hint.className = "hint";
-  hint.textContent = `Pick ${fieldSize} to fight — or just hit Play. A hero left on the bench heals faster.`;
+  hint.textContent = `Pick ${fieldSize} to fight — or just hit Play. A unit left on the bench heals faster.`;
   screen.appendChild(hint);
 
   const living = livingRosterHeroes(roster);
   const dead = roster.heroes.filter((h) => !h.alive);
-
   const selected = new Set<string>(defaultFieldPick(roster, fieldSize));
 
   const list = document.createElement("div");
   list.className = "hero-pick-list";
   const rows = new Map<string, HTMLElement>();
 
+  const chainBlock = document.createElement("div");
+  chainBlock.className = "recap";
+
   const projectionLine = document.createElement("p");
   projectionLine.className = "projection-line";
-
   const chainLine = document.createElement("p");
   chainLine.className = "projection-detail";
 
   const playBtn = document.createElement("button");
   playBtn.className = "play-btn";
 
-  const enemyPreview = makeEnemySide(cfg, fightIndex, encounterIndex);
+  const enemyPreview = roundEnemySide(cfg, roundIndex, encounterIndex);
 
   function refreshPlayState(): void {
     const ready = selected.size === fieldSize;
@@ -133,14 +107,13 @@ export function renderFieldPickScreen(
       chainLine.textContent = "";
       return;
     }
-    const proj = project(fieldSquad(roster, [...selected]), enemyPreview, cfg.fight);
+    const proj = project(fieldSquad(roster, [...selected], progress), enemyPreview, cfg.fight);
     projectionLine.textContent = proj.verdict;
     projectionLine.className = `projection-line band-${proj.band}`;
     chainLine.textContent = proj.chainLine;
   }
 
   function heroRowHtml(h: HeroState): string {
-    const chain = chainEffectLines(h.chainEffect ?? "poundBiggest");
     return `
       <span class="hero-pick-check"></span>
       <span class="hero-pick-info">
@@ -149,9 +122,7 @@ export function renderFieldPickScreen(
         <span class="hero-pick-role">${h.role}</span>
       </span>
       <span class="hero-pick-stats">
-        <span class="hero-pick-numbers">${h.damage}dmg / ${h.attackIntervalSec}s${h.healPerBeat ? ` +${h.healPerBeat}heal` : ""}${h.attacksWhileHealing ? " +atk" : ""}</span>
-        <span class="hero-pick-chain">CHAIN: ${chain.does}</span>
-        <span class="hero-pick-chain-against">${chainVsEncounterLine(h.chainEffect ?? "poundBiggest", enemyPreview)}</span>
+        <span class="hero-pick-numbers">${h.damage}dmg / ${h.attackIntervalSec}s${h.healPerBeat ? ` +${h.healPerBeat}heal` : ""}</span>
         <span class="hero-pick-backfire">BACKFIRE ${backfireRiskPips(cfg.fight, h.chainAffinity, MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY)}</span>
         ${chargeBarHtml(h.charge, cfg.fight.chargeThreshold)}
       </span>
@@ -184,9 +155,23 @@ export function renderFieldPickScreen(
   refreshChecks();
   refreshPlayState();
   refreshProjection();
-  playBtn.addEventListener("click", () => onField([...selected]));
+  playBtn.addEventListener("click", () => onPlay([...selected]));
 
   screen.appendChild(list);
+
+  // One chain line per ROLE actually present in the roster — not per unit
+  // (see this file's top docstring).
+  for (const role of PLAYER_ROLES) {
+    if (!roster.heroes.some((h) => h.role === role)) continue;
+    const roleProgress = progress.chain[role];
+    const lines = chainEffectLines(roleProgress.effect);
+    const p = document.createElement("p");
+    p.className = "hero-pick-chain-summary";
+    p.innerHTML = `<strong>${ROLE_LABEL[role]} chain</strong> (level ${roleProgress.level}): ${lines.does} — ${chainVsEncounterLine(roleProgress.effect, enemyPreview)}`;
+    chainBlock.appendChild(p);
+  }
+  screen.appendChild(chainBlock);
+
   screen.appendChild(projectionLine);
   screen.appendChild(chainLine);
 
@@ -196,6 +181,11 @@ export function renderFieldPickScreen(
     fallen.textContent = `Fallen: ${dead.map((h) => h.name).join(", ")}.`;
     screen.appendChild(fallen);
   }
+
+  const enemyStat = document.createElement("p");
+  enemyStat.className = "hint";
+  enemyStat.textContent = `Enemy: ${Math.round(sideHp(enemyPreview))} / ${Math.round(sideMaxHp(enemyPreview))} HP.`;
+  screen.appendChild(enemyStat);
 
   screen.appendChild(playBtn);
   container.appendChild(screen);

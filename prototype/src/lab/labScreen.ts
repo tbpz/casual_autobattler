@@ -11,8 +11,8 @@
  * labClock.ts's own docstring).
  */
 import { DEFAULT_RUN_CONFIG, type RunConfig } from "../sim/config.js";
-import { PLAYER_HERO_POOL, DEFAULT_PLAYER_ROSTER_IDS } from "../sim/heroes.js";
-import { ENCOUNTERS, makeEncounterEnemySide } from "../sim/encounters.js";
+import { PLAYER_ROLES, ROLE_LABEL, type PlayerRole } from "../sim/roles.js";
+import { ENCOUNTERS, buildEnemySide, encounterAt } from "../sim/encounters.js";
 import { sideMaxHp } from "../sim/types.js";
 import { FightView } from "../render/fightView.js";
 import { LabClock, LAB_SPEEDS, type LabSpeed } from "./labClock.js";
@@ -20,7 +20,7 @@ import { LabStats } from "./labStats.js";
 import { runLabFight, type LabSetup } from "./labFight.js";
 
 interface LabHeroSlotState {
-  heroId: string;
+  role: PlayerRole;
   chargePercent: number;
 }
 
@@ -37,7 +37,7 @@ function randomSeed(): number {
 
 function defaultColumnState(seed: number): LabColumnState {
   return {
-    heroSlots: DEFAULT_PLAYER_ROSTER_IDS.map((id) => ({ heroId: id, chargePercent: 0 })),
+    heroSlots: PLAYER_ROLES.map((role) => ({ role, chargePercent: 0 })),
     encounterIndex: 0,
     rampIndex: 0,
     seed,
@@ -55,7 +55,7 @@ function cloneColumnState(state: LabColumnState): LabColumnState {
 
 function toLabSetup(state: LabColumnState): LabSetup {
   return {
-    heroIds: state.heroSlots.map((s) => s.heroId),
+    roles: state.heroSlots.map((s) => s.role),
     chargePercents: state.heroSlots.map((s) => s.chargePercent),
     encounterIndex: state.encounterIndex,
     rampIndex: state.rampIndex,
@@ -93,15 +93,15 @@ function buildColumn(container: HTMLElement, label: string, state: LabColumnStat
       row.className = "lab-hero-slot";
 
       const select = document.createElement("select");
-      for (const def of PLAYER_HERO_POOL) {
+      for (const role of PLAYER_ROLES) {
         const opt = document.createElement("option");
-        opt.value = def.id;
-        opt.textContent = def.name;
-        if (def.id === slot.heroId) opt.selected = true;
+        opt.value = role;
+        opt.textContent = ROLE_LABEL[role];
+        if (role === slot.role) opt.selected = true;
         select.appendChild(opt);
       }
       select.addEventListener("change", () => {
-        slot.heroId = select.value;
+        slot.role = select.value as PlayerRole;
       });
 
       const chargeLabel = document.createElement("span");
@@ -162,7 +162,10 @@ function buildColumn(container: HTMLElement, label: string, state: LabColumnStat
     container.appendChild(rampRow);
 
     function refreshRampInfo(): void {
-      const enemy = makeEncounterEnemySide(cfg, state.rampIndex, state.encounterIndex);
+      const encounter = encounterAt(state.encounterIndex);
+      if (!encounter) return;
+      const scale = 1 + state.rampIndex * 0.05;
+      const enemy = buildEnemySide(cfg.fight, encounter, scale, scale);
       rampInfo.textContent = `${enemy.heroes.length} bod${enemy.heroes.length === 1 ? "y" : "ies"} / ${Math.round(sideMaxHp(enemy))} hp`;
     }
     refreshRampInfo();
@@ -214,7 +217,7 @@ function renderLabSetupScreen(
 
   const hint = document.createElement("p");
   hint.className = "hint";
-  hint.textContent = "Pick 3 heroes, an encounter, and a starting charge % for each hero — then watch. One-off fight, no run, no attrition.";
+  hint.textContent = "Pick a role per slot, an encounter, and a starting charge % for each unit — then watch. One-off fight, no run, no attrition.";
   screen.appendChild(hint);
 
   const modeRow = document.createElement("div");

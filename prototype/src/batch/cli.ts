@@ -1,41 +1,12 @@
 import { Rng } from "../sim/rng.js";
 import { DEFAULT_RUN_CONFIG, type RunConfig } from "../sim/config.js";
 import { runFight } from "../sim/fight.js";
-import { DEFAULT_DRAFT_ROSTER_IDS, DEFAULT_PLAYER_ROSTER_IDS, makePlayerSide } from "../sim/heroes.js";
+import { makeInitialProgress } from "../sim/progress.js";
+import { makeStartingRoster, PLAYER_ROLES, type PlayerRole } from "../sim/roles.js";
 import type { FightEvent, FightResult } from "../sim/events.js";
-import { makeEnemySide, makePolicy, runRun, type RunResult } from "../sim/run.js";
+import { makeEnemySide, makeOfferPolicy, runRun, type RunResult } from "../sim/run.js";
 import { BatchAggregator, formatReport } from "./report.js";
 import { runLabFight, type LabSetup } from "../lab/labFight.js";
-
-/** Named FIELDED squads (exactly 3) for the `fight` subcommand's --squad —
- * an isolated single fight, no roster/attrition involved. A literal
- * comma-separated hero id list also works. */
-const SQUAD_PRESETS: Record<string, string[]> = {
-  comfortable: ["bracer", "rook", "cairn"],
-  tight: ["hollow", "rook", "cairn"],
-  greedy: ["vex", "rook", "hollow"],
-};
-
-/** Named DRAFT rosters (5 of 6) for `run`/`batch` — 2026-08-09 roster/bench
- * pass. Each leaves a different hero on the bench from the start, so the
- * three presets exercise a different starting shape rather than just a
- * different fielded triple. */
-const DRAFT_PRESETS: Record<string, string[]> = {
-  // Leaves Vex out — the accept-default draft (see heroes.ts).
-  default: DEFAULT_DRAFT_ROSTER_IDS,
-  // Leaves Cairn out — no pure-healer safety net available at all, Ward is
-  // the only support in the draft.
-  burst: ["bracer", "hollow", "rook", "vex", "ward"],
-  // Leaves Bracer out — only one tank (Hollow) in the whole draft, so a
-  // Hollow death mid-run forces a tankless fielding for good.
-  thin: ["hollow", "rook", "vex", "cairn", "ward"],
-};
-
-function resolveSquad(arg: string | undefined, presets: Record<string, string[]>): string[] | undefined {
-  if (!arg) return undefined;
-  if (presets[arg]) return presets[arg];
-  return arg.split(",");
-}
 
 function parseArgs(argv: string[]): Record<string, string> {
   const out: Record<string, string> = {};
@@ -100,32 +71,28 @@ function printFightLog(result: FightResult, label: string): void {
 
 function printRunSummary(result: RunResult): void {
   console.log(`\n--- run (seed=${result.seed}) ---`);
-  for (const f of result.fights) {
+  for (const f of result.rounds) {
     console.log(
-      `  fight ${f.fightIndex + 1}: ${f.outcome.toUpperCase()} | fielded=${f.fieldedIds.join("+")} | ignited=${f.ignited} | chain=${f.chainLength} | ` +
-        `coin+${f.coinAwarded} | spend=${f.spend} | roster-living=${f.livingHeroesAfter} | ` +
+      `  round ${f.roundIndex + 1}: ${f.outcome.toUpperCase()} | fielded=${f.fieldedIds.join("+")} | ignited=${f.ignited} | chain=${f.chainLength} | ` +
+        `offer=${f.offerTaken?.title ?? "-"} | roster-living=${f.livingHeroesAfter} | ` +
         `HP=${f.playerHpAfter.toFixed(0)}/${f.playerMaxHpAfter.toFixed(0)}`,
     );
   }
   const overNote = result.overReason ? ` (${result.overReason})` : "";
-  console.log(`run outcome: ${result.outcome.toUpperCase()}${overNote} (${result.fightsWon}/5 won, ${result.finalCoin} coin left)`);
+  console.log(
+    `run outcome: ${result.outcome.toUpperCase()}${overNote} (${result.roundsWon}/${DEFAULT_RUN_CONFIG.roundsPerRun} won, ` +
+      `final slots ${result.finalProgress.slots})`,
+  );
 }
 
-function runBatch(
-  cfg: RunConfig,
-  policyName: "never-spend" | "always-heal" | "always-upgrade",
-  n: number,
-  baseSeed: number,
-  roster: string[] | undefined,
-) {
-  const policy = makePolicy(policyName, cfg);
+function runBatch(cfg: RunConfig, offerPolicyName: "first" | "random" | "greedy", n: number, baseSeed: number): void {
   const agg = new BatchAggregator(cfg);
   for (let i = 0; i < n; i++) {
     const seed = baseSeed + i;
-    agg.add(runRun(cfg, new Rng(seed), policy, seed, makePlayerSide(roster ?? DEFAULT_DRAFT_ROSTER_IDS)));
+    const offerRng = new Rng((seed ^ 0x51ed270b) >>> 0);
+    agg.add(runRun(cfg, new Rng(seed), offerRng, makeOfferPolicy(offerPolicyName, offerRng), seed));
   }
-  const rosterLabel = ` roster=${(roster ?? DEFAULT_DRAFT_ROSTER_IDS).join("+")}`;
-  console.log(formatReport(agg.finalize(), `policy=${policyName}${rosterLabel}`));
+  console.log(formatReport(agg.finalize(), `offerPolicy=${offerPolicyName}`));
 }
 
 const [, , cmd, ...rest] = process.argv;
@@ -136,68 +103,49 @@ const cfg: RunConfig = DEFAULT_RUN_CONFIG;
 
 switch (cmd) {
   case "fight": {
-    // A single ad-hoc fight, no roster/attrition — --squad takes exactly
-    // cfg.playerN (3) ids (or a named SQUAD_PRESETS entry).
-    const squad = resolveSquad(args.squad, SQUAD_PRESETS);
-    const setup = { player: makePlayerSide(squad), enemy: makeEnemySide(cfg, 0) };
+    // A single ad-hoc fight against round 0's shape — the starting 3-unit
+    // squad (one Tank, one Damage, one Healer), no roster/attrition involved.
+    const progress = makeInitialProgress(cfg);
+    const setup = { player: makeStartingRoster(progress.bonus), enemy: makeEnemySide(cfg, 0, 0) };
     const result = runFight(setup, cfg.fight, new Rng(seed), seed);
     printFightLog(result, "single fight");
     break;
   }
   case "lab": {
     // The lab's own headless entry point (prototype/src/lab/labFight.ts) —
-    // exercises the exact setup path the UI's ?lab=1 screen uses, so the
-    // whole setup layer is provable before any UI exists. --heroes/--charge
-    // are positional-paired: chargePercents[i] belongs to heroIds[i].
-    const heroIds = args.heroes ? args.heroes.split(",") : DEFAULT_PLAYER_ROSTER_IDS;
-    const chargePercents = args.charge ? args.charge.split(",").map(Number) : heroIds.map(() => 0);
+    // exercises the exact setup path the UI's ?lab=1 screen uses.
+    // --roles/--charge are positional-paired: chargePercents[i] belongs to
+    // roles[i]. Each role entry is "tank", "damage", or "support".
+    const roles = (args.roles ? args.roles.split(",") : ["tank", "damage", "support"]) as PlayerRole[];
+    for (const r of roles) {
+      if (!PLAYER_ROLES.includes(r)) throw new Error(`unknown role "${r}" — expected tank, damage, or support`);
+    }
+    const chargePercents = args.charge ? args.charge.split(",").map(Number) : roles.map(() => 0);
     const encounterIndex = args.encounter ? Number(args.encounter) : 0;
     const rampIndex = args.ramp ? Number(args.ramp) : 0;
-    const labSetup: LabSetup = { heroIds, chargePercents, encounterIndex, rampIndex, seed };
+    const labSetup: LabSetup = { roles, chargePercents, encounterIndex, rampIndex, seed };
     const result = runLabFight(labSetup, cfg);
     printFightLog(result, "lab fight");
     break;
   }
   case "run": {
-    // A full 5-fight run. --squad now takes a DRAFT (any length >=
-    // cfg.playerN — passing exactly 3 degrades to "no bench," the pre-
-    // 2026-08-09 shape) or a DRAFT_PRESETS name; defaults to the accept-
-    // default 5-hero draft.
-    const roster = resolveSquad(args.squad, DRAFT_PRESETS);
-    const policyName = (args.policy as "never-spend" | "always-heal" | "always-upgrade") ?? "always-heal";
-    const result = runRun(cfg, new Rng(seed), makePolicy(policyName, cfg), seed, makePlayerSide(roster ?? DEFAULT_DRAFT_ROSTER_IDS));
+    // A full roundsPerRun-round run. --offers picks the headless offer
+    // policy: "first" (always the first drawn offer) or "random".
+    const offerPolicyName = (args.offers as "first" | "random" | "greedy") ?? "first";
+    const offerRng = new Rng((seed ^ 0x51ed270b) >>> 0);
+    const result = runRun(cfg, new Rng(seed), offerRng, makeOfferPolicy(offerPolicyName, offerRng), seed);
     printRunSummary(result);
     break;
   }
   case "batch": {
-    if (args.squad || args.policy) {
-      // 2026-08-09 fix: this used to silently default an unspecified
-      // --policy to "never-spend" for any --squad investigation — every
-      // per-roster number anyone pulled this way (including the balance
-      // pins in checks/chaindist.ts before this pass) was therefore
-      // measuring a population that never plays the coin economy the real
-      // game always offers. Default to "always-heal" instead — the
-      // played-game population — and pass --policy never-spend explicitly
-      // to get the no-economy floor.
-      const roster = resolveSquad(args.squad, DRAFT_PRESETS);
-      runBatch(cfg, (args.policy as "never-spend" | "always-heal" | "always-upgrade") ?? "always-heal", n, seed, roster);
-    } else {
-      // Default: the full matrix — 3 policies x 3 named draft rosters, so
-      // the coin economy's and the starting draft's effect on run
-      // completion are visible side by side rather than assumed.
-      const policies = ["never-spend", "always-heal", "always-upgrade"] as const;
-      for (const p of policies) {
-        for (const rosterName of Object.keys(DRAFT_PRESETS)) {
-          runBatch(cfg, p, n, seed, DRAFT_PRESETS[rosterName]);
-        }
-      }
-    }
+    const offerPolicyName = (args.offers as "first" | "random" | "greedy") ?? "first";
+    runBatch(cfg, offerPolicyName, n, seed);
     break;
   }
   default:
     console.error(
-      `Usage: tsx src/batch/cli.ts <fight|lab|run|batch> [--seed N] [--n N] [--policy name] [--squad comfortable|tight|greedy|default|burst|thin|id,id,id...]\n` +
-        `  lab: --heroes id,id,id --charge pct,pct,pct --encounter N --ramp N --seed N`,
+      `Usage: tsx src/batch/cli.ts <fight|lab|run|batch> [--seed N] [--n N] [--offers first|random]\n` +
+        `  lab: --roles tank,damage,support --charge pct,pct,pct --encounter N --ramp N --seed N`,
     );
     process.exit(1);
 }

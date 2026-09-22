@@ -488,58 +488,61 @@ export function chainEffectVerb(effect: ChainEffect): string {
 
 export interface RunConfig {
   fight: FightConfig;
-  fightsPerRun: number;
-  /** Residual global multiplier on top of each fight's AUTHORED encounter
-   * (sim/encounters.ts's ENCOUNTERS table, 2026-08-09) — still
-   * maxHp * difficultyRampFactor^fightIndex, applied to every bruiser/grunt
-   * in that fight's composition. Kept as a single batch-tuning knob for
-   * "make the whole curve steeper/shallower" without re-authoring all 5
-   * encounters by hand; the actual SHAPE of each fight's difficulty now
-   * comes from the table, not this exponent. */
-  difficultyRampFactor: number;
-  /** Same, for per-hit damage — see difficultyRampFactor above and
-   * sim/encounters.ts's makeEncounterEnemySide. Deliberately gentler than
-   * the HP ramp, same historical reasoning as before this pass: HP-only
-   * scaling has a blind spot against fast, well-protected comps. */
-  difficultyDamageRampFactor: number;
-  /** Heroes FIELDED per fight (roster.ts) — the actual fight is always this
-   * many, never fewer (this is what RC4's fix guarantees). The enemy side's
-   * composition is no longer a fixed count against this — see
-   * sim/encounters.ts, where each fight authors its own headcount (Pack
-   * fields 5 grunts and no bruiser; The Wall fields 1 bruiser alone). */
-  playerN: number;
 
-  /** Heroes DRAFTED once at run start (roster.ts's RosterState) — the
-   * run-level build commitment. Always >= playerN; the difference is the
-   * bench. See config.ts's DeathPolicy-removal docstring above and
-   * roster.ts's top docstring for why this replaced deathPolicy. */
-  rosterSize: number;
+  /**
+   * 2026-09-23 (roles/rounds rebuild — see DECISIONS.md and STATE.md): the
+   * six named heroes, the run-start draft, and the coin spend are gone.
+   * A run is now `roundsPerRun` rounds against sim/rounds.ts's ROUND_PLAN,
+   * starting from `startingSlots` units (one Tank, one Damage, one Healer —
+   * sim/roles.ts's ROLE_POOL) and growing by whatever `npm run offers` (see
+   * sim/offers.ts) hands out after each win.
+   */
+  roundsPerRun: number;
+  /** Units fielded per round at run start (sim/roles.ts's PLAYER_ROLES, one
+   * of each) — grows over the run via the "slot" offer (sim/offers.ts),
+   * capped at maxSlots below. Replaces the old fixed playerN. */
+  startingSlots: number;
+  /** Hard cap on `RunProgress.slots` — a "slot" offer above this is filtered
+   * out by sim/offers.ts's drawOffers rather than left to overshoot. */
+  maxSlots: number;
+  /** Hard cap on total roster size (living + fallen) — a "recruit" offer
+   * above this is filtered out the same way. Generous: this is a ceiling
+   * against unbounded growth, not a real constraint at 20 rounds x 3 offers. */
+  maxRosterSize: number;
 
-  /** Fraction of a FIELDED hero's own maxHp granted between fights, no
+  /** Offers shown per win (sim/offers.ts's drawOffers) — see that file's
+   * top docstring for the weighting-by-round rule. */
+  offersPerWin: number;
+  /** A "chainLevel" offer raises a role's chain level by this much
+   * (sim/progress.ts's applyOffer), capped at chainLevelCap. fight.ts's
+   * escalatedMagnitude/escalatedDurationSec multiply by the fielded unit's
+   * own chainLevel — see sim/roster.ts's stampProgressOntoSquad. */
+  chainLevelStep: number;
+  chainLevelCap: number;
+  /** A "statHp"/"statDamage" offer raises every unit of that role's own
+   * maxHp/damage by this much, permanently (sim/progress.ts's
+   * RunProgress.bonus) — applied once, at offer time, to every living unit
+   * of that role and baked into every unit of that role recruited after. */
+  statHpStep: number;
+  statDamageStep: number;
+  /** A "heal" offer's flat HP grant to every living unit. */
+  healFlatAmount: number;
+  /** A "revive" offer brings back one fallen unit at this fraction of its
+   * own maxHp. */
+  reviveHpFraction: number;
+
+  /** Fraction of a FIELDED unit's own maxHp granted between rounds, no
    * input, capped at their own max (see roster.ts's applyFightResultToRoster).
-   * Deliberately per-hero-proportional rather than a flat HP amount — a flat
-   * amount silently favors low-maxHp heroes and specifically starves the
-   * tank (see this field's 2026-08-08 history for the batch numbers that
-   * caught it). Cut further 2026-08-09 (0.55 -> 0.25) now that a fielded
-   * hero's exposure is compensated by benchedRecoverFraction below — see
-   * that field's docstring for why the two move as a pair. */
+   * Deliberately per-unit-proportional rather than a flat HP amount — a flat
+   * amount silently favors low-maxHp roles and specifically starves the
+   * tank. */
   autoRecoverFraction: number;
-  /** Fraction of a BENCHED (living, not fielded this fight) roster hero's own
-   * maxHp granted between fights — deliberately HIGHER than
-   * autoRecoverFraction (2026-08-09, roster/bench pass): resting is the
-   * reward for not fielding a hero, which is what makes the bench a real
-   * rotation decision rather than "always field your best 3" — a hero left
-   * out after a rough fight comes back meaningfully healthier next time,
-   * while the three who fought carry real, slower-healing wear. */
+  /** Fraction of a BENCHED (living, not fielded this round) roster unit's own
+   * maxHp granted between rounds — deliberately HIGHER than
+   * autoRecoverFraction: resting is the reward for not fielding a unit,
+   * which is what makes the squad-mix pick a real rotation decision rather
+   * than "always field the same three." */
   benchedRecoverFraction: number;
-
-  coinPerWin: number;
-  coinBonusOnIgnition: number;
-  healCoinCost: number;
-  healHpAmount: number;
-  upgradeCoinCost: number;
-  /** Flat bonus added to every player hero's per-attack damage, rest of the run. */
-  upgradeDpsBonus: number;
 }
 
 export const DEFAULT_FIGHT_CONFIG: FightConfig = {
@@ -707,65 +710,34 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {
   fight: DEFAULT_FIGHT_CONFIG,
-  fightsPerRun: 5,
-  // bruiser/grunt (a single global archetype shared by every fight) is GONE
-  // (2026-08-09, encounter-table pass) — each fight's enemy composition and
-  // stat blocks are now authored directly in sim/encounters.ts's ENCOUNTERS
-  // table. History of the pre-pass HP/damage tuning (160/50 -> 280/90 ->
-  // 155/48, and the ramp-factor walk below) lives in DECISIONS.md rather
-  // than here now that there's no longer a single archetype for it to
-  // describe.
-  //
-  // These two ramp factors are now a residual GLOBAL multiplier on top of
-  // each encounter's authored numbers (see this field's RunConfig
-  // docstring) — deliberately much gentler than the pre-pass values (1.06 /
-  // 1.045), since the table's per-fight authored shape now carries most of
-  // the curve. Batch-tuning knob, not the primary difficulty lever anymore.
-  difficultyRampFactor: 1.03,
-  difficultyDamageRampFactor: 1.02,
-  playerN: 3,
 
-  // Draft 5 of the 6-hero pool at run start, field 3 each fight (2026-08-09
-  // roster/bench pass — see this file's DeathPolicy-removal docstring and
-  // roster.ts). Every combination but one (rosterSize = pool size - 1) keeps
-  // a real bench; the pool has exactly 6, so 5 is the largest draft that
-  // still leaves a choice of who to leave out.
-  rosterSize: 5,
+  // 2026-09-23 (roles/rounds rebuild) — 20 rounds against sim/rounds.ts's
+  // ROUND_PLAN (mini-bosses at 7/14, boss at 20), starting from 3 units (one
+  // Tank, one Damage, one Healer) instead of a 5-of-6 hero draft. Every
+  // number below is a first-pass strawman, same convention as the rest of
+  // this file — meant to move by playing, not a balance pass.
+  roundsPerRun: 20,
+  startingSlots: 3,
+  maxSlots: 5,
+  maxRosterSize: 10,
 
-  // Converted from a flat autoRecoverHp (200) to a fraction of each hero's
-  // OWN maxHp (2026-08-08) — the flat amount fully erased attrition (every
-  // squad completed every run at 0.00 deaths) AND, once cut to compensate,
-  // inverted the risk dial: at a flat 90, any hero with maxHp <= 90 (Rook,
-  // Vex, Ward) was topped off to full every fight regardless of squad, while
-  // Bracer (280 maxHp) recovered only ~32% and silently carried the rest as
-  // permanent attrition — so the TANK-based "comfortable" squad collapsed to
-  // 3.5% run completion while the glass-cannon "greedy" squad rose to 65.9%,
-  // exactly backwards. A fraction recovers every hero proportionally to its
-  // own max, so the ramp above can raise real difficulty without punishing
-  // one archetype specifically. See roster.ts's applyFightResultToRoster.
-  //
-  // Cut again 0.55 -> 0.25 (2026-08-09, roster/bench pass): with a 5-hero
-  // roster now absorbing what used to be pure attrition, free recovery this
-  // generous made HP carry between fights almost irrelevant — see
-  // benchedRecoverFraction below, the field this one is now tuned opposite.
-  autoRecoverFraction: 0.25,
-  // See benchedRecoverFraction's own docstring on RunConfig above (why
-  // benched recovers faster than fielded). 0.45 chosen so a hero rested one
-  // fight comes back meaningfully ahead of one that fought every fight, but
-  // still short of a full heal — rotation helps, it doesn't erase the run's
-  // attrition entirely.
-  benchedRecoverFraction: 0.45,
+  offersPerWin: 3,
+  chainLevelStep: 1,
+  chainLevelCap: 5,
+  statHpStep: 20,
+  statDamageStep: 2,
+  healFlatAmount: 30,
+  reviveHpFraction: 0.5,
 
-  coinPerWin: 10,
-  coinBonusOnIgnition: 5,
-  // 2026-08-09 fix: was 16 against a max of coinPerWin+coinBonusOnIgnition =
-  // 15/fight, so the FIRST spend decision in every single run was
-  // structurally unaffordable no matter what happened in fight 1 — the coin
-  // economy was dead on arrival. 10 is affordable off any single win.
-  healCoinCost: 10,
-  healHpAmount: 25,
-  upgradeCoinCost: 45,
-  upgradeDpsBonus: 2,
+  // Raised from the pre-rebuild values (0.25 / 0.45): the old 5-fight run
+  // always had a 5-unit roster (2 benched) to rotate from day one; this run
+  // starts at exactly 3 units with no bench at all until a "recruit"/"slot"
+  // offer shows up, so early rounds have no rotation to lean on and need
+  // more of their own HP back between rounds. See roster.ts's
+  // applyFightResultToRoster for why benched still recovers faster (the
+  // squad-mix pick's rotation pressure), once there is a bench to reward.
+  autoRecoverFraction: 0.4,
+  benchedRecoverFraction: 0.6,
 };
 
 /** Look up a PRD-style table: index by count, clamp to the last (capped) entry. */

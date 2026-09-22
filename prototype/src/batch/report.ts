@@ -215,19 +215,19 @@ export class BatchAggregator {
 
   constructor(cfg: RunConfig) {
     this.cfg = cfg;
-    this.reachedCount = new Array(cfg.fightsPerRun).fill(0) as number[];
-    this.wonCount = new Array(cfg.fightsPerRun).fill(0) as number[];
-    this.deathsByFightIndex = new Array(cfg.fightsPerRun).fill(0) as number[];
+    this.reachedCount = new Array(cfg.roundsPerRun).fill(0) as number[];
+    this.wonCount = new Array(cfg.roundsPerRun).fill(0) as number[];
+    this.deathsByFightIndex = new Array(cfg.roundsPerRun).fill(0) as number[];
   }
 
   add(r: RunResult): void {
     this.n++;
     if (r.outcome === "complete") this.completed++;
 
-    for (const f of r.fights) {
-      this.reachedCount[f.fightIndex] = (this.reachedCount[f.fightIndex] ?? 0) + 1;
+    for (const f of r.rounds) {
+      this.reachedCount[f.roundIndex] = (this.reachedCount[f.roundIndex] ?? 0) + 1;
       if (f.outcome === "win") {
-        this.wonCount[f.fightIndex] = (this.wonCount[f.fightIndex] ?? 0) + 1;
+        this.wonCount[f.roundIndex] = (this.wonCount[f.roundIndex] ?? 0) + 1;
         this.winsTotal++;
         if (f.chainLength >= 3) this.winsWithChain3Plus++;
         if (f.chainLength === 0) this.winsWithNoChain++;
@@ -250,17 +250,17 @@ export class BatchAggregator {
       this.countChainsWhileLosing(fr);
     }
 
-    // Walk fights in order, crediting each death to the fight it happened in
-    // rather than only reading the run's last entry — see this file's top
-    // docstring, 2026-08-09 entry. Baseline is rosterSize (the full draft),
-    // not playerN (what's fielded per fight) — see config.ts's roster/bench
-    // pass: deaths are permanent removals from the roster, not the fielded
-    // squad.
-    let livingBefore = this.cfg.rosterSize;
-    for (const f of r.fights) {
+    // Walk rounds in order, crediting each death to the round it happened
+    // in rather than only reading the run's last entry. Baseline is
+    // startingSlots (the run's starting roster) — the roster can both
+    // shrink (a death) and grow (a "recruit"/"slot" offer) over a run now,
+    // so this reads as "net change from the round before," not a strict
+    // shrink-only count.
+    let livingBefore = this.cfg.startingSlots;
+    for (const f of r.rounds) {
       const deathsThisFight = f.outcome === "win" ? Math.max(livingBefore - f.livingHeroesAfter, 0) : livingBefore;
       this.totalDeaths += deathsThisFight;
-      this.deathsByFightIndex[f.fightIndex] = (this.deathsByFightIndex[f.fightIndex] ?? 0) + deathsThisFight;
+      this.deathsByFightIndex[f.roundIndex] = (this.deathsByFightIndex[f.roundIndex] ?? 0) + deathsThisFight;
       livingBefore = f.outcome === "win" ? f.livingHeroesAfter : 0;
     }
   }

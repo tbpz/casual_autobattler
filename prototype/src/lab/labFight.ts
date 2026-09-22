@@ -1,16 +1,15 @@
 /**
  * The lab's setup layer — turns a hand-picked matchup into the exact same
  * FightSetup/FightResult the real game plays through. This file is the only
- * place the lab touches sim/: it calls makePlayerSide, makeEncounterEnemySide,
- * and runFight, all unchanged, the same way batch/cli.ts's `fight` subcommand
- * and every batch/*.ts rig already do. Nothing here is a new sim mechanism —
- * see this feature's plan for the precedent each piece follows.
+ * place the lab touches sim/: it calls makeUnitState, buildEnemySide, and
+ * runFight, all unchanged, the same way batch/cli.ts's `fight` subcommand
+ * already does. Nothing here is a new sim mechanism.
  */
 import { Rng } from "../sim/rng.js";
 import type { RunConfig } from "../sim/config.js";
 import { runFight } from "../sim/fight.js";
-import { makePlayerSide } from "../sim/heroes.js";
-import { makeEncounterEnemySide } from "../sim/encounters.js";
+import { makeSquadFromRoles, type PlayerRole } from "../sim/roles.js";
+import { buildEnemySide, encounterAt } from "../sim/encounters.js";
 import type { FightSetup } from "../sim/types.js";
 import type { FightResult } from "../sim/events.js";
 
@@ -18,51 +17,39 @@ import type { FightResult } from "../sim/events.js";
  * a knob for. Distinct from FightSetup (the sim's own shape): this is the
  * SOURCE a lab fight is built from, not the built SideState pair itself. */
 export interface LabSetup {
-  /** Exactly 3 slots (cfg.playerN) — each a PLAYER_HERO_POOL id. Duplicates
-   * allowed (e.g. "bracer","bracer","rook") — makePlayerSide doesn't care. */
-  heroIds: string[];
+  /** Any number of slots, each a PlayerRole. Duplicates allowed. */
+  roles: PlayerRole[];
   /** Starting charge per SLOT, 0-100 — chargePercents[i] belongs to
-   * heroIds[i], not to whatever position that hero ends up at after
-   * makePlayerSide's tank-first sort (see buildLabFightSetup below). */
+   * roles[i]. */
   chargePercents: number[];
   /** Index into sim/encounters.ts's ENCOUNTERS table. */
   encounterIndex: number;
-  /** The `fightIndex` the enemy's difficulty ramp reads — 0 is unscaled. Kept
-   * separate from encounterIndex on purpose, same as
-   * makeEncounterEnemySide's own two independent parameters. */
+  /** A direct HP/damage scale multiplier on the drawn encounter — 0 is
+   * unscaled (1x). Kept separate from encounterIndex, same as
+   * buildEnemySide's own two independent parameters. */
   rampIndex: number;
   seed: number;
   /** Starting HP per SLOT, 0-100 (of that slot's own maxHp) — same
    * slot-not-array-position convention as chargePercents. Undefined slots
-   * default to 100 (fresh). Added for the export-log what-if replay (see
-   * tools/readLog.ts): a mid-run fight starts with whatever attrition the
-   * roster already carries, not full HP, so re-running "what if I'd fielded
-   * Hollow instead" needs to start from the same HP the real fight did. */
+   * default to 100 (fresh). */
   hpPercents?: number[];
-  /** The roster's accumulated coin-upgrade bonus (SideState.dpsBonus) at the
-   * moment of this fight — same reasoning as hpPercents: a what-if replay of
-   * fight 3 should carry fight 1-2's upgrade spend, not start unbought.
-   * Undefined defaults to 0 (makePlayerSide's own default). */
-  dpsBonus?: number;
 }
 
 /** Builds the FightSetup runFight actually consumes, from a LabSetup.
  *
- * The one subtlety: makePlayerSide assigns each hero an instance id of
- * `p${slotIndex}_${heroId}` BEFORE sorting the array tank-first (heroes.ts's
- * makePlayerSide), so a squad's array order is not slot order once a tank is
- * anywhere but slot 0. Charge is therefore attached by matching that same
- * instance id, never by re-reading array position — matching by position
- * would silently attach a slider to the wrong hero the moment the squad isn't
- * already tank-first. */
+ * The one subtlety: makeSquadFromRoles assigns each unit an instance id of
+ * `u${slotIndex}_${role}` BEFORE sorting the array tank-first, so a squad's
+ * array order is not slot order once a tank is anywhere but slot 0. Charge
+ * is therefore attached by matching that same instance id, never by
+ * re-reading array position. */
 export function buildLabFightSetup(setup: LabSetup, cfg: RunConfig): FightSetup {
-  const player = makePlayerSide(setup.heroIds, setup.dpsBonus ?? 0);
+  const player = makeSquadFromRoles(setup.roles);
   const byInstanceId = new Map(player.heroes.map((h) => [h.id, h]));
-  setup.heroIds.forEach((heroId, slot) => {
-    const instanceId = `p${slot}_${heroId}`;
+  setup.roles.forEach((role: PlayerRole, slot) => {
+    const instanceId = `u${slot}_${role}`;
     const hero = byInstanceId.get(instanceId);
     if (!hero) {
-      throw new Error(`buildLabFightSetup: no hero at instance id ${instanceId} — slot/heroId mismatch`);
+      throw new Error(`buildLabFightSetup: no unit at instance id ${instanceId} — slot/role mismatch`);
     }
     const pct = setup.chargePercents[slot] ?? 0;
     hero.charge = Math.round((pct / 100) * cfg.fight.chargeThreshold);
@@ -70,16 +57,16 @@ export function buildLabFightSetup(setup: LabSetup, cfg: RunConfig): FightSetup 
     hero.hp = Math.max(0, Math.round((hpPct / 100) * hero.maxHp));
     hero.alive = hero.hp > 0;
   });
-  const enemy = makeEncounterEnemySide(cfg, setup.rampIndex, setup.encounterIndex);
+  const encounter = encounterAt(setup.encounterIndex);
+  if (!encounter) throw new Error(`buildLabFightSetup: no encounter at index ${setup.encounterIndex}`);
+  const scale = 1 + setup.rampIndex * 0.05;
+  const enemy = buildEnemySide(cfg.fight, encounter, scale, scale);
   return { player, enemy };
 }
 
 /** Runs one lab fight to completion. A FRESH Rng(setup.seed) every call —
  * unlike the real run (render/runSession.ts), which shares one Rng stream
- * across all 5 fights, a lab fight is meant to be reproduced on its own, so
- * it gets its own stream seeded straight from setup.seed. Same seed -> same
- * FightSetup -> identical event log, exactly like every other runFight call
- * site (see checks/determinism.ts). */
+ * across the whole run, a lab fight is meant to be reproduced on its own. */
 export function runLabFight(setup: LabSetup, cfg: RunConfig): FightResult {
   const built = buildLabFightSetup(setup, cfg);
   return runFight(built, cfg.fight, new Rng(setup.seed), setup.seed);
