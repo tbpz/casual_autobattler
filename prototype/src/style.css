@@ -1945,30 +1945,6 @@ button:disabled {
   text-align: left;
 }
 
-.projection-detail {
-  color: var(--muted);
-  font-size: 0.85em;
-  margin: 4px 0;
-}
-
-.projection-line {
-  font-weight: 700;
-  font-size: 0.9em;
-  margin: 8px 0 0;
-}
-
-.projection-line.band-comfortable {
-  color: var(--player);
-}
-
-.projection-line.band-tight {
-  color: var(--ignite);
-}
-
-.projection-line.band-losing {
-  color: var(--enemy);
-}
-
 .recap p {
   margin: 4px 0;
 }

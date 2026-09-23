@@ -10,6 +10,72 @@
 
 ---
 
+## [2026-09-24] The round screen drops its fight prediction
+
+- **Decision:**
+  - The round screen (pick squad, then Play) no longer shows the SAFE/TIGHT verdict word or the
+    "~N chains" count.
+  - The after-fight recap's "(projected Ns to spare)" note is unaffected and still shows.
+  - `sim/projection.ts` is unaffected — the recap and `checks/projection.ts` still call it.
+- **Why:**
+  - Tu's own words: "Not necessary in the UI. I don't need a prediction there."
+  - Scoped to this one screen only — Tu confirmed the recap's projected note should stay when asked
+    directly.
+- **Replaces:**
+  - Narrows the 2026-08-06 "squad pick is the risk dial" entry's player-facing display (the
+    comfortable/tight/losing projection) to the recap only — the projection mechanism itself, and
+    the tank-line/ignition-gate rule that entry also established, are untouched.
+
+## [2026-09-23] HP moves to the round-screen bar, charge moves to the ring
+
+- **Decision:**
+  - On the round screen, a hero's HP is shown by the bar under its circle; charge is shown by the
+    ring around the circle.
+- **Why:**
+  - The fight screen already shows HP as a bar (`render/fightView.ts`); one encoding for HP across
+    both screens beats two.
+  - A coloured ring reads as decoration before it reads as data, since borders already appear
+    decoratively elsewhere in the UI — better suited to the quieter stat (charge) than the loudest
+    one (HP).
+- **Replaces:**
+  - Qualifies the 2026-09-21 entry ("Current HP outranks the charge bar on the field-pick row") —
+    keeps its rule that HP must be the loudest signal, changes which shape carries it.
+
+## [2026-09-23] Round-screen ability card opens on press-and-hold
+
+- **Decision:**
+  - The round screen's expanded per-role card (full ability sentences, backfire risk in words) opens
+    only while the role's band is held down, and disappears on release.
+  - Tap-to-toggle and always-visible were both considered and rejected.
+- **Why:**
+  - Resolves `design/HANDOFF.md`'s open question 3, left unconfirmed when `RoundPress.dc.html` was
+    drawn.
+  - Touch has no hover, so a press was the only gesture anyone had proposed for revealing the text
+    without leaving it on screen by default; Tu confirmed press specifically, not a toggle.
+- **Replaces:**
+  - Nothing built yet — `render/roundScreen.ts` has no press/hold interaction today, only a click
+    handler on each unit token for picking/dropping it.
+
+## [2026-09-23] Chain upgrades stack abilities; "stronger" shown as +N, never "level"
+
+- **Decision:**
+  - A role's chain gains abilities additively — a "gains" offer adds a new ability alongside
+    whatever the chain already does; it never replaces one.
+  - The chain's separate "stronger" upgrade is shown on screen as a plain `+N` badge, never the
+    word "level".
+- **Why:**
+  - Round-screen mockups (`RoundStart`/`RoundGrown`/`RoundPress.dc.html`) showed a pip-dot
+    indicator labelled "chain level" next to a `chainSwap` offer that replaced one ability with
+    another.
+  - Tu: "I don't think we have the term chain level. The chain is upgraded and accumulate these
+    ability that's all."
+  - Confirmed case: a tank's chain should guard AND freeze once both are earned, not swap one for
+    the other.
+- **Replaces:**
+  - The `chainSwap` offer's "instead of guarding" framing in `sim/offers.ts`.
+  - The round-screen pips next to each role label, described as "its level as pips" in
+    `design/HANDOFF.md`.
+
 ## [2026-09-23] Three roles and a 20-round run replace six named heroes and a 5-fight run
 
 - **Decision:**

@@ -1,0 +1,173 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+</style>
+</helmet>
+
+<div style="background: #14161c; width: 390px; min-height: 780px; display: flex; justify-content: center; padding-top: 32px;">
+  <div style="width: 100%; max-width: 640px; padding: 24px; box-sizing: border-box;">
+
+    <!-- round-screen panel (replaces the ten-block text stack in
+         render/roundScreen.ts — see design/HANDOFF.md "Round screen"
+         section for what each part below maps to) -->
+    <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 18px; overflow: hidden; box-sizing: border-box;">
+
+      <!-- progress strip: round count as a filled bar, not a sentence.
+           Diamond ticks mark the mini-boss/boss rounds (sim/rounds.ts). -->
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+        <div style="font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #e8e8ee; white-space: nowrap;">ROUND 1/20</div>
+        <div style="position: relative; flex: 1; height: 6px; border-radius: 3px; background: #2a2e3a;">
+          <div style="position: absolute; inset: 0; width: 5%; border-radius: 3px; background: #4da6ff;"></div>
+          <!-- mini-boss tick, round 7 -->
+          <div style="position: absolute; top: 50%; left: 35%; width: 6px; height: 6px; transform: translate(-50%, -50%) rotate(45deg); background: #3a3f4e;"></div>
+          <!-- mini-boss tick, round 14 -->
+          <div style="position: absolute; top: 50%; left: 70%; width: 6px; height: 6px; transform: translate(-50%, -50%) rotate(45deg); background: #3a3f4e;"></div>
+          <!-- boss tick, round 20 -->
+          <div style="position: absolute; top: 50%; left: 100%; width: 7px; height: 7px; transform: translate(-50%, -50%) rotate(45deg); background: #ff5d5d;"></div>
+        </div>
+      </div>
+
+      <!-- enemy row: bodies + HP only, sized the same way the fight view
+           sizes them. No blurb sentence — the name sits over the row. -->
+      <div style="text-align: center; font-size: 11px; color: #8a8fa3; margin-bottom: 6px;">Guard Patrol</div>
+      <div style="display: flex; align-items: flex-end; justify-content: center; gap: 16px; margin-bottom: 16px;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 30px; height: 30px; border-radius: 50%; background: #ff5d5d;"></div>
+          <div style="font-size: 10px; color: #8a8fa3;">55/55</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 30px; height: 30px; border-radius: 50%; background: #ff5d5d;"></div>
+          <div style="font-size: 10px; color: #8a8fa3;">55/55</div>
+        </div>
+      </div>
+
+      <div style="height: 1px; background: #2a2e3a; margin: 4px 0 14px;"></div>
+
+      <!-- TANK band -->
+      <div style="margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 16px; line-height: 1;">🛡</span>
+          <span style="font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #e8e8ee;">TANK</span>
+          <!-- ability chips: one per ability the chain has picked up so far
+               (round 1 — just the base ability, nothing gained yet). A +N
+               would sit after the chips if the chain had been made
+               stronger; see design/HANDOFF.md "Round screen". -->
+          <span style="display: flex; align-items: center; gap: 4px; background: #2a2e3a; border-radius: 10px; padding: 2px 7px;">
+            <span style="font-size: 10px;">⛨</span>
+            <span style="font-size: 10px; font-weight: 700; color: #c7cad6;">guard</span>
+          </span>
+          <!-- no ✓-vs tag here: this encounter has no slammer, so the
+               tank's chain is neutral against it — the tag only appears
+               when it genuinely counters something on the field. -->
+          <span style="margin-left: auto; display: flex; gap: 2px;" title="backfire risk">
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></span>
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></span>
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></span>
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></span>
+          </span>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 6px; padding-left: 2px;">
+          <!-- Tank 1 — fielded, HP bar full (blue), charge ring empty -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
+            <div style="position: relative; width: 40px; height: 40px;">
+              <div style="position: absolute; inset: 0; border-radius: 50%; background: #3a3f4e;"></div>
+              <div style="position: absolute; inset: 3px; border-radius: 50%; background: #ffb454; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">1</div>
+              <div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #ffb454; border: 2px solid #1d2029; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #14161c; font-weight: 800;">✓</div>
+            </div>
+            <div style="width: 32px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DAMAGE band -->
+      <div style="margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 16px; line-height: 1;">⚔</span>
+          <span style="font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #e8e8ee;">DAMAGE</span>
+          <span style="display: flex; align-items: center; gap: 4px; background: #2a2e3a; border-radius: 10px; padding: 2px 7px;">
+            <span style="font-size: 10px;">◎</span>
+            <span style="font-size: 10px; font-weight: 700; color: #c7cad6;">biggest</span>
+          </span>
+          <span style="margin-left: auto; display: flex; gap: 2px;" title="backfire risk">
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
+          </span>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 6px; padding-left: 2px;">
+          <!-- Damage 1 — fielded, HP bar full (blue), charge ring empty -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
+            <div style="position: relative; width: 40px; height: 40px;">
+              <div style="position: absolute; inset: 0; border-radius: 50%; background: #3a3f4e;"></div>
+              <div style="position: absolute; inset: 3px; border-radius: 50%; background: #b98cff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">1</div>
+              <div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #b98cff; border: 2px solid #1d2029; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #14161c; font-weight: 800;">✓</div>
+            </div>
+            <div style="width: 32px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HEALER band -->
+      <div style="margin-bottom: 4px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 16px; line-height: 1;">✚</span>
+          <span style="font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #e8e8ee;">HEALER</span>
+          <span style="display: flex; align-items: center; gap: 4px; background: #2a2e3a; border-radius: 10px; padding: 2px 7px;">
+            <span style="font-size: 10px;">♥</span>
+            <span style="font-size: 10px; font-weight: 700; color: #c7cad6;">worst-hurt</span>
+          </span>
+          <span style="margin-left: auto; display: flex; gap: 2px;" title="backfire risk">
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></span>
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></span>
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></span>
+          </span>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 6px; padding-left: 2px;">
+          <!-- Healer 1 — fielded, HP bar full (blue), charge ring empty -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
+            <div style="position: relative; width: 40px; height: 40px;">
+              <div style="position: absolute; inset: 0; border-radius: 50%; background: #3a3f4e;"></div>
+              <div style="position: absolute; inset: 3px; border-radius: 50%; background: #6ee7a0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">1</div>
+              <div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #6ee7a0; border: 2px solid #1d2029; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #14161c; font-weight: 800;">✓</div>
+            </div>
+            <div style="width: 32px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height: 1px; background: #2a2e3a; margin: 10px 0;"></div>
+
+      <!-- FIGHTING strip: the slot bar, replaces "Pick 3 to fight" hint text.
+           Full here, so Play is already enabled. -->
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.05em; color: #8a8fa3;">FIGHTING</span>
+        <div style="display: flex; gap: 4px;">
+          <div style="width: 20px; height: 20px; border-radius: 50%; background: #ffb454; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: #14161c;">T1</div>
+          <div style="width: 20px; height: 20px; border-radius: 50%; background: #b98cff; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: #14161c;">D1</div>
+          <div style="width: 20px; height: 20px; border-radius: 50%; background: #6ee7a0; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: #14161c;">H1</div>
+        </div>
+        <span style="margin-left: auto; font-size: 11px; color: #8a8fa3;">3/3</span>
+      </div>
+
+      <button style="margin-top: 12px; width: 100%; font: inherit; font-weight: 700; background: #4da6ff; color: #0c1420; border: none; border-radius: 8px; padding: 12px; font-size: 15px;">Play</button>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

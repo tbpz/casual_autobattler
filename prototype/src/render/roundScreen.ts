@@ -3,10 +3,9 @@ import type { HeroState } from "../sim/types.js";
 import { sideHp, sideMaxHp } from "../sim/types.js";
 import { MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY, PLAYER_ROLES, ROLE_LABEL } from "../sim/roles.js";
 import type { RunProgress } from "../sim/progress.js";
-import { defaultFieldPick, fieldSquad, livingRosterHeroes, type RosterState } from "../sim/roster.js";
+import { defaultFieldPick, livingRosterHeroes, type RosterState } from "../sim/roster.js";
 import { roundEnemySide, roundKindLabel } from "../sim/rounds.js";
 import type { EncounterKind } from "../sim/encounters.js";
-import { project } from "../sim/projection.js";
 import { chainEffectLines, chainVsEncounterLine, backfireRiskPips, chargeBarHtml } from "./heroPickShared.js";
 
 /** HP fractions where a round-screen row changes how loudly it reads —
@@ -75,11 +74,6 @@ export function renderRoundScreen(
   const chainBlock = document.createElement("div");
   chainBlock.className = "recap";
 
-  const projectionLine = document.createElement("p");
-  projectionLine.className = "projection-line";
-  const chainLine = document.createElement("p");
-  chainLine.className = "projection-detail";
-
   const playBtn = document.createElement("button");
   playBtn.className = "play-btn";
 
@@ -98,19 +92,6 @@ export function renderRoundScreen(
       const check = row.querySelector(".hero-pick-check");
       if (check) check.textContent = isSelected ? "✓" : "";
     }
-  }
-
-  function refreshProjection(): void {
-    if (selected.size !== fieldSize) {
-      projectionLine.textContent = "";
-      projectionLine.className = "projection-line";
-      chainLine.textContent = "";
-      return;
-    }
-    const proj = project(fieldSquad(roster, [...selected], progress), enemyPreview, cfg.fight);
-    projectionLine.textContent = proj.verdict;
-    projectionLine.className = `projection-line band-${proj.band}`;
-    chainLine.textContent = proj.chainLine;
   }
 
   function heroRowHtml(h: HeroState): string {
@@ -146,7 +127,6 @@ export function renderRoundScreen(
       }
       refreshChecks();
       refreshPlayState();
-      refreshProjection();
     });
     rows.set(h.id, row);
     list.appendChild(row);
@@ -154,7 +134,6 @@ export function renderRoundScreen(
 
   refreshChecks();
   refreshPlayState();
-  refreshProjection();
   playBtn.addEventListener("click", () => onPlay([...selected]));
 
   screen.appendChild(list);
@@ -171,9 +150,6 @@ export function renderRoundScreen(
     chainBlock.appendChild(p);
   }
   screen.appendChild(chainBlock);
-
-  screen.appendChild(projectionLine);
-  screen.appendChild(chainLine);
 
   if (dead.length > 0) {
     const fallen = document.createElement("p");
