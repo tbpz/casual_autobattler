@@ -89,7 +89,7 @@ function stampProgressOntoSquad(side: SideState, progress: RunProgress): SideSta
     ...side,
     heroes: side.heroes.map((h) => {
       const roleProgress = h.role === "tank" || h.role === "damage" || h.role === "support" ? progress.chain[h.role] : undefined;
-      return roleProgress ? { ...h, chainEffect: roleProgress.effect, chainLevel: roleProgress.level } : h;
+      return roleProgress ? { ...h, chainEffects: roleProgress.effects, chainLevel: roleProgress.level } : h;
     }),
   };
 }

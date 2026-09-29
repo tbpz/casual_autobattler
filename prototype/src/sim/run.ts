@@ -35,7 +35,7 @@ const GREEDY_KIND_PRIORITY: Record<Offer["kind"], number> = {
   statHp: 60,
   recruit: 50,
   slot: 40,
-  chainSwap: 30,
+  chainGain: 30,
   statDamage: 20,
 };
 

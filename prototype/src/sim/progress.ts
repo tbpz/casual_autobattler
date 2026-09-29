@@ -18,7 +18,10 @@ import { PLAYER_ROLES, ROLE_POOL } from "./roles.js";
  * treat it as ordinary immutable state).
  */
 export interface RoleProgress {
-  effect: ChainEffect;
+  /** 2026-09-29 (add-don't-swap pass — see DECISIONS.md): every ability this
+   * role's chain has picked up, base ability first (index 0). A "chainGain"
+   * offer appends to this list; it's never replaced. */
+  effects: ChainEffect[];
   /** Multiplies this role's chain rung magnitude/duration — see
    * fight.ts's escalatedMagnitude/escalatedDurationSec and
    * config.ts's chainLevelStep/chainLevelCap. */
@@ -42,14 +45,17 @@ export function makeInitialProgress(cfg: RunConfig): RunProgress {
   const chain = {} as Record<PlayerRole, RoleProgress>;
   const bonus = {} as Record<PlayerRole, StatBonus>;
   for (const role of PLAYER_ROLES) {
-    chain[role] = { effect: ROLE_POOL[role].baseChain, level: 1 };
+    chain[role] = { effects: [ROLE_POOL[role].baseChain], level: 1 };
     bonus[role] = { maxHp: 0, damage: 0 };
   }
   return { slots: cfg.startingSlots, chain, bonus };
 }
 
-/** A role's current chain level as a display-facing multiplier note — used
- * by offer copy ("Tank chain — level 2 -> 3") and the round screen. */
-export function chainLevelLabel(progress: RunProgress, role: PlayerRole): string {
-  return `level ${progress.chain[role].level}`;
+/** A role's "stronger" upgrade count as a display-facing badge (2026-09-23,
+ * "never the word level" — see DECISIONS.md). `level` starts at 1 (a no-op
+ * multiplier, see fight.ts's escalatedMagnitude), so the badge is how many
+ * times a "chainLevel" offer has actually been taken. 0 means never taken —
+ * callers should hide the badge entirely rather than show "+0". */
+export function chainStrongerCount(progress: RunProgress, role: PlayerRole): number {
+  return progress.chain[role].level - 1;
 }

@@ -18,11 +18,13 @@ export type FightEvent =
    * backfire coin flip carried on this event). `backfire` is decided once,
    * here, and every chainHit/chainEnd for this chain repeats it — the
    * renderer reads it to pick gold burst vs. red implosion immediately, with
-   * no advance telegraph. `effect` (2026-09-13, "a hero's chain names its own
-   * enemy" rebuild — see config.ts's ChainEffect) is what this chain DOES —
-   * replaces the old per-hero ChainShape (fuse length/escalation knee), which
-   * described a number's curve instead of naming what the chain answers. */
-  | { type: "chainStart"; t: number; heroId: string; backfire: boolean; effect: ChainEffect }
+   * no advance telegraph. `effects` (2026-09-13, "a hero's chain names its own
+   * enemy" rebuild — see config.ts's ChainEffect; became a list 2026-09-29,
+   * add-don't-swap — see DECISIONS.md) is what this chain DOES, every ability
+   * it currently carries, base ability first — replaces the old per-hero
+   * ChainShape (fuse length/escalation knee), which described a number's
+   * curve instead of naming what the chain answers. */
+  | { type: "chainStart"; t: number; heroId: string; backfire: boolean; effects: ChainEffect[] }
   /** `kind` mirrors ChainEffect's own damage/heal/guard/stun split (2026-09-13
    * rebuild). `backfire` mirrors the owning chainStart's flag, carried
    * per-hit so the renderer doesn't have to track chain state itself.
@@ -74,9 +76,9 @@ export type FightEvent =
   /** heroId is the hero who was hot during this chain. totalDamage/killedIds
    * are what the chain actually bought (or cost) the squad — see fight.ts's
    * chain-hit branch, which accumulates both alongside bonusHitsLanded.
-   * `backfire` mirrors chainStart's flag. `effect` is this chain's own
-   * ChainEffect — the end card's showChainEnd needs it and can't read it off
-   * anything else by end time (hotHeroId is already null).
+   * `backfire` mirrors chainStart's flag. `effects` is this chain's own
+   * ChainEffect list — the end card's showChainEnd needs it and can't read it
+   * off anything else by end time (hotHeroId is already null).
    *
    * `reason` (2026-08-19 chain-ending pass) distinguishes the four causes
    * that used to collapse into one identical event — a played session
@@ -102,7 +104,7 @@ export type FightEvent =
        * chain closes out right there instead of leaving hotHeroId stuck on a
        * dead hero for the rest of the fight. */
       reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied";
-      effect: ChainEffect;
+      effects: ChainEffect[];
     }
   | { type: "heroDown"; t: number; side: Side; heroId: string }
   | { type: "tankBreak"; t: number; side: Side; heroId: string }
@@ -202,13 +204,14 @@ export interface TickSnapshot {
    * chainTellThreshold gate is gone; see DECISIONS.md). */
   chainBackfire: boolean;
   visibleChainLength: number;
-  /** The CURRENT chain's effect (config.ts's ChainEffect) — null whenever
-   * hotHeroId is null. Carried on the snapshot, not just on chainStart,
-   * because updateChainHud is deliberately snapshot-driven (so the HUD stays
-   * correct under pause/step/scrub — see fightView.ts) and render() drains
-   * events AFTER updating the HUD from the snapshot each tick; an event-only
-   * path would paint one stale-length frame on the ignition tick itself. */
-  chainEffect: ChainEffect | null;
+  /** The CURRENT chain's ability list (config.ts's ChainEffect; became a list
+   * 2026-09-29 — see DECISIONS.md) — null whenever hotHeroId is null. Carried
+   * on the snapshot, not just on chainStart, because updateChainHud is
+   * deliberately snapshot-driven (so the HUD stays correct under
+   * pause/step/scrub — see fightView.ts) and render() drains events AFTER
+   * updating the HUD from the snapshot each tick; an event-only path would
+   * paint one stale-length frame on the ignition tick itself. */
+  chainEffects: ChainEffect[] | null;
   /** Running damage/heal total for the CURRENT chain — 0 whenever hotHeroId
    * is null. Snapshot-driven, not renderer-accumulated, so a persistent
    * chain HUD stays correct under pause/step/scrub. */

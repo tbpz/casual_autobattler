@@ -354,11 +354,11 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
  * names its own enemy" rebuild — see types.ts's ChainPlan docstring).
  * Computed for EVERY hero, enemy sides included: cheap, and harmless for
  * enemies since they never chain and nothing reads their plan. An enemy's
- * `effect` is arbitrary (they author no HeroDef.chainEffect) — never
+ * `effects` is arbitrary (they author no HeroDef.chainEffects) — never
  * exercised, since only the player side is ever scanned to ignite a chain. */
 function resolveChainPlan(cfg: FightConfig, hero: HeroState): ChainPlan {
   return {
-    effect: hero.chainEffect ?? "poundBiggest",
+    effects: hero.chainEffects ?? ["poundBiggest"],
     backfireChance: backfireChanceFor(cfg, hero.chainAffinity),
   };
 }
@@ -618,19 +618,21 @@ interface ChainHitEntry {
   chargesTotal?: number;
 }
 
-/** Resolves one rung of the currently-hot hero's chain (2026-09-13, "a
- * hero's chain names its own enemy" rebuild — see config.ts's ChainEffect).
- * The chain always repeats the hero's OWN effect, escalated by hitIndex;
- * `backfire` aims the SAME effect at the wrong side instead of changing what
- * it does — same convention every version of this mechanic has used.
+/** Resolves ONE ability's outcome for a single chain rung — the body of the
+ * old single-effect resolveChainHit, unchanged in what each case does; only
+ * split out so resolveChainHit below can call it once per ability a chain
+ * now carries (2026-09-29, add-don't-swap pass — see DECISIONS.md). `effect`
+ * is escalated by hitIndex; `backfire` aims the SAME effect at the wrong
+ * side instead of changing what it does — same convention every version of
+ * this mechanic has used.
  *
- * Returns null when this rung has nothing to do — every candidate on the
+ * Returns null when THIS ability has nothing to do — every candidate on the
  * target side is dead (damage effects), every ally is already full HP (heal
- * effects), or (stun only) no living body to freeze. The caller treats that
- * exactly like a failed continuation roll: the chain ends. "guard" never
- * whiffs — it is a side-level effect, not aimed at a body, so the player
- * side always exists to receive it. */
-function resolveChainHit(
+ * effects), or (stun only) no living body to freeze. "guard" never whiffs —
+ * it is a side-level effect, not aimed at a body, so the player side always
+ * exists to receive it. */
+function resolveOneEffect(
+  effect: ChainEffect,
   t: number,
   rng: Rng,
   cfg: FightConfig,
@@ -639,6 +641,7 @@ function resolveChainHit(
   hero: HeroState,
   hitIndex: number,
   backfire: boolean,
+  level: number,
   // "stun" only — this CHAIN's running total of freeze seconds bought so far,
   // per target id (2026-09-16 freeze-layout pass). Owned by runFight, reset
   // at chain start and released at chain end (see releaseStunHold); this
@@ -646,7 +649,6 @@ function resolveChainHit(
   // stays correct even though each rung is resolved by a separate call.
   stunHeld: Map<string, number>,
 ): ChainHitEntry[] | null {
-  const effect: ChainEffect = hero.chainPlan?.effect ?? "poundBiggest";
   // A damage effect's real payoff lands on the enemy, backfire on the
   // player's own side; a heal effect is the mirror of that (real payoff
   // heals the player's own side, backfire heals the enemy) — same asymmetry
@@ -655,11 +657,6 @@ function resolveChainHit(
   // reads this.
   const isHealEffect = effect === "mendAll" || effect === "mendOne";
   const targetSide = isHealEffect ? (backfire ? enemy : player) : backfire ? player : enemy;
-  // The firing unit's own role-wide chain level (2026-09-23, roles/rounds
-  // rebuild — see escalatedMagnitude's docstring). 1 (no-op) for anything
-  // that never sets it, e.g. an enemy — enemies never chain, so this is only
-  // ever read for a player unit here.
-  const level = hero.chainLevel ?? 1;
 
   switch (effect) {
     case "strikeAll": {
@@ -793,6 +790,46 @@ function resolveChainHit(
   }
 }
 
+/** Resolves one rung of the currently-hot hero's chain (2026-09-13, "a
+ * hero's chain names its own enemy" rebuild; became multi-ability 2026-09-29
+ * — see config.ts's ChainEffect and DECISIONS.md). Runs EVERY ability the
+ * hero's chain has picked up (resolveOneEffect, in list order, base ability
+ * first) and concatenates whatever each one lands — so a tank with guard AND
+ * freeze grants a guard charge AND freezes an enemy on the same rung, per
+ * Tu's "every hit does both."
+ *
+ * Returns null only when EVERY ability in the list had nothing to do (e.g. a
+ * healer's mendOne with the squad topped up — before a second ability was
+ * ever gained, this was the only case that could happen). The caller treats
+ * that exactly like a failed continuation roll: the chain ends. Once a
+ * second ability is live, one ability whiffing no longer ends the chain by
+ * itself — a heal chain that gains a damage ability still fires the damage
+ * half even at full HP. */
+function resolveChainHit(
+  t: number,
+  rng: Rng,
+  cfg: FightConfig,
+  player: SideState,
+  enemy: SideState,
+  hero: HeroState,
+  hitIndex: number,
+  backfire: boolean,
+  stunHeld: Map<string, number>,
+): ChainHitEntry[] | null {
+  const effects = hero.chainPlan?.effects ?? ["poundBiggest"];
+  // The firing unit's own role-wide chain level (2026-09-23, roles/rounds
+  // rebuild — see escalatedMagnitude's docstring). 1 (no-op) for anything
+  // that never sets it, e.g. an enemy — enemies never chain, so this is only
+  // ever read for a player unit here.
+  const level = hero.chainLevel ?? 1;
+  let landed: ChainHitEntry[] | null = null;
+  for (const effect of effects) {
+    const entries = resolveOneEffect(effect, t, rng, cfg, player, enemy, hero, hitIndex, backfire, level, stunHeld);
+    if (entries) landed = landed ? [...landed, ...entries] : entries;
+  }
+  return landed;
+}
+
 /**
  * Runs one fight to completion and returns the full record for replay.
  * Pure function: no DOM, no wall-clock, no imports outside sim/.
@@ -816,14 +853,16 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   // pass — see config.ts's backfireChanceBase docstring). Meaningless while
   // hotHeroId is null.
   let chainBackfire = false;
-  // The CURRENT chain's effect (config.ts's ChainEffect) — set the instant
+  // The CURRENT chain's ability list (config.ts's ChainEffect; became a list
+  // 2026-09-29, add-don't-swap — see DECISIONS.md) — set the instant
   // hotHeroId is set, cleared the instant it's cleared, so the two are always
   // in lockstep; meaningless while hotHeroId is null, same as chainBackfire
   // above. 2026-09-13 rebuild: every rung of a fired chain now always lands
-  // (resolveChainHit returns null only for a TOTAL whiff, which ends the
-  // chain outright — see its own docstring), so there is no more separate
-  // "hasn't whiffed yet" flag to track alongside this.
-  let hotEffect: ChainEffect | null = null;
+  // some ability (resolveChainHit returns null only when EVERY ability
+  // whiffed, which ends the chain outright — see its own docstring), so
+  // there is no more separate "hasn't whiffed yet" flag to track alongside
+  // this.
+  let hotEffects: ChainEffect[] | null = null;
   let bonusHitsLanded = 0;
   let finalChainLength = 0;
   // Running totals for the CURRENT chain — reset when a chain fires,
@@ -860,7 +899,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   let endT = 0;
 
   // Ends the CURRENT chain's freeze hold (2026-09-16 freeze-layout pass) —
-  // called at every site that ends a chain, right before hotHeroId/hotEffect
+  // called at every site that ends a chain, right before hotHeroId/hotEffects
   // themselves get cleared. Leaves stunnedUntilT exactly where the last hold
   // tick pinned it (still correctly in the future, still tickable down to
   // zero on its own from here) but re-anchors stunnedFromT to THIS instant,
@@ -962,12 +1001,12 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
             killedIds: chainKillIds,
             backfire: chainBackfire,
             reason,
-            effect: hotEffect!,
+            effects: hotEffects!,
           });
           finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
           releaseStunHold(t);
           hotHeroId = null;
-          hotEffect = null;
+          hotEffects = null;
         }
       }
     }
@@ -1022,14 +1061,14 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
           killedIds: chainKillIds,
           backfire: chainBackfire,
           reason: "sourceDied",
-          // hotEffect is always set in lockstep with hotHeroId (see its own
+          // hotEffects is always set in lockstep with hotHeroId (see its own
           // declaration comment above) — non-null here by that invariant.
-          effect: hotEffect!,
+          effects: hotEffects!,
         });
         finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
         releaseStunHold(t);
         hotHeroId = null;
-        hotEffect = null;
+        hotEffects = null;
       }
     }
 
@@ -1057,13 +1096,13 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         // why this keeps the RNG stream identical to today's game.
         const rolled = rng.chance(backfireChanceFor(cfg, ready.chainAffinity));
         chainBackfire = cfg.forceBackfire === undefined ? rolled : cfg.forceBackfire === "always";
-        hotEffect = ready.chainPlan?.effect ?? "poundBiggest";
+        hotEffects = ready.chainPlan?.effects ?? ["poundBiggest"];
         bonusHitsLanded = 0;
         chainDamageSoFar = 0;
         chainStunSoFar = 0;
         chainKillIds = [];
         chainStunHeld = new Map();
-        events.push({ type: "chainStart", t, heroId: ready.id, backfire: chainBackfire, effect: hotEffect });
+        events.push({ type: "chainStart", t, heroId: ready.id, backfire: chainBackfire, effects: hotEffects });
       }
     }
 
@@ -1080,7 +1119,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
     // exactly as long as it visibly reads frozen. Once the chain ends
     // (releaseStunHold, above), this block simply stops running for that
     // chain's targets and they drain normally from wherever this left them.
-    if (!outcome && hotHeroId !== null && hotEffect === "stun" && chainStunHeld.size > 0) {
+    if (!outcome && hotHeroId !== null && (hotEffects?.includes("stun") ?? false) && chainStunHeld.size > 0) {
       const stunSide = chainBackfire ? player : enemy;
       for (const [id, total] of chainStunHeld) {
         const held = stunSide.heroes.find((h) => h.id === id);
@@ -1103,7 +1142,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       chainBackfire,
       visibleChainLength: bonusHitsLanded,
       chainDamageSoFar: hotHeroId ? chainDamageSoFar : 0,
-      chainEffect: hotHeroId ? hotEffect : null,
+      chainEffects: hotHeroId ? hotEffects : null,
       guardHeroId: player.guardHeroId ?? null,
       guardCharges: player.guardCharges ?? 0,
       guardInverted: player.guardInverted ?? false,
@@ -1133,9 +1172,9 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
       killedIds: chainKillIds,
       backfire: chainBackfire,
       reason: "fightEnd",
-      // hotEffect is always set in lockstep with hotHeroId (see its own
+      // hotEffects is always set in lockstep with hotHeroId (see its own
       // declaration comment above) — non-null here by that invariant.
-      effect: hotEffect!,
+      effects: hotEffects!,
     });
     finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
     // No more ticks/snapshots follow the fight ending, so this has nothing

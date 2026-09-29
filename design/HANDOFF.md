@@ -2,8 +2,28 @@
 
 **Canvas:** https://claude.ai/artifact/73dix2PGsz2Y7BBDMNbzny
 **Current artboards:** Main (turn 1, resting), MidChain (Rook's chain firing on Executioner),
-Freeze (Hollow's stun holding Executioner), EndCard (the chain's end card).
-**Last published:** 2026-09-24 — Version 10, removing the SAFE/TIGHT verdict and chain-count line
+Freeze (Hollow's stun holding Executioner), EndCard (the chain's end card), RoundStart/RoundGrown/
+RoundPress (the round screen, see below), and MidFill (a fight-screen proposal showing the chain as
+a ring on the player's own bodies instead of a bar — see "Fight screen" below).
+**Last published:** 2026-09-29 — Version 17, recolouring the chain-announcement HUD band (the big
+title — "HOLLOW'S CHAIN" / "ROOK'S CHAIN" — and, while it's live, the row of 7 hit-count dots below
+it) by the firing hero's ROLE instead of their own accent-slot colour. Only Freeze.dc.html actually
+changed value (Hollow is a tank, so its title+dots move from #5ad1a0 green — Hollow's individual
+accent — to #ffb454 tank gold, matching the round screen's own TANK colour); MidChain.dc.html and
+EndCard.dc.html needed no value change since Rook's accent slot (#b98cff purple) already happens to
+equal the damage role's colour — both now carry a comment saying so, so the next person doesn't
+read the unchanged purple as an oversight. Version 16 applied the round-screen ring-colour fix to
+MidFill as well (see Version 15 below) — this session initially missed that MidFill existed. MidFill
+wasn't tracked in this repo at all before that pass (added on the live page sometime between
+Version 10 and Version 15, versions 11–14 aren't accounted for here — whoever made them should add
+a note); it and canvas.json's now-current artboard list are both checked in as of Version 16.
+Version 15 (same day) fixed the charge ring on the round-screen tokens: its
+fill was grey (`#4a4f5e`) on a near-identical grey track (`#3a3f4e`), unreadable regardless of the
+token's role colour. Fill is now `#e8e8ee` (the page's own `--text` white), which stands out against
+every role colour and the track; near-full (≥75%) still lights up gold, so a 1px dark gap
+(`box-shadow: 0 0 0 1px #1d2029`) was added between ring and body so a gold ring doesn't blend into
+a gold (tank) body. All three round-screen frames (RoundStart, RoundGrown, RoundPress) updated; no
+other change. Version 10 removed the SAFE/TIGHT verdict and chain-count line
 from all three round-screen frames (RoundStart, RoundGrown, RoundPress) and normalizing the Play
 button back to the one blue it always is in the real code, since that button's colour used to
 track the now-removed verdict (see the revision note under "Round screen" below). Version 9
@@ -23,6 +43,25 @@ and republish (see the `design` skill — not present in this repo or `~/.claude
 hand-edit the seeded `fight-field-layout.html`; it's a build output, regenerated from these on every
 publish.
 
+## Built into the code (2026-09-29)
+
+The round screen (frames 5–7), the ability-chip/`+N` treatment, the chain-announcement HUD band's
+role colour (open call #1's first half), and MidFill's role-coloured body + charge ring are now
+real, in `render/roundScreen.ts`, `render/fightView.ts`, `style.css`, and the sim (`sim/progress.ts`,
+`sim/fight.ts`, `sim/offers.ts` — a role's chain is now a LIST of abilities, and a chain with two
+abilities resolves BOTH on every hit, per Tu's "every hit does both"). What's below is still the
+design record — the source of the numbers/colours the code now carries — not a to-do list for
+those four pieces. Still mockup-only: the four fight frames' STALE NAMING (see below) and the
+per-unit-vs-per-role fight-body colour question is now fully resolved (see open call #1) rather
+than only half.
+
+Two differences from the mockups, made while building:
+- The round screen's outer panel uses `#app`'s own existing 640px/24px-padding wrapper instead of
+  redrawing the mockup's own 390px/24px frame — same visual result, one fewer place sizing a page.
+- The fight view's charge ring has no ghost-fill drain (the HP/old CHAIN bar's "how much that just
+  took" lag) — the ring's own CSS transition already reads as a creep, and matching the ghost
+  exactly would need a second stacked ring for a gap this size didn't seem to earn.
+
 ## What this covers
 
 Two screens, as still frames — no motion, no interaction, every number and colour copied from the
@@ -41,6 +80,14 @@ units. The fight view's code and CSS are unaffected by that rebuild (see Open ca
 what a role-based fight screen would mean), so redrawing these four is a separate pass, not part of
 this one.
 
+**MidFill.dc.html — a fifth fight-screen frame, showing chain as a ring on the player's own bodies.**
+Same arena as Main, but each player hero's own body carries a ring around it (the same
+`conic-gradient` token as the round screen) instead of the horizontal CHAIN bar Main and the real
+code (`.charge-fill`) both use today — Rook at 25%, Bracer at 15%, Hollow at 50%. This is a proposal,
+not what's live: the real fight view still only has the bar. **2026-09-29:** same ring-colour fix as
+the round screen — fill `#e8e8ee` (was the unreadable grey `#4a4f5e`), 1px `#1d2029` gap between
+ring and body.
+
 ### Round screen (frames 5–7: RoundStart, RoundGrown, RoundPress) — new this pass
 
 Redesigns `render/roundScreen.ts`, the pick-your-squad-and-play screen, in response to Tu's read
@@ -55,6 +102,10 @@ mark, and (only when it matters against this fight) a ✓ against the enemy's th
 role's units as round tokens: a bar under the circle for HP, a ring around the circle for charge, and
 a number — nothing else. Tapping a token picks or drops it, same as today. The FIGHTING strip
 replaces the "Pick N to fight" sentence.
+**2026-09-29 revision:** the charge ring's fill is `#e8e8ee` (near-white, same as `--text`), not grey
+— Tu found the old grey-on-grey fill unreadable regardless of the token's role colour. Still goes
+gold at the near-full (≥75%) cutoff; a 1px gap (`#1d2029`, the panel colour) now sits between the
+ring and the body so a gold ring doesn't disappear against a gold tank body.
 **2026-09-23 revision:** HP and charge swapped shapes — HP used to be the ring, charge the bar. The
 bar now carries HP (matching the fight screen's own HP bar) and the ring carries charge (DECISIONS.md
 2026-09-23, "HP moves to the round-screen bar, charge moves to the ring").
@@ -110,11 +161,16 @@ from a real run.
 
 ## Open calls for Tu (from the design plan, unresolved — see the plan file this session wrote)
 
-1. **Role colour vs. per-unit colour.** The fight screen colours each body by its *position*
-   (`fightView.ts`'s `accentFor`); the round-screen frames colour each token by its *role* (gold =
-   tank, purple = damage, green = healer), since the chain is now shared by role. Frames 1–4 and
-   5–7 disagree on what a colour means until one side changes. Keep the round screen's role colours
-   and leave the fight screen alone, or bring the fight screen's colouring over to match?
+1. **Role colour vs. per-unit colour — RESOLVED, built 2026-09-29.** The round-screen frames colour
+   each token by its *role* (gold = tank, purple = damage, green = healer), since the chain is now
+   shared by role. **2026-09-29, first half:** the chain-announcement HUD band (the "HOLLOW'S CHAIN"
+   title and its hit-count dots, in Freeze/MidChain/EndCard) reads by role too. **2026-09-29,
+   second half, MidFill built:** a player fighter's own BODY now fills with its role colour too
+   (`fightView.ts`'s `accentForHero`, `style.css`'s `.body.player-body`) — a same-role pair (two
+   tanks) now reads as one colour, told apart by the number on their own token/body, same convention
+   the round screen already used. Enemies are unaffected — they keep the old per-position
+   `ACCENT_PALETTE` for their own tracer/popup colours, and the old identity ring around EVERY body
+   (player and enemy) is gone outright, replaced on the player side by the charge ring.
 2. **Icons.** 🛡 ⚔ ✚ 💥 ⚡ are emoji — fast to mock up, but they render differently per phone/OS.
    Plain drawn shapes (a shield outline, a sword) would look identical everywhere but cost more to
    build. Emoji to start, swap later if it matters?

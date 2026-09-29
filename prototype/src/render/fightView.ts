@@ -107,6 +107,11 @@ interface HeroSlot {
    * body it's drawn around without repeating per-role numbers. */
   freezeRing: HTMLElement;
   freezeSecs: HTMLElement;
+  /** The CHAIN meter drawn as a ring around the body instead of a bar under
+   * it (2026-09-29, MidFill.dc.html — see design/HANDOFF.md). Built for
+   * every slot for simplicity, same convention as chargeFill/freezeRing;
+   * style.css collapses it on the enemy side. */
+  chargeRing: HTMLElement;
 }
 
 /** How long a tracer takes to fly from attacker to target, in ms. Impact
@@ -244,6 +249,29 @@ const ACCENT_PALETTE = [0, 1, 2, 3, 4, 5].map((i) =>
 
 function accentFor(index: number): string {
   return ACCENT_PALETTE[index % ACCENT_PALETTE.length] as string;
+}
+
+/** A player role's own colour (2026-09-29 round-screen rebuild + MidFill —
+ * see DECISIONS.md and design/HANDOFF.md) — reads style.css's
+ * --role-tank/--role-damage/--role-healer, the same tokens the round screen
+ * draws its bands and tokens from. Replaces ACCENT_PALETTE's per-slot-index
+ * colour for player fighters only: the chain is shared by role now, not
+ * owned by one named hero, so two tanks share a colour and are told apart by
+ * their own number badge instead (same convention the round screen already
+ * uses) — enemies keep the old per-slot ACCENT_PALETTE below (accentFor)
+ * unchanged, since it still drives their tracer/popup attribution and they
+ * have no player role to read. */
+const ROLE_ACCENT: Record<"tank" | "damage" | "support", string> = {
+  tank: cssToken("--role-tank", "#ffb454"),
+  damage: cssToken("--role-damage", "#b98cff"),
+  support: cssToken("--role-healer", "#6ee7a0"),
+};
+
+function accentForHero(hero: HeroSnapshot, side: "player" | "enemy", index: number): string {
+  if (side === "player" && (hero.role === "tank" || hero.role === "damage" || hero.role === "support")) {
+    return ROLE_ACCENT[hero.role];
+  }
+  return accentFor(index);
 }
 
 /**
@@ -663,7 +691,7 @@ export class FightView {
       const isFront = stillFront;
       this.heroIsFront.set(hero.id, isFront);
 
-      const refs = makeHeroSlot(hero, side, accentFor(i), i);
+      const refs = makeHeroSlot(hero, side, accentForHero(hero, side, i), i);
       // Direct fraction of the two sides' combined maxHp (see render()'s
       // own comment) — same pixel-per-HP scale the old two-level flex gave,
       // now that a side's own flex-grow can no longer double as its width.
@@ -799,8 +827,16 @@ export class FightView {
         refs.chargeFill.classList.toggle("instant", chargeFraction < refs.lastChargeFraction);
         refs.chargeFill.style.width = `${(chargeFraction * 100).toFixed(1)}%`;
         refs.chargeGhostFill.style.width = `${(chargeFraction * 100).toFixed(1)}%`;
-        refs.lastChargeFraction = chargeFraction;
         refs.chargeLabel.textContent = `CHAIN ${Math.round(hero.charge)}/${Math.round(this.cfg.chargeThreshold)}`;
+        // 2026-09-29 (MidFill pass — see design/HANDOFF.md): the ring that
+        // actually renders for a player fighter — the bar above is now
+        // hidden by CSS, kept updated only so nothing else here has to
+        // change. Same instant-reset-vs-creep and near-full rules, just
+        // applied to --charge-frac and the ring's own classes instead.
+        refs.chargeRing.classList.toggle("instant", chargeFraction < refs.lastChargeFraction);
+        refs.chargeRing.style.setProperty("--charge-frac", chargeFraction.toFixed(3));
+        refs.chargeRing.classList.toggle("near-full", chargeFraction >= 0.85 && chargeFraction < 1);
+        refs.lastChargeFraction = chargeFraction;
         // Near-full pulse (2026-08-14) — the dread beat: the player feels
         // the bar closing in on firing without knowing which way it'll go.
         refs.chargeFill.classList.toggle("near-full", chargeFraction >= 0.85 && chargeFraction < 1);
@@ -1087,7 +1123,7 @@ export class FightView {
         );
         break;
       case "chainEnd":
-        this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.totalStunSec, e.killedIds, e.backfire, e.reason, e.effect);
+        this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.totalStunSec, e.killedIds, e.backfire, e.reason, e.effects);
         break;
       case "heroDown":
         this.showHeroDown(e.heroId);
@@ -1781,9 +1817,10 @@ export class FightView {
     killedIds: string[],
     backfire: boolean,
     reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied",
-    // This chain's own effect (config.ts's ChainEffect) — the end card's
-    // replacement for the old per-hero shape label (2026-09-13 rebuild).
-    effect: ChainEffect,
+    // This chain's own ability list (config.ts's ChainEffect; became a list
+    // 2026-09-29 — see DECISIONS.md) — the end card's replacement for the
+    // old per-hero shape label (2026-09-13 rebuild).
+    effects: ChainEffect[],
   ): void {
     this.chainPhase = "resolving";
     // Captured now, checked inside every deferred callback below — see
@@ -1801,7 +1838,7 @@ export class FightView {
       // not a failure beat played first — this is the ONLY line that hides
       // it now (chainTeardown's own removal below is a defensive no-op).
       this.chainHud.classList.remove("show");
-      this.renderChainEndCard(heroId, chainLength, totalDamage, totalStunSec, killedIds, backfire, reason, effect);
+      this.renderChainEndCard(heroId, chainLength, totalDamage, totalStunSec, killedIds, backfire, reason, effects);
       setTimeout(() => this.chainTeardown(gen, killedIds), CHAIN_END_CARD_HOLD_MS);
     };
 
@@ -1868,7 +1905,7 @@ export class FightView {
     killedIds: string[],
     backfire: boolean,
     reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied",
-    effect: ChainEffect,
+    effects: ChainEffect[],
   ): void {
     const refs = this.slotFor(heroId);
     const name = this.nameOf(heroId);
@@ -1877,8 +1914,16 @@ export class FightView {
     const killNote = killedIds.length > 0 ? ` — ${killedIds.map((id) => this.nameOf(id)).join(", ")} DOWN` : "";
     const hitWord = chainLength === 1 ? "hit" : "hits";
     const maxedNote = reason === "capped" ? " — MAXED" : "";
-    const amountPart =
-      effect === "guard" ? "" : effect === "stun" ? `, ${totalStunSec.toFixed(1)}s` : `, ${Math.round(totalDamage)}`;
+    // 2026-09-29 (add-don't-swap — see DECISIONS.md): every total that isn't
+    // zero shows, not just one effect's — a chain with both guard and stun
+    // reports the freeze seconds AND the damage, since both really happened
+    // this chain. Guard alone still shows nothing (it moves no HP and has no
+    // other honest figure — same reasoning the old single-effect version
+    // used).
+    const amountParts: string[] = [];
+    if (effects.includes("stun") && totalStunSec > 0) amountParts.push(`${totalStunSec.toFixed(1)}s`);
+    if (totalDamage > 0) amountParts.push(`${Math.round(totalDamage)}`);
+    const amountPart = amountParts.length > 0 ? `, ${amountParts.join(", ")}` : "";
 
     this.chainEndCard.innerHTML = "";
     const headline = document.createElement("div");
@@ -1889,7 +1934,7 @@ export class FightView {
         : `${name}'S ${label} — ${chainLength} ${hitWord.toUpperCase()}${amountPart}${killNote}${maxedNote}`;
     const detail = document.createElement("div");
     detail.className = "chain-end-detail";
-    detail.textContent = `${chainLength} of ${this.cfg.chainMaxHits} hits rolled · ${chainEffectVerb(effect)}`;
+    detail.textContent = `${chainLength} of ${this.cfg.chainMaxHits} hits rolled · ${effects.map(chainEffectVerb).join(" and ")}`;
     this.chainEndCard.appendChild(headline);
     this.chainEndCard.appendChild(detail);
     this.chainEndCard.style.color = color;
@@ -2167,7 +2212,15 @@ function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: stri
   freezeSecs.className = "freeze-secs";
   freezeRing.appendChild(freezeSecs);
 
+  // The CHAIN meter, as a ring around the body (2026-09-29 MidFill pass —
+  // see design/HANDOFF.md) — a sibling of freezeRing, same positioning
+  // trick, smaller (--ring: 3px vs. freeze's 4px) so it nests inside the
+  // freeze ring rather than fighting it for the same edge.
+  const chargeRing = document.createElement("div");
+  chargeRing.className = "charge-ring";
+
   perch.appendChild(body);
+  perch.appendChild(chargeRing);
   perch.appendChild(freezeRing);
 
   slot.appendChild(perch);
@@ -2199,6 +2252,7 @@ function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: stri
     guardCount,
     freezeRing,
     freezeSecs,
+    chargeRing,
   };
 }
 

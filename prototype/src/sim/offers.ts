@@ -18,12 +18,14 @@ import type { RunProgress } from "./progress.js";
  * so the headless run driver (sim/run.ts) and the interactive UI
  * (render/offerScreen.ts) read the exact same rules.
  */
-export type OfferKind = "chainLevel" | "chainSwap" | "recruit" | "statHp" | "statDamage" | "heal" | "revive" | "slot";
+export type OfferKind = "chainLevel" | "chainGain" | "recruit" | "statHp" | "statDamage" | "heal" | "revive" | "slot";
 
 export interface Offer {
   kind: OfferKind;
   role?: PlayerRole;
-  /** "chainSwap" only — the effect this role's chain swaps into. */
+  /** "chainGain" only — the ability this role's chain gains, added to
+   * whatever it already does (2026-09-29, add-don't-swap — see
+   * DECISIONS.md). */
   effect?: ChainEffect;
   /** "revive" only — which fallen unit this offer brings back, chosen at
    * draw time so applyOffer doesn't have to guess. */
@@ -54,33 +56,40 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       size: "small",
       eligible: (progress) => progress.chain[role].level < cfg.chainLevelCap,
       build: (progress) => {
-        const level = progress.chain[role].level;
+        // Badge value after taking this offer (progress.ts's
+        // chainStrongerCount: level - 1, since level 1 is the no-op default
+        // and never shows a badge at all).
+        const nextBadge = progress.chain[role].level + cfg.chainLevelStep - 1;
         return {
           kind: "chainLevel",
           role,
-          title: `${label} chain — level ${level + 1}`,
+          title: `${label} chain — stronger (+${nextBadge})`,
           detail: `Every ${label.toLowerCase()}'s chain hits harder and lasts longer.`,
         };
       },
     });
 
     templates.push({
-      key: `chainSwap:${role}`,
+      key: `chainGain:${role}`,
       size: "big",
-      eligible: (progress) => progress.chain[role].effect !== ROLE_CHAIN_UPGRADE[role],
+      eligible: (progress) => !progress.chain[role].effects.includes(ROLE_CHAIN_UPGRADE[role]),
       build: () => {
         const upgrade = ROLE_CHAIN_UPGRADE[role];
+        // 2026-09-29 (add-don't-swap — see DECISIONS.md): every chain hit now
+        // does EVERY ability the chain has, so this reads as "also", never
+        // "instead of" — Tu: "the chain is upgraded and accumulate these
+        // ability, that's all."
         const line =
           upgrade === "stun"
-            ? "Freezes one enemy, cancelling its slam, instead of guarding."
+            ? "Also freezes one enemy, cancelling its slam."
             : upgrade === "strikeAll"
-              ? "Hits every enemy at once, instead of just the biggest."
-              : "Heals the whole squad at once, instead of just one unit.";
+              ? "Also hits every enemy at once."
+              : "Also heals the whole squad at once.";
         return {
-          kind: "chainSwap",
+          kind: "chainGain",
           role,
           effect: upgrade,
-          title: `${label} chain — new ability`,
+          title: `${label} chain — gains an ability`,
           detail: line,
         };
       },
@@ -243,9 +252,11 @@ export function applyOffer(progress: RunProgress, roster: SideState, offer: Offe
       const next = { ...progress.chain[role], level: progress.chain[role].level + cfg.chainLevelStep };
       return { progress: { ...progress, chain: { ...progress.chain, [role]: next } }, roster };
     }
-    case "chainSwap": {
+    case "chainGain": {
       const role = offer.role!;
-      const next = { ...progress.chain[role], effect: offer.effect! };
+      // Appends, never replaces (2026-09-29, add-don't-swap — see
+      // DECISIONS.md): every chain hit resolves every ability in this list.
+      const next = { ...progress.chain[role], effects: [...progress.chain[role].effects, offer.effect!] };
       return { progress: { ...progress, chain: { ...progress.chain, [role]: next } }, roster };
     }
     case "statHp": {

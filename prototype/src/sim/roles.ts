@@ -15,10 +15,11 @@ import type { HeroState, Role, SideState } from "./types.js";
  * hero anchored that archetype (Bracer/Rook/Cairn), so nothing needed a
  * from-scratch retune. A role's BASE chain effect is exactly the identity
  * that hero carried; the three effects the other three heroes carried
- * (Hollow's stun, Vex's strikeAll, Ward's mendAll) are what a "chainSwap"
- * offer (sim/offers.ts) lets a role grow into — Tu's own ask: "there's a
- * chance user can upgrade the chain ability as Hollow or Bracer is having
- * now for their tanker."
+ * (Hollow's stun, Vex's strikeAll, Ward's mendAll) are what a "chainGain"
+ * offer (sim/offers.ts) lets a role grow INTO — added alongside the base
+ * ability, never swapped for it (2026-09-29, add-don't-swap — see
+ * DECISIONS.md) — Tu's own ask: "there's a chance user can upgrade the chain
+ * ability as Hollow or Bracer is having now for their tanker."
  */
 export type PlayerRole = "tank" | "damage" | "support";
 
@@ -33,9 +34,10 @@ export const ROLE_LABEL: Record<PlayerRole, string> = {
   support: "Healer",
 };
 
-/** What a role's chain grows INTO via a "chainSwap" offer (sim/offers.ts) —
- * one upgrade target per role, the three effects the old six-hero pool
- * carried beyond each role's base identity. */
+/** What a role's chain grows INTO via a "chainGain" offer (sim/offers.ts) —
+ * one upgrade target per role, added to the role's ability list (never
+ * replacing it), the three effects the old six-hero pool carried beyond
+ * each role's base identity. */
 export const ROLE_CHAIN_UPGRADE: Record<PlayerRole, ChainEffect> = {
   tank: "stun",
   damage: "strikeAll",
@@ -52,8 +54,9 @@ export interface RoleDef {
   /** See types.ts's HeroState docstring — the volatility lever, unchanged
    * meaning from the old per-hero pool. */
   chainAffinity: number;
-  /** This role's chain EFFECT at level 1, before any "chainSwap" offer —
-   * see config.ts's ChainEffect. */
+  /** This role's chain's first ability — always index 0 of its ability
+   * list, before any "chainGain" offer adds another — see config.ts's
+   * ChainEffect. */
   baseChain: ChainEffect;
 }
 
@@ -114,7 +117,7 @@ export function makeUnitState(role: PlayerRole, ordinal: number, instanceId: str
     // stampProgressOntoSquad) — the value baked in here is only a sane
     // default for a unit that's never actually fielded before that stamp
     // runs (e.g. a freshly-recruited unit shown on the round screen).
-    chainEffect: def.baseChain,
+    chainEffects: [def.baseChain],
     chainLevel: 1,
     dealt: 0,
     soaked: 0,

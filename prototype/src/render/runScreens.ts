@@ -118,14 +118,14 @@ function fullAnswerKey(result: FightResult): string[] {
     );
     const verbPrefix = start.backfire ? "backfired" : "chained";
     if (endIdx < 0) {
-      lines.push(`${Math.round(start.t)}s — ${heroName(start.heroId)} ${verbPrefix} (${start.effect}) — unresolved`);
+      lines.push(`${Math.round(start.t)}s — ${heroName(start.heroId)} ${verbPrefix} (${start.effects.join("+")}) — unresolved`);
       continue;
     }
     usedEnds.add(endIdx);
     const end = ends[endIdx]!;
     const killNote = end.killedIds.length > 0 ? `, killed ${end.killedIds.map(heroName).join(", ")}` : "";
     lines.push(
-      `${Math.round(start.t)}s — ${heroName(start.heroId)} ${verbPrefix} ×${end.chainLength} (${end.effect}) for ${Math.round(end.totalDamage)}${killNote} [${end.reason}]`,
+      `${Math.round(start.t)}s — ${heroName(start.heroId)} ${verbPrefix} ×${end.chainLength} (${end.effects.join("+")}) for ${Math.round(end.totalDamage)}${killNote} [${end.reason}]`,
     );
   }
 

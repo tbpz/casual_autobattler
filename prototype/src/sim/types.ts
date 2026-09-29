@@ -11,12 +11,15 @@ export type Role = "tank" | "damage" | "support" | "bruiser" | "grunt";
 /** A hero's resolved chain plan for THIS fight (2026-09-13, "a hero's chain
  * names its own enemy" rebuild — replaces the old profile/targeting/
  * magnitude-scale ChainPlan). Resolved once per fight in fight.ts's
- * cloneHeroes (from HeroState.chainEffect) and stored back on the cloned
+ * cloneHeroes (from HeroState.chainEffects) and stored back on the cloned
  * HeroState so a chain-fire site never has to re-derive it mid-fight. Enemies
- * get an arbitrary effect too (cloneHeroes resolves every hero) but it is
- * never read — only the player side is ever scanned to ignite a chain. */
+ * get an arbitrary effect list too (cloneHeroes resolves every hero) but it
+ * is never read — only the player side is ever scanned to ignite a chain. */
 export interface ChainPlan {
-  effect: ChainEffect;
+  /** 2026-09-29 (add-don't-swap pass — see DECISIONS.md): every ability a
+   * "gains" offer has ever added, base ability first. A rung resolves ALL of
+   * these, not just one — see fight.ts's resolveChainHit. */
+  effects: ChainEffect[];
   /** This hero's own backfireChanceFor(cfg, chainAffinity), cached alongside
    * the plan it was used to derive so both travel together. */
   backfireChance: number;
@@ -51,7 +54,7 @@ export interface HeroState {
   /** VOLATILITY ONLY (2026-08-19 affinity-as-risk pass, unchanged by the
    * 2026-09-13 chain-effect rebuild): feeds config.ts's backfireChanceFor —
    * higher affinity means a bigger backfire chance, nothing about what a
-   * hero's chain does or how big it lands (see chainEffect below for that).
+   * hero's chain does or how big it lands (see chainEffects below for that).
    * It also doesn't scale how fast `charge` accrues — every hero fills at
    * the same rate, so two heroes' bars read as directly comparable at
    * field-pick time. See heroes.ts's PLAYER_HERO_POOL for why each hero's
@@ -59,12 +62,13 @@ export interface HeroState {
    * hot," nothing else. */
   chainAffinity: number;
 
-  /** This hero's own chain EFFECT (2026-09-13, "a hero's chain names its own
-   * enemy" rebuild — see config.ts's ChainEffect and heroes.ts's
-   * PLAYER_HERO_POOL). Set on HeroDef/HeroState alike, same as chainAffinity;
-   * enemies author no value (they never chain — only the player side is ever
-   * scanned to ignite one). */
-  chainEffect?: ChainEffect;
+  /** This hero's own chain ABILITIES (2026-09-13, "a hero's chain names its
+   * own enemy" rebuild; became a list 2026-09-29 — a "gains" offer adds to
+   * it, never replaces it, see DECISIONS.md and sim/offers.ts). Set on
+   * HeroDef/HeroState alike, same as chainAffinity; enemies author no value
+   * (they never chain — only the player side is ever scanned to ignite
+   * one). */
+  chainEffects?: ChainEffect[];
   /** This hero's chain plan, RESOLVED for the current fight — see this
    * file's ChainPlan docstring. Undefined until fight.ts's cloneHeroes sets
    * it; enemies get one too (harmless — never read). */

@@ -9,7 +9,7 @@
 import { Rng } from "../sim/rng.js";
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
 import { makeInitialProgress } from "../sim/progress.js";
-import { makeStartingRoster, PLAYER_ROLES } from "../sim/roles.js";
+import { makeStartingRoster, PLAYER_ROLES, ROLE_POOL } from "../sim/roles.js";
 import { applyFightResultToRoster, canFieldSquad, defaultFieldPick, fieldSquad } from "../sim/roster.js";
 import { drawRoundEncounters, roundEnemySide } from "../sim/rounds.js";
 import { applyOffer, drawOffers } from "../sim/offers.js";
@@ -38,6 +38,16 @@ function checkInvariants(label: string): void {
   for (const role of PLAYER_ROLES) {
     if (progress.chain[role].level < 1 || progress.chain[role].level > cfg.chainLevelCap) {
       invariantBroken ??= `${label}: ${role} chain level out of range (${progress.chain[role].level})`;
+    }
+    // 2026-09-29 (add-don't-swap — see DECISIONS.md): a "chainGain" offer
+    // must never be offered twice for the same ability, and the base
+    // ability (index 0) must never be displaced.
+    const effects = progress.chain[role].effects;
+    if (new Set(effects).size !== effects.length) {
+      invariantBroken ??= `${label}: ${role} chain has a duplicate ability (${effects.join(",")})`;
+    }
+    if (effects[0] !== ROLE_POOL[role].baseChain) {
+      invariantBroken ??= `${label}: ${role} chain lost its base ability (${effects.join(",")})`;
     }
   }
   for (const h of roster.heroes) {

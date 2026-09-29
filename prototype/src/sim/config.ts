@@ -486,6 +486,27 @@ export function chainEffectVerb(effect: ChainEffect): string {
   return does.charAt(0).toLowerCase() + does.slice(1, -1);
 }
 
+/** A round-screen ability chip's icon plus one-word label (2026-09-29,
+ * round-screen rebuild — see design/HANDOFF.md and RoundGrown.dc.html).
+ * guard/stun/poundBiggest/mendOne match the mockup exactly; strikeAll and
+ * mendAll have no mockup to copy, so their icon/word are new here. */
+export function chainEffectChip(effect: ChainEffect): { icon: string; word: string } {
+  switch (effect) {
+    case "guard":
+      return { icon: "⛨", word: "guard" };
+    case "stun":
+      return { icon: "❄", word: "freeze" };
+    case "poundBiggest":
+      return { icon: "◎", word: "biggest" };
+    case "mendOne":
+      return { icon: "♥", word: "worst-hurt" };
+    case "strikeAll":
+      return { icon: "✺", word: "hit-all" };
+    case "mendAll":
+      return { icon: "✚", word: "heal-all" };
+  }
+}
+
 export interface RunConfig {
   fight: FightConfig;
 

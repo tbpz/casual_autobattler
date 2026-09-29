@@ -117,41 +117,55 @@ function verdictFor(band: MarginBand, tankName: string | null): string {
   }
 }
 
-/** What a hero's chain effect would do against THIS drawn encounter — the
+/** What a hero's chain would do against THIS drawn encounter — the
  * per-encounter answer to config.ts's chainEffectLines' fixed `against`
  * string (2026-09-18 multi-answer pass — see DECISIONS.md and
- * archive/DESIGN_MULTIPLE_ANSWERS.md). Read at the field-pick screen, which
- * already has a real enemy side in scope; the squad-pick (draft) screen has
- * no encounter yet and keeps the static `against` line instead — see
- * render/squadPickScreen.ts.
+ * archive/DESIGN_MULTIPLE_ANSWERS.md). Read at the round screen, which
+ * already has a real enemy side in scope.
+ *
+ * `effects` is a role's full ability list (became a list 2026-09-29,
+ * add-don't-swap — see DECISIONS.md); this picks ONE line to show, in the
+ * order a player would care about it — stun (cancels the slam outright)
+ * beats guard (covers it, but a second slammer waits its turn) beats a heal
+ * effect beats the generic fallback. A chain with both guard and stun still
+ * shows only stun's line here; the hold card (render/roundScreen.ts) is
+ * where every ability's own line shows separately.
  *
  * A slam is the only threat this can speak to today — Part B/C of the design
  * (a second pressure per encounter, enemy-side setup) are a separate pass.
- * An encounter with no living bruiser falls back to the unchanged static
- * line unconditionally, so Pack/Anvil/Ambush keep their honest
+ * An encounter with no living bruiser falls back to the first effect's
+ * unchanged static line, so Pack/Anvil/Ambush keep their honest
  * crowd/huge-body/chip-damage framing. strikeAll and poundBiggest also fall
  * back against a slam — neither has a mechanism that touches a wind-up (the
  * "flinch" attempt at one was built, measured nearly inert, and cut; see
  * DECISIONS.md's 2026-09-19 entry) — leaving guard and stun as the only
  * live routes against one until parts B/C land. */
-export function chainVsEncounterLine(effect: ChainEffect, enemy: SideState): string {
+export function chainVsEncounterLine(effects: ChainEffect[], enemy: SideState): string {
   const bruisers = enemy.heroes.filter((h) => h.role === "bruiser" && h.alive);
-  const fallback = chainEffectLines(effect).against;
+  const fallback = chainEffectLines(effects[0] ?? "poundBiggest").against;
   if (bruisers.length === 0) return fallback;
   const plural = bruisers.length > 1;
 
-  switch (effect) {
-    case "guard":
-      return plural ? `${bruisers.length} slammers — covers one at a time.` : "Takes the slam for the squad.";
-    case "stun":
-      return plural ? "Freezes whichever's in front, cancelling its slam." : "Cancels the slam outright.";
-    case "poundBiggest":
-    case "strikeAll":
-      return fallback;
-    case "mendAll":
-    case "mendOne":
-      return "Heals back about one slam's worth per chain.";
+  if (effects.includes("stun")) {
+    return plural ? "Freezes whichever's in front, cancelling its slam." : "Cancels the slam outright.";
   }
+  if (effects.includes("guard")) {
+    return plural ? `${bruisers.length} slammers — covers one at a time.` : "Takes the slam for the squad.";
+  }
+  if (effects.includes("mendAll") || effects.includes("mendOne")) {
+    return "Heals back about one slam's worth per chain.";
+  }
+  return fallback;
+}
+
+/** Whether this role's chain genuinely counters a slam in the current
+ * encounter — drives the round screen's "✓ vs 💥" tag (2026-09-29 round-
+ * screen rebuild). True only when a living bruiser is present AND the list
+ * includes stun or guard — the two abilities chainVsEncounterLine above
+ * treats as a real answer, not just a consolation line (mendAll/mendOne). */
+export function chainAnswersSlam(effects: ChainEffect[], enemy: SideState): boolean {
+  const hasBruiser = enemy.heroes.some((h) => h.role === "bruiser" && h.alive);
+  return hasBruiser && (effects.includes("stun") || effects.includes("guard"));
 }
 
 /** Mean per-second output of a living side, split into damage dealers and
@@ -265,7 +279,9 @@ function chainProjectionFor(
     chainLine = "Chain: unlikely this fight — charge is far off.";
   } else {
     const count = Math.max(1, Math.round(chainsExpected));
-    const verb = closest.chainEffect ? chainEffectVerb(closest.chainEffect) : "fires";
+    const verb = closest.chainEffects && closest.chainEffects.length > 0
+      ? closest.chainEffects.map(chainEffectVerb).join(" and ")
+      : "fires";
     chainLine = `Chain: expect ~${count} this fight. ${closest.name}'s chain ${verb}.`;
   }
   return { chainsExpected, chainLine };

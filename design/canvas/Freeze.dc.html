@@ -19,13 +19,21 @@
     <!-- fight-view panel -->
     <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 20px; overflow: hidden; box-sizing: border-box;">
 
-      <!-- reserved HUD band — Hollow's chain is live (first hit landed, roll pending) -->
+      <!-- reserved HUD band — Hollow's chain is live (first hit landed, roll pending).
+           2026-09-29: the banner title + hit-count dots now colour by Hollow's ROLE
+           (tank -> #ffb454, same gold as the round screen's TANK band) instead of
+           Hollow's own accent-slot colour (#5ad1a0, coincidentally green) — Tu's read
+           that the chain announcement should read as "which role fired," matching how
+           the round screen already colours by role, not by individual hero identity.
+           See MidChain.dc.html/EndCard.dc.html: Rook is damage, whose role colour
+           (#b98cff purple) already happened to match his own accent slot, so those two
+           needed no change. -->
       <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 40px; margin-bottom: 4px;">
-        <div style="font-weight: 700; font-size: 15px; letter-spacing: 0.03em; color: #5ad1a0; white-space: nowrap;">HOLLOW'S CHAIN</div>
+        <div style="font-weight: 700; font-size: 15px; letter-spacing: 0.03em; color: #ffb454; white-space: nowrap;">HOLLOW'S CHAIN</div>
         <div style="font-size: 10px; color: #8a8fa3;">+1.8s freeze</div>
         <div style="display: flex; gap: 4px;">
-          <div style="width: 9px; height: 9px; border-radius: 50%; background: #5ad1a0; border: 1px solid #5ad1a0;"></div>
-          <div style="width: 9px; height: 9px; border-radius: 50%; background: #2a2e3a; border: 1px solid #5ad1a0;"></div>
+          <div style="width: 9px; height: 9px; border-radius: 50%; background: #ffb454; border: 1px solid #ffb454;"></div>
+          <div style="width: 9px; height: 9px; border-radius: 50%; background: #2a2e3a; border: 1px solid #ffb454;"></div>
           <div style="width: 9px; height: 9px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></div>
           <div style="width: 9px; height: 9px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></div>
           <div style="width: 9px; height: 9px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></div>

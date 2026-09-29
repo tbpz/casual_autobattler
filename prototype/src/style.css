@@ -32,6 +32,17 @@
   --accent-3: #4dd9e8;
   --accent-4: #ff8ac2;
   --accent-5: #d9e34d;
+  /* A player role's own colour (2026-09-29 round-screen rebuild + MidFill —
+     see DECISIONS.md and design/HANDOFF.md) — the round screen's bands/
+     tokens and the fight screen's player bodies/chain HUD all read these
+     three instead of the old per-slot ACCENT_PALETTE, since the chain is now
+     shared by role, not owned by one named hero. Values match --accent-0/1/2
+     exactly (tank=gold, healer=green, damage=purple already happened to line
+     up with the old six-slot palette) — kept as separate named tokens so a
+     role's colour can move independently of a slot index's later. */
+  --role-tank: #ffb454;
+  --role-damage: #b98cff;
+  --role-healer: #6ee7a0;
   /* The chain's own token (2026-08-14 chain rebuild) — split off from
      --ignite, which stays reserved for unrelated UI (coin, the projection's
      "tight" band) so changing the chain's colour never leaks into those. */
@@ -547,6 +558,16 @@ body {
   display: none;
 }
 
+/* 2026-09-29 (MidFill pass — see design/HANDOFF.md): the player's own CHAIN
+   bar is superseded by .charge-ring below (a ring around the body, same
+   language as the round screen's tokens) — still built for every slot for
+   simplicity (see makeHeroSlot), just hidden here rather than removed from
+   the DOM, same convention the enemy-side rule above already uses. */
+.player-side .charge-track,
+.player-side .charge-label {
+  display: none;
+}
+
 /* The enemy bruiser's own SLAM bar (2026-09-13 slam-visibility pass) —
    reuses the CHAIN bar's track/fill/ghost-fill shape above, un-hidden on the
    enemy side for a bruiser only. Two phases on one fill: WINDING (no
@@ -716,6 +737,72 @@ body {
   white-space: nowrap;
 }
 
+/* Registers --charge-frac as an animatable number (2026-09-29 MidFill pass
+   — see design/HANDOFF.md) so .charge-ring's own transition below can glide
+   the conic-gradient's own percentage, the same creep the old CHAIN bar's
+   width transition gave it — without this, the browser treats a custom
+   property as an opaque string and snaps instead of interpolating. */
+@property --charge-frac {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+/* The CHAIN meter, drawn as a ring around a player body instead of a bar
+   under it (2026-09-29, MidFill.dc.html — see design/HANDOFF.md and
+   DECISIONS.md). Same positioning trick as .freeze-ring above (a sibling of
+   .body, sized off --body-size so it always matches whatever body it
+   surrounds) but smaller (--ring: 3px vs. freeze's 4px) so the two can sit
+   concentrically without the freeze ring hiding this one — a frozen fighter
+   shows both. Player-only; enemy-side hides it below (only the player's
+   charge ever fires a chain, same reasoning the old CHAIN bar used). Unlike
+   .freeze-ring (tick-driven, no transition), this DOES transition — a chain
+   bar's creep is real information (how close is this hero to firing), not
+   just cosmetic — via the registered --charge-frac above. .instant is the
+   same escape hatch chargeFill used: the fire-reset to 0 must snap, not
+   creep, matched by fightView.ts's updateSide toggling it the same way it
+   used to toggle .charge-fill.instant. */
+.charge-ring {
+  --ring: 3px;
+  --charge-frac: 0;
+  position: absolute;
+  top: calc(var(--ring) * -1);
+  left: 50%;
+  width: calc(var(--body-size, 40px) + var(--ring) * 2);
+  height: calc(var(--body-size, 40px) + var(--ring) * 2);
+  transform: translateX(-50%);
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(var(--text) calc(var(--charge-frac) * 360deg), var(--track-bg) 0deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring) - 1px), white calc(100% - var(--ring)));
+  mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring) - 1px), white calc(100% - var(--ring)));
+  transition: --charge-frac var(--charge-rise) linear;
+}
+
+.charge-ring.instant {
+  transition: none;
+}
+
+/* The dread beat moves here from .charge-fill.near-full (2026-08-14) — same
+   ≥85% cutoff, same pulse, just glowing the ring instead of a bar. */
+.charge-ring.near-full {
+  animation: chargeRingNearFull 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes chargeRingNearFull {
+  from {
+    filter: brightness(1);
+  }
+  to {
+    filter: brightness(1.6);
+    box-shadow: 0 0 6px 1px var(--chain);
+  }
+}
+
+.enemy-side .charge-ring {
+  display: none;
+}
+
 /* A backfired freeze lands on the player's own hero, not the enemy — same
    "this went wrong" red every other backfired tell uses, so it never reads
    as indistinguishable from freezing the boss on purpose. */
@@ -730,12 +817,6 @@ body {
 .body {
   position: relative;
   border-radius: 50%;
-  /* The accent ring — a hero's stable identity colour (2026-08-06
-     attributability pass, see fightView.ts's ACCENT_PALETTE). Set via a
-     custom property rather than a class so .hot/.broken's own box-shadow
-     (higher specificity) still cleanly overrides it when those states are
-     active. */
-  box-shadow: 0 0 0 3px var(--accent, transparent);
   transition:
     opacity 0.2s linear,
     transform 0.3s ease-in,
@@ -746,8 +827,16 @@ body {
    a hit lands from above the player row and from below the enemy row; a
    flinch should knock a body away from whoever hit it, not sideways
    regardless of side (see @keyframes flinch below). */
+/* 2026-09-29 (MidFill pass — see design/HANDOFF.md): a player body fills
+   with --accent (now role colour, see fightView.ts's accentFor) instead of
+   the flat --player blue — "which role is this" reads straight off the body
+   now, matching the round screen. The old 3px identity ring is gone; the
+   charge ring below carries that colour instead, and this 1px panel-toned
+   line is only the gap between the two (matches the round screen's own
+   token gap). */
 .body.player-body {
-  background: var(--player);
+  background: var(--accent, var(--player));
+  box-shadow: 0 0 0 1px var(--panel);
   --flinch-y: 4px;
 }
 
@@ -1716,194 +1805,391 @@ button:disabled {
   margin-top: -8px;
 }
 
-.encounter-blurb {
-  font-style: italic;
-  margin-top: -4px;
-  margin-bottom: 4px;
-}
-
-.hero-pick-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+/* ---------- Round screen (2026-09-29 rebuild) ----------
+ * Replaces the old .hero-pick-* row list wholesale (see design/HANDOFF.md
+ * "Round screen" and DECISIONS.md's 2026-09-23 entries) — a role reads as
+ * one band (icon, ability chips, a +N badge, a backfire-risk row) with its
+ * units drawn underneath as round tokens (a charge ring + an HP bar), not
+ * one text row per unit. Every value here is copied from the canvas
+ * mockups (design/canvas/RoundStart/RoundGrown/RoundPress.dc.html), not
+ * re-derived — a canvas edit should mean editing these rules to match, not
+ * the reverse. */
+.round-panel {
+  position: relative;
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 18px;
+  overflow: hidden;
   text-align: left;
 }
 
-.hero-pick-row {
+.round-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--track-border);
-  background: var(--surface);
-  cursor: pointer;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
-.hero-pick-row.selected {
-  border-color: var(--player);
-  background: var(--surface-selected);
-}
-
-.hero-pick-check {
-  width: 20px;
-  color: var(--player);
-  font-weight: 700;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.hero-pick-info {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.hero-pick-name {
-  font-weight: 700;
-}
-
-.hero-pick-role {
-  font-size: 0.8em;
-  color: var(--muted);
-  text-transform: capitalize;
-}
-
-/* Current HP on the FIELD-pick row (2026-09-21 — see fieldPickScreen.ts's
- * hpSeverity docstring for the played run that forced this). Deliberately
- * the largest thing on the row, above .hero-pick-chain's 0.9em: the chain
- * is why you pick a hero, this is why you don't field one. Field-pick only
- * — the draft screen has no current HP, so it never emits this class even
- * though it shares every other class on the row. */
-.hero-pick-hp {
-  font-size: 1.15em;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.15;
+.round-header-label {
+  font-weight: 800;
+  font-size: 0.75em;
+  letter-spacing: 0.04em;
   color: var(--text);
-}
-
-/* The "/195" half stays quiet — the number that matters is what's left, and
-   the pool size is context for reading it, not a second figure to compare. */
-.hero-pick-hp-max {
-  font-size: 0.7em;
-  font-weight: 400;
-  color: var(--muted);
-}
-
-.hero-pick-hp.hp-hurt {
-  color: var(--hp-hurt);
-}
-
-.hero-pick-hp.hp-critical {
-  color: var(--hp-critical);
-}
-
-/* A critically hurt hero is marked on the whole row, not just in its HP
-   text: colour alone competes with the backfire pips sitting two lines
-   below, and the point is that the row should read as "not this one" before
-   anything on it is actually read. */
-.hero-pick-row.hp-row-critical {
-  border-left: 3px solid var(--hp-critical);
-}
-
-.hero-pick-stats {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  font-size: 0.85em;
-  color: var(--muted);
   white-space: nowrap;
 }
 
-/* A hero-pick row's mini charge bar (2026-08-14 chain rebuild) —
- * fieldPickScreen.ts's chargeBarHtml, reusing the same .charge-track/
- * .charge-fill classes as the in-fight bar (style.css above) at a fixed
- * small width. This is what makes charge's persistence across fights
- * visible at the one moment a player can act on it: field a near-full hero
- * to cash in, or bench them to hold the charge.
- *
- * 2026-09-21: moved out of the info column to the LAST line of
- * .hero-pick-stats, and muted below chargeBarHtml's near-threshold cut. It
- * used to sit second on the row in full chain colour, which made it the
- * first thing the eye reached on a screen where current HP decides the
- * fight — see fieldPickScreen.ts's hpSeverity docstring. Every rule here is
- * scoped under .hero-pick-charge-row so the in-fight bar and the enemy slam
- * bar, which share .charge-track/.charge-fill, are untouched. */
-.hero-pick-charge-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 3px;
-  opacity: 0.75;
+.round-progress-track {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--track-bg);
 }
 
-.hero-pick-charge-row .charge-track {
-  width: 44px;
-  height: 4px;
-  flex-shrink: 0;
+.round-progress-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background: var(--player);
 }
 
-/* Grey by default, chain-coloured only once it's genuinely about to fire.
-   Also kills the inherited width transition and the near-full pulse: this
-   bar is built once at its final width, so neither has anything to play. */
-.hero-pick-charge-row .charge-fill {
-  background: var(--muted);
-  transition: none;
-  animation: none;
+.round-progress-tick {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--track-bg);
 }
 
-.hero-pick-charge-row.near-threshold {
-  opacity: 1;
-}
-
-.hero-pick-charge-row.near-threshold .charge-fill {
+.round-progress-tick.lit {
   background: var(--chain);
 }
 
-.hero-pick-charge-label,
-.hero-pick-charge-pct {
-  font-size: 0.55em;
-  color: var(--muted);
-  white-space: nowrap;
+.round-progress-tick.boss {
+  width: 7px;
+  height: 7px;
+  background: var(--enemy);
 }
 
-/* CHAIN effect line (2026-09-13, "a hero's chain names its own enemy"
- * rebuild — replaces the old escalation-curve sparkline, which showed a
- * number's shape rather than what the chain does). Uses the chain's own
- * colour token so it reads as the same channel as the in-fight charge bar
- * (see .charge-fill), not just another stat. */
-.hero-pick-chain {
+.round-enemy-name {
+  text-align: center;
+  font-size: 0.69em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.round-enemy-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.round-enemy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.round-enemy-body {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--enemy);
+}
+
+.round-enemy.bruiser {
+  position: relative;
+}
+
+.round-enemy.bruiser .round-enemy-body {
+  width: 48px;
+  height: 48px;
+  background: #b23b3b;
+  box-shadow: 0 0 0 2px #ff5252;
+}
+
+.round-enemy-slam-mark {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  font-size: 13px;
+}
+
+.round-enemy-hp {
+  font-size: 0.63em;
+  color: var(--muted);
+}
+
+.round-divider {
+  height: 1px;
+  background: var(--track-bg);
+  margin: 4px 0 14px;
+}
+
+.round-band {
+  margin-bottom: 14px;
+}
+
+.round-band-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Held down (pointerdown/pointerup, roundScreen.ts) — the DECISIONS.md
+ * 2026-09-23 "opens on press-and-hold" entry: the surface change is the only
+ * feedback that a hold is registering before the card itself drops in. */
+.round-band-header.held {
+  background: var(--surface-selected);
+}
+
+.round-band-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.round-band-label {
+  font-weight: 800;
+  font-size: 0.75em;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.round-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--track-bg);
+  border-radius: 10px;
+  padding: 2px 7px;
+}
+
+.round-chip-icon {
+  font-size: 0.63em;
+}
+
+.round-chip-word {
+  font-size: 0.63em;
+  font-weight: 700;
+  color: #c7cad6;
+}
+
+.round-stronger-badge {
+  font-size: 0.69em;
+  font-weight: 800;
   color: var(--chain);
-  letter-spacing: 1px;
-  font-size: 0.9em;
 }
 
-/* The "good against" half of the chain line — same rebuild as above. Dimmer
- * and un-tracked: it's the answer to "why pick this," not a stat to scan.
- * 2026-09-18 multi-answer pass: this now reads per-ENCOUNTER for guard, stun,
- * and the two heals (see sim/projection.ts's chainVsEncounterLine) instead of
- * one fixed ~40-char constant, so it can run longer than .hero-pick-stats'
- * shared nowrap allows — wraps instead of forcing the new sentences into
- * short fragments, bounded so it doesn't stretch the whole row. */
-.hero-pick-chain-against {
+.round-answer-tag {
+  font-size: 0.69em;
+  color: var(--heal);
+  font-weight: 700;
+}
+
+.round-backfire-dots {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+}
+
+.round-backfire-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--track-bg);
+  border: 1px solid var(--track-border);
+}
+
+.round-backfire-dot.filled {
+  background: var(--backfire);
+  border-color: var(--backfire);
+}
+
+/* The full-sentence card a held band reveals (DECISIONS.md's 2026-09-23
+ * "opens on press-and-hold" entry) — nothing here is new text, it's the same
+ * chainEffectLines/chainVsEncounterLine/backfire-in-words sentences the old
+ * row always showed, just one press away instead of always on screen. */
+.round-band-card {
+  margin-top: 6px;
+  padding: 8px 8px 6px;
+  background: var(--bg);
+  border-radius: 6px;
+  font-size: 0.69em;
+  color: #c7cad6;
+  line-height: 1.5;
+}
+
+.round-band-card-line strong {
+  color: var(--text);
+}
+
+.round-band-card-answer {
+  color: var(--heal);
+}
+
+.round-band-card-meta {
   color: var(--muted);
-  font-size: 0.85em;
-  white-space: normal;
-  max-width: 220px;
-  text-align: right;
+  margin-top: 2px;
 }
 
-/* BACKFIRE risk pips (2026-08-20, pick-screen honesty pass) — same shape as
- * .hero-pick-chain, in the danger token, so payoff and risk read as two
- * halves of one visible tradeoff instead of one bar plus a hover-only
- * tooltip (see heroPickShared.ts's backfireRiskPips docstring). */
-.hero-pick-backfire {
-  color: var(--backfire);
-  letter-spacing: 1px;
-  font-size: 0.9em;
+.round-token-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+  padding-left: 2px;
+  flex-wrap: wrap;
+}
+
+.round-token {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.round-token:disabled {
+  cursor: default;
+}
+
+.round-token-body-wrap {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.round-token-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--text) calc(var(--token-charge-frac, 0) * 360deg), var(--track-bg) 0deg);
+}
+
+.round-token-ring.near-threshold {
+  background: conic-gradient(var(--chain) calc(var(--token-charge-frac, 0) * 360deg), var(--track-bg) 0deg);
+}
+
+.round-token-body {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 15px;
+  color: #14161c;
+}
+
+.round-token-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: #14161c;
+  font-weight: 800;
+}
+
+.round-token-badge.hollow {
+  background: var(--track-bg);
+}
+
+.round-token-badge.fallen {
+  background: var(--backfire);
+}
+
+.round-token.not-picked {
+  opacity: 0.55;
+}
+
+.round-token.fallen {
+  opacity: 0.4;
+}
+
+.round-token.fallen .round-token-body {
+  background: var(--track-bg);
+  box-shadow: none;
+  color: #5c5f6b;
+}
+
+.round-token-hp {
+  width: 32px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--track-bg);
+  overflow: hidden;
+}
+
+.round-token-hp-fill {
+  height: 100%;
+  background: var(--player);
+}
+
+.round-token-hp-fill.hurt {
+  background: var(--hp-hurt);
+}
+
+.round-token-hp-fill.critical {
+  background: var(--hp-critical);
+}
+
+.round-fighting-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.round-fighting-label {
+  font-size: 0.63em;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.round-fighting-chips {
+  display: flex;
+  gap: 4px;
+}
+
+.round-fighting-chip {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  color: #14161c;
+}
+
+.round-fighting-count {
+  margin-left: auto;
+  font-size: 0.69em;
+  color: var(--muted);
 }
 
 /* ---------- Pre-fight read ---------- */
