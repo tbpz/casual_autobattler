@@ -118,6 +118,41 @@ function firstChainHit(result: FightResult) {
   );
 }
 
+// --- Guard marks the slammer, whether it pulled the slam over or it was already aimed at the guardian.
+{
+  let blocks = 0;
+  let held = 0;
+  let unmarked = 0;
+  let missed = 0;
+  for (let round = 0; round < 20; round += 3) {
+    for (let enc = 0; enc < 12; enc++) {
+      for (let seed = 1; seed <= 8; seed++) {
+        const player = makeSquadFromRoles(["tank", "damage", "support"]);
+        const tankId = player.heroes.find((h) => h.role === "tank")!.id;
+        const result = runFight({ player, enemy: makeEnemySide(run, round, enc) }, run.fight, new Rng(seed), seed);
+        let i = 0;
+        for (const e of result.events) {
+          if (e.type !== "windupHit") continue;
+          while (i + 1 < result.snapshots.length && result.snapshots[i + 1]!.t < e.t) i++;
+          const before = result.snapshots[i]!;
+          const after = result.snapshots.find((s, k) => k > i && s.t >= e.t);
+          const guardLive = before.guardHeroId === tankId && before.guardCharges > 0;
+          if (e.redirect === "guard" || e.redirect === "guardHeld") {
+            blocks++;
+            if (e.redirect === "guardHeld") held++;
+            if ((after?.enemyHeroes.find((h) => h.id === e.sourceId)?.marks.exposed ?? 0) <= 0) unmarked++;
+          } else if (!e.redirect && e.targetId === tankId && guardLive && before.playerHeroes.some((h) => h.id !== tankId && h.alive)) {
+            missed++;
+          }
+        }
+      }
+    }
+  }
+  check("guard: a blocked slam leaves the slammer Exposed", blocks > 0 && unmarked === 0, `${blocks} blocks, ${unmarked} unmarked`);
+  check("guard: a slam already aimed at the guardian is a held block", held > 0, `${held} held`);
+  check("guard: no slam hits a guardian with live charges unblocked", missed === 0, `${missed} missed`);
+}
+
 // --- Payoff cards.
 {
   // Shatter: an enemy frozen for the whole fight dies sooner with the card.

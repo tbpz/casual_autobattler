@@ -24,6 +24,7 @@ import { makeSquadFromRoles, makeStartingRoster } from "../sim/roles.js";
 import { applyFightResultToRoster, fieldSquad } from "../sim/roster.js";
 import { makeEnemySide } from "../sim/run.js";
 import { applyOffer, drawOffers } from "../sim/offers.js";
+import { FATIGUE_PIP_COUNT, FATIGUE_TIER_PIPS, fatiguePipsHtml } from "../render/heroPickShared.js";
 
 let failed = false;
 
@@ -96,6 +97,42 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
   check("boost: a max-fatigue unit's first rung hits harder than a fresh unit's", worn > fresh && fresh > 0, `${fresh} -> ${worn}`);
 }
 
+// --- The pips show the tier: 1 / 2 / 3 / 4 lit, and every fatigue value lights its own tier's count.
+{
+  const tiers = ["fresh", "worn", "frayed", "breaking"] as const;
+  const litIn = (html: string) => (html.match(/class="fatigue-pip lit"/g) ?? []).length;
+  const totalIn = (html: string) => (html.match(/class="fatigue-pip(?: lit)?"/g) ?? []).length;
+
+  check("pips: fresh lights 1 and breaking lights all of them", FATIGUE_TIER_PIPS.fresh === 1 && FATIGUE_TIER_PIPS.breaking === FATIGUE_PIP_COUNT);
+  check(
+    "pips: each tier lights more than the one before",
+    tiers.every((t, i) => i === 0 || FATIGUE_TIER_PIPS[t] > FATIGUE_TIER_PIPS[tiers[i - 1]!]),
+  );
+  check("pips: one pip per tier", FATIGUE_PIP_COUNT === tiers.length);
+  check(
+    "pips: the markup has every pip and lights exactly the tier's count",
+    tiers.every((t) => totalIn(fatiguePipsHtml(t)) === FATIGUE_PIP_COUNT && litIn(fatiguePipsHtml(t)) === FATIGUE_TIER_PIPS[t]),
+  );
+  check(
+    "pips: the markup carries its tier class",
+    tiers.every((t) => fatiguePipsHtml(t).includes(`fatigue-pips tier-${t}`)),
+  );
+
+  const [worn, frayed, breaking] = fc.fatigueTierFloors;
+  const edge = (fatigue: number) => litIn(fatiguePipsHtml(fatigueTier(fc, fatigue)));
+  check(
+    "pips: the lit count steps up exactly at each tier floor",
+    edge(0) === 1 &&
+      edge(worn - 1) === 1 &&
+      edge(worn) === 2 &&
+      edge(frayed - 1) === 2 &&
+      edge(frayed) === 3 &&
+      edge(breaking - 1) === 3 &&
+      edge(breaking) === 4 &&
+      edge(fc.fatigueMax) === 4,
+  );
+}
+
 // --- The roster moves fatigue and keeps it in range.
 {
   const progress = makeInitialProgress(run);
@@ -138,7 +175,7 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
   const applied = applyOffer(
     progress,
     worn,
-    { kind: "rest", unitId: worn.heroes[0]!.id, title: "", detail: "" },
+    { kind: "rest", unitId: worn.heroes[0]!.id, headline: "", title: "", detail: "" },
     run,
   );
   const target = applied.roster.heroes[0]!;
@@ -147,7 +184,7 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 
   const almostFresh = makeStartingRoster(progress.bonus);
   almostFresh.heroes[0]!.fatigue = 10;
-  const floored = applyOffer(progress, almostFresh, { kind: "rest", unitId: almostFresh.heroes[0]!.id, title: "", detail: "" }, run);
+  const floored = applyOffer(progress, almostFresh, { kind: "rest", unitId: almostFresh.heroes[0]!.id, headline: "", title: "", detail: "" }, run);
   check("rest: it cannot take a unit below 0", floored.roster.heroes[0]!.fatigue === 0);
 
   // Safety net: every fieldable unit past the sweet spot -> a Rest is on offer, always.

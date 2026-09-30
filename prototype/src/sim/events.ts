@@ -132,8 +132,10 @@ export type FightEvent =
    * real save), "guardBackfire" (Bracer's guard stepped ASIDE instead,
    * sending the slam to the squad's own weakest hero — 2026-09-15,
    * previously indistinguishable from "guard" so a betrayal rendered as an
-   * identical save) — or null when the final target IS the locked one.
-   * Without this the cases were indistinguishable from a diff alone, and
+   * identical save), "guardHeld" (the locked target already WAS the guardian,
+   * so nothing redirects, but the guard still spent a charge and blocked the
+   * slam) — or null when the final target IS the locked one and no guard was
+   * live. Without this the cases were indistinguishable from a diff alone, and
    * Bracer's guard had no visible proof it did anything. */
   | {
       type: "windupHit";
@@ -142,7 +144,7 @@ export type FightEvent =
       targetId: string;
       damage: number;
       originalTargetId: string | null;
-      redirect: "guard" | "guardBackfire" | "targetDied" | null;
+      redirect: "guard" | "guardBackfire" | "guardHeld" | "targetDied" | null;
     }
   /** A held payoff card fired (2026-09-30; sim/payoffs.ts). `amount` is
    * whatever the card added — extra damage, stacks moved, shield granted, or

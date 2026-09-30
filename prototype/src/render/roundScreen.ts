@@ -13,6 +13,7 @@ import {
   chainEffectChip,
   chainEffectLines,
   chainVsEncounterLine,
+  fatiguePipsHtml,
 } from "./heroPickShared.js";
 
 /** HP fractions where a round token's bar changes how loudly it reads —
@@ -31,7 +32,7 @@ const ROLE_ICON: Record<PlayerRole, string> = { tank: "🛡", damage: "⚔", sup
 /** The FIGHTING strip's per-unit code ("T1", "D1", "H1") — first letter of
  * ROLE_LABEL, same convention design/canvas/RoundGrown.dc.html uses. */
 const ROLE_CODE: Record<PlayerRole, string> = { tank: "T", damage: "D", support: "H" };
-const ROLE_CSS_VAR: Record<PlayerRole, string> = { tank: "--role-tank", damage: "--role-damage", support: "--role-healer" };
+export const ROLE_CSS_VAR: Record<PlayerRole, string> = { tank: "--role-tank", damage: "--role-damage", support: "--role-healer" };
 
 /** A unit's own number within its role, read off the end of its display
  * name ("Tank 2" -> 2) — makeUnitState (sim/roles.ts) bakes it in at
@@ -54,8 +55,9 @@ function strongerCountWord(n: number): string {
  * per-unit list wholesale, drawn from design/canvas/RoundStart/RoundGrown/
  * RoundPress.dc.html). One band per ROLE (icon, ability chips, a +N
  * "stronger" badge, a ✓-vs-slam tag) with that role's units drawn underneath
- * as round tokens — a fatigue-tier ring + an HP bar, a number, and the tier
- * word once a unit is no longer Fresh (DECISIONS.md 2026-09-30). Tapping a band header (or a held payoff card) toggles
+ * as round tokens — an HP bar, a number, a stack of fatigue-tier pips beside
+ * the circle, and the tier word once a unit is no longer Fresh (DECISIONS.md
+ * 2026-09-30). Tapping a band header (or a held payoff card) toggles
  * a floating popover with the full sentences the header only hints at — same
  * words the old row always showed, just one tap away instead of always on
  * screen. It floats rather than sitting inline so opening it never moves the
@@ -353,10 +355,12 @@ export function renderRoundScreen(
       wrap.className = `round-token${isSelected ? "" : " not-picked"}`;
       wrap.title = `${h.name}: ${tier}, ${backfirePct}% backfire`;
       wrap.innerHTML = `
-        <div class="round-token-body-wrap">
-          <div class="round-token-ring tier-${tier}"></div>
-          <div class="round-token-body" style="background: var(${ROLE_CSS_VAR[role]})">${ordinal}</div>
-          <div class="round-token-badge${isSelected ? "" : " hollow"}" style="background: ${isSelected ? `var(${ROLE_CSS_VAR[role]})` : ""}">${isSelected ? "✓" : ""}</div>
+        <div class="round-token-main">
+          <div class="round-token-body-wrap">
+            <div class="round-token-body" style="background: var(${ROLE_CSS_VAR[role]})">${ordinal}</div>
+            <div class="round-token-badge${isSelected ? "" : " hollow"}" style="background: ${isSelected ? `var(${ROLE_CSS_VAR[role]})` : ""}">${isSelected ? "✓" : ""}</div>
+          </div>
+          ${fatiguePipsHtml(tier)}
         </div>
         <div class="round-token-hp"><div class="round-token-hp-fill${severity === "ok" ? "" : ` ${severity}`}" style="width: ${(hpFrac * 100).toFixed(1)}%"></div></div>
         <div class="round-token-tier tier-${tier}">${tier === "fresh" ? "&nbsp;" : tier}</div>

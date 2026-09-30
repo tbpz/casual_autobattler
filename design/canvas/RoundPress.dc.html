@@ -76,55 +76,45 @@
           <!-- this encounter has a slammer, and this role's chain answers it
                — the tag earns its place here, unlike RoundStart.dc.html -->
           <span style="font-size: 11px; color: #6ee7a0; font-weight: 700;">✓ vs 💥</span>
-          <span style="margin-left: auto; display: flex; gap: 2px;" title="backfire risk">
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></span>
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></span>
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></span>
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></span>
-          </span>
         </div>
         <!-- the expanded card: one sentence per ability the chain has
              picked up (config.ts's chainEffectLines, one per entry in the
              role's ability list) plus projection.ts's chainVsEncounterLine,
-             then a line for the "stronger" boost and the backfire number
-             spelled out. Same words the screen has today — nothing new is
+             then a line for the "stronger" boost and each unit's own
+             fatigue tier and backfire chance (roundScreen.ts's popover). Same words the screen has today — nothing new is
              written, it's just hidden until pressed. -->
         <div style="margin-top: 6px; padding: 8px 8px 6px; background: #14161c; border-radius: 6px; font-size: 11px; color: #c7cad6; line-height: 1.5;">
           <div><strong style="color: #e8e8ee;">⛨ Guard.</strong> Takes the next slam for the squad.</div>
           <div><strong style="color: #e8e8ee;">❄ Freeze.</strong> Freezes one enemy, cancelling its slam.</div>
           <div style="color: #6ee7a0;">2 slammers here — covers one at a time.</div>
           <div style="color: #8a8fa3; margin-top: 2px;">Made stronger once.</div>
-          <div style="color: #8a8fa3;">Backfire risk: low (1 of 5).</div>
+          <div style="color: #8a8fa3;">Tank 1: fresh — 5% backfire.</div>
+          <div style="color: #8a8fa3;">Tank 2: worn — 9% backfire.</div>
+          <div style="color: #8a8fa3;">Tank 3: frayed — 24% backfire.</div>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 8px; padding-left: 2px;">
-          <!-- Tank 1 — fielded, HP bar healthy (blue), charge ring building -->
+          <!-- Tank 1 — fielded, HP bar healthy (blue) -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
-            <div style="position: relative; width: 40px; height: 40px;">
-              <div style="position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#e8e8ee 0% 20%, #3a3f4e 20% 100%);"></div>
-              <div style="position: absolute; inset: 3px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">1</div>
+            <div style="display: flex; gap: 4px; align-items: center;"><div style="position: relative; width: 40px; height: 40px;">
+              <div style="position: absolute; inset: 0; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">1</div>
               <div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #ffb454; border: 2px solid #1d2029; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #14161c; font-weight: 800;">✓</div>
-            </div>
+            </div><div style="display: flex; flex-direction: column; gap: 3px; justify-content: center;" title="fatigue: fresh"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #8a8fa3;"></div></div></div>
             <div style="width: 32px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 90%; height: 100%; background: #4da6ff;"></div></div>
           </div>
-          <!-- Tank 2 — fielded, hurt (orange HP bar), charge ring near threshold (gold) -->
+          <!-- Tank 2 — fielded, hurt (orange HP bar) -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
-            <div style="position: relative; width: 40px; height: 40px;">
-              <!-- near-threshold charge ring lights up gold, same 75% rule
-                   as today's chargeBarHtml -->
-              <div style="position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#ffcf4d 0% 88%, #3a3f4e 88% 100%);"></div>
-              <div style="position: absolute; inset: 3px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">2</div>
+            <div style="display: flex; gap: 4px; align-items: center;"><div style="position: relative; width: 40px; height: 40px;">
+              <div style="position: absolute; inset: 0; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">2</div>
               <div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #ffb454; border: 2px solid #1d2029; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #14161c; font-weight: 800;">✓</div>
-            </div>
+            </div><div style="display: flex; flex-direction: column; gap: 3px; justify-content: center;" title="fatigue: worn"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ffcf4d;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ffcf4d;"></div></div></div>
             <div style="width: 32px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 55%; height: 100%; background: #e8913c;"></div></div>
           </div>
-          <!-- Tank 3 — fielded, critical (red HP bar), charge ring low -->
+          <!-- Tank 3 — fielded, critical (red HP bar) -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
-            <div style="position: relative; width: 40px; height: 40px;">
-              <div style="position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#e8e8ee 0% 8%, #3a3f4e 8% 100%);"></div>
-              <div style="position: absolute; inset: 3px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">3</div>
+            <div style="display: flex; gap: 4px; align-items: center;"><div style="position: relative; width: 40px; height: 40px;">
+              <div style="position: absolute; inset: 0; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">3</div>
               <div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #ffb454; border: 2px solid #1d2029; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #14161c; font-weight: 800;">✓</div>
-            </div>
+            </div><div style="display: flex; flex-direction: column; gap: 3px; justify-content: center;" title="fatigue: frayed"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #e8913c;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #e8913c;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #e8913c;"></div></div></div>
             <div style="width: 32px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 25%; height: 100%; background: #e2564b;"></div></div>
           </div>
         </div>
@@ -139,30 +129,20 @@
             <span style="font-size: 10px;">◎</span>
             <span style="font-size: 10px; font-weight: 700; color: #c7cad6;">biggest</span>
           </span>
-          <span style="margin-left: auto; display: flex; gap: 2px;" title="backfire risk">
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
-          </span>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 6px; padding-left: 2px;">
-          <!-- Damage 1 — fielded, HP bar full (blue), charge ring building -->
+          <!-- Damage 1 — fielded, HP bar full (blue) -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
-            <div style="position: relative; width: 40px; height: 40px;">
-              <div style="position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#e8e8ee 0% 40%, #3a3f4e 40% 100%);"></div>
-              <div style="position: absolute; inset: 3px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">1</div>
+            <div style="display: flex; gap: 4px; align-items: center;"><div style="position: relative; width: 40px; height: 40px;">
+              <div style="position: absolute; inset: 0; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">1</div>
               <div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #b98cff; border: 2px solid #1d2029; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #14161c; font-weight: 800;">✓</div>
-            </div>
+            </div><div style="display: flex; flex-direction: column; gap: 3px; justify-content: center;" title="fatigue: breaking"><div style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></div></div></div>
             <div style="width: 32px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
           </div>
-          <!-- Damage 2 — fallen: greyed body, ✕ badge, no HP bar, no charge
-               ring, row stays in place instead of a separate "Fallen: ..." line -->
+          <!-- Damage 2 — fallen: greyed body, ✕ badge, no HP bar, no pips, row stays in place instead of a separate "Fallen: ..." line -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; opacity: 0.4;">
             <div style="position: relative; width: 40px; height: 40px;">
-              <div style="position: absolute; inset: 0; border-radius: 50%; background: #3a3f4e;"></div>
-              <div style="position: absolute; inset: 3px; border-radius: 50%; background: #5c5f6b; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">2</div>
+              <div style="position: absolute; inset: 0; border-radius: 50%; background: #5c5f6b; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">2</div>
               <div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #e2564b; border: 2px solid #1d2029; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #14161c; font-weight: 800;">✕</div>
             </div>
             <div style="width: 32px; height: 6px;"></div>
@@ -180,33 +160,23 @@
             <span style="font-size: 10px; font-weight: 700; color: #c7cad6;">worst-hurt</span>
           </span>
           <span style="font-size: 11px; font-weight: 800; color: #ffcf4d;">+2</span>
-          <span style="margin-left: auto; display: flex; gap: 2px;" title="backfire risk">
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #ff4d4d;"></span>
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></span>
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></span>
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #2a2e3a; border: 1px solid #3a3f4e;"></span>
-          </span>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 6px; padding-left: 2px;">
-          <!-- Healer 1 — fielded, HP bar full (blue), charge ring building -->
+          <!-- Healer 1 — fielded, HP bar full (blue) -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
-            <div style="position: relative; width: 40px; height: 40px;">
-              <div style="position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#e8e8ee 0% 30%, #3a3f4e 30% 100%);"></div>
-              <div style="position: absolute; inset: 3px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">1</div>
+            <div style="display: flex; gap: 4px; align-items: center;"><div style="position: relative; width: 40px; height: 40px;">
+              <div style="position: absolute; inset: 0; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">1</div>
               <div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #6ee7a0; border: 2px solid #1d2029; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #14161c; font-weight: 800;">✓</div>
-            </div>
+            </div><div style="display: flex; flex-direction: column; gap: 3px; justify-content: center;" title="fatigue: worn"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ffcf4d;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ffcf4d;"></div></div></div>
             <div style="width: 32px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
           </div>
-          <!-- Healer 2 — not picked: same body, HP bar and charge ring as a
-               fielded unit, just dimmed, with an empty badge (a hollow
+          <!-- Healer 2 — not picked: same body and HP bar as a fielded unit, just dimmed, with an empty badge (a hollow
                circle, like an unticked box) where the ✓ would sit -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; opacity: 0.55;">
-            <div style="position: relative; width: 40px; height: 40px;">
-              <div style="position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#e8e8ee 0% 30%, #3a3f4e 30% 100%);"></div>
-              <div style="position: absolute; inset: 3px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">2</div>
+            <div style="display: flex; gap: 4px; align-items: center;"><div style="position: relative; width: 40px; height: 40px;">
+              <div style="position: absolute; inset: 0; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #14161c;">2</div>
               <div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #2a2e3a; border: 2px solid #1d2029;"></div>
-            </div>
+            </div><div style="display: flex; flex-direction: column; gap: 3px; justify-content: center;" title="fatigue: fresh"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #8a8fa3;"></div></div></div>
             <div style="width: 32px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 70%; height: 100%; background: #4da6ff;"></div></div>
           </div>
         </div>

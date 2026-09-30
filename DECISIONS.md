@@ -10,6 +10,48 @@
 
 ---
 
+## [2026-09-30] Fatigue shows as tier pips beside each unit, on both screens
+
+- **Decision:**
+  - A unit's fatigue tier shows as a stack of 4 pips beside its token (pick screen) and its body (fight screen).
+  - Pips are lit up to the current tier: Fresh 1, Worn 2, Frayed 3, Breaking 4.
+  - Fresh lights 1 grey pip, so the stack never reads as empty.
+  - The ring means charge only, on both screens.
+  - The pick screen has no ring, since charge resets to 0 every fight.
+  - Pips don't move during a fight, since fatigue only changes between fights.
+  - The old per-role backfire-risk dots are gone from the canvas.
+  - Backfire chance now appears only in the round screen's expanded card, per unit.
+  - The chosen design is the FatiguePips frame on the design canvas; it is not built in code yet.
+- **Why:**
+  - After the 2026-09-30 fatigue change, the pick-screen ring showed fatigue while the fight-screen ring showed charge.
+  - One shape meaning two things on two screens was the problem.
+  - Tu saw three options drawn side by side (bar under HP, pips, pick screen without a ring) and chose pips.
+  - Pips carry no extra row of height.
+- **Replaces:**
+  - The tier-coloured ring on the pick-screen token in `prototype/src/render/roundScreen.ts` (a later build pass removes it).
+  - The pick-screen charge ring in the canvas frames.
+  - The per-role backfire dots in the canvas frames.
+
+## [2026-09-30] A slam already aimed at the guardian counts as a full block
+
+- **Decision:**
+  - A slam that is already aimed at the guarding tank when it lands is a block, the same as one Guard pulls over.
+  - It spends one guard charge.
+  - It leaves the slammer Exposed.
+  - It fires Bulwark if the squad holds that card.
+  - Its event is tagged `guardHeld`, separate from `guard` (a redirect).
+  - The view shows the tank's "takes the slam" tell and lunge, with no aim-line swing, since the target doesn't change.
+  - The batch report's guard-charges-spent count includes held blocks.
+- **Why:**
+  - Tu saw no Exposed badge under a slammer when a slam was blocked.
+  - A probe over about 2,900 fights found 317 slams that hit a live guardian with no mark and no charge spent.
+  - Most of them locked on before the guard went up.
+  - On screen they looked exactly like a block, so the mark's absence read as a bug.
+  - The old rule skipped the same-target case to avoid wasting a charge. That predates marks.
+- **Replaces:**
+  - The same-target no-op in the guard logic of `prototype/src/sim/fight.ts`.
+  - The redirect-only guard count in the batch report.
+
 ## [2026-09-30] Fatigue replaces per-role backfire odds; it persists per unit across fights
 
 - **Decision:**

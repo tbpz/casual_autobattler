@@ -80,18 +80,18 @@
         <div style="width: 100%; height: 1px; margin: 1px 0; background: linear-gradient(90deg, transparent, #8a8fa3 15%, #8a8fa3 85%, transparent); opacity: 0.3;"></div>
 
         <!-- player row -->
-        <div style="display: flex; align-items: flex-start; justify-content: center; gap: 10px; width: 100%;">
+        <div style="display: flex; align-items: flex-start; justify-content: center; gap: 26px; width: 100%;">
 
-          <!-- Rook (damage, back rank) — chain shown as a ring, matching the pick screen -->
+          <!-- Damage 1 (damage, back rank) — chain shown as a ring; fatigue as tier pips beside the body -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 44px; margin-top: 48px;">
             <div style="position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; height: 40px; filter: brightness(0.84) saturate(0.88);">
               <div style="position: absolute; top: 22px; left: 50%; width: 20px; height: 3px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
               <div style="position: relative; width: 30px; height: 30px;">
                 <div style="position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#e8e8ee 0% 25%, #3a3f4e 25% 100%);"></div>
                 <div style="position: absolute; inset: 3px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029;"></div>
-              </div>
+              </div><div title="fatigue: frayed" style="position: absolute; top: -1px; left: calc(50% + 20px); display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #e8913c;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #e8913c;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #e8913c;"></div></div>
             </div>
-            <div style="font-size: 10px; color: #e8e8ee; white-space: nowrap;">Rook</div>
+            <div style="font-size: 10px; color: #e8e8ee; white-space: nowrap;">Damage 1</div>
             <div style="position: relative; width: 100%; height: 8px; border-radius: 4px; background: #2a2e3a; overflow: hidden;">
               <div style="position: absolute; inset: 0; width: 100%; background: #4da6ff;"></div>
             </div>
@@ -99,16 +99,16 @@
             <div style="font-size: 9px; color: #8a8fa3; white-space: nowrap;">dealt 0</div>
           </div>
 
-          <!-- Bracer (tank, front rank) — chain shown as a ring, matching the pick screen -->
+          <!-- Tank 1 (tank, front rank) — chain shown as a ring; fatigue as tier pips beside the body -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 44px;">
             <div style="position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; height: 68px;">
               <div style="position: absolute; top: 50px; left: 50%; width: 44px; height: 6px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
               <div style="position: relative; width: 58px; height: 58px;">
                 <div style="position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#e8e8ee 0% 15%, #3a3f4e 15% 100%);"></div>
                 <div style="position: absolute; inset: 3px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029;"></div>
-              </div>
+              </div><div title="fatigue: fresh" style="position: absolute; top: 13px; left: calc(50% + 34px); display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #8a8fa3;"></div></div>
             </div>
-            <div style="font-size: 12px; color: #e8e8ee; white-space: nowrap;">Bracer</div>
+            <div style="font-size: 12px; color: #e8e8ee; white-space: nowrap;">Tank 1</div>
             <div style="position: relative; width: 100%; height: 8px; border-radius: 4px; background: #2a2e3a; overflow: hidden;">
               <div style="position: absolute; inset: 0; width: 100%; background: #4da6ff;"></div>
             </div>
@@ -116,16 +116,16 @@
             <div style="font-size: 9px; color: #8a8fa3; white-space: nowrap;">soaked 0</div>
           </div>
 
-          <!-- Hollow (tank, front rank) — chain ring at 50%, halfway to firing -->
+          <!-- Tank 2 (tank, front rank) — chain ring at 50%, halfway to firing; worn (2 pips) -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 44px;">
             <div style="position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; height: 68px;">
               <div style="position: absolute; top: 50px; left: 50%; width: 44px; height: 6px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
               <div style="position: relative; width: 58px; height: 58px;">
                 <div style="position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#e8e8ee 0% 50%, #3a3f4e 50% 100%);"></div>
                 <div style="position: absolute; inset: 3px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029;"></div>
-              </div>
+              </div><div title="fatigue: worn" style="position: absolute; top: 13px; left: calc(50% + 34px); display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ffcf4d;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ffcf4d;"></div></div>
             </div>
-            <div style="font-size: 12px; color: #e8e8ee; white-space: nowrap;">Hollow</div>
+            <div style="font-size: 12px; color: #e8e8ee; white-space: nowrap;">Tank 2</div>
             <div style="position: relative; width: 100%; height: 8px; border-radius: 4px; background: #2a2e3a; overflow: hidden;">
               <div style="position: absolute; inset: 0; width: 100%; background: #4da6ff;"></div>
             </div>

@@ -1,8 +1,8 @@
 import type { Rng } from "./rng.js";
 import type { ChainEffect, RunConfig } from "./config.js";
-import { chainEffectVerb } from "./config.js";
+import { chainEffectChip, chainEffectVerb } from "./config.js";
 import type { PayoffId } from "./payoffs.js";
-import { PAYOFF_DEFS, PAYOFF_IDS, payoffConnects, pickPayoffToDrop } from "./payoffs.js";
+import { MARK_CHIP, PAYOFF_DEFS, PAYOFF_IDS, payoffConnects, pickPayoffToDrop } from "./payoffs.js";
 import type { SideState } from "./types.js";
 import type { PlayerRole } from "./roles.js";
 import { PLAYER_ROLES, ROLE_CHAIN_UPGRADE, ROLE_LABEL, makeUnitState } from "./roles.js";
@@ -53,6 +53,13 @@ export interface Offer {
   unitId?: string;
   title: string;
   detail: string;
+  /** The change in a few words, the big line on the offer card ("+20 HP",
+   * "New: ❄ freeze"). Display only — applyOffer never reads it. */
+  headline: string;
+  /** A neutral link to what the run already holds ("Feeds your Shatter",
+   * "Your squad makes ✦ exposed"). Any kind can carry one; absent when there
+   * is nothing to say. Display only. */
+  worksWith?: string;
 }
 
 interface OfferTemplate {
@@ -90,6 +97,7 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
         return {
           kind: "chainLevel",
           role,
+          headline: `+${cfg.chainLevelStep} stack`,
           title: `${label} chain — stronger (+${nextBadge})`,
           detail: `Every ${label.toLowerCase()}'s chain leaves one more mark stack per hit.`,
         };
@@ -101,8 +109,18 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       size: "big",
       gainEffect: ROLE_CHAIN_UPGRADE[role],
       eligible: (progress) => !progress.chain[role].effects.includes(ROLE_CHAIN_UPGRADE[role]),
-      build: () => {
+      build: (progress, roster) => {
         const upgrade = ROLE_CHAIN_UPGRADE[role];
+        // The ability's own round-screen chip, so the offer names it the way
+        // the player will see it once taken.
+        const chip = chainEffectChip(upgrade);
+        // "Feeds your Shatter": a held card this ability would bring to life.
+        // Only when the role actually has a unit, since squadChainEffects
+        // ignores a role nobody on the roster plays.
+        const squad = squadChainEffects(progress, roster);
+        const fed = roster.heroes.some((h) => h.role === role)
+          ? progress.payoffs.find((id) => !payoffConnects(id, squad) && payoffConnects(id, [...squad, upgrade]))
+          : undefined;
         // 2026-09-29 (add-don't-swap — see DECISIONS.md): every chain hit now
         // does EVERY ability the chain has, so this reads as "also", never
         // "instead of" — Tu: "the chain is upgraded and accumulate these
@@ -112,8 +130,10 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
           kind: "chainGain",
           role,
           effect: upgrade,
+          headline: `New: ${chip.icon} ${chip.word}`,
           title: `${label} chain — gains an ability`,
           detail: line,
+          worksWith: fed ? `Feeds your ${PAYOFF_DEFS[fed].title}` : undefined,
         };
       },
     });
@@ -125,6 +145,7 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       build: () => ({
         kind: "recruit",
         role,
+        headline: `+1 ${label}`,
         title: `Recruit a ${label.toLowerCase()}`,
         detail: `Adds a fresh ${label.toLowerCase()} to your roster.`,
       }),
@@ -137,6 +158,7 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       build: () => ({
         kind: "statHp",
         role,
+        headline: `+${cfg.statHpStep} HP`,
         title: `${label} — tougher`,
         detail: `+${cfg.statHpStep} max HP for every ${label.toLowerCase()}, now and future.`,
       }),
@@ -149,6 +171,7 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       build: () => ({
         kind: "statDamage",
         role,
+        headline: `+${cfg.statDamageStep} dmg`,
         title: `${label} — harder-hitting`,
         detail: `+${cfg.statDamageStep} damage for every ${label.toLowerCase()}, now and future.`,
       }),
@@ -164,13 +187,20 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       // ability offer or made by the squad — so no card asks for a judgment
       // about a mark nothing has introduced yet.
       eligible: (progress) => !progress.payoffs.includes(id) && payoffConnects(id, progress.introduced),
-      build: (progress, roster) => ({
-        kind: "payoff",
-        payoff: id,
-        connects: payoffConnects(id, squadChainEffects(progress, roster)),
-        title: PAYOFF_DEFS[id].title,
-        detail: PAYOFF_DEFS[id].detail,
-      }),
+      build: (progress, roster) => {
+        const def = PAYOFF_DEFS[id];
+        const squad = squadChainEffects(progress, roster);
+        const connects = payoffConnects(id, squad);
+        // When it connects, every mark it reads is one the squad makes — except
+        // a card gated on an ability (Bulwark), which names the ability.
+        let worksWith: string | undefined;
+        if (connects) {
+          worksWith = def.needsEffects
+            ? `Your squad has ${def.needsEffects.filter((e) => squad.includes(e)).map((e) => chainEffectChip(e).word).join(" + ")}`
+            : `Your squad makes ${def.reads.map((m) => `${MARK_CHIP[m].icon} ${MARK_CHIP[m].word}`).join(" + ")}`;
+        }
+        return { kind: "payoff", payoff: id, connects, headline: def.title, title: def.title, detail: def.detail, worksWith };
+      },
     });
   }
 
@@ -180,6 +210,7 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
     eligible: (_progress, roster) => roster.heroes.some((h) => h.alive && h.hp < h.maxHp),
     build: () => ({
       kind: "heal",
+      headline: `+${cfg.healFlatAmount} HP each`,
       title: "Patch up",
       detail: `+${cfg.healFlatAmount} HP to every living unit.`,
     }),
@@ -195,6 +226,8 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       return {
         kind: "revive",
         unitId: unit.id,
+        role: PLAYER_ROLES.find((r) => r === unit.role),
+        headline: `Back at ${Math.round(cfg.reviveHpFraction * 100)}%`,
         title: `Revive ${unit.name}`,
         detail: `Brings ${unit.name} back at ${Math.round(cfg.reviveHpFraction * 100)}% HP.`,
       };
@@ -212,6 +245,8 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       return {
         kind: "rest",
         unitId: unit.id,
+        role: PLAYER_ROLES.find((r) => r === unit.role),
+        headline: "Less fatigue",
         title: `Rest ${unit.name}`,
         detail: `Takes the edge off ${unit.name}: less fatigue, so a safer chain.`,
       };
@@ -224,6 +259,7 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
     eligible: (progress) => progress.slots < cfg.maxSlots,
     build: (progress) => ({
       kind: "slot",
+      headline: "+1 slot",
       title: "Bigger squad",
       detail: `Field ${progress.slots + 1} units each round instead of ${progress.slots}.`,
     }),

@@ -640,7 +640,7 @@ function handleBruiserBeat(
     // in or aside below — so the render layer can tell them apart instead of
     // only seeing an unexplained diff between windupStart's target and this
     // hit's.
-    let redirect: "guard" | "guardBackfire" | "targetDied" | null =
+    let redirect: "guard" | "guardBackfire" | "guardHeld" | "targetDied" | null =
       !lockedAlive && originalTargetId !== null ? "targetDied" : null;
 
     // Release this telegraph's own reservation (if the pick above applied
@@ -657,12 +657,11 @@ function handleBruiserBeat(
     // telegraphed hit at the moment it lands, not at telegraph start — a
     // real payoff sends it to the guarding hero; a backfire (guardInverted)
     // sends it to the player's own lowest-HP hero (excluding the guardian)
-    // instead, Bracer stepping aside rather than stepping in. Spends exactly
-    // one charge, and only when the target actually changes — with
-    // guardWindupAim steering the telegraph away from (or, backfired, onto)
-    // the guardian, a same-target no-op should now be rare, but a guard that
-    // became live only after this telegraph already locked its target can
-    // still produce one.
+    // instead, Bracer stepping aside rather than stepping in. A backfire only
+    // spends a charge when the target actually changes. A real guard spends one
+    // either way: a slam already aimed at the guardian (the guard went live
+    // after the telegraph locked, or the guardian is the last one standing) is
+    // a held block, not a no-op — it still marks the slammer.
     const guardian = player.guardHeroId ? player.heroes.find((h) => h.id === player.guardHeroId) : undefined;
     if (targetId && guardian && guardian.alive && guardian.hp > 0 && (player.guardCharges ?? 0) > 0) {
       if (player.guardInverted) {
@@ -672,9 +671,9 @@ function handleBruiserBeat(
           redirect = "guardBackfire";
           player.guardCharges = (player.guardCharges ?? 0) - 1;
         }
-      } else if (guardian.id !== targetId) {
+      } else {
+        redirect = guardian.id === targetId ? "guardHeld" : "guard";
         targetId = guardian.id;
-        redirect = "guard";
         player.guardCharges = (player.guardCharges ?? 0) - 1;
         // Guard's mark (2026-09-30): the slam it just took leaves the slammer
         // Exposed — one stack, plus one per chain "+N" on the guardian.

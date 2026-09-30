@@ -1,23 +1,19 @@
 {
   "artboards": [
-    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 780 },
-    { "file": "MidChain.dc.html", "x": 550, "y": 0, "w": 390, "h": 780 },
-    { "file": "Freeze.dc.html", "x": 1100, "y": 0, "w": 390, "h": 780 },
-    { "file": "EndCard.dc.html", "x": 1650, "y": 0, "w": 390, "h": 780 },
-    { "file": "RoundStart.dc.html", "x": 0, "y": 900, "w": 390, "h": 780 },
-    { "file": "RoundGrown.dc.html", "x": 550, "y": 900, "w": 390, "h": 780 },
-    { "file": "RoundPress.dc.html", "x": 1100, "y": 900, "w": 390, "h": 780 },
-    { "file": "MidFill.dc.html", "x": 1650, "y": 900, "w": 390, "h": 780 }
+    { "file": "RoundStart.dc.html", "x": 0, "y": 0, "w": 390, "h": 780 },
+    { "file": "RoundGrown.dc.html", "x": 550, "y": 0, "w": 390, "h": 780 },
+    { "file": "RoundPress.dc.html", "x": 1100, "y": 0, "w": 390, "h": 780 },
+    { "file": "MidFill.dc.html", "x": 1650, "y": 0, "w": 390, "h": 780 },
+    { "file": "FatiguePips.dc.html", "x": 0, "y": 900, "w": 860, "h": 340 },
+    { "file": "OfferAfter.dc.html", "x": 0, "y": 1400, "w": 390, "h": 780 }
   ],
   "annotations": [
-    { "id": "label-main", "x": 0, "y": -60, "w": 390, "text": "1. Turn 1 — resting" },
-    { "id": "label-midchain", "x": 550, "y": -60, "w": 390, "text": "2. Mid-chain — Rook fires on Executioner" },
-    { "id": "label-freeze", "x": 1100, "y": -60, "w": 390, "text": "3. Freeze — Hollow's stun holds Executioner" },
-    { "id": "label-endcard", "x": 1650, "y": -60, "w": 390, "text": "4. End card — Rook's chain resolves" },
-    { "id": "label-roundstart", "x": 0, "y": 840, "w": 390, "text": "5. Round screen — round 1, one unit per role" },
-    { "id": "label-roundgrown", "x": 550, "y": 840, "w": 390, "text": "6. Round screen — round 12, roster grown past one per role" },
-    { "id": "label-roundpress", "x": 1100, "y": 840, "w": 390, "text": "7. Round screen — TANK band held down, full text revealed" },
-    { "id": "label-midfill", "x": 1650, "y": 840, "w": 390, "text": "8. Fight screen — Hollow's chain ring at 50%" }
+    { "id": "label-roundstart", "x": 0, "y": -60, "w": 390, "text": "1. Round screen — round 1, one unit per role" },
+    { "id": "label-roundgrown", "x": 550, "y": -60, "w": 390, "text": "2. Round screen — round 12, roster grown past one per role" },
+    { "id": "label-roundpress", "x": 1100, "y": -60, "w": 390, "text": "3. Round screen — TANK band held down, full text revealed" },
+    { "id": "label-midfill", "x": 1650, "y": -60, "w": 390, "text": "4. Fight screen — chain ring at 50%, fatigue pips" },
+    { "id": "label-fatiguepips", "x": 0, "y": 840, "w": 860, "text": "5. Fatigue display — tier pips, all four states (chosen design, built)" },
+    { "id": "label-offerafter", "x": 0, "y": 1340, "w": 390, "text": "6. Offer screen — built: full-width rows, category rail, named role pill" }
   ],
   "launch": { "view": "canvas" }
 }

@@ -388,13 +388,14 @@ export class BatchAggregator {
 
   /** Tallies this fight's guard activity — how many charges its chain(s)
    * granted (chainHit events of kind "guard") against how many slams
-   * actually got redirected (windupHit events with redirect "guard" or
-   * "guardBackfire") — see this file's top docstring, 2026-09-15 entry. */
+   * actually spent one (windupHit events with redirect "guard", "guardBackfire"
+   * or "guardHeld" — a held block spends a charge without moving the slam) —
+   * see this file's top docstring, 2026-09-15 entry. */
   private countGuardActivity(events: RunResult["fightResults"][number]["events"]): void {
     for (const e of events) {
       if (e.type === "payoffTriggered") this.payoffTriggers[e.payoff] = (this.payoffTriggers[e.payoff] ?? 0) + 1;
       else if (e.type === "chainHit" && e.kind === "guard") this.guardChargesGranted += e.charges ?? 0;
-      else if (e.type === "windupHit" && (e.redirect === "guard" || e.redirect === "guardBackfire")) this.slamsRedirected++;
+      else if (e.type === "windupHit" && (e.redirect === "guard" || e.redirect === "guardBackfire" || e.redirect === "guardHeld")) this.slamsRedirected++;
     }
   }
 

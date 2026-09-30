@@ -49,6 +49,13 @@
   --role-tank: #ffb454;
   --role-damage: #b98cff;
   --role-healer: #6ee7a0;
+  /* Offer-row category rails (2026-09-30). Muted and of equal weight on
+     purpose — none is gold, none outranks another. */
+  --cat-chain: #7b93d6;
+  --cat-stats: #d08a6a;
+  --cat-squad: #5fb0b5;
+  --cat-recovery: #9bb870;
+  --cat-reaction: #b88aa6;
   /* The chain's own token (2026-08-14 chain rebuild) — split off from
      --ignite, which stays reserved for unrelated UI (coin, the projection's
      "tight" band) so changing the chain's colour never leaks into those. */
@@ -2073,27 +2080,59 @@ button:disabled {
   height: 40px;
 }
 
-/* Fatigue tier ring (DECISIONS.md 2026-09-30 "Fatigue replaces per-role
-   backfire odds") — replaces the charge ring, since charge now resets every
-   fight and has nothing to show at pick time. Fresh keeps the quiet track
-   colour; the rest climb toward the backfire red. */
-.round-token-ring {
-  position: absolute;
-  inset: 0;
+/* The circle and its fatigue pips side by side (DECISIONS.md 2026-09-30
+   "Fatigue shows as tier pips beside each unit"). The pips replace the old
+   fatigue-tier ring — the ring means charge on the fight screen, and charge
+   resets to 0 every fight, so it has nothing to show at pick time. */
+.round-token-main {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Fatigue pips — a stack of 4, lit from the bottom up to the unit's tier
+   (heroPickShared.ts's fatiguePipsHtml; fresh 1, worn 2, frayed 3, breaking
+   4). Shared by the round-screen token and the fight-screen body. Fresh
+   keeps the quiet muted grey; the rest climb toward the backfire red, the
+   same colours the tier word under a token uses. */
+.fatigue-pips {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  justify-content: center;
+}
+
+.fatigue-pip {
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  border: 3px solid var(--track-bg);
+  background: #3a3f4e;
 }
 
-.round-token-ring.tier-worn {
-  border-color: var(--chain);
+.fatigue-pips.tier-fresh .fatigue-pip.lit {
+  background: var(--muted);
 }
 
-.round-token-ring.tier-frayed {
-  border-color: var(--hp-hurt);
+.fatigue-pips.tier-worn .fatigue-pip.lit {
+  background: var(--chain);
 }
 
-.round-token-ring.tier-breaking {
-  border-color: var(--backfire);
+.fatigue-pips.tier-frayed .fatigue-pip.lit {
+  background: var(--hp-hurt);
+}
+
+.fatigue-pips.tier-breaking .fatigue-pip.lit {
+  background: var(--backfire);
+}
+
+/* On the fight screen the stack hangs off the body's right edge, centred on
+   the body's height, sized off --body-size like .charge-ring so it follows
+   every role and rank. 29px is the stack's own height (4 pips + 3 gaps). */
+.body-perch > .fatigue-pips {
+  position: absolute;
+  top: calc((var(--body-size, 40px) - 29px) / 2);
+  left: calc(50% + var(--body-size, 40px) / 2 + 6px);
+  pointer-events: none;
 }
 
 .round-token-tier {
@@ -2118,7 +2157,7 @@ button:disabled {
 
 .round-token-body {
   position: absolute;
-  inset: 3px;
+  inset: 0;
   border-radius: 50%;
   box-shadow: 0 0 0 1px var(--panel);
   display: flex;
@@ -2662,35 +2701,137 @@ button:disabled {
   margin-bottom: 4px;
 }
 
-.spend-choices button.payoff-offer {
-  border-style: dashed;
+/* Offer rows (2026-09-30, design/canvas/OfferAfter.dc.html). Every row has the
+   same frame — nothing here is gold or glows, so no kind looks like the right
+   answer. The category colour lives only on the left rail. */
+.offer-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0;
 }
 
-.spend-choices button.payoff-offer.connects {
-  border-style: solid;
-  border-color: var(--ignite);
-  box-shadow: 0 0 10px rgba(255, 207, 77, 0.35);
+.offer-row {
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  border-radius: 10px;
+  --cat: var(--muted);
 }
 
-.spend-choices button .offer-reads {
+.offer-row.cat-chain { --cat: var(--cat-chain); }
+.offer-row.cat-stats { --cat: var(--cat-stats); }
+.offer-row.cat-squad { --cat: var(--cat-squad); }
+.offer-row.cat-recovery { --cat: var(--cat-recovery); }
+.offer-row.cat-reaction { --cat: var(--cat-reaction); }
+
+.offer-rail {
+  flex: none;
+  width: 74px;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--cat);
+  background: color-mix(in srgb, var(--cat) 16%, transparent);
+  border-right: 2px solid var(--cat);
+}
+
+.offer-rail-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.offer-rail-word {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.offer-body {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px 12px;
+}
+
+.offer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.offer-headline {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.offer-role {
+  flex: none;
+  height: 20px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 800;
+  --role-color: var(--muted);
+  color: var(--role-color);
+  background: color-mix(in srgb, var(--role-color) 16%, transparent);
+  border: 1px solid var(--role-color);
+}
+
+.offer-role.offer-role-all {
+  color: var(--text);
+  background: var(--track-border);
+  border-color: var(--muted);
+}
+
+.offer-row .offer-title {
   display: block;
   margin-top: 6px;
-  font-size: 0.75em;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.offer-row .offer-detail {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 
-.spend-choices button .offer-connects {
+.offer-row .offer-reads {
   display: block;
-  margin-top: 4px;
-  font-size: 0.75em;
-  font-weight: 800;
-  color: var(--ignite);
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--muted);
 }
 
-.spend-choices button .offer-replaces {
+/* Neutral in an offer row: no mark colour, so a payoff row carries no extra tint. */
+.offer-row .mark-chip {
+  color: var(--text);
+  border: 0;
+  background: var(--surface);
+}
+
+.offer-row .offer-with {
+  display: block;
+  margin-top: 7px;
+  font-size: 11.5px;
+  color: var(--text);
+}
+
+.offer-row .offer-replaces {
   display: block;
   margin-top: 4px;
-  font-size: 0.72em;
+  font-size: 11px;
   color: var(--backfire);
 }
 

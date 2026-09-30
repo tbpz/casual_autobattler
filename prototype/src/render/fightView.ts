@@ -1,5 +1,6 @@
-import type { ChainEffect, FightConfig } from "../sim/config.js";
-import { chainEffectVerb, fatigueFraction } from "../sim/config.js";
+import type { ChainEffect, FatigueTier, FightConfig } from "../sim/config.js";
+import { chainEffectVerb, fatigueFraction, fatigueTier } from "../sim/config.js";
+import { fatiguePipsHtml } from "./heroPickShared.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
 import { ROLE_SORT_PRIORITY } from "../sim/roles.js";
 import { MARK_CHIP, PAYOFF_DEFS, type PayoffId } from "../sim/payoffs.js";
@@ -694,7 +695,7 @@ export class FightView {
       const isFront = stillFront;
       this.heroIsFront.set(hero.id, isFront);
 
-      const refs = makeHeroSlot(hero, side, accentForHero(hero, side, i), i);
+      const refs = makeHeroSlot(hero, side, accentForHero(hero, side, i), i, fatigueTier(this.cfg, hero.fatigue));
       // Direct fraction of the two sides' combined maxHp (see render()'s
       // own comment) — same pixel-per-HP scale the old two-level flex gave,
       // now that a side's own flex-grow can no longer double as its width.
@@ -1562,15 +1563,17 @@ export class FightView {
    * real redirect — "guard" (a save) or "guardBackfire" (a betrayal) — swings
    * the telegraph's own aim line from where it was locked to where the slam
    * actually lands (startAimSwing), coloured and lunging opposite ways for
-   * the two cases, before the impact plays. "targetDied" (an ordinary
-   * mid-telegraph retarget, nothing saved) and null get no swing at all,
-   * same as before. */
+   * the two cases, before the impact plays. "guardHeld" (the slam was already
+   * aimed at the guardian) has nothing to swing, so it keeps the plain tracer
+   * and adds only the save-side body language at the landing. "targetDied"
+   * (an ordinary mid-telegraph retarget, nothing saved) and null get no swing
+   * at all, same as before. */
   private showWindupHit(
     sourceId: string,
     targetId: string,
     damage: number,
     originalTargetId: string | null,
-    redirect: "guard" | "guardBackfire" | "targetDied" | null,
+    redirect: "guard" | "guardBackfire" | "guardHeld" | "targetDied" | null,
   ): void {
     const attacker = this.enemyHeroes.get(sourceId);
     const target = this.playerHeroes.get(targetId);
@@ -1639,11 +1642,18 @@ export class FightView {
       }
     }
 
+    const heldLand = () => {
+      land();
+      if (redirect !== "guardHeld" || gen !== this.windupGen) return;
+      if (attacker) this.lungeToward(target.body, attacker.body, 10);
+      this.showHeroStatusTell(targetId, "TAKES THE SLAM", HEAL_ACCENT, true);
+    };
+
     if (attacker) {
       this.fireTracer(attacker.body, target.body, WINDUP_ACCENT, 8);
-      setTimeout(land, TRACER_MS);
+      setTimeout(heldLand, TRACER_MS);
     } else {
-      land();
+      heldLand();
     }
   }
 
@@ -2170,7 +2180,13 @@ function counterText(hero: HeroSnapshot): string {
   return `dealt ${Math.round(hero.dealt)}`;
 }
 
-function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: string, offsetIndex: number): HeroSlot {
+function makeHeroSlot(
+  hero: HeroSnapshot,
+  side: "player" | "enemy",
+  accent: string,
+  offsetIndex: number,
+  tier: FatigueTier,
+): HeroSlot {
   const slot = document.createElement("div");
   // role-* here (2026-09-16 freeze-layout pass) declares --body-size once
   // per role (style.css) so .body.role-* and .freeze-ring can both read the
@@ -2302,6 +2318,12 @@ function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: stri
   perch.appendChild(body);
   perch.appendChild(chargeRing);
   perch.appendChild(freezeRing);
+
+  // Fatigue pips (2026-09-30, design/canvas/FatiguePips.dc.html) — a stack
+  // beside the body, lit to the unit's tier. Player side only: enemies author
+  // no fatigue. Fatigue changes between fights, never inside one, so this is
+  // set once here and nothing updates it.
+  if (side === "player") perch.insertAdjacentHTML("beforeend", fatiguePipsHtml(tier));
 
   slot.appendChild(perch);
   slot.appendChild(name);
