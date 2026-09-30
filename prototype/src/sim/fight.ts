@@ -1,9 +1,79 @@
 import type { Rng } from "./rng.js";
 import type { ChainEffect, FightConfig } from "./config.js";
 import { backfireChanceFor, chainContinuationChance, chainEscalationFactor } from "./config.js";
-import type { ChainPlan, FightSetup, HeroState, SideState } from "./types.js";
+import type { ChainPlan, FightSetup, HeroState, Marks, SideState } from "./types.js";
 import { sideHp, sideMaxHp } from "./types.js";
 import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "./events.js";
+import type { PayoffId } from "./payoffs.js";
+
+/**
+ * Per-fight context for the marks and payoff rules (2026-09-30). Every hit in
+ * the game funnels through applyDamageFrom, which has no events array, config
+ * or payoff set of its own — threading those through six call sites would have
+ * touched every signature in this file. runFight sets this before its loop
+ * and clears it in a finally, so it is only ever non-null while one fight is
+ * running (fights are synchronous and never nest). A null context means "no
+ * marks in play", which is the same as every body carrying zero stacks.
+ */
+interface FightCtx {
+  events: FightEvent[];
+  /** Sim-clock time of the tick being resolved — set at the top of each tick. */
+  t: number;
+  cfg: FightConfig;
+  payoffs: ReadonlySet<PayoffId>;
+  player: SideState;
+  enemy: SideState;
+}
+let ctx: FightCtx | null = null;
+
+function marksOf(h: HeroState): Marks {
+  if (!h.marks) h.marks = { exposed: 0, burn: 0, shield: 0 };
+  return h.marks;
+}
+
+function sideLabelOf(c: FightCtx, side: SideState): Side {
+  return side === c.enemy ? "enemy" : "player";
+}
+
+/** Stacks one chain rung leaves: 1, plus one per chain "+N" (chainLevel is
+ * N + 1). See config.ts's exposedDamagePerStack docstring. */
+function markStacks(level: number): number {
+  return Math.max(1, Math.round(level));
+}
+
+function addExposed(c: FightCtx, h: HeroState, stacks: number): void {
+  const m = marksOf(h);
+  m.exposed = Math.min(c.cfg.exposedStackCap, m.exposed + stacks);
+}
+
+function addBurn(h: HeroState, stacks: number): void {
+  marksOf(h).burn += stacks;
+}
+
+/** Grants Shield, capped at a fraction of the body's maxHp. Returns what was
+ * actually added. */
+function addShield(c: FightCtx, h: HeroState, amount: number): number {
+  const m = marksOf(h);
+  const room = Math.max(0, h.maxHp * c.cfg.shieldCapFractionOfMaxHp - m.shield);
+  const added = Math.min(room, amount);
+  m.shield += added;
+  return added;
+}
+
+function firePayoff(c: FightCtx, payoff: PayoffId, side: Side, targetId: string, amount: number): void {
+  c.events.push({ type: "payoffTriggered", t: c.t, payoff, side, targetId, amount });
+}
+
+function isFrozen(h: HeroState, t: number): boolean {
+  return (h.stunnedUntilT ?? 0) > t;
+}
+
+/** Who dealt a hit, and whether it was a chain rung — the two facts the
+ * payoff rules need beyond the damage number itself. */
+interface DamageOpts {
+  source?: HeroState;
+  chain?: boolean;
+}
 
 /**
  * Applies `amount` damage starting at the hero with id `startId`, overflowing
@@ -12,7 +82,7 @@ import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "
  * applies at most its target's remaining HP and stops there regardless of
  * whether damage is left over. A normal attack (and a wind-up hit) always
  * spills; every chain effect passes `spillOverkill = false` instead — each
- * rung's damage effect (strikeAll, poundBiggest) already resolves against its
+ * rung's damage effect (scorch, expose) already resolves against its
  * own freshly-chosen target(s), so letting overkill leak onto whichever body
  * happens to sit next in list order would go around that choice rather than
  * respect it. Returns the ids of heroes that
@@ -20,6 +90,12 @@ import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "
  * side didn't have enough total HP to absorb it, or if spill is off and the
  * target alone couldn't), which the caller credits to the attacker's `dealt`
  * counter, and `lost` (== amount - applied) for reporting.
+ *
+ * Marks (2026-09-30): each body's Exposed stacks scale the hit up, then its
+ * Shield absorbs before HP. `remaining` stays in the ORIGINAL (pre-scaling)
+ * units so overkill spill still carries over correctly. `applied` is the HP
+ * actually removed, so `dealt` and charge credit include the Exposed bonus and
+ * exclude what a Shield soaked. `absorbed` is the Shield total, for reporting.
  */
 function applyDamageFrom(
   side: SideState,
@@ -27,24 +103,69 @@ function applyDamageFrom(
   amount: number,
   chargeWeightSoaked = 0,
   spillOverkill = true,
-): { died: string[]; applied: number; lost: number } {
+  opts?: DamageOpts,
+): { died: string[]; applied: number; lost: number; absorbed: number } {
   const startIdx = side.heroes.findIndex((h) => h.id === startId);
-  if (startIdx < 0) return { died: [], applied: 0, lost: amount };
+  if (startIdx < 0) return { died: [], applied: 0, lost: amount, absorbed: 0 };
+  const c = ctx;
   let remaining = amount;
+  let applied = 0;
+  let absorbedTotal = 0;
   const died: string[] = [];
   for (let i = startIdx; i < side.heroes.length && remaining > 0; i++) {
     const hero = side.heroes[i];
     if (!hero || !hero.alive || hero.hp <= 0) continue;
-    const taken = Math.min(hero.hp, remaining);
+    const onEnemySide = c !== null && side === c.enemy;
+    let mult = 1;
+    if (c && hero.marks && hero.marks.exposed > 0) mult += hero.marks.exposed * c.cfg.exposedDamagePerStack;
+    if (c && onEnemySide && c.payoffs.has("shatter") && isFrozen(hero, c.t)) {
+      mult *= c.cfg.shatterMult;
+      firePayoff(c, "shatter", "enemy", hero.id, c.cfg.shatterMult);
+    }
+    let incoming = remaining * mult;
+    let absorbed = 0;
+    if (c && hero.marks && hero.marks.shield > 0) {
+      absorbed = Math.min(hero.marks.shield, incoming);
+      hero.marks.shield -= absorbed;
+      incoming -= absorbed;
+      absorbedTotal += absorbed;
+      c.events.push({ type: "shieldAbsorb", t: c.t, side: sideLabelOf(c, side), targetId: hero.id, amount: absorbed });
+      // Spiked shield: the attacker that hit a Shield pays for it.
+      const source = opts?.source;
+      if (c.payoffs.has("spikedShield") && source && source.alive && !side.heroes.includes(source)) {
+        addExposed(c, source, c.cfg.spikedShieldExposeStacks);
+        firePayoff(c, "spikedShield", sideLabelOf(c, side) === "enemy" ? "player" : "enemy", source.id, c.cfg.spikedShieldExposeStacks);
+      }
+    }
+    let taken = Math.min(hero.hp, incoming);
     hero.hp -= taken;
+    // Execute: an Exposed enemy pushed to or below the line dies outright.
+    if (c && onEnemySide && c.payoffs.has("execute") && hero.hp > 0 && hero.marks && hero.marks.exposed > 0) {
+      if (hero.hp / hero.maxHp <= c.cfg.executeHpFraction) {
+        taken += hero.hp;
+        hero.hp = 0;
+        firePayoff(c, "execute", "enemy", hero.id, 0);
+      }
+    }
     hero.soaked += taken;
     hero.charge += taken * chargeWeightSoaked;
     hero.hitsTaken += 1;
-    remaining -= taken;
+    applied += taken;
+    remaining -= (absorbed + Math.min(taken, incoming)) / mult;
+    if (remaining < 1e-6) remaining = 0;
     if (hero.hp <= 0) {
       hero.hp = 0;
       hero.alive = false;
       died.push(hero.id);
+      // Spread: a burning enemy's death hands its Burn to the next body.
+      if (c && onEnemySide && c.payoffs.has("spread") && hero.marks && hero.marks.burn > 0) {
+        const next = side.heroes.find((h) => h !== hero && h.alive && h.hp > 0);
+        if (next) {
+          addBurn(next, hero.marks.burn);
+          next.burnFrom = hero.burnFrom;
+          firePayoff(c, "spread", "enemy", next.id, hero.marks.burn);
+        }
+      }
     }
     if (!spillOverkill) break;
   }
@@ -58,7 +179,7 @@ function applyDamageFrom(
     side.guardHeroId = null;
     side.guardInverted = false;
   }
-  return { died, applied: amount - remaining, lost: remaining };
+  return { died, applied, lost: remaining, absorbed: absorbedTotal };
 }
 
 /** The front-most living hero — a normal attack's deterministic target when
@@ -262,7 +383,7 @@ function lowestHpAliveHero(side: SideState, excludeId?: string): HeroState | und
 }
 
 /** The living body missing the most HP — triage. Every heal picks its target
- * with this: the per-beat heal in performHeroAction and the "mendOne" chain
+ * with this: the per-beat heal in performHeroAction and the "mend" chain
  * rung in resolveChainHit. Returns undefined when nobody on the side is
  * damaged, which both callers already treat as "nothing to do."
  *
@@ -294,9 +415,21 @@ function mostWoundedAliveHero(side: SideState): HeroState | undefined {
   return best;
 }
 
-/** Mirror of lowestHpAliveHero above, for the "poundBiggest" chain effect
- * (Rook's identity — config.ts's ChainEffect). Strict `>` so the FIRST body
- * in list order wins an exact tie — matching lowestHpAliveHero's own strict
+/** The living body with the lowest HP FRACTION — Mend's fallback target when
+ * nobody is hurt and the whole rung becomes Shield (2026-09-30). First body in
+ * list order wins an exact tie, same convention as the pickers around it. */
+function lowestFractionAliveHero(side: SideState): HeroState | undefined {
+  let best: HeroState | undefined;
+  for (const h of side.heroes) {
+    if (!h.alive || h.hp <= 0) continue;
+    if (!best || h.hp / h.maxHp < best.hp / best.maxHp) best = h;
+  }
+  return best;
+}
+
+/** Mirror of lowestHpAliveHero above, for the "expose" chain effect
+ * (formerly poundBiggest — config.ts's ChainEffect). Strict `>` so the FIRST
+ * body in list order wins an exact tie — matching lowestHpAliveHero's own strict
  * `<`. Not cosmetic: Twins and Glass Pair (sim/encounters.ts) seed their two
  * bodies at identical HP, so this comparison is what decides which one Rook's
  * chain commits to on hit 1. Re-picked every rung (not locked at ignition
@@ -347,6 +480,9 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
     stunnedUntilT: h.stunnedUntilT,
     stunnedFromT: h.stunnedFromT,
     stunnedHeld: h.stunnedHeld,
+    marks: h.marks
+      ? { exposed: h.marks.exposed, burn: h.marks.burn, shield: h.marks.shield }
+      : { exposed: 0, burn: 0, shield: 0 },
   }));
 }
 
@@ -358,7 +494,7 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
  * exercised, since only the player side is ever scanned to ignite a chain. */
 function resolveChainPlan(cfg: FightConfig, hero: HeroState): ChainPlan {
   return {
-    effects: hero.chainEffects ?? ["poundBiggest"],
+    effects: hero.chainEffects ?? ["expose"],
     backfireChance: backfireChanceFor(cfg, hero.chainAffinity),
   };
 }
@@ -374,6 +510,10 @@ function cloneHeroes(heroes: HeroState[], cfg: FightConfig): HeroState[] {
     // persists across the whole run; see types.ts's HeroState.charge.
     windupFireT: undefined,
     windupTargetId: undefined,
+    // Marks last one fight, so a body starts clean — unless a caller (a
+    // check, the lab) deliberately pre-seeds some on the setup it hands in.
+    marks: h.marks ? { ...h.marks } : { exposed: 0, burn: 0, shield: 0 },
+    burnFrom: undefined,
     chainPlan: resolveChainPlan(cfg, h),
   }));
 }
@@ -426,8 +566,21 @@ function performHeroAction(
     targeting === "front" ? frontMostAliveId(defenderSide) : pickEnemyTargetId(defenderSide, rng, cfg, enemyTargetTally);
   if (!targetId) return;
   const base = (hero.damage + (isPlayerAttacker ? attackerSide.dpsBonus : 0)) * damageMultiplier;
-  const damage = rollDamage(base, rng, cfg.damageVariance);
-  const { died, applied } = applyDamageFrom(defenderSide, targetId, damage, cfg.chargeWeightSoaked);
+  let damage = rollDamage(base, rng, cfg.damageVariance);
+  // Punish: a player tank's normal hit on an Exposed body cashes the stacks in
+  // for extra damage. Consumed BEFORE the hit lands so the same stacks don't
+  // also amplify it through applyDamageFrom.
+  if (ctx && isPlayerAttacker && hero.role === "tank" && ctx.payoffs.has("punish")) {
+    const victim = defenderSide.heroes.find((h) => h.id === targetId);
+    const stacks = victim?.marks?.exposed ?? 0;
+    if (victim && stacks > 0) {
+      const bonus = Math.max(1, Math.round(hero.damage * cfg.punishDamagePerStack * stacks));
+      damage += bonus;
+      victim.marks!.exposed = 0;
+      firePayoff(ctx, "punish", "enemy", victim.id, bonus);
+    }
+  }
+  const { died, applied } = applyDamageFrom(defenderSide, targetId, damage, cfg.chargeWeightSoaked, true, { source: hero });
   hero.dealt += applied;
   hero.charge += applied * cfg.chargeWeightDealt;
   events.push({ type: "attack", t, side: attackerSideLabel, attackerId: hero.id, targetId, damage });
@@ -524,6 +677,16 @@ function handleBruiserBeat(
         targetId = guardian.id;
         redirect = "guard";
         player.guardCharges = (player.guardCharges ?? 0) - 1;
+        // Guard's mark (2026-09-30): the slam it just took leaves the slammer
+        // Exposed — one stack, plus one per chain "+N" on the guardian.
+        if (ctx) {
+          addExposed(ctx, hero, markStacks(guardian.chainLevel ?? 1));
+          // Bulwark: a blocked slam also shields the whole squad.
+          if (ctx.payoffs.has("bulwark")) {
+            for (const ally of player.heroes) if (ally.alive && ally.hp > 0) addShield(ctx, ally, cfg.bulwarkShield);
+            firePayoff(ctx, "bulwark", "player", guardian.id, cfg.bulwarkShield);
+          }
+        }
       }
     }
 
@@ -533,7 +696,7 @@ function handleBruiserBeat(
     hero.nextAttackT = t + hero.attackIntervalSec;
     if (!targetId) return false;
     const damage = Math.max(1, Math.round(hero.damage * cfg.windupDamageMultiplier));
-    const { died, applied } = applyDamageFrom(player, targetId, damage, cfg.chargeWeightSoaked);
+    const { died, applied } = applyDamageFrom(player, targetId, damage, cfg.chargeWeightSoaked, true, { source: hero });
     hero.dealt += applied;
     events.push({ type: "windupHit", t, sourceId: hero.id, targetId, damage, originalTargetId, redirect });
     for (const id of died) events.push({ type: "heroDown", t, side: "player", heroId: id });
@@ -570,29 +733,28 @@ function handleBruiserBeat(
  * escalatedDurationSec below, which deliberately skips both the rounding and
  * chainHitMultiplier (a duration isn't damage).
  *
- * `level` (2026-09-23, roles/rounds rebuild — see sim/progress.ts's
- * RoleProgress and roster.ts's stampProgressOntoSquad) is the firing unit's
- * OWN chainLevel, a role-wide upgrade earned via an offer: level 1 (the
- * default — every pre-existing call site that never passes it) is a no-op
- * multiplier. */
-function escalatedMagnitude(cfg: FightConfig, base: number, hitIndex: number, level = 1): number {
-  return Math.max(1, Math.round(base * cfg.chainHitMultiplier * chainEscalationFactor(cfg, hitIndex) * level));
+ * The firing unit's chainLevel no longer scales this (2026-09-30): a chain
+ * "+N" now means one extra MARK stack per rung — see markStacks — so damage
+ * and heal size come from the curve alone. */
+function escalatedMagnitude(cfg: FightConfig, base: number, hitIndex: number): number {
+  return Math.max(1, Math.round(base * cfg.chainHitMultiplier * chainEscalationFactor(cfg, hitIndex)));
 }
 
 /** Same curve as escalatedMagnitude, for a "stun" rung's duration in seconds
  * — no rounding, no chainHitMultiplier (a duration is not damage). "guard"
  * no longer escalates on this curve (see resolveChainHit's guard case,
  * 2026-09-15) — its per-rung value is a flat charge, since a charge has no
- * magnitude of its own to escalate. See escalatedMagnitude's own docstring
- * for `level`. */
+ * magnitude of its own to escalate. Freeze has no stacks, so it is the one
+ * effect where the firing unit's `level` (2026-09-23) still scales the
+ * number: a chain "+N" makes each freeze rung last longer. */
 function escalatedDurationSec(cfg: FightConfig, baseSec: number, hitIndex: number, level = 1): number {
   return baseSec * chainEscalationFactor(cfg, hitIndex) * level;
 }
 
 /** One target's outcome from a single chain rung. Attack/heal effects that
- * hit several bodies at once (strikeAll, mendAll) produce one of these PER
+ * hit several bodies at once (scorch, ward) produce one of these PER
  * living body; the caller (runFight) pushes one chainHit event per entry, all
- * sharing the same hitIndex and tick — which is what makes strikeAll read as
+ * sharing the same hitIndex and tick — which is what makes scorch read as
  * "everyone at once" on the same frame instead of needing its own event
  * shape. "guard" produces a single entry with the guarding hero's own id as
  * targetId (side-level, but the guardian is who the pip belongs to) and
@@ -616,6 +778,12 @@ interface ChainHitEntry {
   charges?: number;
   /** "guard" only — the guardian's full pool after this rung's grant. */
   chargesTotal?: number;
+  /** The mark this rung left on `targetId` and how much of it (2026-09-30):
+   * stacks for exposed/burn, HP-equivalents for shield. Unset when the rung
+   * left none (freeze's Frozen rides on the stun fields; guard's Exposed
+   * lands later, on the slam). */
+  mark?: "exposed" | "burn" | "shield";
+  markStacks?: number;
 }
 
 /** Resolves ONE ability's outcome for a single chain rung — the body of the
@@ -655,55 +823,113 @@ function resolveOneEffect(
   // every version of this mechanic has used. "guard" is side-level (always
   // the player) and "stun" picks its own target per branch below, so neither
   // reads this.
-  const isHealEffect = effect === "mendAll" || effect === "mendOne";
+  const isHealEffect = effect === "ward" || effect === "mend";
   const targetSide = isHealEffect ? (backfire ? enemy : player) : backfire ? player : enemy;
+  // Marks are only in play inside runFight (ctx set); every branch below that
+  // leaves one guards on this. Stacks per rung: 1, plus one per chain "+N".
+  const c = ctx;
+  const stacks = markStacks(level);
+  const dmgOpts: DamageOpts = { source: hero, chain: true };
 
   switch (effect) {
-    case "strikeAll": {
+    case "scorch": {
       const targets = targetSide.heroes.filter((h) => h.alive && h.hp > 0);
       if (targets.length === 0) return null;
-      const damage = escalatedMagnitude(cfg, cfg.chainStrikeAllBase, hitIndex, level);
+      const damage = escalatedMagnitude(cfg, cfg.chainScorchBase, hitIndex);
       return targets.map((target) => {
-        const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false);
+        const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false, dmgOpts);
         hero.dealt += applied;
-        return { kind: "damage" as const, targetId: target.id, amount: applied, intended: damage, died };
+        // Burn on every body it hit that is still standing; the claim on it
+        // (burnFrom) only goes to a real payoff, not a backfire.
+        let marked = false;
+        if (c && !died.includes(target.id)) {
+          addBurn(target, stacks);
+          if (!backfire) target.burnFrom = hero.id;
+          marked = true;
+        }
+        return {
+          kind: "damage" as const,
+          targetId: target.id,
+          amount: applied,
+          intended: damage,
+          died,
+          ...(marked ? { mark: "burn" as const, markStacks: stacks } : {}),
+        };
       });
     }
-    case "poundBiggest": {
+    case "expose": {
       const target = highestHpAliveHero(targetSide);
       if (!target) return null;
-      const damage = escalatedMagnitude(cfg, cfg.chainPoundBase, hitIndex, level);
-      const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false);
+      const damage = escalatedMagnitude(cfg, cfg.chainExposeBase, hitIndex);
+      const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false, dmgOpts);
       hero.dealt += applied;
-      return [{ kind: "damage" as const, targetId: target.id, amount: applied, intended: damage, died }];
+      let marked = false;
+      if (c && !died.includes(target.id)) {
+        addExposed(c, target, stacks);
+        marked = true;
+      }
+      return [
+        {
+          kind: "damage" as const,
+          targetId: target.id,
+          amount: applied,
+          intended: damage,
+          died,
+          ...(marked ? { mark: "exposed" as const, markStacks: stacks } : {}),
+        },
+      ];
     }
-    case "mendAll": {
-      const allies = targetSide.heroes.filter((h) => h.alive && h.hp > 0 && h.hp < h.maxHp);
+    case "ward": {
+      const allies = targetSide.heroes.filter((h) => h.alive && h.hp > 0);
       if (allies.length === 0) return null;
-      const raw = escalatedMagnitude(cfg, cfg.chainMendAllBase, hitIndex, level);
+      const raw = escalatedMagnitude(cfg, cfg.chainWardBase, hitIndex);
+      const shieldRaw = escalatedMagnitude(cfg, cfg.chainWardShield, hitIndex) + (level - 1) * cfg.chainShieldPerLevel;
       return allies.map((target) => {
+        const room = target.maxHp - target.hp;
         const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
-        const amount = Math.max(1, Math.min(raw, cap, target.maxHp - target.hp));
+        const amount = room > 0 ? Math.max(1, Math.min(raw, cap, room)) : 0;
         target.hp += amount;
         if (!backfire) hero.restored += amount;
-        return { kind: "heal" as const, targetId: target.id, amount, intended: raw, died: [] as string[] };
+        const shield = c ? addShield(c, target, shieldRaw) : 0;
+        return {
+          kind: "heal" as const,
+          targetId: target.id,
+          amount,
+          intended: raw,
+          died: [] as string[],
+          ...(shield > 0 ? { mark: "shield" as const, markStacks: shield } : {}),
+        };
       });
     }
-    case "mendOne": {
-      const target = mostWoundedAliveHero(targetSide);
+    case "mend": {
+      // Worst-hurt ally; with nobody hurt it falls back to the lowest-HP-fraction
+      // body so the whole rung becomes Shield instead of whiffing.
+      const target = mostWoundedAliveHero(targetSide) ?? lowestFractionAliveHero(targetSide);
       if (!target) return null;
       const room = target.maxHp - target.hp;
-      if (room <= 0) return null;
       // Chain heals get their own, much higher cap than a normal heal beat
       // (2026-08-15 — see config.ts's chainHealMaxFractionOfTargetMaxHp
       // docstring): at the shared normal-beat cap, a support's chain was
       // capped to single digits regardless of length.
       const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
-      const raw = escalatedMagnitude(cfg, cfg.chainMendOneBase, hitIndex, level);
-      const amount = Math.max(1, Math.min(raw, cap, room));
+      const raw = escalatedMagnitude(cfg, cfg.chainMendBase, hitIndex);
+      const potent = Math.min(raw, cap);
+      const amount = room > 0 ? Math.max(1, Math.min(potent, room)) : 0;
       target.hp += amount;
       if (!backfire) hero.restored += amount;
-      return [{ kind: "heal" as const, targetId: target.id, amount, intended: raw, died: [] as string[] }];
+      // Healing past full HP becomes Shield, plus a flat extra per chain "+N".
+      const overflow = Math.max(0, potent - room);
+      const shield = c ? addShield(c, target, overflow + (level - 1) * cfg.chainShieldPerLevel) : 0;
+      return [
+        {
+          kind: "heal" as const,
+          targetId: target.id,
+          amount,
+          intended: raw,
+          died: [] as string[],
+          ...(shield > 0 ? { mark: "shield" as const, markStacks: shield } : {}),
+        },
+      ];
     }
     case "guard": {
       // Side-level, not aimed at a body — always writes to the PLAYER side,
@@ -721,10 +947,10 @@ function resolveOneEffect(
       // ~20-second fight has slams to spend them on. Total protection still
       // rises with chain length, which is what the curve is linear on below
       // the knee — this just stops pretending a 7th rung buys 7x as much of
-      // something a player could ever observe. `level` still applies here
-      // (2026-09-23, roles/rounds rebuild) — a role-wide chain upgrade
-      // should make guard cover more slams too, not skip it.
-      const charges = Math.max(1, Math.round(cfg.chainGuardChargesPerRung * level));
+      // something a player could ever observe. `level` no longer scales the
+      // charges (2026-09-30): a chain "+N" makes each BLOCKED slam leave
+      // more Exposed on the slammer instead (handleBruiserBeat).
+      const charges = Math.max(1, Math.round(cfg.chainGuardChargesPerRung));
       player.guardCharges = (player.guardCharges ?? 0) + charges;
       player.guardHeroId = hero.id;
       player.guardInverted = backfire;
@@ -750,7 +976,13 @@ function resolveOneEffect(
       const targetSideForLookup = backfire ? player : enemy;
       const target = targetId ? targetSideForLookup.heroes.find((h) => h.id === targetId) : undefined;
       if (!target) return null;
-      const sec = escalatedDurationSec(cfg, cfg.chainStunBaseSec, hitIndex, level);
+      let sec = escalatedDurationSec(cfg, cfg.chainStunBaseSec, hitIndex, level);
+      // Deep freeze: freezing an Exposed enemy lasts longer. Only ever a
+      // payoff on the real (non-backfire) side.
+      if (c && !backfire && c.payoffs.has("deepFreeze") && (target.marks?.exposed ?? 0) > 0) {
+        sec *= cfg.deepFreezeMult;
+        firePayoff(c, "deepFreeze", "enemy", target.id, cfg.deepFreezeMult);
+      }
       // Additive across the whole CHAIN (2026-09-15 freeze-visibility pass,
       // held continuously since 2026-09-16 — see runFight's per-tick pin
       // below, which is what actually keeps this from lapsing between
@@ -799,8 +1031,8 @@ function resolveOneEffect(
  * Tu's "every hit does both."
  *
  * Returns null only when EVERY ability in the list had nothing to do (e.g. a
- * healer's mendOne with the squad topped up — before a second ability was
- * ever gained, this was the only case that could happen). The caller treats
+ * scorch with every enemy already dead; a mend with nobody hurt no longer
+ * counts, since 2026-09-30 it lands as Shield instead). The caller treats
  * that exactly like a failed continuation roll: the chain ends. Once a
  * second ability is live, one ability whiffing no longer ends the chain by
  * itself — a heal chain that gains a damage ability still fires the damage
@@ -816,7 +1048,7 @@ function resolveChainHit(
   backfire: boolean,
   stunHeld: Map<string, number>,
 ): ChainHitEntry[] | null {
-  const effects = hero.chainPlan?.effects ?? ["poundBiggest"];
+  const effects = hero.chainPlan?.effects ?? ["expose"];
   // The firing unit's own role-wide chain level (2026-09-23, roles/rounds
   // rebuild — see escalatedMagnitude's docstring). 1 (no-op) for anything
   // that never sets it, e.g. an enemy — enemies never chain, so this is only
@@ -838,9 +1070,55 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   // Work on private copies so the caller's setup objects aren't mutated.
   const player: SideState = { heroes: cloneHeroes(setup.player.heroes, cfg), dpsBonus: setup.player.dpsBonus };
   const enemy: SideState = { heroes: cloneHeroes(setup.enemy.heroes, cfg), dpsBonus: setup.enemy.dpsBonus };
-
   const events: FightEvent[] = [];
+
+  // The marks/payoff context (see FightCtx's docstring) is live only for the
+  // duration of this call.
+  ctx = { events, t: 0, cfg, payoffs: new Set(setup.payoffs ?? []), player, enemy };
+  try {
+    return runFightLoop(events, player, enemy, cfg, rng, seed);
+  } finally {
+    ctx = null;
+  }
+}
+
+/** Applies one Burn tick to every burning body on both sides, then decays the
+ * stacks. Returns the fight's outcome if a tick wiped a side. A Burn tick's
+ * damage credits the unit that set it burning (HeroState.burnFrom) with
+ * `dealt` and charge, so Scorch fills the Damage role's own chain meter like
+ * any other job. */
+function tickBurn(events: FightEvent[], t: number, cfg: FightConfig, c: FightCtx): "win" | "loss" | null {
+  for (const side of [c.enemy, c.player]) {
+    const label: Side = side === c.enemy ? "enemy" : "player";
+    for (const hero of side.heroes) {
+      const burn = hero.marks?.burn ?? 0;
+      if (!hero.alive || hero.hp <= 0 || burn <= 0) continue;
+      let damage = burn * cfg.burnDamagePerStack;
+      // Open wound: burn ticks on an Exposed enemy count extra.
+      if (label === "enemy" && c.payoffs.has("openWound") && (hero.marks?.exposed ?? 0) > 0) {
+        damage *= cfg.openWoundMult;
+        firePayoff(c, "openWound", "enemy", hero.id, Math.round(damage));
+      }
+      const { died, applied } = applyDamageFrom(side, hero.id, damage, 0, false);
+      events.push({ type: "burnTick", t, side: label, targetId: hero.id, amount: applied });
+      const source = hero.burnFrom ? c.player.heroes.find((h) => h.id === hero.burnFrom) : undefined;
+      if (source && label === "enemy") {
+        source.dealt += applied;
+        if (source.alive) source.charge += applied * cfg.chargeWeightDealt;
+      }
+      for (const id of died) events.push({ type: "heroDown", t, side: label, heroId: id });
+      hero.marks!.burn = Math.max(0, burn - cfg.burnDecayPerTick);
+    }
+  }
+  if (isWiped(c.enemy)) return "win";
+  if (isWiped(c.player)) return "loss";
+  return null;
+}
+
+function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState, cfg: FightConfig, rng: Rng, seed: number): FightResult {
   const snapshots: TickSnapshot[] = [];
+  // Burn ticks on one fight-wide clock, not per body (cfg.burnTickSec).
+  let nextBurnT = cfg.burnTickSec;
 
   const dt = 1 / cfg.tickRate;
   const maxTicks = Math.round(cfg.maxFightSec * cfg.tickRate);
@@ -924,6 +1202,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   for (let tick = 1; tick <= maxTicks; tick++) {
     const t = tick * dt;
     endT = t;
+    ctx!.t = t;
 
     // Player heroes act on their own beats, targeting the front-most living
     // enemy — deterministic, so the player can reliably focus down the
@@ -974,6 +1253,8 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
               durationTotalSec: hit.durationTotalSec,
               charges: hit.charges,
               chargesTotal: hit.chargesTotal,
+              mark: hit.mark,
+              markStacks: hit.markStacks,
             });
             for (const id of hit.died) events.push({ type: "heroDown", t, side: downSide, heroId: id });
             chainDamageSoFar += hit.amount;
@@ -1028,6 +1309,13 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         }
         if (wiped) outcome = "loss";
       }
+    }
+
+    // Burn ticks (2026-09-30): after both sides' beats, before the tank check
+    // below so a tick that drops the tank's HP is seen this same tick.
+    if (!outcome && t >= nextBurnT) {
+      nextBurnT += cfg.burnTickSec;
+      outcome = tickBurn(events, t, cfg, ctx!);
     }
 
     // A tank's line can break (or recover, if healed back up) on any beat
@@ -1096,7 +1384,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
         // why this keeps the RNG stream identical to today's game.
         const rolled = rng.chance(backfireChanceFor(cfg, ready.chainAffinity));
         chainBackfire = cfg.forceBackfire === undefined ? rolled : cfg.forceBackfire === "always";
-        hotEffects = ready.chainPlan?.effects ?? ["poundBiggest"];
+        hotEffects = ready.chainPlan?.effects ?? ["expose"];
         bonusHitsLanded = 0;
         chainDamageSoFar = 0;
         chainStunSoFar = 0;

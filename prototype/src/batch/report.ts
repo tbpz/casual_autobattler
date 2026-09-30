@@ -1,5 +1,6 @@
 import type { RunConfig } from "../sim/config.js";
 import type { RunResult } from "../sim/run.js";
+import type { PayoffId } from "../sim/payoffs.js";
 
 /**
  * Aggregates N runs into the distribution report archive/PROTOTYPE_PLAN.md's
@@ -174,6 +175,11 @@ export interface BatchReport {
   guardChargesGranted: number;
   slamsRedirected: number;
   fractionGuardChargesSpent: number;
+  /** 2026-09-30 (marks and payoffs): how many times each payoff card fired
+   * across all fights, and how many runs took it — a card taken but never
+   * triggered is dead weight. Only cards taken at least once appear. */
+  payoffTriggers: Partial<Record<PayoffId, number>>;
+  payoffTaken: Partial<Record<PayoffId, number>>;
 }
 
 /**
@@ -208,6 +214,8 @@ export class BatchAggregator {
   private fightsWithChain5Plus = 0;
   private guardChargesGranted = 0;
   private slamsRedirected = 0;
+  private payoffTriggers: Partial<Record<PayoffId, number>> = {};
+  private payoffTaken: Partial<Record<PayoffId, number>> = {};
   // One scalar per fight (fr.durationSec), not the fight's own per-tick
   // snapshot array — see this file's top docstring, 2026-08-26 entry.
   private durations: number[] = [];
@@ -232,6 +240,11 @@ export class BatchAggregator {
         if (f.chainLength >= 3) this.winsWithChain3Plus++;
         if (f.chainLength === 0) this.winsWithNoChain++;
       }
+    }
+
+    for (const round of r.rounds) {
+      const taken = round.offerTaken;
+      if (taken?.kind === "payoff" && taken.payoff) this.payoffTaken[taken.payoff] = (this.payoffTaken[taken.payoff] ?? 0) + 1;
     }
 
     for (const fr of r.fightResults) {
@@ -294,7 +307,8 @@ export class BatchAggregator {
    * "guardBackfire") — see this file's top docstring, 2026-09-15 entry. */
   private countGuardActivity(events: RunResult["fightResults"][number]["events"]): void {
     for (const e of events) {
-      if (e.type === "chainHit" && e.kind === "guard") this.guardChargesGranted += e.charges ?? 0;
+      if (e.type === "payoffTriggered") this.payoffTriggers[e.payoff] = (this.payoffTriggers[e.payoff] ?? 0) + 1;
+      else if (e.type === "chainHit" && e.kind === "guard") this.guardChargesGranted += e.charges ?? 0;
       else if (e.type === "windupHit" && (e.redirect === "guard" || e.redirect === "guardBackfire")) this.slamsRedirected++;
     }
   }
@@ -356,6 +370,8 @@ export class BatchAggregator {
       guardChargesGranted: this.guardChargesGranted,
       slamsRedirected: this.slamsRedirected,
       fractionGuardChargesSpent: this.guardChargesGranted > 0 ? this.slamsRedirected / this.guardChargesGranted : 0,
+      payoffTriggers: this.payoffTriggers,
+      payoffTaken: this.payoffTaken,
     };
   }
 }
@@ -388,6 +404,7 @@ export function formatReport(report: BatchReport, label: string): string {
     `  backfire rate:         ${(report.backfireRate * 100).toFixed(1)}%  (fraction of fights with >=1 backfire)`,
     `  chains backfired:      ${(report.fractionChainsBackfired * 100).toFixed(1)}%  (tracks the pool's chain-weighted mean backfireChanceFor)`,
     `  guard charges spent:   ${(report.fractionGuardChargesSpent * 100).toFixed(1)}%  (${report.slamsRedirected}/${report.guardChargesGranted} — bounded by opportunity, not by the mechanism; see this file's docstring)`,
+    `  payoff triggers:       ${Object.keys(report.payoffTaken).length === 0 ? "(none held)" : Object.keys(report.payoffTaken).map((id) => `${id}=${report.payoffTriggers[id as PayoffId] ?? 0} (taken ${report.payoffTaken[id as PayoffId]}x)`).join("  ")}`,
   ];
   return lines.join("\n");
 }

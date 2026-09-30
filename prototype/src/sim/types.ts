@@ -5,6 +5,7 @@
  * living hero on the opposing side (see fight.ts's targeting helpers).
  */
 import type { ChainEffect } from "./config.js";
+import type { PayoffId } from "./payoffs.js";
 
 export type Role = "tank" | "damage" | "support" | "bruiser" | "grunt";
 
@@ -73,13 +74,13 @@ export interface HeroState {
    * file's ChainPlan docstring. Undefined until fight.ts's cloneHeroes sets
    * it; enemies get one too (harmless — never read). */
   chainPlan?: ChainPlan;
-  /** 2026-09-23 (roles/rounds rebuild): multiplies this hero's chain rung
-   * magnitude/duration (fight.ts's escalatedMagnitude/escalatedDurationSec)
-   * — a role-wide upgrade, earned via an offer (sim/offers.ts's
-   * "chainLevel") and stamped onto every fielded unit of that role at
-   * squad-build time (sim/roster.ts's stampProgressOntoSquad), not carried
-   * per-unit. Undefined/1 is a no-op, so every pre-existing call site that
-   * never sets this behaves exactly as before. */
+  /** 2026-09-23 (roles/rounds rebuild), reinterpreted 2026-09-30: the chain's
+   * "+N" upgrade count plus one. Each level above 1 leaves ONE EXTRA mark
+   * stack per rung (fight.ts's markStacks) — and, for Freeze, scales the
+   * seconds. It no longer multiplies damage or heal size. A role-wide upgrade,
+   * earned via an offer (sim/offers.ts's "chainLevel") and stamped onto every
+   * fielded unit of that role at squad-build time (sim/roster.ts's
+   * stampProgressOntoSquad), not carried per-unit. Undefined/1 is a no-op. */
   chainLevel?: number;
   /** Set by Hollow's "stun" chain effect (config.ts's ChainEffect) —
    * sim-clock time this hero is unable to act until. Read by the beat loop
@@ -172,6 +173,22 @@ export interface HeroState {
    * telegraph resolves, whether or not it ends up spending a real charge.
    * Only matters when two bruisers wind up under one shared guard. */
   windupGuardClaimed?: boolean;
+
+  /** Stack marks on this body (2026-09-30 — config.ts's MarkId; Frozen is the
+   * stun fields above, not a stack). Reset to zero at fight start by
+   * fight.ts's cloneHeroes and never carried between fights. Undefined is
+   * the same as all zeros, so a body built anywhere else needs no change. */
+  marks?: Marks;
+  /** The unit whose Scorch last set this body burning — Burn ticks credit
+   * their damage to it (dealt and charge), so the Damage role's job still
+   * fills its own chain meter. Undefined when nobody claims the burn. */
+  burnFrom?: string;
+}
+
+export interface Marks {
+  exposed: number;
+  burn: number;
+  shield: number;
 }
 
 export interface SideState {
@@ -227,4 +244,7 @@ export function sideLivingCount(side: SideState): number {
 export interface FightSetup {
   player: SideState;
   enemy: SideState;
+  /** The squad-wide payoff cards this run holds (2026-09-30; sim/payoffs.ts).
+   * Optional — checks and lab callers that build a one-off fight omit it. */
+  payoffs?: PayoffId[];
 }

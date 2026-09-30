@@ -15,7 +15,7 @@ import type { HeroState, Role, SideState } from "./types.js";
  * hero anchored that archetype (Bracer/Rook/Cairn), so nothing needed a
  * from-scratch retune. A role's BASE chain effect is exactly the identity
  * that hero carried; the three effects the other three heroes carried
- * (Hollow's stun, Vex's strikeAll, Ward's mendAll) are what a "chainGain"
+ * (Hollow's stun, Vex's scorch, Ward's ward — formerly strikeAll and mendAll) are what a "chainGain"
  * offer (sim/offers.ts) lets a role grow INTO — added alongside the base
  * ability, never swapped for it (2026-09-29, add-don't-swap — see
  * DECISIONS.md) — Tu's own ask: "there's a chance user can upgrade the chain
@@ -40,8 +40,8 @@ export const ROLE_LABEL: Record<PlayerRole, string> = {
  * each role's base identity. */
 export const ROLE_CHAIN_UPGRADE: Record<PlayerRole, ChainEffect> = {
   tank: "stun",
-  damage: "strikeAll",
-  support: "mendAll",
+  damage: "scorch",
+  support: "ward",
 };
 
 export interface RoleDef {
@@ -71,11 +71,11 @@ export const ROLE_POOL: Record<PlayerRole, RoleDef> = {
   },
   damage: {
     role: "damage", label: ROLE_LABEL.damage, maxHp: 80, damage: 8, attackIntervalSec: 1.1,
-    chainAffinity: 1.3, baseChain: "poundBiggest",
+    chainAffinity: 1.3, baseChain: "expose",
   },
   support: {
     role: "support", label: ROLE_LABEL.support, maxHp: 100, damage: 2, attackIntervalSec: 1.1, healPerBeat: 6,
-    chainAffinity: 1.0, baseChain: "mendOne",
+    chainAffinity: 1.0, baseChain: "mend",
   },
 };
 

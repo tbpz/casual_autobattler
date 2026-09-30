@@ -1,5 +1,8 @@
 import type { Rng } from "./rng.js";
 import type { ChainEffect, RunConfig } from "./config.js";
+import { chainEffectVerb } from "./config.js";
+import type { PayoffId } from "./payoffs.js";
+import { PAYOFF_DEFS, PAYOFF_IDS, payoffConnects, pickPayoffToDrop } from "./payoffs.js";
 import type { SideState } from "./types.js";
 import type { PlayerRole } from "./roles.js";
 import { PLAYER_ROLES, ROLE_CHAIN_UPGRADE, ROLE_LABEL, makeUnitState } from "./roles.js";
@@ -18,7 +21,7 @@ import type { RunProgress } from "./progress.js";
  * so the headless run driver (sim/run.ts) and the interactive UI
  * (render/offerScreen.ts) read the exact same rules.
  */
-export type OfferKind = "chainLevel" | "chainGain" | "recruit" | "statHp" | "statDamage" | "heal" | "revive" | "slot";
+export type OfferKind = "chainLevel" | "chainGain" | "payoff" | "recruit" | "statHp" | "statDamage" | "heal" | "revive" | "slot";
 
 export interface Offer {
   kind: OfferKind;
@@ -27,6 +30,13 @@ export interface Offer {
    * whatever it already does (2026-09-29, add-don't-swap — see
    * DECISIONS.md). */
   effect?: ChainEffect;
+  /** "payoff" only — the squad-wide card this offer adds (2026-09-30;
+   * sim/payoffs.ts). At the payoff cap, taking it means dropping a held one:
+   * applyOffer's `dropPayoffId`. */
+  payoff?: PayoffId;
+  /** "payoff" only — true when the card reads a mark the squad can already
+   * make, so the offer screen can highlight the connection. */
+  connects?: boolean;
   /** "revive" only — which fallen unit this offer brings back, chosen at
    * draw time so applyOffer doesn't have to guess. */
   unitId?: string;
@@ -40,7 +50,13 @@ interface OfferTemplate {
   key: string;
   /** "small" offers are common early, rare late; "big" offers are the
    * reverse — see weightFor below. */
-  size: "small" | "big";
+  size: "small" | "big" | "payoff";
+  /** "payoff" templates only — which card, so drawOffers can tilt the weight
+   * toward cards that connect to what the squad can make. */
+  payoff?: PayoffId;
+  /** "chainGain" templates only — the ability it would add, so drawOffers can
+   * tilt toward a gain that unlocks a payoff card the run already holds. */
+  gainEffect?: ChainEffect;
   eligible(progress: RunProgress, roster: SideState, cfg: RunConfig): boolean;
   build(progress: RunProgress, roster: SideState, cfg: RunConfig): Offer;
 }
@@ -64,7 +80,7 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
           kind: "chainLevel",
           role,
           title: `${label} chain — stronger (+${nextBadge})`,
-          detail: `Every ${label.toLowerCase()}'s chain hits harder and lasts longer.`,
+          detail: `Every ${label.toLowerCase()}'s chain leaves one more mark stack per hit.`,
         };
       },
     });
@@ -72,6 +88,7 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
     templates.push({
       key: `chainGain:${role}`,
       size: "big",
+      gainEffect: ROLE_CHAIN_UPGRADE[role],
       eligible: (progress) => !progress.chain[role].effects.includes(ROLE_CHAIN_UPGRADE[role]),
       build: () => {
         const upgrade = ROLE_CHAIN_UPGRADE[role];
@@ -79,12 +96,7 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
         // does EVERY ability the chain has, so this reads as "also", never
         // "instead of" — Tu: "the chain is upgraded and accumulate these
         // ability, that's all."
-        const line =
-          upgrade === "stun"
-            ? "Also freezes one enemy, cancelling its slam."
-            : upgrade === "strikeAll"
-              ? "Also hits every enemy at once."
-              : "Also heals the whole squad at once.";
+        const line = `Also ${chainEffectVerb(upgrade)}.`;
         return {
           kind: "chainGain",
           role,
@@ -128,6 +140,25 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
         role,
         title: `${label} — harder-hitting`,
         detail: `+${cfg.statDamageStep} damage for every ${label.toLowerCase()}, now and future.`,
+      }),
+    });
+  }
+
+  for (const id of PAYOFF_IDS) {
+    templates.push({
+      key: `payoff:${id}`,
+      size: "payoff",
+      payoff: id,
+      // Not offered until the player has met every mark it reads — seen on an
+      // ability offer or made by the squad — so no card asks for a judgment
+      // about a mark nothing has introduced yet.
+      eligible: (progress) => !progress.payoffs.includes(id) && payoffConnects(id, progress.introduced),
+      build: (progress, roster) => ({
+        kind: "payoff",
+        payoff: id,
+        connects: payoffConnects(id, squadChainEffects(progress, roster)),
+        title: PAYOFF_DEFS[id].title,
+        detail: PAYOFF_DEFS[id].detail,
       }),
     });
   }
@@ -180,6 +211,27 @@ function weightFor(size: "small" | "big", roundsIntoRun: number): number {
   return size === "small" ? 1 - 0.6 * roundsIntoRun : 0.2 + 0.9 * roundsIntoRun;
 }
 
+/** Every chain ability the roster's roles carry right now — what the squad
+ * can make marks with, for the payoff connection test. A role with no unit
+ * on the roster contributes nothing. */
+export function squadChainEffects(progress: RunProgress, roster: SideState): ChainEffect[] {
+  const effects: ChainEffect[] = [];
+  for (const role of PLAYER_ROLES) {
+    if (roster.heroes.some((h) => h.role === role)) effects.push(...progress.chain[role].effects);
+  }
+  return effects;
+}
+
+/** Records every ability a drawn "chainGain" offer puts on screen as
+ * introduced, so payoff cards that read its mark may appear from the next draw
+ * on. Call right after drawOffers; pure. */
+export function noteIntroduced(progress: RunProgress, offers: readonly Offer[]): RunProgress {
+  const fresh = offers
+    .map((o) => (o.kind === "chainGain" ? o.effect : undefined))
+    .filter((e): e is ChainEffect => e !== undefined && !progress.introduced.includes(e));
+  return fresh.length === 0 ? progress : { ...progress, introduced: [...progress.introduced, ...fresh] };
+}
+
 /** Draws cfg.offersPerWin distinct offers, weighted by how far into the run
  * `round` (0-based) is. Never throws on a thin eligible pool — if fewer than
  * offersPerWin templates are eligible, it just returns what it found.
@@ -201,7 +253,26 @@ export function drawOffers(rng: Rng, progress: RunProgress, roster: SideState, c
   const roundsIntoRun = cfg.roundsPerRun > 1 ? round / (cfg.roundsPerRun - 1) : 0;
   const eligible = templatesFor(cfg).filter((t) => t.eligible(progress, roster, cfg));
 
-  const pool = eligible.map((t) => ({ t, weight: Math.max(0.01, weightFor(t.size, roundsIntoRun)) }));
+  // Payoff cards (2026-09-30) draw at a flat weight, boosted when the card
+  // reads a mark the squad can already make — with ~19 picks in a run, a
+  // purely random draw would almost never complete a build.
+  const effects = squadChainEffects(progress, roster);
+  // The mirror tilt: an ability gain that would unlock a payoff card the run
+  // already holds (and that nothing the squad has now unlocks) is boosted the
+  // same way, so holding Shatter makes Freeze show up.
+  const unlocksHeld = (gain: ChainEffect): boolean =>
+    progress.payoffs.some((id) => payoffConnects(id, [gain]) && !payoffConnects(id, effects));
+  const pool = eligible.map((t) => ({
+    t,
+    weight:
+      t.size === "payoff"
+        ? cfg.payoffWeight * (t.payoff && payoffConnects(t.payoff, effects) ? 1 + cfg.payoffConnectBoost : 1)
+        : t.gainEffect
+          ? // An ability gain is a build piece like a payoff card, so it draws at
+            // the same flat weight instead of the late-run ramp of a "big" offer.
+            cfg.payoffWeight * (unlocksHeld(t.gainEffect) ? 1 + cfg.payoffConnectBoost : 1)
+          : Math.max(0.01, weightFor(t.size, roundsIntoRun)),
+  }));
   const chosen: OfferTemplate[] = [];
 
   const living = roster.heroes.filter((h) => h.alive).length;
@@ -225,28 +296,60 @@ export function drawOffers(rng: Rng, progress: RunProgress, roster: SideState, c
     }
   }
 
-  for (let i = chosen.length; i < cfg.offersPerWin && pool.length > 0; i++) {
-    const total = pool.reduce((sum, p) => sum + p.weight, 0);
+  // Guaranteed build pieces (2026-09-30): with a dozen-odd number offers in
+  // the pool, a purely weighted draw buries the payoff cards and ability gains
+  // a build is made of — and a run only has ~5-19 picks. The first
+  // cfg.buildOffersGuaranteed non-safety-net slots draw from those only.
+  const isBuildPiece = (t: OfferTemplate): boolean => t.size === "payoff" || t.gainEffect !== undefined;
+  const draw = (candidates: typeof pool): void => {
+    const total = candidates.reduce((sum, p) => sum + p.weight, 0);
     let roll = rng.next() * total;
-    let idx = pool.length - 1;
-    for (let j = 0; j < pool.length; j++) {
-      roll -= pool[j]!.weight;
+    let pick = candidates[candidates.length - 1]!;
+    for (const cand of candidates) {
+      roll -= cand.weight;
       if (roll <= 0) {
-        idx = j;
+        pick = cand;
         break;
       }
     }
-    chosen.push(pool[idx]!.t);
-    pool.splice(idx, 1);
+    chosen.push(pick.t);
+    pool.splice(pool.indexOf(pick), 1);
+  };
+  for (let g = 0; g < cfg.buildOffersGuaranteed && chosen.length < cfg.offersPerWin; g++) {
+    const pieces = pool.filter((p) => isBuildPiece(p.t));
+    if (pieces.length === 0) break;
+    draw(pieces);
   }
+
+  while (chosen.length < cfg.offersPerWin && pool.length > 0) draw(pool);
   return chosen.map((t) => t.build(progress, roster, cfg));
 }
 
 /** Applies one chosen offer, returning a fresh (progress, roster) pair —
  * pure, so both the headless run driver and the interactive round loop use
  * the identical rule. */
-export function applyOffer(progress: RunProgress, roster: SideState, offer: Offer, cfg: RunConfig): { progress: RunProgress; roster: SideState } {
+export function applyOffer(
+  progress: RunProgress,
+  roster: SideState,
+  offer: Offer,
+  cfg: RunConfig,
+  dropPayoffId?: PayoffId,
+): { progress: RunProgress; roster: SideState } {
   switch (offer.kind) {
+    case "payoff": {
+      const id = offer.payoff!;
+      if (progress.payoffs.includes(id)) return { progress, roster };
+      // At the cap the new card replaces one held (2026-09-30 decision);
+      // the caller must say which. Below the cap it is simply added.
+      if (progress.payoffs.length >= cfg.payoffCap) {
+        if (!dropPayoffId || !progress.payoffs.includes(dropPayoffId)) {
+          throw new Error("applyOffer: payoff cap reached — a held card must be named to drop");
+        }
+        const kept = progress.payoffs.filter((p) => p !== dropPayoffId);
+        return { progress: { ...progress, payoffs: [...kept, id] }, roster };
+      }
+      return { progress: { ...progress, payoffs: [...progress.payoffs, id] }, roster };
+    }
     case "chainLevel": {
       const role = offer.role!;
       const next = { ...progress.chain[role], level: progress.chain[role].level + cfg.chainLevelStep };
@@ -293,4 +396,12 @@ export function applyOffer(progress: RunProgress, roster: SideState, offer: Offe
       return { progress: { ...progress, slots: Math.min(cfg.maxSlots, progress.slots + 1) }, roster };
     }
   }
+}
+
+/** The headless drop choice when a payoff offer is taken at the cap — the
+ * interactive UI asks the player instead. Undefined when there is nothing to
+ * drop (below the cap, or not a payoff offer). */
+export function defaultPayoffDrop(progress: RunProgress, roster: SideState, offer: Offer, cfg: RunConfig): PayoffId | undefined {
+  if (offer.kind !== "payoff" || progress.payoffs.length < cfg.payoffCap) return undefined;
+  return pickPayoffToDrop(progress.payoffs, squadChainEffects(progress, roster));
 }

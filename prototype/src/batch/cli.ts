@@ -4,7 +4,7 @@ import { runFight } from "../sim/fight.js";
 import { makeInitialProgress } from "../sim/progress.js";
 import { makeStartingRoster, PLAYER_ROLES, type PlayerRole } from "../sim/roles.js";
 import type { FightEvent, FightResult } from "../sim/events.js";
-import { makeEnemySide, makeOfferPolicy, runRun, type RunResult } from "../sim/run.js";
+import { makeEnemySide, makeOfferPolicy, runRun, type OfferPolicyName, type RunResult } from "../sim/run.js";
 import { BatchAggregator, formatReport } from "./report.js";
 import { runLabFight, type LabSetup } from "../lab/labFight.js";
 
@@ -51,6 +51,12 @@ function formatEvent(e: FightEvent): string {
       return `[t=${t}] ${e.sourceId} winds up on ${e.targetId ?? "?"} — fires at t=${e.fireT.toFixed(2)}`;
     case "windupHit":
       return `[t=${t}] ${e.sourceId} SLAMS ${e.targetId}: ${e.damage} dmg${e.redirect ? ` (redirect: ${e.redirect}, was ${e.originalTargetId})` : ""}`;
+    case "payoffTriggered":
+      return `[t=${t}] PAYOFF ${e.payoff} on ${e.targetId} (${e.amount})`;
+    case "burnTick":
+      return `[t=${t}] ${e.side} ${e.targetId} burns: ${e.amount.toFixed(1)}`;
+    case "shieldAbsorb":
+      return `[t=${t}] ${e.side} ${e.targetId} shield absorbs ${e.amount.toFixed(1)}`;
     case "resolve":
       return `[t=${t}] RESOLVE: ${e.outcome.toUpperCase()} (${e.reason})`;
   }
@@ -85,7 +91,7 @@ function printRunSummary(result: RunResult): void {
   );
 }
 
-function runBatch(cfg: RunConfig, offerPolicyName: "first" | "random" | "greedy", n: number, baseSeed: number): void {
+function runBatch(cfg: RunConfig, offerPolicyName: OfferPolicyName, n: number, baseSeed: number): void {
   const agg = new BatchAggregator(cfg);
   for (let i = 0; i < n; i++) {
     const seed = baseSeed + i;
@@ -131,20 +137,20 @@ switch (cmd) {
   case "run": {
     // A full roundsPerRun-round run. --offers picks the headless offer
     // policy: "first" (always the first drawn offer) or "random".
-    const offerPolicyName = (args.offers as "first" | "random" | "greedy") ?? "first";
+    const offerPolicyName = (args.offers as OfferPolicyName) ?? "first";
     const offerRng = new Rng((seed ^ 0x51ed270b) >>> 0);
     const result = runRun(cfg, new Rng(seed), offerRng, makeOfferPolicy(offerPolicyName, offerRng), seed);
     printRunSummary(result);
     break;
   }
   case "batch": {
-    const offerPolicyName = (args.offers as "first" | "random" | "greedy") ?? "first";
+    const offerPolicyName = (args.offers as OfferPolicyName) ?? "first";
     runBatch(cfg, offerPolicyName, n, seed);
     break;
   }
   default:
     console.error(
-      `Usage: tsx src/batch/cli.ts <fight|lab|run|batch> [--seed N] [--n N] [--offers first|random]\n` +
+      `Usage: tsx src/batch/cli.ts <fight|lab|run|batch> [--seed N] [--n N] [--offers first|random|greedy|build]\n` +
         `  lab: --roles tank,damage,support --charge pct,pct,pct --encounter N --ramp N --seed N`,
     );
     process.exit(1);

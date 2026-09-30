@@ -5,7 +5,8 @@
  * the old prototype's sim/engine.ts + render/playback.ts).
  */
 import type { ChainEffect } from "./config.js";
-import type { Role } from "./types.js";
+import type { Marks, Role } from "./types.js";
+import type { PayoffId } from "./payoffs.js";
 
 export type Side = "player" | "enemy";
 
@@ -30,8 +31,8 @@ export type FightEvent =
    * per-hit so the renderer doesn't have to track chain state itself.
    * `sourceId` is the hot hero. `targetId` is whoever this hit landed on (or,
    * for "guard", the firing hero itself — the effect is side-level, not aimed
-   * at a body). A rung that hits several bodies at once ("strikeAll",
-   * "mendAll") produces one chainHit event PER body, all sharing the same
+   * at a body). A rung that hits several bodies at once ("scorch",
+   * "ward") produces one chainHit event PER body, all sharing the same
    * `hitIndex` and `t` — that's what makes it read as "everyone at once"
    * without a separate multi-target event shape. */
   | {
@@ -72,6 +73,12 @@ export type FightEvent =
        * say "covers 3 slams now," not repeat "covers 1" on every rung
        * (2026-09-15 guard-visibility pass). */
       chargesTotal?: number;
+      /** The mark this rung left on `targetId` and how much of it
+       * (2026-09-30): stacks for exposed/burn, HP-equivalents for shield.
+       * Unset when the rung left none. Freeze's Frozen rides on the stun
+       * fields instead; guard's Exposed lands on the slam, not the rung. */
+      mark?: "exposed" | "burn" | "shield";
+      markStacks?: number;
     }
   /** heroId is the hero who was hot during this chain. totalDamage/killedIds
    * are what the chain actually bought (or cost) the squad — see fight.ts's
@@ -137,6 +144,15 @@ export type FightEvent =
       originalTargetId: string | null;
       redirect: "guard" | "guardBackfire" | "targetDied" | null;
     }
+  /** A held payoff card fired (2026-09-30; sim/payoffs.ts). `amount` is
+   * whatever the card added — extra damage, stacks moved, shield granted, or
+   * 0 when the trigger is the whole effect (Execute). Every trigger gets an
+   * event so the render layer can name it on screen. */
+  | { type: "payoffTriggered"; t: number; payoff: PayoffId; side: Side; targetId: string; amount: number }
+  /** A burn tick landed (2026-09-30). `amount` is the HP actually removed. */
+  | { type: "burnTick"; t: number; side: Side; targetId: string; amount: number }
+  /** A Shield absorbed part or all of a hit (2026-09-30). */
+  | { type: "shieldAbsorb"; t: number; side: Side; targetId: string; amount: number }
   | { type: "resolve"; t: number; outcome: "win" | "loss"; reason: "wipe" | "failsafe" };
 
 /** A per-hero HP reading at one instant, for body rendering. */
@@ -185,6 +201,10 @@ export interface HeroSnapshot {
    * while the live chain is still buying this freeze (fightView.ts holds
    * the ring full and counts the seconds up), false once it's draining. */
   stunnedHeld?: boolean;
+  /** Mirrors HeroState.marks (2026-09-30) — the render layer draws each
+   * body's mark badges straight off the snapshot, same discipline as the
+   * freeze ring above. */
+  marks: Marks;
 }
 
 export interface TickSnapshot {

@@ -12,7 +12,8 @@ import { makeInitialProgress } from "../sim/progress.js";
 import { makeStartingRoster, PLAYER_ROLES, ROLE_POOL } from "../sim/roles.js";
 import { applyFightResultToRoster, canFieldSquad, defaultFieldPick, fieldSquad } from "../sim/roster.js";
 import { drawRoundEncounters, roundEnemySide } from "../sim/rounds.js";
-import { applyOffer, drawOffers } from "../sim/offers.js";
+import { applyOffer, defaultPayoffDrop, drawOffers, noteIntroduced } from "../sim/offers.js";
+import { PAYOFF_DEFS, marksMadeBy } from "../sim/payoffs.js";
 import { runFight } from "../sim/fight.js";
 
 let failed = false;
@@ -54,6 +55,12 @@ function checkInvariants(label: string): void {
     if (h.alive && h.hp <= 0) invariantBroken ??= `${label}: ${h.name} is "alive" at ${h.hp} HP`;
     if (h.hp > h.maxHp) invariantBroken ??= `${label}: ${h.name} is over its own max (${h.hp}/${h.maxHp})`;
   }
+  // 2026-09-30 (marks and payoffs): the payoff list never passes its cap and
+  // never holds a card twice.
+  if (progress.payoffs.length > cfg.payoffCap) invariantBroken ??= `${label}: payoffs past the cap (${progress.payoffs.length})`;
+  if (new Set(progress.payoffs).size !== progress.payoffs.length) {
+    invariantBroken ??= `${label}: a payoff card is held twice (${progress.payoffs.join(",")})`;
+  }
   if (roster.heroes.length > cfg.maxRosterSize) invariantBroken ??= `${label}: roster grew past maxRosterSize (${roster.heroes.length})`;
 }
 
@@ -62,17 +69,29 @@ for (let i = 0; i < cfg.roundsPerRun && !invariantBroken; i++) {
   const fieldedIds = defaultFieldPick(roster, progress.slots);
   const player = fieldSquad(roster, fieldedIds, progress);
   const enemy = roundEnemySide(cfg, i, roundOrder[i]!);
-  const result = runFight({ player, enemy }, cfg.fight, rng, seed);
+  const result = runFight({ player, enemy, payoffs: progress.payoffs }, cfg.fight, rng, seed);
   if (result.outcome === "loss") break;
 
   roster = applyFightResultToRoster(roster, player, result, cfg);
   const offers = drawOffers(offerRng, progress, roster, cfg, i);
+  // 2026-09-30 (introduce a mark before its payoff): a drawn payoff card may
+  // only read marks the player has already met, via progress.introduced as it
+  // stood BEFORE this draw's own ability offers are noted.
+  const met = marksMadeBy(progress.introduced);
+  for (const offer of offers) {
+    if (offer.kind !== "payoff") continue;
+    const unmet = PAYOFF_DEFS[offer.payoff!].reads.filter((mark) => !met.has(mark));
+    if (unmet.length > 0) {
+      invariantBroken ??= `round ${i + 1}: payoff "${offer.title}" offered before ${unmet.join(",")} was introduced`;
+    }
+  }
+  progress = noteIntroduced(progress, offers);
   // Take EVERY offer this round hands out, one after another, folding each
   // into the next draw — the adversarial case for "never reaches a broken
   // state," not the population checks/runShape.ts already covers.
   for (const offer of offers) {
     anyOfferSeen = true;
-    const applied = applyOffer(progress, roster, offer, cfg);
+    const applied = applyOffer(progress, roster, offer, cfg, defaultPayoffDrop(progress, roster, offer, cfg));
     progress = applied.progress;
     roster = applied.roster;
     checkInvariants(`round ${i + 1}, offer "${offer.title}"`);

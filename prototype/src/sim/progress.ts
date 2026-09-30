@@ -1,4 +1,5 @@
 import type { ChainEffect, RunConfig } from "./config.js";
+import type { PayoffId } from "./payoffs.js";
 import type { PlayerRole } from "./roles.js";
 import { PLAYER_ROLES, ROLE_POOL } from "./roles.js";
 
@@ -22,8 +23,8 @@ export interface RoleProgress {
    * role's chain has picked up, base ability first (index 0). A "chainGain"
    * offer appends to this list; it's never replaced. */
   effects: ChainEffect[];
-  /** Multiplies this role's chain rung magnitude/duration — see
-   * fight.ts's escalatedMagnitude/escalatedDurationSec and
+  /** 1 + this role's chain "+N" count. Each level above 1 leaves one extra
+   * mark stack per rung (and longer Freeze) — see fight.ts's markStacks and
    * config.ts's chainLevelStep/chainLevelCap. */
   level: number;
 }
@@ -39,6 +40,15 @@ export interface RunProgress {
   slots: number;
   chain: Record<PlayerRole, RoleProgress>;
   bonus: Record<PlayerRole, StatBonus>;
+  /** Squad-wide payoff cards held (2026-09-30; sim/payoffs.ts), oldest first,
+   * at most cfg.payoffCap. Handed to the fight in FightSetup.payoffs. */
+  payoffs: PayoffId[];
+  /** Chain abilities the player has been shown — every role's base ability
+   * from the start, plus any ability a "chainGain" offer has put on screen
+   * (taken or not). A payoff card is only offered once every mark it reads
+   * comes from these (sim/offers.ts), so the player has met a mark before a
+   * card that pays off on it asks them to judge it. */
+  introduced: ChainEffect[];
 }
 
 export function makeInitialProgress(cfg: RunConfig): RunProgress {
@@ -48,7 +58,7 @@ export function makeInitialProgress(cfg: RunConfig): RunProgress {
     chain[role] = { effects: [ROLE_POOL[role].baseChain], level: 1 };
     bonus[role] = { maxHp: 0, damage: 0 };
   }
-  return { slots: cfg.startingSlots, chain, bonus };
+  return { slots: cfg.startingSlots, chain, bonus, payoffs: [], introduced: PLAYER_ROLES.map((r) => ROLE_POOL[r].baseChain) };
 }
 
 /** A role's "stronger" upgrade count as a display-facing badge (2026-09-23,

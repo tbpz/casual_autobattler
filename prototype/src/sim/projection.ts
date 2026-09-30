@@ -135,14 +135,14 @@ function verdictFor(band: MarginBand, tankName: string | null): string {
  * (a second pressure per encounter, enemy-side setup) are a separate pass.
  * An encounter with no living bruiser falls back to the first effect's
  * unchanged static line, so Pack/Anvil/Ambush keep their honest
- * crowd/huge-body/chip-damage framing. strikeAll and poundBiggest also fall
+ * crowd/huge-body/chip-damage framing. scorch and expose also fall
  * back against a slam — neither has a mechanism that touches a wind-up (the
  * "flinch" attempt at one was built, measured nearly inert, and cut; see
  * DECISIONS.md's 2026-09-19 entry) — leaving guard and stun as the only
  * live routes against one until parts B/C land. */
 export function chainVsEncounterLine(effects: ChainEffect[], enemy: SideState): string {
   const bruisers = enemy.heroes.filter((h) => h.role === "bruiser" && h.alive);
-  const fallback = chainEffectLines(effects[0] ?? "poundBiggest").against;
+  const fallback = chainEffectLines(effects[0] ?? "expose").against;
   if (bruisers.length === 0) return fallback;
   const plural = bruisers.length > 1;
 
@@ -152,7 +152,7 @@ export function chainVsEncounterLine(effects: ChainEffect[], enemy: SideState): 
   if (effects.includes("guard")) {
     return plural ? `${bruisers.length} slammers — covers one at a time.` : "Takes the slam for the squad.";
   }
-  if (effects.includes("mendAll") || effects.includes("mendOne")) {
+  if (effects.includes("ward") || effects.includes("mend")) {
     return "Heals back about one slam's worth per chain.";
   }
   return fallback;
@@ -162,7 +162,7 @@ export function chainVsEncounterLine(effects: ChainEffect[], enemy: SideState): 
  * encounter — drives the round screen's "✓ vs 💥" tag (2026-09-29 round-
  * screen rebuild). True only when a living bruiser is present AND the list
  * includes stun or guard — the two abilities chainVsEncounterLine above
- * treats as a real answer, not just a consolation line (mendAll/mendOne). */
+ * treats as a real answer, not just a consolation line (ward/mend). */
 export function chainAnswersSlam(effects: ChainEffect[], enemy: SideState): boolean {
   const hasBruiser = enemy.heroes.some((h) => h.role === "bruiser" && h.alive);
   return hasBruiser && (effects.includes("stun") || effects.includes("guard"));

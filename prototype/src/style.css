@@ -23,6 +23,12 @@
      of restating it (see accentFor/HEAL_ACCENT there). */
   --heal: #6ee7a0;
   --freeze: #7ec8ff;
+  /* Marks (2026-09-30, marks and payoffs) — one colour per mark, used by the
+     unit badges, the mark popups, and the offer screen's "reads" chips. */
+  --mark-exposed: #ff7ab6;
+  --mark-frozen: #7ec8ff;
+  --mark-burn: #ff8a3d;
+  --mark-shield: #5ee0d0;
   /* A hero's own identity ring colour, one slot per fixed index within a
      side (2026-08-06 attributability pass) — fightView.ts's accentFor reads
      these six instead of restating its own copy (ACCENT_PALETTE). */
@@ -1947,10 +1953,8 @@ button:disabled {
   -webkit-touch-callout: none;
 }
 
-/* Held down (pointerdown/pointerup, roundScreen.ts) — the DECISIONS.md
- * 2026-09-23 "opens on press-and-hold" entry: the surface change is the only
- * feedback that a hold is registering before the card itself drops in. */
-.round-band-header.held {
+/* The header whose popover is open (roundScreen.ts). */
+.round-band-header.open {
   background: var(--surface-selected);
 }
 
@@ -2020,27 +2024,42 @@ button:disabled {
  * "opens on press-and-hold" entry) — nothing here is new text, it's the same
  * chainEffectLines/chainVsEncounterLine/backfire-in-words sentences the old
  * row always showed, just one press away instead of always on screen. */
-.round-band-card {
-  margin-top: 6px;
-  padding: 8px 8px 6px;
+.round-popover {
+  position: fixed;
+  z-index: 50;
+  box-sizing: border-box;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  padding: 10px 12px;
   background: var(--bg);
-  border-radius: 6px;
-  font-size: 0.69em;
+  border: 1px solid var(--track-bg);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  font-size: 0.75em;
   color: #c7cad6;
   line-height: 1.5;
+  text-align: left;
 }
 
-.round-band-card-line strong {
+.round-popover strong {
   color: var(--text);
 }
 
-.round-band-card-answer {
+.round-popover-answer {
   color: var(--heal);
 }
 
-.round-band-card-meta {
+.round-popover-meta {
   color: var(--muted);
   margin-top: 2px;
+}
+
+.round-popover-reads {
+  margin-top: 4px;
+}
+
+.round-popover-reads .mark-chip:first-child {
+  margin-left: 0;
 }
 
 .round-token-row {
@@ -2558,4 +2577,143 @@ button:disabled {
   .lab-fight-panels {
     flex-direction: column;
   }
+}
+
+/* Marks and payoff cards (2026-09-30). */
+.mark-row {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  min-height: 0;
+}
+
+.mark-badge {
+  display: none;
+  font-size: 0.6em;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  padding: 0 4px;
+  border-radius: 8px;
+  border: 1px solid currentColor;
+  background: var(--track-bg);
+}
+
+.mark-badge.show {
+  display: inline-block;
+}
+
+.mark-badge.mark-exposed,
+.mark-chip.mark-exposed {
+  color: var(--mark-exposed);
+}
+
+.mark-badge.mark-burn,
+.mark-chip.mark-burn {
+  color: var(--mark-burn);
+}
+
+.mark-badge.mark-shield,
+.mark-chip.mark-shield {
+  color: var(--mark-shield);
+}
+
+.mark-chip.mark-frozen {
+  color: var(--mark-frozen);
+}
+
+.mark-chip {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 6px;
+  border-radius: 8px;
+  border: 1px solid currentColor;
+  font-size: 0.95em;
+  font-weight: 700;
+}
+
+.damage-popup.mark-popup {
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.damage-popup.payoff-popup {
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 8px var(--ignite);
+}
+
+.offer-held {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85em;
+  margin-bottom: 4px;
+}
+
+.spend-choices button.payoff-offer {
+  border-style: dashed;
+}
+
+.spend-choices button.payoff-offer.connects {
+  border-style: solid;
+  border-color: var(--ignite);
+  box-shadow: 0 0 10px rgba(255, 207, 77, 0.35);
+}
+
+.spend-choices button .offer-reads {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.75em;
+  color: var(--muted);
+}
+
+.spend-choices button .offer-connects {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75em;
+  font-weight: 800;
+  color: var(--ignite);
+}
+
+.spend-choices button .offer-replaces {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.72em;
+  color: var(--backfire);
+}
+
+.offer-back {
+  display: block;
+  margin: 0 auto;
+}
+
+.round-payoff-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.round-payoff-label {
+  font-weight: 800;
+  font-size: 0.75em;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.round-payoff-card {
+  font-size: 0.68em;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--track-bg);
+  color: #c7cad6;
+  border: 1px solid transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.round-payoff-card.open {
+  background: var(--surface-selected);
+  border-color: var(--muted);
 }

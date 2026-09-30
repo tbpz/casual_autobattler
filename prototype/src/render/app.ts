@@ -1,5 +1,6 @@
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
 import type { Offer } from "../sim/offers.js";
+import type { PayoffId } from "../sim/payoffs.js";
 import { FightView } from "./fightView.js";
 import { Playback } from "./playback.js";
 import { RunSession } from "./runSession.js";
@@ -132,12 +133,12 @@ export function mountApp(root: HTMLElement): void {
       onOfferChosen(null);
       return;
     }
-    renderOfferScreen(root, session.pendingOffers, onOfferChosen);
+    renderOfferScreen(root, session.pendingOffers, session.progress.payoffs, cfg.payoffCap, onOfferChosen);
     appendSeedBadge(root, session.seed);
   }
 
-  function onOfferChosen(offer: Offer | null): void {
-    session.resolveOffer(offer);
+  function onOfferChosen(offer: Offer | null, dropPayoffId?: PayoffId): void {
+    session.resolveOffer(offer, dropPayoffId);
     if (session.status === "complete") {
       renderRunCompleteScreen(root, session.rounds.length, startNewRun);
       appendSeedBadge(root, session.seed);

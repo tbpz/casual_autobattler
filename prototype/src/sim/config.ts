@@ -330,10 +330,15 @@ export interface FightConfig {
    * re-bind, since a cap that never fires is harmless and the next curve
    * change may need it again.
    */
-  chainStrikeAllBase: number;
-  chainPoundBase: number;
-  chainMendAllBase: number;
-  chainMendOneBase: number;
+  /** Renamed 2026-09-30 with the ability ids: chainScorchBase (was
+   * chainStrikeAllBase), chainExposeBase (was chainPoundBase), chainWardBase
+   * (was chainMendAllBase), chainMendBase (was chainMendOneBase). Same values,
+   * same role in the escalation curve. The docstring above still uses the old
+   * names for the pass that derived them. */
+  chainScorchBase: number;
+  chainExposeBase: number;
+  chainWardBase: number;
+  chainMendBase: number;
   /** Per-link freeze duration in seconds, escalated by chainEscalationFactor
    * like any other base above, then SUMMED across every link that lands
    * (2026-09-15 freeze-visibility pass — see fight.ts's resolveChainHit stun
@@ -370,6 +375,51 @@ export interface FightConfig {
    * them on.
    */
   chainGuardChargesPerRung: number;
+
+  /**
+   * Marks (2026-09-30 — see DECISIONS.md's "chain abilities are redesigned to
+   * leave marks" entry). Every value below is a first-pass strawman, meant to
+   * move by playing. Marks last one fight; sim/fight.ts owns the rules.
+   *
+   * Exposed: each stack adds `exposedDamagePerStack` to every hit the body
+   * takes, up to `exposedStackCap` stacks. Burn: every `burnTickSec` the body
+   * takes `burnDamagePerStack` per stack, then loses `burnDecayPerTick`
+   * stacks. Shield: absorbs damage before HP, capped at
+   * `shieldCapFractionOfMaxHp` of the body's maxHp.
+   *
+   * Per-rung stacks: expose/scorch/guard leave `1 + (chainLevel - 1)` stacks
+   * (chain "+N" means one extra stack per rung — the 2026-09-30 entry).
+   * Shield sources are HP-equivalents: `chainWardShield` per ward rung
+   * (escalated like any base), `chainShieldPerLevel` extra flat shield per
+   * mend or ward rung per level above 1.
+   */
+  exposedDamagePerStack: number;
+  exposedStackCap: number;
+  burnTickSec: number;
+  burnDamagePerStack: number;
+  burnDecayPerTick: number;
+  shieldCapFractionOfMaxHp: number;
+  chainWardShield: number;
+  chainShieldPerLevel: number;
+
+  /**
+   * Payoff-card tunables (2026-09-30; sim/payoffs.ts). `executeHpFraction`: an
+   * Exposed enemy at or below this HP fraction dies outright. `shatterMult`:
+   * all damage on a Frozen body is multiplied by this. `punishDamagePerStack`:
+   * a tank's normal hit on an Exposed body adds this fraction of the tank's
+   * damage per stack, then uses the stacks up. `deepFreezeMult`: Freeze on an
+   * Exposed body lasts this many times as long. `openWoundMult`: Burn ticks on
+   * an Exposed body count this many times. `spikedShieldExposeStacks`: Exposed
+   * stacks an attacker gains when a Shield absorbs its hit. `bulwarkShield`:
+   * Shield every living ally gains when Guard blocks a slam.
+   */
+  executeHpFraction: number;
+  shatterMult: number;
+  punishDamagePerStack: number;
+  deepFreezeMult: number;
+  openWoundMult: number;
+  spikedShieldExposeStacks: number;
+  bulwarkShield: number;
 
   /**
    * 2026-09-04 (deciding-factors measurement rig — see
@@ -418,30 +468,36 @@ export interface FightConfig {
 
 /**
  * A hero's chain EFFECT (2026-09-13, "a hero's chain names its own enemy"
- * rebuild — see DECISIONS.md). Replaces the old ChainProfile/ChainTargeting
- * pair — heroes no longer differ by a bigger/smaller/differently-shaped
- * number, they differ by what the chain DOES:
- *  - "strikeAll" — damage to every living body on the target side at once
- *    (Vex). Good against a crowd.
- *  - "poundBiggest" — damage to the highest-current-HP living body on the
- *    target side, re-picked every rung (Rook). Good against one huge body.
+ * rebuild — see DECISIONS.md; renamed and given marks 2026-09-30, see the
+ * "chain abilities are redesigned to leave marks" entry). Every ability does
+ * its old job AND leaves a mark (MarkId below) that a payoff card
+ * (sim/payoffs.ts) can read:
+ *  - "scorch" — damage to every living body on the target side at once, and a
+ *    Burn stack on each. Good against a crowd.
+ *  - "expose" — damage to the highest-current-HP living body on the target
+ *    side, re-picked every rung, and an Exposed stack on it. Good against one
+ *    huge body.
  *  - "guard" — redirects the target side's next N telegraphed hits onto the
- *    firing hero, one per rung (Bracer). Good against anything that winds
- *    up.
- *  - "stun" — the front-most living body on the target side can't act for a
- *    duration, cancelling an in-progress wind-up (Hollow). Good against a
- *    spike that needs cancelling, or a fast attacker.
- *  - "mendAll" — heals every living ally on the target side at once (Cairn).
- *    Good against steady chip damage from many small hits.
- *  - "mendOne" — heals the lowest-HP living ally on the target side, same
- *    target-pick rule as a normal heal beat (Ward). Good against a threat
- *    that hunts one hero to kill it.
+ *    firing hero, one per rung. Every slam it blocks leaves the slammer
+ *    Exposed. Good against anything that winds up.
+ *  - "stun" (shown as Freeze) — the front-most living body on the target side
+ *    can't act for a duration, cancelling an in-progress wind-up. Its mark is
+ *    Frozen, which is the existing stun fields, not a new stack. Good against
+ *    a spike that needs cancelling, or a fast attacker.
+ *  - "ward" — heals every living ally on the target side at once, and gives
+ *    each a small Shield. Good against steady chip damage from many hits.
+ *  - "mend" — heals the worst-hurt living ally on the target side; healing
+ *    past full HP becomes Shield. Good against a threat that hunts one hero.
  * A backfire mirrors the identical effect onto the WRONG side (attacker
- * effects hit the firing hero's own side; healer effects heal the enemy) —
- * same convention the pre-rebuild chain always used, just carried through six
- * effects instead of one damage/heal split.
+ * effects and their marks hit the firing hero's own side; healer effects heal
+ * and shield the enemy) — same convention the pre-rebuild chain always used.
  */
-export type ChainEffect = "strikeAll" | "poundBiggest" | "guard" | "stun" | "mendAll" | "mendOne";
+export type ChainEffect = "scorch" | "expose" | "guard" | "stun" | "ward" | "mend";
+
+/** The four marks (2026-09-30). Exposed/Burn/Shield are stacks on a body
+ * (types.ts's HeroState.marks); Frozen is the existing stun fields. All last
+ * one fight. */
+export type MarkId = "exposed" | "frozen" | "burn" | "shield";
 
 /** The two-line pick-screen text for a hero's chain EFFECT (2026-09-13, "a
  * hero's chain names its own enemy" rebuild — see DECISIONS.md). `does` names
@@ -462,18 +518,18 @@ export type ChainEffect = "strikeAll" | "poundBiggest" | "guard" | "stun" | "men
  * doesn't wrap. */
 export function chainEffectLines(effect: ChainEffect): { does: string; against: string } {
   switch (effect) {
-    case "strikeAll":
-      return { does: "Hits every enemy at once.", against: "Good against a crowd." };
-    case "poundBiggest":
-      return { does: "Hits the biggest enemy, over and over.", against: "Good against one huge enemy." };
+    case "scorch":
+      return { does: "Hits every enemy and sets them burning.", against: "Good against a crowd." };
+    case "expose":
+      return { does: "Hits the biggest enemy and exposes it.", against: "Good against one huge enemy." };
     case "guard":
-      return { does: "Takes the next slam for the squad.", against: "Good against slams." };
+      return { does: "Takes the next slam and exposes the slammer.", against: "Good against slams." };
     case "stun":
       return { does: "Freezes one enemy, cancelling its slam.", against: "Good against a slam, or a fast enemy." };
-    case "mendAll":
-      return { does: "Heals the whole squad at once.", against: "Good against lots of small hits." };
-    case "mendOne":
-      return { does: "Heals your worst-hurt hero, hard.", against: "Good when one hero takes all the hits." };
+    case "ward":
+      return { does: "Heals the whole squad and shields them.", against: "Good against lots of small hits." };
+    case "mend":
+      return { does: "Heals your worst-hurt hero; extra becomes shield.", against: "Good when one hero takes all the hits." };
   }
 }
 
@@ -488,22 +544,23 @@ export function chainEffectVerb(effect: ChainEffect): string {
 
 /** A round-screen ability chip's icon plus one-word label (2026-09-29,
  * round-screen rebuild — see design/HANDOFF.md and RoundGrown.dc.html).
- * guard/stun/poundBiggest/mendOne match the mockup exactly; strikeAll and
- * mendAll have no mockup to copy, so their icon/word are new here. */
+ * guard/stun/expose/mend keep the mockup icons (formerly poundBiggest and
+ * mendOne); scorch and ward (formerly strikeAll and mendAll) have no mockup
+ * to copy, so their icon/word are new here. */
 export function chainEffectChip(effect: ChainEffect): { icon: string; word: string } {
   switch (effect) {
     case "guard":
       return { icon: "⛨", word: "guard" };
     case "stun":
       return { icon: "❄", word: "freeze" };
-    case "poundBiggest":
-      return { icon: "◎", word: "biggest" };
-    case "mendOne":
-      return { icon: "♥", word: "worst-hurt" };
-    case "strikeAll":
-      return { icon: "✺", word: "hit-all" };
-    case "mendAll":
-      return { icon: "✚", word: "heal-all" };
+    case "expose":
+      return { icon: "◎", word: "expose" };
+    case "mend":
+      return { icon: "♥", word: "mend" };
+    case "scorch":
+      return { icon: "✺", word: "scorch" };
+    case "ward":
+      return { icon: "✚", word: "ward" };
   }
 }
 
@@ -535,11 +592,24 @@ export interface RunConfig {
    * top docstring for the weighting-by-round rule. */
   offersPerWin: number;
   /** A "chainLevel" offer raises a role's chain level by this much
-   * (sim/progress.ts's applyOffer), capped at chainLevelCap. fight.ts's
-   * escalatedMagnitude/escalatedDurationSec multiply by the fielded unit's
-   * own chainLevel — see sim/roster.ts's stampProgressOntoSquad. */
+   * (sim/progress.ts's applyOffer), capped at chainLevelCap. Since 2026-09-30
+   * each level above 1 leaves one extra MARK stack per chain rung (fight.ts's
+   * markStacks) and lengthens Freeze; it no longer multiplies damage or heals
+   * — see sim/roster.ts's stampProgressOntoSquad for how it reaches a unit. */
   chainLevelStep: number;
   chainLevelCap: number;
+  /** Payoff cards (2026-09-30; sim/payoffs.ts, sim/offers.ts): the most a run
+   * can hold at once — taking another at the cap means dropping one held.
+   * `payoffWeight` is a payoff offer's flat draw weight (they don't ramp with
+   * the round like small/big offers do); `payoffConnectBoost` multiplies it by
+   * `1 + boost` when the card reads a mark the squad can already make. */
+  payoffCap: number;
+  payoffWeight: number;
+  payoffConnectBoost: number;
+  /** How many of each win's offers are drawn from build pieces only (payoff
+   * cards and ability gains) before the ordinary weighted draw fills the rest
+   * (sim/offers.ts's drawOffers). 0 turns the guarantee off. */
+  buildOffersGuaranteed: number;
   /** A "statHp"/"statDamage" offer raises every unit of that role's own
    * maxHp/damage by this much, permanently (sim/progress.ts's
    * RunProgress.bonus) — applied once, at offer time, to every living unit
@@ -708,10 +778,10 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // 3 -> 0.3: the curve's sum fell 40 -> 13.3, so these hold each effect's
   // FULL-chain total where it was. These two numbers move together — changing
   // one without the other silently rescales every chain in the game.
-  chainStrikeAllBase: 6,
-  chainPoundBase: 18,
-  chainMendAllBase: 3,
-  chainMendOneBase: 4.5,
+  chainScorchBase: 6,
+  chainExposeBase: 18,
+  chainWardBase: 3,
+  chainMendBase: 4.5,
   // 2026-09-15 freeze-visibility pass: cut from 0.8 now that links ADD UP
   // instead of a Math.max overwrite (fight.ts's resolveChainHit stun case) —
   // at the old value a full 7-link chain would freeze a body for ~32s in a
@@ -723,6 +793,26 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // NOT rescaled by the 2026-09-21 pass: guard is a flat charge per rung and
   // never reads the escalation curve (see its docstring above).
   chainGuardChargesPerRung: 1,
+
+  // Marks and payoffs (2026-09-30) — first-pass strawmen, see the docstrings
+  // above. Exposed at 12%/stack means a full 7-rung expose chain reads as
+  // roughly +80% damage on the target; Burn at 3/stack/second is small alone
+  // on purpose, so Open wound and Spread have room to matter.
+  exposedDamagePerStack: 0.12,
+  exposedStackCap: 10,
+  burnTickSec: 1,
+  burnDamagePerStack: 3,
+  burnDecayPerTick: 1,
+  shieldCapFractionOfMaxHp: 0.5,
+  chainWardShield: 4,
+  chainShieldPerLevel: 6,
+  executeHpFraction: 0.35,
+  shatterMult: 2,
+  punishDamagePerStack: 1.5,
+  deepFreezeMult: 3,
+  openWoundMult: 3,
+  spikedShieldExposeStacks: 2,
+  bulwarkShield: 25,
 
   // See this field's own docstring above — default "weighted" is today's
   // shipped behaviour (pickWeightedTargetId's dice roll), not a change.
@@ -745,6 +835,10 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   offersPerWin: 3,
   chainLevelStep: 1,
   chainLevelCap: 5,
+  payoffCap: 6,
+  payoffWeight: 1.2,
+  payoffConnectBoost: 1.5,
+  buildOffersGuaranteed: 1,
   statHpStep: 20,
   statDamageStep: 2,
   healFlatAmount: 30,

@@ -17,7 +17,8 @@ import {
   type RosterState,
 } from "../sim/roster.js";
 import { makeInitialProgress, type RunProgress } from "../sim/progress.js";
-import { applyOffer, drawOffers, type Offer } from "../sim/offers.js";
+import { applyOffer, drawOffers, noteIntroduced, type Offer } from "../sim/offers.js";
+import type { PayoffId } from "../sim/payoffs.js";
 import { summarizeLoss, summarizeWin, type RoundSummary } from "../sim/run.js";
 
 /**
@@ -146,7 +147,7 @@ export class RunSession {
     // actually shown on the round screen, not a value derived after the
     // fact from the outcome.
     this.lastProjection = project(player, enemy, this.cfg.fight);
-    const setup: FightSetup = { player, enemy };
+    const setup: FightSetup = { player, enemy, payoffs: this.progressValue.payoffs };
     const result = runFight(setup, this.cfg.fight, this.rng, this.seedValue);
     this.lastFightResult = result;
     this.fightResults.push(result);
@@ -160,6 +161,7 @@ export class RunSession {
 
     this.roster = applyFightResultToRoster(this.roster, player, result, this.cfg);
     this.pendingOffers = drawOffers(this.offerRng, this.progressValue, this.roster, this.cfg, this.roundIndex);
+    this.progressValue = noteIntroduced(this.progressValue, this.pendingOffers);
     return result;
   }
 
@@ -169,9 +171,9 @@ export class RunSession {
    * always non-empty here (drawOffers falls back to whatever's eligible),
    * except in the degenerate case where nothing at all is eligible — that
    * round simply advances with no change. */
-  resolveOffer(offer: Offer | null): RoundSummary {
+  resolveOffer(offer: Offer | null, dropPayoffId?: PayoffId): RoundSummary {
     if (offer) {
-      const applied = applyOffer(this.progressValue, this.roster, offer, this.cfg);
+      const applied = applyOffer(this.progressValue, this.roster, offer, this.cfg, dropPayoffId);
       this.progressValue = applied.progress;
       this.roster = applied.roster;
     }

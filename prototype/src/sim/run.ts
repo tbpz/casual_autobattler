@@ -15,7 +15,7 @@ import {
 import { drawRoundEncounters, roundEnemySide } from "./rounds.js";
 import { makeStartingRoster } from "./roles.js";
 import { makeInitialProgress, type RunProgress } from "./progress.js";
-import { applyOffer, drawOffers, type Offer } from "./offers.js";
+import { applyOffer, defaultPayoffDrop, drawOffers, noteIntroduced, type Offer } from "./offers.js";
 
 export { roundEnemySide as makeEnemySide } from "./rounds.js";
 
@@ -37,9 +37,15 @@ const GREEDY_KIND_PRIORITY: Record<Offer["kind"], number> = {
   slot: 40,
   chainGain: 30,
   statDamage: 20,
+  // Payoff cards (2026-09-30): kept just under "slot" so the greedy
+  // baseline population still grows its squad (checks/runShape.ts asserts
+  // it). The "build" policy below is the one that chases payoffs.
+  payoff: 35,
 };
 
-export function makeOfferPolicy(name: "first" | "random" | "greedy", rng?: Rng): OfferPolicy {
+export type OfferPolicyName = "first" | "random" | "greedy" | "build";
+
+export function makeOfferPolicy(name: OfferPolicyName, rng?: Rng): OfferPolicy {
   switch (name) {
     case "first":
       return (offers) => offers[0]!;
@@ -47,6 +53,26 @@ export function makeOfferPolicy(name: "first" | "random" | "greedy", rng?: Rng):
       return (offers) => offers[Math.floor((rng?.next() ?? Math.random()) * offers.length)]!;
     case "greedy":
       return (offers) => [...offers].sort((a, b) => GREEDY_KIND_PRIORITY[b.kind] - GREEDY_KIND_PRIORITY[a.kind])[0]!;
+    case "build":
+      // Greedy, except survival first, then the chain "+N", then any payoff
+      // card that connects to what the squad can make, then an ability gain
+      // (2026-09-30) — a stand-in for a player who takes the greedy power
+      // picks AND assembles a build, for measuring what payoffs add ON TOP of
+      // greedy. Freeze/Scorch/Ward gains rank above the plain stat cards
+      // because they are the only sources of Frozen/Burn/Shield-on-all.
+      return (offers) => {
+        const rank = (o: Offer): number =>
+          o.kind === "revive" || o.kind === "heal"
+            ? 1000 + GREEDY_KIND_PRIORITY[o.kind]
+            : o.kind === "chainLevel"
+              ? 600
+              : o.kind === "payoff" && o.connects
+                ? 500
+                : o.kind === "chainGain"
+                  ? 450
+                  : GREEDY_KIND_PRIORITY[o.kind];
+        return [...offers].sort((a, b) => rank(b) - rank(a))[0]!;
+      };
   }
 }
 
@@ -164,7 +190,7 @@ export function runRun(
     const player = fieldSquad(roster, fieldedIds, progress);
     const enemy = roundEnemySide(cfg, i, roundOrder[i]!);
 
-    const setup: FightSetup = { player, enemy };
+    const setup: FightSetup = { player, enemy, payoffs: progress.payoffs };
     const result = runFight(setup, cfg.fight, rng, seed);
     fightResults.push(result);
 
@@ -176,10 +202,11 @@ export function runRun(
     roster = applyFightResultToRoster(roster, player, result, cfg);
 
     const offers = drawOffers(offerRng, progress, roster, cfg, i);
+    progress = noteIntroduced(progress, offers);
     let offerTaken: Offer | null = null;
     if (offers.length > 0) {
       offerTaken = offerPolicy(offers, progress, roster);
-      const applied = applyOffer(progress, roster, offerTaken, cfg);
+      const applied = applyOffer(progress, roster, offerTaken, cfg, defaultPayoffDrop(progress, roster, offerTaken, cfg));
       progress = applied.progress;
       roster = applied.roster;
     }

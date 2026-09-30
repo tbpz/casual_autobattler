@@ -2,6 +2,7 @@ import type { ChainEffect, FightConfig } from "../sim/config.js";
 import { chainEffectVerb } from "../sim/config.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
 import { MAX_CHAIN_AFFINITY, MIN_CHAIN_AFFINITY, ROLE_SORT_PRIORITY } from "../sim/roles.js";
+import { MARK_CHIP, PAYOFF_DEFS, type PayoffId } from "../sim/payoffs.js";
 
 /** Reads one custom property off :root — the single point where a number
  * that style.css also defines (a colour, a duration, a scale) enters this
@@ -91,6 +92,13 @@ interface HeroSlot {
   guardPips: HTMLElement;
   guardPipEls: HTMLElement[];
   guardCount: HTMLElement;
+  /** Exposed / Burn / Shield badges (2026-09-30, marks and payoffs) — a row
+   * under the name that shows each mark's stack count, hidden at zero. Built
+   * for every slot on both sides (a backfire puts marks on the player's own
+   * side) and driven every tick off HeroSnapshot.marks (updateSide), not off
+   * events, so it stays correct under pause/step/scrub. */
+  markBadges: { exposed: HTMLElement; burn: HTMLElement; shield: HTMLElement };
+  markRow: HTMLElement;
   /** Hollow's "stun" chain effect, as a ring drawn around the hero's own
    * body (2026-09-16 freeze-layout pass — replaces a countdown ROW that
    * lived inside the card's flex stack and shoved every card below it up
@@ -859,6 +867,13 @@ export class FightView {
         refs.guardCount.textContent = overCap ? `⛨ ×${snapshot.guardCharges}` : "";
       }
       refs.counter.textContent = counterText(hero);
+      for (const mark of ["exposed", "burn", "shield"] as const) {
+        const n = hero.marks[mark];
+        const badge = refs.markBadges[mark];
+        const visible = hero.alive && n >= 0.5;
+        badge.classList.toggle("show", visible);
+        if (visible) badge.textContent = `${MARK_CHIP[mark].icon}${Math.round(n)}`;
+      }
     }
   }
 
@@ -1120,7 +1135,18 @@ export class FightView {
           e.durationTotalSec,
           e.charges,
           e.chargesTotal,
+          e.mark,
+          e.markStacks,
         );
+        break;
+      case "payoffTriggered":
+        this.showPayoffTriggered(e.payoff, e.side, e.targetId, e.amount);
+        break;
+      case "burnTick":
+        if (e.amount >= 1) this.showMarkPopup(e.side, e.targetId, `-${Math.round(e.amount)}`, "burn", 300, "burn:" + e.targetId);
+        break;
+      case "shieldAbsorb":
+        if (e.amount >= 1) this.showMarkPopup(e.side, e.targetId, `BLOCKED ${Math.round(e.amount)}`, "shield", 350, "shield:" + e.targetId);
         break;
       case "chainEnd":
         this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.totalStunSec, e.killedIds, e.backfire, e.reason, e.effects);
@@ -1687,6 +1713,8 @@ export class FightView {
     durationTotalSec?: number,
     charges?: number,
     chargesTotal?: number,
+    mark?: "exposed" | "burn" | "shield",
+    markStacks?: number,
   ): void {
     // targetId is null on a WHIFF (2026-09-02, Phase 1 of the chain-targeting
     // plan — see events.ts's chainHit docstring). This is the minimal
@@ -1763,8 +1791,19 @@ export class FightView {
           }
           const sign = kind === "heal" ? "+" : "-";
           const popupColor = kind === "heal" || backfire ? chainColor : undefined;
-          const popup = this.showPopup(target.body, `${sign}${Math.round(amount)}`, "chain", scale, Math.min(hitIndex, 5), popupColor);
-          if (attacker && popup) popup.style.setProperty("--owner-accent", chainColor);
+          // A ward/mend rung with nobody hurt heals 0 and only shields
+          // (2026-09-30) — the mark popup below carries the rung, so a "+0"
+          // would just be noise.
+          if (!(kind === "heal" && Math.round(amount) === 0)) {
+            const popup = this.showPopup(target.body, `${sign}${Math.round(amount)}`, "chain", scale, Math.min(hitIndex, 5), popupColor);
+            if (attacker && popup) popup.style.setProperty("--owner-accent", chainColor);
+          }
+        }
+        // The mark this rung left (2026-09-30), named as its own popup so the
+        // set-up half of a combo is as visible as the pay-off half.
+        if (mark && markStacks && markStacks > 0) {
+          const text = `+${Math.round(markStacks)} ${MARK_CHIP[mark].word.toUpperCase()}`;
+          this.showMarkPopup(targetIsEnemy ? "enemy" : "player", targetId, text, mark, 0);
         }
       }
       // 2026-08-17: the per-hit tell moved off the shared .callout (which a
@@ -1995,6 +2034,53 @@ export class FightView {
     if (next.muted) this.callout.classList.add("muted");
   }
 
+  /** A small popup in a mark's colour on `targetId`'s body (2026-09-30).
+   * `throttleMs`/`key` drop repeats of the same popup on the same body that
+   * would otherwise stack up every tick (Burn ticks, a Shield soaking a
+   * flurry, Shatter on every hit). */
+  private markPopupSeen = new Map<string, number>();
+  private showMarkPopup(
+    side: "player" | "enemy",
+    targetId: string,
+    text: string,
+    mark: "exposed" | "burn" | "shield" | "frozen",
+    throttleMs: number,
+    key?: string,
+  ): void {
+    const slot = (side === "enemy" ? this.enemyHeroes : this.playerHeroes).get(targetId);
+    if (!slot) return;
+    if (key && throttleMs > 0) {
+      const now = performance.now();
+      const last = this.markPopupSeen.get(key) ?? -Infinity;
+      if (now - last < throttleMs) return;
+      this.markPopupSeen.set(key, now);
+    }
+    const popup = this.showPopup(slot.body, text, "normal", 0.8, 0, `var(--mark-${mark})`, 0);
+    popup.classList.add("mark-popup");
+  }
+
+  /** Names a payoff card's trigger on screen (2026-09-30) — the legibility
+   * requirement: a combo's pay-off is only felt if the player can see WHICH
+   * card just did it. */
+  private showPayoffTriggered(payoff: PayoffId, side: "player" | "enemy", targetId: string, amount: number): void {
+    const title = PAYOFF_DEFS[payoff].title.toUpperCase();
+    const suffix =
+      payoff === "shatter" || payoff === "deepFreeze" || payoff === "openWound"
+        ? ` ×${Math.round(amount)}`
+        : payoff === "punish" || payoff === "spread" || payoff === "bulwark"
+          ? ` +${Math.round(amount)}`
+          : "";
+    const slot = (side === "enemy" ? this.enemyHeroes : this.playerHeroes).get(targetId);
+    if (!slot) return;
+    const now = performance.now();
+    const key = `payoff:${payoff}:${targetId}`;
+    if (now - (this.markPopupSeen.get(key) ?? -Infinity) < 500) return;
+    this.markPopupSeen.set(key, now);
+    const popup = this.showPopup(slot.body, `${title}${suffix}`, "chain", 1.05, 3, "var(--ignite)", 0);
+    popup.classList.add("payoff-popup");
+    this.showHeroStatusTell(targetId, title, "var(--ignite)", true);
+  }
+
   private showPopup(
     target: HTMLElement,
     text: string,
@@ -2196,6 +2282,19 @@ function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: stri
   guardCount.className = "guard-count";
   guardPips.appendChild(guardCount);
 
+  // Mark badges (2026-09-30) — one small pill per stack mark, hidden until it
+  // has stacks; see HeroSlot.markBadges.
+  const markRow = document.createElement("div");
+  markRow.className = "mark-row";
+  const markBadges = {} as HeroSlot["markBadges"];
+  for (const mark of ["exposed", "burn", "shield"] as const) {
+    const badge = document.createElement("span");
+    badge.className = `mark-badge mark-${mark}`;
+    badge.title = MARK_CHIP[mark].word;
+    markRow.appendChild(badge);
+    markBadges[mark] = badge;
+  }
+
   // Freeze ring (2026-09-16 freeze-layout pass, replacing the 2026-09-15
   // freeze-visibility pass's countdown ROW) — a ring drawn around the
   // hero's own body instead of a row inside the card's stack, so a freeze
@@ -2230,6 +2329,7 @@ function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: stri
   slot.appendChild(chargeTrack);
   slot.appendChild(chargeLabel);
   slot.appendChild(guardPips);
+  slot.appendChild(markRow);
   slot.appendChild(counter);
 
   return {
@@ -2250,6 +2350,8 @@ function makeHeroSlot(hero: HeroSnapshot, side: "player" | "enemy", accent: stri
     guardPips,
     guardPipEls,
     guardCount,
+    markBadges,
+    markRow,
     freezeRing,
     freezeSecs,
     chargeRing,

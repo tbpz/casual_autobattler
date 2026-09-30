@@ -2,6 +2,8 @@ import type { RunConfig } from "../sim/config.js";
 import type { HeroState } from "../sim/types.js";
 import { MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY, PLAYER_ROLES, ROLE_LABEL, ROLE_POOL, type PlayerRole } from "../sim/roles.js";
 import type { RunProgress } from "../sim/progress.js";
+import { MARK_CHIP, PAYOFF_DEFS, payoffConnects } from "../sim/payoffs.js";
+import { squadChainEffects } from "../sim/offers.js";
 import { chainStrongerCount } from "../sim/progress.js";
 import { defaultFieldPick, type RosterState } from "../sim/roster.js";
 import { roundEnemySide, ROUND_PLAN } from "../sim/rounds.js";
@@ -61,10 +63,11 @@ function strongerCountWord(n: number): string {
  * RoundPress.dc.html). One band per ROLE (icon, ability chips, a +N
  * "stronger" badge, a ✓-vs-slam tag, backfire-risk dots) with that role's
  * units drawn underneath as round tokens — a charge ring + an HP bar, a
- * number, nothing else. Holding a band down (pointerdown/up) drops in a card
- * with the full sentences the header only hints at — same words the old row
- * always showed, just one press away instead of always on screen
- * (DECISIONS.md's "opens on press-and-hold" entry).
+ * number, nothing else. Tapping a band header (or a held payoff card) toggles
+ * a floating popover with the full sentences the header only hints at — same
+ * words the old row always showed, just one tap away instead of always on
+ * screen. It floats rather than sitting inline so opening it never moves the
+ * layout (supersedes DECISIONS.md's 2026-09-23 "opens on press-and-hold").
  *
  * Chain identity is still shown ONCE PER ROLE, not once per unit — every
  * unit of a role shares the same chain ability list/level (roster.ts's
@@ -92,6 +95,69 @@ export function renderRoundScreen(
   container.innerHTML = "";
   const panel = document.createElement("div");
   panel.className = "round-panel";
+
+  // ---------- detail popover (shared by role bands and held cards) ----------
+  // One floating box, position: fixed, so opening it never reflows the page
+  // (the old inline hold-card shifted the whole centred panel). Appended to
+  // `container`, not `panel` — the panel clips its overflow.
+  const popover = document.createElement("div");
+  popover.className = "round-popover";
+  popover.style.display = "none";
+  let popoverAnchor: HTMLElement | null = null;
+
+  function closePopover(): void {
+    popover.style.display = "none";
+    popoverAnchor?.classList.remove("open");
+    popoverAnchor = null;
+  }
+
+  function placePopover(anchor: HTMLElement): void {
+    const margin = 8;
+    const a = anchor.getBoundingClientRect();
+    const p = popover.getBoundingClientRect();
+    const fitsBelow = a.bottom + 6 + p.height <= window.innerHeight - margin;
+    const top = fitsBelow ? a.bottom + 6 : Math.max(margin, a.top - 6 - p.height);
+    const left = Math.min(Math.max(margin, a.left), Math.max(margin, window.innerWidth - p.width - margin));
+    popover.style.top = `${top}px`;
+    popover.style.left = `${left}px`;
+  }
+
+  function togglePopover(anchor: HTMLElement, content: HTMLElement[]): void {
+    if (popoverAnchor === anchor) {
+      closePopover();
+      return;
+    }
+    closePopover();
+    popover.replaceChildren(...content);
+    popover.style.display = "block";
+    popoverAnchor = anchor;
+    anchor.classList.add("open");
+    placePopover(anchor);
+  }
+
+  // Document-level listeners outlive this render; each one drops itself the
+  // first time it fires after the screen has been replaced.
+  function whileMounted(handler: (e: Event) => void): (e: Event) => void {
+    const wrapped = (e: Event): void => {
+      if (!popover.isConnected) {
+        document.removeEventListener("pointerdown", wrapped, true);
+        window.removeEventListener("scroll", wrapped, true);
+        window.removeEventListener("resize", wrapped);
+        return;
+      }
+      handler(e);
+    };
+    return wrapped;
+  }
+  const onOutside = whileMounted((e) => {
+    const t = e.target as Node | null;
+    if (t && (popover.contains(t) || popoverAnchor?.contains(t))) return;
+    closePopover();
+  });
+  const onMove = whileMounted(() => closePopover());
+  document.addEventListener("pointerdown", onOutside, true);
+  window.addEventListener("scroll", onMove, true);
+  window.addEventListener("resize", onMove);
 
   const enemyPreview = roundEnemySide(cfg, roundIndex, encounterIndex);
   const fieldSize = progress.slots;
@@ -245,47 +311,28 @@ export function renderRoundScreen(
     bandHeader.appendChild(dots);
     band.appendChild(bandHeader);
 
-    // The hold card (DECISIONS.md 2026-09-23 "opens on press-and-hold") —
-    // built once, shown/hidden by pointerdown/up rather than rebuilt each
-    // time, since its content never changes while this screen is open.
-    const card = document.createElement("div");
-    card.className = "round-band-card";
-    card.style.display = "none";
-    for (const effect of roleProgress.effects) {
-      const { icon: chipIcon, word } = chainEffectChip(effect);
-      const name = word.charAt(0).toUpperCase() + word.slice(1);
-      const line = document.createElement("div");
-      line.className = "round-band-card-line";
-      line.innerHTML = `<strong>${chipIcon} ${name}.</strong> ${chainEffectLines(effect).does}`;
-      card.appendChild(line);
-    }
-    const answerLine = document.createElement("div");
-    answerLine.className = "round-band-card-answer";
-    answerLine.textContent = chainVsEncounterLine(roleProgress.effects, enemyPreview);
-    card.appendChild(answerLine);
-    if (strongerCount > 0) {
-      const strongerLine = document.createElement("div");
-      strongerLine.className = "round-band-card-meta";
-      strongerLine.textContent = `Made stronger ${strongerCountWord(strongerCount)}.`;
-      card.appendChild(strongerLine);
-    }
-    const backfireLine = document.createElement("div");
-    backfireLine.className = "round-band-card-meta";
-    backfireLine.textContent = `Backfire risk: ${backfireRiskWord(pipCount)} (${pipCount} of 5).`;
-    card.appendChild(backfireLine);
-    band.appendChild(card);
-
-    let held = false;
-    function setHeld(next: boolean): void {
-      if (held === next) return;
-      held = next;
-      bandHeader.classList.toggle("held", held);
-      card.style.display = held ? "block" : "none";
-    }
-    bandHeader.addEventListener("pointerdown", () => setHeld(true));
-    bandHeader.addEventListener("pointerup", () => setHeld(false));
-    bandHeader.addEventListener("pointerleave", () => setHeld(false));
-    bandHeader.addEventListener("pointercancel", () => setHeld(false));
+    // The detail popover (tap to toggle) — floats over the page, so opening
+    // it never moves the layout. Lines are built on open; cheap, and it keeps
+    // them out of the DOM until asked for.
+    bandHeader.addEventListener("click", () => {
+      const lines: HTMLElement[] = [];
+      for (const effect of roleProgress.effects) {
+        const { icon: chipIcon, word } = chainEffectChip(effect);
+        const name = word.charAt(0).toUpperCase() + word.slice(1);
+        const line = document.createElement("div");
+        line.innerHTML = `<strong>${chipIcon} ${name}.</strong> ${chainEffectLines(effect).does}`;
+        lines.push(line);
+      }
+      const answerLine = document.createElement("div");
+      answerLine.className = "round-popover-answer";
+      answerLine.textContent = chainVsEncounterLine(roleProgress.effects, enemyPreview);
+      lines.push(answerLine);
+      if (strongerCount > 0) {
+        lines.push(popoverMeta(`Made stronger ${strongerCountWord(strongerCount)}.`));
+      }
+      lines.push(popoverMeta(`Backfire risk: ${backfireRiskWord(pipCount)} (${pipCount} of 5).`));
+      togglePopover(bandHeader, lines);
+    });
     bandHeader.addEventListener("contextmenu", (e) => e.preventDefault());
 
     // ---------- unit tokens ----------
@@ -333,6 +380,39 @@ export function renderRoundScreen(
     panel.appendChild(band);
   }
 
+  // ---------- held payoff cards (2026-09-30) ----------
+  if (progress.payoffs.length > 0) {
+    const payoffRow = document.createElement("div");
+    payoffRow.className = "round-payoff-row";
+    const payoffLabel = document.createElement("span");
+    payoffLabel.className = "round-payoff-label";
+    payoffLabel.textContent = `CARDS ${progress.payoffs.length}/${cfg.payoffCap}`;
+    payoffRow.appendChild(payoffLabel);
+    const squadEffects = squadChainEffects(progress, roster);
+    for (const id of progress.payoffs) {
+      const def = PAYOFF_DEFS[id];
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "round-payoff-card";
+      chip.textContent = def.title;
+      chip.addEventListener("click", () => {
+        const title = document.createElement("div");
+        title.innerHTML = `<strong>${def.title}.</strong> ${def.detail}`;
+        const reads = document.createElement("div");
+        reads.className = "round-popover-reads";
+        reads.innerHTML =
+          "reads " + def.reads.map((m) => `<span class="mark-chip mark-${m}">${MARK_CHIP[m].icon} ${MARK_CHIP[m].word}</span>`).join("");
+        const connects = payoffConnects(id, squadEffects);
+        const status = connects
+          ? Object.assign(document.createElement("div"), { className: "round-popover-answer", textContent: "★ Connects to your squad." })
+          : popoverMeta("Nothing in your squad makes this yet.");
+        togglePopover(chip, [title, reads, status]);
+      });
+      payoffRow.appendChild(chip);
+    }
+    panel.appendChild(payoffRow);
+  }
+
   panel.appendChild(divider());
 
   // ---------- FIGHTING strip ----------
@@ -365,12 +445,23 @@ export function renderRoundScreen(
   }
 
   panel.appendChild(playBtn);
-  playBtn.addEventListener("click", () => onPlay([...selected]));
+  playBtn.addEventListener("click", () => {
+    closePopover();
+    onPlay([...selected]);
+  });
 
   refreshTokens();
   refreshPlayState();
 
   container.appendChild(panel);
+  container.appendChild(popover);
+}
+
+function popoverMeta(text: string): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "round-popover-meta";
+  el.textContent = text;
+  return el;
 }
 
 function divider(): HTMLElement {
