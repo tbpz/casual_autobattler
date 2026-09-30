@@ -171,6 +171,21 @@ export interface BatchReport {
   backfireRate: number;
   fractionChainsBackfired: number;
   durationPercentiles: { p10: number; p25: number; median: number; p75: number; p90: number; p99: number };
+  /** 2026-09-30 (chain-frequency rework, DECISIONS.md "Chains fire every
+   * fight"): the four numbers that decide whether chains happen often and
+   * early enough to matter. `meanChainsPerFight` counts every chainStart.
+   * `fractionHeroFightsWithChain` is over fielded heroes (dead ones included),
+   * one sample per hero per fight. `firstChainFraction` is when the fight's
+   * first chain started as a fraction of its length, with a fight that had no
+   * chain counted as 1 so a chainless fight can't flatter the median.
+   * `chainDamageShare` is chain damage over chain plus normal-attack damage
+   * from the player's side; the attack figure is the rolled damage, so it
+   * slightly overstates trade hits, and burn ticks and payoff damage are not
+   * counted as chain damage. */
+  meanChainsPerFight: number;
+  fractionHeroFightsWithChain: number;
+  firstChainFraction: { median: number; p75: number };
+  chainDamageShare: number;
   /** See this file's top docstring, 2026-09-15 slam-provability entry. */
   guardChargesGranted: number;
   slamsRedirected: number;
@@ -214,6 +229,11 @@ export class BatchAggregator {
   private fightsWithChain5Plus = 0;
   private guardChargesGranted = 0;
   private slamsRedirected = 0;
+  private heroFights = 0;
+  private heroFightsWithChain = 0;
+  private firstChainFractions: number[] = [];
+  private chainDamage = 0;
+  private attackDamage = 0;
   private payoffTriggers: Partial<Record<PayoffId, number>> = {};
   private payoffTaken: Partial<Record<PayoffId, number>> = {};
   // One scalar per fight (fr.durationSec), not the fight's own per-tick
@@ -261,6 +281,7 @@ export class BatchAggregator {
       this.durations.push(fr.durationSec);
       this.chainHist[fr.chainLength] = (this.chainHist[fr.chainLength] ?? 0) + 1;
       this.countChainsWhileLosing(fr);
+      this.countChainFrequency(fr);
     }
 
     // Walk rounds in order, crediting each death to the round it happened
@@ -299,6 +320,28 @@ export class BatchAggregator {
       if (snap && snap.playerMaxHp > 0 && snap.playerHp / snap.playerMaxHp < 0.4) this.chainsWhileLosing++;
     }
     if (sawBackfire) this.backfireFights++;
+  }
+
+  /** Per-fight inputs for the chain-frequency metrics (see BatchReport's
+   * meanChainsPerFight docstring). One pass over the event list. */
+  private countChainFrequency(fr: RunResult["fightResults"][number]): void {
+    const chained = new Set<string>();
+    let firstChainT: number | null = null;
+    for (const e of fr.events) {
+      if (e.type === "chainStart") {
+        chained.add(e.heroId);
+        if (firstChainT === null) firstChainT = e.t;
+      } else if (e.type === "chainHit") {
+        if (e.kind === "damage" && !e.backfire) this.chainDamage += e.damage;
+      } else if (e.type === "attack" && e.side === "player") {
+        this.attackDamage += e.damage;
+      }
+    }
+    this.heroFights += fr.finalPlayerHeroes.length;
+    this.heroFightsWithChain += chained.size;
+    this.firstChainFractions.push(
+      firstChainT === null || fr.durationSec <= 0 ? 1 : Math.min(firstChainT / fr.durationSec, 1),
+    );
   }
 
   /** Tallies this fight's guard activity — how many charges its chain(s)
@@ -346,6 +389,8 @@ export class BatchAggregator {
       p90: BatchAggregator.percentileOf(sortedDurations, 0.9),
       p99: BatchAggregator.percentileOf(sortedDurations, 0.99),
     };
+    const sortedFirstChain = [...this.firstChainFractions].sort((a, b) => a - b);
+    const totalPlayerDamage = this.chainDamage + this.attackDamage;
     return {
       n: this.n,
       runCompletionRate: this.completed / this.n,
@@ -367,6 +412,13 @@ export class BatchAggregator {
       backfireRate: this.totalFights > 0 ? this.backfireFights / this.totalFights : 0,
       fractionChainsBackfired: this.chainsFired > 0 ? this.chainsBackfired / this.chainsFired : 0,
       durationPercentiles,
+      meanChainsPerFight: this.totalFights > 0 ? this.chainsFired / this.totalFights : 0,
+      fractionHeroFightsWithChain: this.heroFights > 0 ? this.heroFightsWithChain / this.heroFights : 0,
+      firstChainFraction: {
+        median: BatchAggregator.percentileOf(sortedFirstChain, 0.5),
+        p75: BatchAggregator.percentileOf(sortedFirstChain, 0.75),
+      },
+      chainDamageShare: totalPlayerDamage > 0 ? this.chainDamage / totalPlayerDamage : 0,
       guardChargesGranted: this.guardChargesGranted,
       slamsRedirected: this.slamsRedirected,
       fractionGuardChargesSpent: this.guardChargesGranted > 0 ? this.slamsRedirected / this.guardChargesGranted : 0,
@@ -403,6 +455,10 @@ export function formatReport(report: BatchReport, label: string): string {
     `  chains while losing:   ${(report.fractionChainsWhileLosing * 100).toFixed(1)}%  (<40% pool when fired)`,
     `  backfire rate:         ${(report.backfireRate * 100).toFixed(1)}%  (fraction of fights with >=1 backfire)`,
     `  chains backfired:      ${(report.fractionChainsBackfired * 100).toFixed(1)}%  (tracks the pool's chain-weighted mean backfireChanceFor)`,
+    `  chains per fight:      ${report.meanChainsPerFight.toFixed(2)}`,
+    `  heroes who chained:    ${(report.fractionHeroFightsWithChain * 100).toFixed(1)}%  (fielded hero-fights with >=1 chain)`,
+    `  first chain at:        median ${(report.firstChainFraction.median * 100).toFixed(0)}%  p75 ${(report.firstChainFraction.p75 * 100).toFixed(0)}%  of fight length (no chain counts as 100%)`,
+    `  chain damage share:    ${(report.chainDamageShare * 100).toFixed(1)}%  (chain damage / chain + attack damage, player side)`,
     `  guard charges spent:   ${(report.fractionGuardChargesSpent * 100).toFixed(1)}%  (${report.slamsRedirected}/${report.guardChargesGranted} — bounded by opportunity, not by the mechanism; see this file's docstring)`,
     `  payoff triggers:       ${Object.keys(report.payoffTaken).length === 0 ? "(none held)" : Object.keys(report.payoffTaken).map((id) => `${id}=${report.payoffTriggers[id as PayoffId] ?? 0} (taken ${report.payoffTaken[id as PayoffId]}x)`).join("  ")}`,
   ];
