@@ -14,6 +14,9 @@ npm run run -- --seed 7 --offers greedy
                                     # "build" = greedy that also chases connected payoff cards and ability gains
 npm run batch -- --n 1000 --offers greedy
                                     # distribution report across N runs at one offer policy
+npm run batch -- --n 300 --offers greedy --set chargeThreshold=45,enemyHpScale=1.6
+                                    # --set key=number,... overrides numeric fight/run config for this
+                                    # invocation only (a tuning sweep without editing config.ts)
 npm run build                      # tsc + vite production build
 ```
 

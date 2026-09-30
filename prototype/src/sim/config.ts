@@ -94,10 +94,10 @@ export interface FightConfig {
    * chargeThreshold, THAT hero fires — no contest, no roll on whether it
    * happens. `chainAffinity` no longer touches accrual rate (every hero
    * charges at the same pace, so two bars at 80% mean the same thing), only
-   * payoff size. There is no heatGift — charge is private to each hero. And
-   * charge PERSISTS across the whole run (see types.ts's HeroState.charge
-   * and roster.ts) instead of zeroing every fight, so a near-full bar is a
-   * real strategic asset at field-pick time, not a coin flip.
+   * payoff size. There is no heatGift — charge is private to each hero. The
+   * rebuild made charge persist across the run; the 2026-09-30
+   * chain-frequency rework reversed that: every fight starts at zero (see
+   * roster.ts's fieldSquad), and chargeTricklePerSec below adds a time floor.
    *
    * What fires is still a coin flip: see backfireChance below.
    */
@@ -105,13 +105,19 @@ export interface FightConfig {
   chargeWeightSoaked: number;
   chargeWeightRestored: number;
   /** The highest-charge living hero fires the instant its charge crosses
-   * this. Higher than the old heatThreshold (110) — firing is no longer
-   * gated behind a separate ignition roll, and charge now persists between
-   * fights rather than resetting, both of which push toward more total
-   * fires unless the bar itself asks for more. See the default value's own
-   * comment (below, DEFAULT_FIGHT_CONFIG) for the batch-measured reasoning
-   * behind landing at 220 specifically, not the initially-guessed 330. */
+   * this, one chain at a time. Charge resets every fight, so this is sized to
+   * be reached inside one — see the default value's own comment (below,
+   * DEFAULT_FIGHT_CONFIG) for the batch-measured reasoning. */
   chargeThreshold: number;
+  /** Charge every living player hero gains per second of fight time, on top of
+   * what its own job earns (DECISIONS.md 2026-09-30 "Chains fire every
+   * fight"). It is the floor that lets a hero nobody hurts, heals or hits —
+   * a healer in a quiet opening — still reach a chain. 0 turns it off. */
+  chargeTricklePerSec: number;
+  /** Multiplies every enemy's maxHp/hp on top of sim/rounds.ts's per-round
+   * hpScale (sim/encounters.ts's buildEnemySide). The one knob that makes
+   * enemies tougher to absorb the extra chains; 1 is inert. */
+  enemyHpScale: number;
   /** The coin flip at the moment a chain fires (2026-08-14 chain rebuild):
    * this fraction of the time the chain aims at the wrong side instead of
    * the right one — an attacker's escalating hits land on its OWN team, a
@@ -664,22 +670,21 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   chargeWeightDealt: 1,
   chargeWeightSoaked: 0.5,
   chargeWeightRestored: 1.5,
-  // 220 (2x the old heatThreshold of 110) — batch-verified via
-  // `npm run batch --squad default --policy always-heal --n 800`. First
-  // strawman (330, 3x) crashed default-draft run completion to ~7% even with
-  // backfireChance at 0 — root cause: decoupling chainAffinity from accrual
-  // (see chargeThreshold's docstring above) means fire opportunities spread
-  // more evenly across low- and high-affinity heroes by RAW output instead of
-  // concentrating on high-affinity carriers the way the old heat mechanism
-  // did, so the average chain's payoff dropped — fine for fights 1-4's
-  // generous margins, but fight 5 (Champion) relied on that concentration and
-  // collapsed (win rate 31.8% -> 7.6%, deaths in fight 5 alone rose from 3.15
-  // to 4.37 out of a 5-hero roster). 220 restores fight 5 to ~35% at
-  // backfireChance=0 — comparable to the old mechanism's 31.8% — while still
-  // meaningfully higher than the old 110 (charge now persists across fights
-  // rather than resetting, so a lower threshold would make fight 1 fire
-  // almost immediately, undercutting the "earned across the run" arc).
-  chargeThreshold: 220,
+  // 2026-09-30 chain-frequency rework (DECISIONS.md "Chains fire every
+  // fight"): charge now resets every fight, so the bar has to be reachable
+  // inside one. The old 220 assumed a bar that carried over between fights;
+  // with a reset it left chains at ~0.6 per fight and run completion under 1%.
+  // Measured (greedy, n=300-1000): a threshold of 45 with a 6/s trickle puts
+  // the first chain at a median ~18% of the fight and lets ~90% of fielded
+  // heroes chain at least once. That share is capped by the one-chain-at-a-time
+  // queue, not by charge: a squad of 5 in a ~12s fight has room for only 3-4
+  // chains, and more fielded heroes lowers the share. enemyHpScale 1.6 was
+  // then found by sweeping it back to roughly the pre-rework ~10% run
+  // completion (11.8% at n=1000). It also lengthens fights, which is what
+  // gives the queue room. All three are strawmen to move by playing.
+  chargeThreshold: 45,
+  chargeTricklePerSec: 6,
+  enemyHpScale: 1.6,
   // 0.10 — batch-verified alongside chargeThreshold above: at 220/0.10, the
   // default draft (always-heal, n=800) landed run completion at ~28%, close
   // to STATE.md's existing ~28% baseline for the OLD (pre-2026-08-15) chain

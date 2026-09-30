@@ -506,8 +506,8 @@ function cloneHeroes(heroes: HeroState[], cfg: FightConfig): HeroState[] {
     soaked: 0,
     restored: 0,
     hitsTaken: 0,
-    // charge is deliberately NOT reset here (2026-08-14 chain rebuild) — it
-    // persists across the whole run; see types.ts's HeroState.charge.
+    // charge is deliberately NOT reset here: the roster hands in 0 each round
+    // (roster.ts's fieldSquad), and a check or the lab may pre-seed some.
     windupFireT: undefined,
     windupTargetId: undefined,
     // Marks last one fight, so a body starts clean — unless a caller (a
@@ -1369,6 +1369,16 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
     // and no roll on whether it happens. Every hero is eligible now,
     // including a pure healer — its chain is a heal, not an attack (see
     // resolveChainHit).
+    // Time trickle (DECISIONS.md 2026-09-30 "Chains fire every fight"): every
+    // living player hero also charges with time, so one that nothing has
+    // hurt, healed or hit still reaches a chain. The firing hero is skipped;
+    // its bar restarts at zero when the chain ends.
+    if (!outcome && cfg.chargeTricklePerSec > 0) {
+      for (const h of player.heroes) {
+        if (h.alive && h.id !== hotHeroId) h.charge += cfg.chargeTricklePerSec * dt;
+      }
+    }
+
     if (!outcome && hotHeroId === null) {
       let ready: HeroState | undefined;
       for (const h of player.heroes) {

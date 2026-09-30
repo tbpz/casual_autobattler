@@ -249,10 +249,11 @@ function survivalSecUnder(hpPool: number, enemyDps: number, healPerSec: number, 
  * (see this file's top docstring) is a mean-value estimate to be surprised
  * relative to, not a per-tick replay.
  *
- * chargeRate mirrors fight.ts's three accrual paths directly: dealt scales
+ * chargeRate mirrors fight.ts's accrual paths directly: dealt scales
  * with the side's own DPS, soaked with incoming DPS (pre-heal — soaking
  * happens at the moment damage lands, before any heal reverses it), restored
- * with healing throughput.
+ * with healing throughput, and the time trickle adds a flat amount per living
+ * hero.
  */
 function chainProjectionFor(
   playerAlive: HeroState[],
@@ -268,7 +269,10 @@ function chainProjectionFor(
 
   const carriedCharge = playerAlive.reduce((sum, h) => sum + h.charge, 0);
   const chargeRate =
-    cfg.chargeWeightDealt * playerDps + cfg.chargeWeightSoaked * enemyDps + cfg.chargeWeightRestored * healPerSec;
+    cfg.chargeWeightDealt * playerDps +
+    cfg.chargeWeightSoaked * enemyDps +
+    cfg.chargeWeightRestored * healPerSec +
+    cfg.chargeTricklePerSec * playerAlive.length;
   const chainsExpected = (carriedCharge + chargeRate * killSec) / cfg.chargeThreshold;
 
   let closest = playerAlive[0]!;

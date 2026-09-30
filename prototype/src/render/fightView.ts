@@ -54,9 +54,8 @@ interface HeroSlot {
   status: HTMLElement;
   /** The charge (CHAIN) bar fill — player-side only; built for every slot
    * for simplicity, styled to collapse on the enemy side (see style.css).
-   * Persists and reads like an HP bar: it carries across fights (2026-08-14
-   * chain rebuild — see sim/types.ts's HeroState.charge), so a near-full bar
-   * is real information at field-pick time, not just mid-fight suspense.
+   * Reads like an HP bar. It starts at zero every fight (DECISIONS.md
+   * 2026-09-30 "Chains fire every fight"), so it is mid-fight suspense only.
    * A direct slot child (like hpFill), not wrapped in its own row, so its
    * width:100% resolves against the slot rather than shrink-wrapping around
    * a label — see 2026-08-15 chain-bar-visibility fix. */
@@ -821,8 +820,7 @@ export class FightView {
       // two update paths never fight over the same DOM.
       if (hero.role !== "bruiser") {
         // Charge (CHAIN) bar (2026-08-14 chain rebuild) — reads like an HP
-        // bar and persists across fights (see sim/types.ts's
-        // HeroState.charge). Enemies also carry a charge field but it's
+        // bar and restarts at zero each fight. Enemies also carry a charge field but it's
         // never read for firing, so their bar stays empty; CSS collapses it
         // on the enemy side regardless.
         const chargeFraction = this.cfg.chargeThreshold > 0 ? Math.min(hero.charge / this.cfg.chargeThreshold, 1) : 0;

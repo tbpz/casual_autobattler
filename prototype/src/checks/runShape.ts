@@ -36,6 +36,12 @@ let totalRoundsWon = 0;
 let sawRosterExhausted = false;
 let sawLoss = false;
 let maxSlotsSeenAtEnd = 0;
+// Chain frequency (DECISIONS.md 2026-09-30 "Chains fire every fight"): one
+// sample per fielded hero per fight, and one first-chain fraction per fight
+// with a chainless fight counted as 1 — same definitions as batch/report.ts.
+let heroFights = 0;
+let heroFightsWithChain = 0;
+const firstChainFractions: number[] = [];
 
 for (let i = 0; i < N; i++) {
   const seed = baseSeed + i;
@@ -49,13 +55,24 @@ for (let i = 0; i < N; i++) {
 
   for (const fr of result.fightResults) {
     chainLengthHist[fr.chainLength] = (chainLengthHist[fr.chainLength] ?? 0) + 1;
+    const chained = new Set<string>();
+    let firstChainT: number | null = null;
     for (const e of fr.events) {
       if (e.type !== "chainStart") continue;
       totalChainsFired++;
       if (e.backfire) totalChainsBackfired++;
+      chained.add(e.heroId);
+      if (firstChainT === null) firstChainT = e.t;
     }
+    heroFights += fr.finalPlayerHeroes.length;
+    heroFightsWithChain += chained.size;
+    firstChainFractions.push(firstChainT === null || fr.durationSec <= 0 ? 1 : Math.min(firstChainT / fr.durationSec, 1));
   }
 }
+
+firstChainFractions.sort((a, b) => a - b);
+const medianFirstChain = firstChainFractions[Math.floor((firstChainFractions.length - 1) / 2)] ?? 1;
+const heroChainShare = heroFights > 0 ? heroFightsWithChain / heroFights : 0;
 
 const completionRate = completed / N;
 const meanRoundsWon = totalRoundsWon / N;
@@ -69,6 +86,8 @@ console.log(
   `  chain length hist:   ${Object.keys(chainLengthHist).map(Number).sort((a, b) => a - b).map((k) => `${k}:${chainLengthHist[k]}`).join("  ")}`,
 );
 console.log(`  max slots reached:   ${maxSlotsSeenAtEnd} (cap ${cfg.maxSlots})`);
+console.log(`  heroes who chained:  ${(heroChainShare * 100).toFixed(1)}% of fielded hero-fights`);
+console.log(`  first chain at:      median ${(medianFirstChain * 100).toFixed(0)}% of fight length`);
 
 // Not a balance target — a sanity range. A 20-round run with mini-bosses and
 // a boss should neither be a free win nor an impossible wall on a first
@@ -77,6 +96,13 @@ console.log(`  max slots reached:   ${maxSlotsSeenAtEnd} (cap ${cfg.maxSlots})`)
 check("run completion rate is neither 0% nor 100%", completionRate > 0 && completionRate < 1, `got ${(completionRate * 100).toFixed(1)}%`);
 check("some chains fire across the population", totalChainsFired > 0, `got ${totalChainsFired}`);
 check("some chains backfire across the population", totalChainsBackfired > 0, `got ${totalChainsBackfired}`);
+// The chain-frequency gates. The heroes-who-chained floor is 0.85 rather than
+// 1: the queue lets one chain run at a time, so a squad of four or five in a
+// short fight cannot all get a turn (measured ~88% at three units, ~59% at
+// five before enemies were made tougher). The tuning is what keeps this above
+// the floor — see config.ts's chargeThreshold comment.
+check("most fielded heroes chain at least once per fight", heroChainShare >= 0.85, `got ${(heroChainShare * 100).toFixed(1)}%`);
+check("the first chain lands while the fight is still undecided (median <= 40% of its length)", medianFirstChain <= 0.4, `got ${(medianFirstChain * 100).toFixed(0)}%`);
 check("some run reaches a wind-up-driven wipe (a real loss occurs)", sawLoss);
 check("some run outgrows its starting roster faster than it can replace it (rosterExhausted occurs)", sawRosterExhausted);
 check("some run grows its squad past its starting size (a slot offer got taken)", maxSlotsSeenAtEnd > cfg.startingSlots, `got ${maxSlotsSeenAtEnd}`);

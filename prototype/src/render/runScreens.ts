@@ -59,9 +59,8 @@ function chainRecapLine(result: FightResult): { text: string; backfire: boolean 
 
 /** When a fight never saw a chain fire, names whoever's bar got closest
  * instead of total silence — the closest thing to an explanation a
- * chain-free fight can offer. 2026-08-14 chain rebuild: also doubles as a
- * heads-up for what's carrying forward, since charge persists into the next
- * fight rather than resetting (see sim/types.ts's HeroState.charge). */
+ * chain-free fight can offer. Charge resets every fight, so this says nothing
+ * about the next one. */
 function noChainRecapLine(result: FightResult): string | null {
   if (result.ignited) return null; // covered by chainRecapLine and the tag below
   let closest: FightResult["finalPlayerHeroes"][number] | undefined;
@@ -69,7 +68,7 @@ function noChainRecapLine(result: FightResult): string | null {
     if (!closest || h.charge > closest.charge) closest = h;
   }
   if (!closest || closest.charge <= 0) return null;
-  return `${closest.name} is closest to a chain — carries into the next fight.`;
+  return `${closest.name} came closest to a chain.`;
 }
 
 /** projected-vs-actual line: same units as the pre-fight screen's verdict,

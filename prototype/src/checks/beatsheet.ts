@@ -10,9 +10,8 @@
  * whether or not the tank ever wavers), so "does a chain ever fire" and
  * "does the tank ever break" are independent facts. This file pins:
  *  1. a comfortable, tanked squad (tank+damage+support) — the tank line
- *     holds the entire fight, charge accrues at all, and — the persistence
- *     property the chain mechanic is built on — carrying that charge into a
- *     SECOND fight eventually crosses chargeThreshold and fires.
+ *     holds the entire fight, charge accrues at all, and a chain fires within
+ *     that first fight (charge starts at zero every fight).
  *  2. a tankless squad (damage+damage+support) — dip is recorded from the
  *     first tick, and the wind-up actually fires within the fight.
  */
@@ -49,21 +48,10 @@ const cfg = {
   check("comfortable squad: some unit's charge accrues at all", result.finalPlayerHeroes.some((h) => h.charge > 0));
   check("comfortable squad: wins by wipe", result.outcome === "win" && result.endReason === "wipe");
 
-  // Persistence check: carry each unit's final charge fight-to-fight, same
-  // as roster.ts's applyFightResultToRoster does for a real run — the
-  // property that makes charge a run-long resource rather than a per-fight
-  // roll is that it eventually crosses and fires even though no single
-  // fight does on its own. Runs up to a few carried-forward fights (not
-  // pinned to exactly one more) so this stays robust to encounters.ts's own
-  // tuning moving the exact crossing point.
-  let carried = { heroes: result.finalPlayerHeroes.map((snap, i) => ({ ...setup.player.heroes[i]!, charge: snap.charge })), dpsBonus: setup.player.dpsBonus };
-  let fired = false;
-  for (let f = 0; f < 4 && !fired; f++) {
-    const nextResult = runFight({ player: carried, enemy: makeEnemySide(cfg, 0, 0) }, cfg.fight, new Rng(4 + f), 4 + f);
-    fired = nextResult.events.some((e) => e.type === "chainStart");
-    carried = { heroes: nextResult.finalPlayerHeroes.map((snap, i) => ({ ...carried.heroes[i]!, charge: snap.charge })), dpsBonus: carried.dpsBonus };
-  }
-  check("comfortable squad: charge carried forward eventually fires a chain", fired);
+  // Charge resets every fight (DECISIONS.md 2026-09-30 "Chains fire every
+  // fight"), so a chain has to happen inside the first fight, from a cold
+  // start, or it does not happen at all.
+  check("comfortable squad: a chain fires in its first fight, from zero charge", result.events.some((e) => e.type === "chainStart"));
 }
 
 // --- Tankless squad: damage+damage+support — no line to hold, so dip is

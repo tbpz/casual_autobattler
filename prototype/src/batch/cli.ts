@@ -105,7 +105,26 @@ const [, , cmd, ...rest] = process.argv;
 const args = parseArgs(rest);
 const seed = args.seed ? Number(args.seed) : 1;
 const n = args.n ? Number(args.n) : 1000;
-const cfg: RunConfig = DEFAULT_RUN_CONFIG;
+/** `--set chargeThreshold=120,enemyHpScale=1.3`: overrides numeric fields of
+ * the fight config (or the run config, if the key lives there) for this
+ * invocation only — a tuning sweep without editing config.ts. Unknown keys and
+ * non-numeric values throw rather than silently doing nothing. */
+function applyOverrides(base: RunConfig, spec: string | undefined): RunConfig {
+  if (!spec) return base;
+  const fight = { ...base.fight } as Record<string, unknown>;
+  const run = { ...base } as Record<string, unknown>;
+  for (const pair of spec.split(",")) {
+    const [key, raw] = pair.split("=");
+    const value = Number(raw);
+    if (!key || raw === undefined || Number.isNaN(value)) throw new Error(`--set: bad pair "${pair}" (expected key=number)`);
+    if (typeof fight[key] === "number") fight[key] = value;
+    else if (key !== "fight" && typeof run[key] === "number") run[key] = value;
+    else throw new Error(`--set: "${key}" is not a numeric fight or run config field`);
+  }
+  return { ...(run as unknown as RunConfig), fight: fight as unknown as RunConfig["fight"] };
+}
+
+const cfg: RunConfig = applyOverrides(DEFAULT_RUN_CONFIG, args.set);
 
 switch (cmd) {
   case "fight": {

@@ -104,20 +104,22 @@ export function fieldSquad(roster: RosterState, fieldedIds: string[], progress: 
   const heroes = fieldedIds
     .map((id) => byId.get(id))
     .filter((h): h is HeroState => !!h)
-    .map((h) => ({ ...h }))
+    // Charge starts at zero every fight (DECISIONS.md 2026-09-30 "Chains fire
+    // every fight"). A future card that pre-fills the bar adds to it here.
+    .map((h) => ({ ...h, charge: 0 }))
     .sort((a, b) => ROLE_SORT_PRIORITY[a.role] - ROLE_SORT_PRIORITY[b.role]);
   return stampProgressOntoSquad({ heroes, dpsBonus: roster.dpsBonus }, progress);
 }
 
 /**
  * Folds a round's outcome back into the persisted roster (only called after
- * a WIN — a loss ends the run before this runs). HP/alive/charge come from
- * the fight for whoever was fielded; a unit that wasn't fielded this round
- * is untouched by the fight itself. THEN recovery applies asymmetrically to
- * HP: a fielded unit gets cfg.autoRecoverFraction, a living benched unit
- * gets the higher cfg.benchedRecoverFraction — the rotation pressure that
- * makes the squad-mix pick a real decision. `charge` is untouched by the
- * recovery tick — it's a run-long resource, not HP.
+ * a WIN — a loss ends the run before this runs). HP/alive come from the
+ * fight for whoever was fielded; a unit that wasn't fielded this round is
+ * untouched by the fight itself. THEN recovery applies asymmetrically to HP:
+ * a fielded unit gets cfg.autoRecoverFraction, a living benched unit gets the
+ * higher cfg.benchedRecoverFraction — the rotation pressure that makes the
+ * squad-mix pick a real decision. Charge is NOT carried: it is zeroed here and
+ * again in fieldSquad, since every fight starts at zero.
  *
  * Death stays permanent — a roster unit whose hp hit 0 is marked !alive here
  * and never revives on its own (a "revive" offer is the only way back). The
@@ -136,7 +138,7 @@ export function applyFightResultToRoster(
     if (!h.alive) return h; // already permanently dead — no-op, never revives on its own
     const wasFielded = fieldedIds.has(h.id);
     const final = wasFielded ? finalById.get(h.id) : undefined;
-    const afterFight: HeroState = final ? { ...h, hp: final.hp, alive: final.alive, charge: final.charge } : h;
+    const afterFight: HeroState = final ? { ...h, hp: final.hp, alive: final.alive, charge: 0 } : h;
     if (!afterFight.alive) return afterFight; // just died this fight — no recovery tick
     const fraction = wasFielded ? cfg.autoRecoverFraction : cfg.benchedRecoverFraction;
     return { ...afterFight, hp: Math.min(afterFight.maxHp, afterFight.hp + afterFight.maxHp * fraction) };

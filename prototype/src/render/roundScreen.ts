@@ -14,7 +14,6 @@ import {
   chainEffectChip,
   chainEffectLines,
   chainVsEncounterLine,
-  CHARGE_NEAR_THRESHOLD_FRACTION,
 } from "./heroPickShared.js";
 
 /** HP fractions where a round token's bar changes how loudly it reads —
@@ -355,8 +354,6 @@ export function renderRoundScreen(
       }
 
       const isSelected = selected.has(h.id);
-      const chargeFrac = cfg.fight.chargeThreshold > 0 ? Math.min(h.charge / cfg.fight.chargeThreshold, 1) : 0;
-      const nearThreshold = chargeFrac >= CHARGE_NEAR_THRESHOLD_FRACTION;
       const severity = hpSeverity(h);
       const hpFrac = h.maxHp > 0 ? Math.max(h.hp, 0) / h.maxHp : 0;
 
@@ -365,7 +362,6 @@ export function renderRoundScreen(
       wrap.className = `round-token${isSelected ? "" : " not-picked"}`;
       wrap.innerHTML = `
         <div class="round-token-body-wrap">
-          <div class="round-token-ring${nearThreshold ? " near-threshold" : ""}" style="--token-charge-frac: ${chargeFrac.toFixed(3)}"></div>
           <div class="round-token-body" style="background: var(${ROLE_CSS_VAR[role]})">${ordinal}</div>
           <div class="round-token-badge${isSelected ? "" : " hollow"}" style="background: ${isSelected ? `var(${ROLE_CSS_VAR[role]})` : ""}">${isSelected ? "✓" : ""}</div>
         </div>

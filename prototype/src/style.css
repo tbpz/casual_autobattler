@@ -471,8 +471,8 @@ body {
 }
 
 /* The charge (CHAIN) bar (2026-08-14 chain rebuild) — reads like the HP bar
-   above: fills gradually from a hero's own actions, PERSISTS across fights
-   (see sim/types.ts's HeroState.charge), and drains visibly (not just
+   above: fills gradually from a hero's own actions and with time, restarts at
+   zero each fight (see sim/types.ts's HeroState.charge), and drains visibly (not just
    snaps) the instant it fires. Player-only; collapsed on the enemy side
    below, since only the player's charge ever fires a chain. There is no
    "who's next" indicator anymore — a full bar IS the signal, and it's the
@@ -2090,17 +2090,6 @@ button:disabled {
   position: relative;
   width: 40px;
   height: 40px;
-}
-
-.round-token-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(var(--text) calc(var(--token-charge-frac, 0) * 360deg), var(--track-bg) 0deg);
-}
-
-.round-token-ring.near-threshold {
-  background: conic-gradient(var(--chain) calc(var(--token-charge-frac, 0) * 360deg), var(--track-bg) 0deg);
 }
 
 .round-token-body {

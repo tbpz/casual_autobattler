@@ -135,10 +135,11 @@ export interface HeroState {
    * Accrues from this hero's own job (dealt/soaked/restored, weighted by
    * config.ts's chargeWeightDealt/Soaked/Restored). The instant it crosses
    * chargeThreshold, THIS hero fires — no candidate contest, no roll on
-   * whether it happens. Unlike every other field on this list, `charge`
-   * PERSISTS across the whole run (roster.ts carries it forward for both
-   * fielded and benched heroes) and is reset to 0 only when this hero fires
-   * a chain. cloneHeroes deliberately does not zero it. */
+   * whether it happens. Every fight starts at 0 (roster.ts's fieldSquad,
+   * DECISIONS.md 2026-09-30 "Chains fire every fight"); it also resets to 0
+   * when this hero fires a chain. cloneHeroes does not zero it, so a caller
+   * that pre-seeds charge on a FightSetup (a check, the lab, a future card
+   * that starts a fight partly charged) is honoured. */
   charge: number;
 
   /** Enemy bruiser only: sim-clock time of this hero's next wind-up charge
@@ -238,9 +239,8 @@ export function sideLivingCount(side: SideState): number {
 }
 
 /** A fight's starting setup. Both sides carry whatever HP/deaths attrition
- * left them with; the player side also carries each hero's `charge` in from
- * the roster (2026-08-14 chain-rebuild pass) — there is no separate
- * cross-fight counter anymore, since charge itself is the persisted state. */
+ * left them with. Each hero's `charge` is whatever the caller sets — 0 for a
+ * real round (roster.ts's fieldSquad), or a pre-seed for a check or the lab. */
 export interface FightSetup {
   player: SideState;
   enemy: SideState;

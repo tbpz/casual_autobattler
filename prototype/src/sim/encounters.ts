@@ -237,7 +237,8 @@ export function encounterIndicesOfKind(kind: EncounterKind): number[] {
  * rounds.ts now. Bruisers lead the roster so the player's front-targeting
  * attacks (fight.ts) reliably hit one first; a second bruiser (Twins, Glass
  * Pair) sits right after the first, both ahead of any grunts. */
-export function buildEnemySide(fightCfg: FightConfig, encounter: EncounterDef, hpScale: number, damageScale: number): SideState {
+export function buildEnemySide(fightCfg: FightConfig, encounter: EncounterDef, roundHpScale: number, damageScale: number): SideState {
+  const hpScale = roundHpScale * fightCfg.enemyHpScale;
   const heroes: HeroState[] = [];
   encounter.bruisers.forEach((b, i) => {
     const windupIntervalSec = b.windupIntervalSec ?? fightCfg.windupIntervalSec;
