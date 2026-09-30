@@ -51,9 +51,6 @@ export interface RoleDef {
   damage: number;
   attackIntervalSec: number;
   healPerBeat?: number;
-  /** See types.ts's HeroState docstring — the volatility lever, unchanged
-   * meaning from the old per-hero pool. */
-  chainAffinity: number;
   /** This role's chain's first ability — always index 0 of its ability
    * list, before any "chainGain" offer adds another — see config.ts's
    * ChainEffect. */
@@ -66,21 +63,15 @@ export interface RoleDef {
  * convention as every number in config.ts. */
 export const ROLE_POOL: Record<PlayerRole, RoleDef> = {
   tank: {
-    role: "tank", label: ROLE_LABEL.tank, maxHp: 190, damage: 7, attackIntervalSec: 1.3,
-    chainAffinity: 0.8, baseChain: "guard",
+    role: "tank", label: ROLE_LABEL.tank, maxHp: 190, damage: 7, attackIntervalSec: 1.3, baseChain: "guard",
   },
   damage: {
-    role: "damage", label: ROLE_LABEL.damage, maxHp: 80, damage: 8, attackIntervalSec: 1.1,
-    chainAffinity: 1.3, baseChain: "expose",
+    role: "damage", label: ROLE_LABEL.damage, maxHp: 80, damage: 8, attackIntervalSec: 1.1, baseChain: "expose",
   },
   support: {
-    role: "support", label: ROLE_LABEL.support, maxHp: 100, damage: 2, attackIntervalSec: 1.1, healPerBeat: 6,
-    chainAffinity: 1.0, baseChain: "mend",
+    role: "support", label: ROLE_LABEL.support, maxHp: 100, damage: 2, attackIntervalSec: 1.1, healPerBeat: 6, baseChain: "mend",
   },
 };
-
-export const MAX_CHAIN_AFFINITY = Math.max(...PLAYER_ROLES.map((r) => ROLE_POOL[r].chainAffinity));
-export const MIN_CHAIN_AFFINITY = Math.min(...PLAYER_ROLES.map((r) => ROLE_POOL[r].chainAffinity));
 
 /** Tank -> damage -> support fielding/render priority — same convention the
  * old heroes.ts pool used, kept over the "support" role id and extended with
@@ -112,7 +103,8 @@ export function makeUnitState(role: PlayerRole, ordinal: number, instanceId: str
     attackIntervalSec: def.attackIntervalSec,
     nextAttackT: def.attackIntervalSec,
     healPerBeat: def.healPerBeat,
-    chainAffinity: def.chainAffinity,
+    fatigue: 0,
+    backfires: 0,
     // Stamped fresh from RunProgress at squad-build time (roster.ts's
     // stampProgressOntoSquad) — the value baked in here is only a sane
     // default for a unit that's never actually fielded before that stamp

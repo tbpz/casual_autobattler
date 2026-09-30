@@ -261,9 +261,9 @@ export function buildEnemySide(fightCfg: FightConfig, encounter: EncounterDef, r
       holding: false,
       charge: 0,
       // Enemies never chain (fight.ts only scans the player side for a
-      // fire-ready hero) — inert, set to 1 (a no-op multiplier) so nothing
-      // downstream divides by zero.
-      chainAffinity: 1,
+      // fire-ready hero) — fatigue is inert here.
+      fatigue: 0,
+      backfires: 0,
       nextWindupT: windupIntervalSec * (1 - phase),
       windupIntervalSec: b.windupIntervalSec,
       windupTargeting: b.windupTargeting,
@@ -287,7 +287,8 @@ export function buildEnemySide(fightCfg: FightConfig, encounter: EncounterDef, r
       hitsTaken: 0,
       holding: false,
       charge: 0,
-      chainAffinity: 1,
+      fatigue: 0,
+      backfires: 0,
     });
   }
   return { heroes, dpsBonus: 0 };

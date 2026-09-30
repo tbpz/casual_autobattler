@@ -41,7 +41,26 @@ const GREEDY_KIND_PRIORITY: Record<Offer["kind"], number> = {
   // baseline population still grows its squad (checks/runShape.ts asserts
   // it). The "build" policy below is the one that chases payoffs.
   payoff: 35,
+  // Rest (2026-09-30): the base is what a barely-worn unit's Rest is worth.
+  // restRank below lifts it above everything except revive once the unit it
+  // would rest is properly worn.
+  rest: 10,
 };
+
+/** A unit this worn is worth resting: the greedy stand-in for a player who
+ * notices a Frayed unit. A plain number rather than the config's sweet spot
+ * because an OfferPolicy is handed no config. */
+const GREEDY_REST_FATIGUE = 50;
+
+/** Rest ranks by how worn the unit it would rest is — see GREEDY_REST_FATIGUE. */
+function restRank(offer: Offer, roster: SideState): number {
+  const unit = roster.heroes.find((h) => h.id === offer.unitId);
+  return unit && unit.fatigue >= GREEDY_REST_FATIGUE ? 95 : GREEDY_KIND_PRIORITY.rest;
+}
+
+function greedyRank(offer: Offer, roster: SideState): number {
+  return offer.kind === "rest" ? restRank(offer, roster) : GREEDY_KIND_PRIORITY[offer.kind];
+}
 
 export type OfferPolicyName = "first" | "random" | "greedy" | "build";
 
@@ -52,7 +71,8 @@ export function makeOfferPolicy(name: OfferPolicyName, rng?: Rng): OfferPolicy {
     case "random":
       return (offers) => offers[Math.floor((rng?.next() ?? Math.random()) * offers.length)]!;
     case "greedy":
-      return (offers) => [...offers].sort((a, b) => GREEDY_KIND_PRIORITY[b.kind] - GREEDY_KIND_PRIORITY[a.kind])[0]!;
+      return (offers, _progress, roster) =>
+        [...offers].sort((a, b) => greedyRank(b, roster) - greedyRank(a, roster))[0]!;
     case "build":
       // Greedy, except survival first, then the chain "+N", then any payoff
       // card that connects to what the squad can make, then an ability gain
@@ -60,17 +80,19 @@ export function makeOfferPolicy(name: OfferPolicyName, rng?: Rng): OfferPolicy {
       // picks AND assembles a build, for measuring what payoffs add ON TOP of
       // greedy. Freeze/Scorch/Ward gains rank above the plain stat cards
       // because they are the only sources of Frozen/Burn/Shield-on-all.
-      return (offers) => {
+      return (offers, _progress, roster) => {
         const rank = (o: Offer): number =>
           o.kind === "revive" || o.kind === "heal"
             ? 1000 + GREEDY_KIND_PRIORITY[o.kind]
-            : o.kind === "chainLevel"
-              ? 600
-              : o.kind === "payoff" && o.connects
-                ? 500
-                : o.kind === "chainGain"
-                  ? 450
-                  : GREEDY_KIND_PRIORITY[o.kind];
+            : o.kind === "rest" && restRank(o, roster) > GREEDY_KIND_PRIORITY.rest
+              ? 1000 + restRank(o, roster)
+              : o.kind === "chainLevel"
+                ? 600
+                : o.kind === "payoff" && o.connects
+                  ? 500
+                  : o.kind === "chainGain"
+                    ? 450
+                    : greedyRank(o, roster);
         return [...offers].sort((a, b) => rank(b) - rank(a))[0]!;
       };
   }

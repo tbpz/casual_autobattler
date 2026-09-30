@@ -1,4 +1,4 @@
-import type { RunConfig } from "../sim/config.js";
+import { fatigueTier, type FatigueTier, type RunConfig } from "../sim/config.js";
 import type { RunResult } from "../sim/run.js";
 import type { PayoffId } from "../sim/payoffs.js";
 
@@ -117,11 +117,11 @@ import type { PayoffId } from "../sim/payoffs.js";
  *  - backfireRate: fraction of ALL fights where at least one fired chain was
  *    a backfire.
  *  - fractionChainsBackfired: of all fired chains, what fraction backfired —
- *    since the 2026-08-19 affinity-as-risk pass, backfireChance is per-hero
- *    (config.ts's backfireChanceFor), so this tracks the pool's
- *    chain-count-weighted mean backfire rate, not a single flat constant;
- *    the number to watch while tuning backfireChanceBase/
- *    backfireChanceAffinitySlope.
+ *    since the 2026-09-30 fatigue change, backfireChance depends on each
+ *    firing unit's fatigue (config.ts's backfireChanceFor), so this tracks
+ *    the run's chain-weighted mean backfire rate; the per-tier breakdown
+ *    (chainsByTier) is the number to watch while tuning the backfireAt*
+ *    anchors.
  *
  * meanDeathsPerRun's aggregation fixed 2026-08-09 (boring-middle root-cause
  * pass): it used to read ONLY r.fights[r.fights.length-1].livingHeroesAfter
@@ -186,6 +186,18 @@ export interface BatchReport {
   fractionHeroFightsWithChain: number;
   firstChainFraction: { median: number; p75: number };
   chainDamageShare: number;
+  /** 2026-09-30 (fatigue, DECISIONS.md "Fatigue replaces per-role backfire
+   * odds"): per fatigue tier at the moment a chain fired — how many chains,
+   * how many backfired, and the damage the non-backfired ones dealt. The
+   * damage per chain is the number to read against the backfire rate: the
+   * curve is meant to make the middle tiers the best trade, and this shows
+   * whether it does. Only damage effects count toward `damage`, so heal-only
+   * chains lower a tier's average a little. */
+  chainsByTier: Record<FatigueTier, { chains: number; backfires: number; damage: number }>;
+  /** Mean fatigue of the fielded units going into each round index. */
+  meanFieldedFatigueByRound: number[];
+  /** Rest cards taken across all runs. */
+  restTaken: number;
   /** See this file's top docstring, 2026-09-15 slam-provability entry. */
   guardChargesGranted: number;
   slamsRedirected: number;
@@ -234,6 +246,15 @@ export class BatchAggregator {
   private firstChainFractions: number[] = [];
   private chainDamage = 0;
   private attackDamage = 0;
+  private chainsByTier: BatchReport["chainsByTier"] = {
+    fresh: { chains: 0, backfires: 0, damage: 0 },
+    worn: { chains: 0, backfires: 0, damage: 0 },
+    frayed: { chains: 0, backfires: 0, damage: 0 },
+    breaking: { chains: 0, backfires: 0, damage: 0 },
+  };
+  private fatigueSumByRound: number[];
+  private fatigueCountByRound: number[];
+  private restTaken = 0;
   private payoffTriggers: Partial<Record<PayoffId, number>> = {};
   private payoffTaken: Partial<Record<PayoffId, number>> = {};
   // One scalar per fight (fr.durationSec), not the fight's own per-tick
@@ -246,6 +267,8 @@ export class BatchAggregator {
     this.reachedCount = new Array(cfg.roundsPerRun).fill(0) as number[];
     this.wonCount = new Array(cfg.roundsPerRun).fill(0) as number[];
     this.deathsByFightIndex = new Array(cfg.roundsPerRun).fill(0) as number[];
+    this.fatigueSumByRound = new Array(cfg.roundsPerRun).fill(0) as number[];
+    this.fatigueCountByRound = new Array(cfg.roundsPerRun).fill(0) as number[];
   }
 
   add(r: RunResult): void {
@@ -265,7 +288,15 @@ export class BatchAggregator {
     for (const round of r.rounds) {
       const taken = round.offerTaken;
       if (taken?.kind === "payoff" && taken.payoff) this.payoffTaken[taken.payoff] = (this.payoffTaken[taken.payoff] ?? 0) + 1;
+      if (taken?.kind === "rest") this.restTaken++;
     }
+
+    r.fightResults.forEach((fr, roundIndex) => {
+      for (const h of fr.finalPlayerHeroes) {
+        this.fatigueSumByRound[roundIndex] = (this.fatigueSumByRound[roundIndex] ?? 0) + h.fatigue;
+        this.fatigueCountByRound[roundIndex] = (this.fatigueCountByRound[roundIndex] ?? 0) + 1;
+      }
+    });
 
     for (const fr of r.fightResults) {
       this.totalFights++;
@@ -327,12 +358,23 @@ export class BatchAggregator {
   private countChainFrequency(fr: RunResult["fightResults"][number]): void {
     const chained = new Set<string>();
     let firstChainT: number | null = null;
+    const fatigueById = new Map(fr.finalPlayerHeroes.map((h) => [h.id, h.fatigue]));
+    // The tier of whichever chain is currently running, so its chainHit
+    // damage lands in the right bucket — chains never overlap.
+    let liveTier: FatigueTier | null = null;
     for (const e of fr.events) {
       if (e.type === "chainStart") {
         chained.add(e.heroId);
         if (firstChainT === null) firstChainT = e.t;
+        liveTier = fatigueTier(this.cfg.fight, fatigueById.get(e.heroId) ?? 0);
+        const bucket = this.chainsByTier[liveTier];
+        bucket.chains++;
+        if (e.backfire) bucket.backfires++;
       } else if (e.type === "chainHit") {
-        if (e.kind === "damage" && !e.backfire) this.chainDamage += e.damage;
+        if (e.kind === "damage" && !e.backfire) {
+          this.chainDamage += e.damage;
+          if (liveTier) this.chainsByTier[liveTier].damage += e.damage;
+        }
       } else if (e.type === "attack" && e.side === "player") {
         this.attackDamage += e.damage;
       }
@@ -419,6 +461,11 @@ export class BatchAggregator {
         p75: BatchAggregator.percentileOf(sortedFirstChain, 0.75),
       },
       chainDamageShare: totalPlayerDamage > 0 ? this.chainDamage / totalPlayerDamage : 0,
+      chainsByTier: this.chainsByTier,
+      meanFieldedFatigueByRound: this.fatigueSumByRound.map((s, i) =>
+        this.fatigueCountByRound[i] ? s / (this.fatigueCountByRound[i] as number) : 0,
+      ),
+      restTaken: this.restTaken,
       guardChargesGranted: this.guardChargesGranted,
       slamsRedirected: this.slamsRedirected,
       fractionGuardChargesSpent: this.guardChargesGranted > 0 ? this.slamsRedirected / this.guardChargesGranted : 0,
@@ -459,6 +506,16 @@ export function formatReport(report: BatchReport, label: string): string {
     `  heroes who chained:    ${(report.fractionHeroFightsWithChain * 100).toFixed(1)}%  (fielded hero-fights with >=1 chain)`,
     `  first chain at:        median ${(report.firstChainFraction.median * 100).toFixed(0)}%  p75 ${(report.firstChainFraction.p75 * 100).toFixed(0)}%  of fight length (no chain counts as 100%)`,
     `  chain damage share:    ${(report.chainDamageShare * 100).toFixed(1)}%  (chain damage / chain + attack damage, player side)`,
+    `  by fatigue tier:       ${(["fresh", "worn", "frayed", "breaking"] as const)
+      .map((t) => {
+        const b = report.chainsByTier[t];
+        const rate = b.chains > 0 ? ((b.backfires / b.chains) * 100).toFixed(0) : "-";
+        const dmg = b.chains > 0 ? (b.damage / b.chains).toFixed(0) : "-";
+        return `${t}: ${b.chains} chains, ${rate}% backfire, ${dmg} dmg/chain`;
+      })
+      .join("  |  ")}`,
+    `  fielded fatigue:       ${report.meanFieldedFatigueByRound.map((f, i) => `r${i + 1}=${f.toFixed(0)}`).join("  ")}`,
+    `  rest cards taken:      ${report.restTaken}`,
     `  guard charges spent:   ${(report.fractionGuardChargesSpent * 100).toFixed(1)}%  (${report.slamsRedirected}/${report.guardChargesGranted} — bounded by opportunity, not by the mechanism; see this file's docstring)`,
     `  payoff triggers:       ${Object.keys(report.payoffTaken).length === 0 ? "(none held)" : Object.keys(report.payoffTaken).map((id) => `${id}=${report.payoffTriggers[id as PayoffId] ?? 0} (taken ${report.payoffTaken[id as PayoffId]}x)`).join("  ")}`,
   ];

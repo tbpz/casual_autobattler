@@ -2001,25 +2001,6 @@ button:disabled {
   font-weight: 700;
 }
 
-.round-backfire-dots {
-  margin-left: auto;
-  display: flex;
-  gap: 2px;
-}
-
-.round-backfire-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--track-bg);
-  border: 1px solid var(--track-border);
-}
-
-.round-backfire-dot.filled {
-  background: var(--backfire);
-  border-color: var(--backfire);
-}
-
 /* The full-sentence card a held band reveals (DECISIONS.md's 2026-09-23
  * "opens on press-and-hold" entry) — nothing here is new text, it's the same
  * chainEffectLines/chainVsEncounterLine/backfire-in-words sentences the old
@@ -2090,6 +2071,49 @@ button:disabled {
   position: relative;
   width: 40px;
   height: 40px;
+}
+
+/* Fatigue tier ring (DECISIONS.md 2026-09-30 "Fatigue replaces per-role
+   backfire odds") — replaces the charge ring, since charge now resets every
+   fight and has nothing to show at pick time. Fresh keeps the quiet track
+   colour; the rest climb toward the backfire red. */
+.round-token-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid var(--track-bg);
+}
+
+.round-token-ring.tier-worn {
+  border-color: var(--chain);
+}
+
+.round-token-ring.tier-frayed {
+  border-color: var(--hp-hurt);
+}
+
+.round-token-ring.tier-breaking {
+  border-color: var(--backfire);
+}
+
+.round-token-tier {
+  font-size: 0.62em;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.round-token-tier.tier-worn {
+  color: var(--chain);
+}
+
+.round-token-tier.tier-frayed {
+  color: var(--hp-hurt);
+}
+
+.round-token-tier.tier-breaking {
+  color: var(--backfire);
 }
 
 .round-token-body {

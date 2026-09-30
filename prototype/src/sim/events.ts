@@ -171,15 +171,16 @@ export interface HeroSnapshot {
   /** Tank-only: still holding aggro (not broken). Always false off-role. */
   holding: boolean;
   /** The chain meter as of this instant — see types.ts's HeroState.charge
-   * docstring. Render-facing so the charge bar can fill visibly, including
-   * across fights (it's the same persisted value the roster carries). */
+   * docstring. Render-facing so the charge bar can fill visibly. */
   charge: number;
-  /** This hero's chainAffinity (2026-08-15, chain-payoff-axis pass) —
-   * render-facing so an ignition tell can scale its own intensity to this
-   * hero's expected magnitude (see render/fightView.ts's showChainStart)
-   * without the renderer importing the static hero pool. Inert (1) for
-   * enemies, who never chain — see sim/encounters.ts. */
-  chainAffinity: number;
+  /** This hero's fatigue (DECISIONS.md 2026-09-30) — render-facing so an
+   * ignition tell can scale its own intensity to how wound-up the chain is
+   * (see render/fightView.ts's showChainStart). 0 for enemies, who never
+   * chain. */
+  fatigue: number;
+  /** How many of this hero's chains backfired this fight — the roster folds it
+   * into fatigue (sim/roster.ts's applyFightResultToRoster). */
+  backfires: number;
   /** Enemy bruiser only (2026-09-13 slam-visibility pass) — mirrors
    * types.ts's HeroState fields of the same name, render-facing so the slam
    * bar/aim line/attacker-glow can be driven per-hero, per-frame, straight

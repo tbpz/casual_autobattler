@@ -1,7 +1,7 @@
 import type { ChainEffect, FightConfig } from "../sim/config.js";
-import { chainEffectVerb } from "../sim/config.js";
+import { chainEffectVerb, fatigueFraction } from "../sim/config.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
-import { MAX_CHAIN_AFFINITY, MIN_CHAIN_AFFINITY, ROLE_SORT_PRIORITY } from "../sim/roles.js";
+import { ROLE_SORT_PRIORITY } from "../sim/roles.js";
 import { MARK_CHIP, PAYOFF_DEFS, type PayoffId } from "../sim/payoffs.js";
 
 /** Reads one custom property off :root — the single point where a number
@@ -319,14 +319,11 @@ export class FightView {
    * build time so a delayed impact (post-tracer-flight) can still scale its
    * flinch/flash by damage-as-a-fraction-of-maxHp. */
   private heroMaxHp: Map<string, number> = new Map();
-  /** Fixed for the whole fight, same as heroMaxHp above — what
-   * showChainStart reads to scale an ignition's tell to that hero's own
-   * VOLATILITY (2026-08-20, Step 3: chainAffinity no longer touches
-   * magnitude — see heroes.ts's pool docstring — so this burst now reads
-   * purely as "how big a gamble is this," not payoff size). Enemies are
-   * inert (1) and never chain, so this is only meaningful on the player
-   * side, but is populated for both for simplicity. */
-  private heroChainAffinity: Map<string, number> = new Map();
+  /** Fixed for the whole fight, same as heroMaxHp above — a hero's fatigue, which
+   * showChainStart reads to scale an ignition's tell (DECISIONS.md 2026-09-30):
+   * the more worn the unit, the bigger the burst, since its chain is both
+   * stronger and likelier to go wrong. Enemies carry 0 and never chain. */
+  private heroFatigue: Map<string, number> = new Map();
   private arena: HTMLElement;
   private tracerLayer: HTMLElement;
   private calloutBand: HTMLElement;
@@ -374,9 +371,8 @@ export class FightView {
   /** The chain's resolution beat (2026-08-17) — every chain gets one, not
    * just a cascade-tier one, since "did it just stop?" was as illegible as
    * "is it still going?". Decomposes the payoff into length (luck, the
-   * dominant axis) and this hero's own chainAffinity (the ~2x the player
-   * actually chose), so the recap states honestly how much of the number on
-   * screen the player's own pick bought. */
+   * dominant axis) and how worn this hero was, so the recap states honestly how
+   * much of the number on screen the player's own pick bought. */
   private chainEndCard: HTMLElement;
   /** Presentation-only state machine for the chain's OWN lifecycle across
    * ticks (2026-08-19, chain-ending pass) — deliberately NOT read off
@@ -726,7 +722,7 @@ export class FightView {
       this.heroNames.set(hero.id, hero.name);
       this.heroRoles.set(hero.id, hero.role);
       this.heroMaxHp.set(hero.id, hero.maxHp);
-      this.heroChainAffinity.set(hero.id, hero.chainAffinity);
+      this.heroFatigue.set(hero.id, hero.fatigue);
     });
   }
 
@@ -1507,27 +1503,16 @@ export class FightView {
   /** A named hero's bar fills and fires (2026-08-14 chain rebuild) — the
    * loud, named beat that establishes "it's THIS hero, starting NOW, and
    * it's going THIS way" before a single bonus hit has landed. No advance
-   * telegraph exists before this moment (see config.ts's
-   * backfireChanceBase/backfireChanceFor docstrings) — the chainHud (title
-   * text, driven by updateChainHud) and this burst ARE the reveal.
+   * telegraph exists before this moment (see config.ts's backfireChanceFor
+   * docstring) — the chainHud (title text, driven by updateChainHud) and this
+   * burst ARE the reveal.
    *
-   * 2026-08-15 (chain-payoff-axis pass): the burst ring's own size now
-   * scales to this hero's chainAffinity, normalized against the pool's
-   * range (--ignite-scale, read by style.css's igniteBurst/backfireBurst
-   * keyframes) — a low-affinity ignition is a visibly smaller tell than
-   * Rook's, so the ignition stops over-promising for the heroes whose
-   * chains used to be a dud. Never scales below 0.6 — every ignition is
-   * still a real tell, per the same "nothing goes silent" rule the hit-by-
-   * hit spectacle ladder follows (see showChainHit).
-   *
-   * KNOWN GAP (2026-08-19, affinity-as-risk pass): this still scales off raw
-   * chainAffinity, not the true chain-output coefficient (see
-   * sim/heroes.ts's chainCoefficient) the pick-screen pips were corrected to
-   * use — a low-affinity, high-damage hero (Vex) still gets a visibly
-   * smaller ignition tell than its real payoff deserves. Not fixed here:
-   * HeroSnapshot doesn't carry damage/healPerBeat (only chainAffinity), so
-   * computing the coefficient here needs a small sim-level schema addition,
-   * out of scope for that pass. */
+   * The burst ring's own size scales to this hero's fatigue (--ignite-scale,
+   * read by style.css's igniteBurst/backfireBurst keyframes): a fresh unit's
+   * ignition is a smaller tell than a frayed one's, since the frayed chain is
+   * both stronger and likelier to go wrong. Never scales below 0.6 — every
+   * ignition is still a real tell, per the same "nothing goes silent" rule the
+   * hit-by-hit spectacle ladder follows (see showChainHit). */
   private showChainStart(heroId: string, backfire: boolean): void {
     this.anyChainFiredThisFight = true;
     // A new chain firing is the authoritative "the stage is live again"
@@ -1550,9 +1535,7 @@ export class FightView {
     // once per chain and can't collide with itself the way a rapid chainHit
     // stream used to collide with the old shared .callout.
     pulseClass(this.chainHud, "emphasize", 600);
-    const affinity = this.heroChainAffinity.get(heroId) ?? MAX_CHAIN_AFFINITY;
-    const range = MAX_CHAIN_AFFINITY - MIN_CHAIN_AFFINITY || 1;
-    const igniteScale = 0.6 + 0.4 * ((affinity - MIN_CHAIN_AFFINITY) / range);
+    const igniteScale = 0.6 + 0.4 * fatigueFraction(this.cfg, this.heroFatigue.get(heroId) ?? 0);
     refs.body.style.setProperty("--ignite-scale", igniteScale.toFixed(2));
     pulseClass(refs.body, backfire ? "backfire-burst" : "ignite-burst", 500);
   }

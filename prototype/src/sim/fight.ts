@@ -1,6 +1,6 @@
 import type { Rng } from "./rng.js";
 import type { ChainEffect, FightConfig } from "./config.js";
-import { backfireChanceFor, chainContinuationChance, chainEscalationFactor } from "./config.js";
+import { backfireChanceFor, chainContinuationChance, chainEscalationFactor, fatigueMagnitudeMult } from "./config.js";
 import type { ChainPlan, FightSetup, HeroState, Marks, SideState } from "./types.js";
 import { sideHp, sideMaxHp } from "./types.js";
 import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "./events.js";
@@ -472,7 +472,8 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
     hitsTaken: h.hitsTaken,
     holding: h.holding,
     charge: h.charge,
-    chainAffinity: h.chainAffinity,
+    fatigue: h.fatigue,
+    backfires: h.backfires,
     windupFireT: h.windupFireT,
     windupTargetId: h.windupTargetId,
     nextWindupT: h.nextWindupT,
@@ -492,16 +493,14 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
  * enemies since they never chain and nothing reads their plan. An enemy's
  * `effects` is arbitrary (they author no HeroDef.chainEffects) — never
  * exercised, since only the player side is ever scanned to ignite a chain. */
-function resolveChainPlan(cfg: FightConfig, hero: HeroState): ChainPlan {
-  return {
-    effects: hero.chainEffects ?? ["expose"],
-    backfireChance: backfireChanceFor(cfg, hero.chainAffinity),
-  };
+function resolveChainPlan(hero: HeroState): ChainPlan {
+  return { effects: hero.chainEffects ?? ["expose"] };
 }
 
-function cloneHeroes(heroes: HeroState[], cfg: FightConfig): HeroState[] {
+function cloneHeroes(heroes: HeroState[]): HeroState[] {
   return heroes.map((h) => ({
     ...h,
+    backfires: 0,
     dealt: 0,
     soaked: 0,
     restored: 0,
@@ -514,7 +513,7 @@ function cloneHeroes(heroes: HeroState[], cfg: FightConfig): HeroState[] {
     // check, the lab) deliberately pre-seeds some on the setup it hands in.
     marks: h.marks ? { ...h.marks } : { exposed: 0, burn: 0, shield: 0 },
     burnFrom: undefined,
-    chainPlan: resolveChainPlan(cfg, h),
+    chainPlan: resolveChainPlan(h),
   }));
 }
 
@@ -735,9 +734,10 @@ function handleBruiserBeat(
  *
  * The firing unit's chainLevel no longer scales this (2026-09-30): a chain
  * "+N" now means one extra MARK stack per rung — see markStacks — so damage
- * and heal size come from the curve alone. */
-function escalatedMagnitude(cfg: FightConfig, base: number, hitIndex: number): number {
-  return Math.max(1, Math.round(base * cfg.chainHitMultiplier * chainEscalationFactor(cfg, hitIndex)));
+ * and heal size come from the curve alone, times `boost`: the firing unit's
+ * fatigue multiplier (config.ts's fatigueMagnitudeMult, 1 when fresh). */
+function escalatedMagnitude(cfg: FightConfig, base: number, hitIndex: number, boost = 1): number {
+  return Math.max(1, Math.round(base * cfg.chainHitMultiplier * chainEscalationFactor(cfg, hitIndex) * boost));
 }
 
 /** Same curve as escalatedMagnitude, for a "stun" rung's duration in seconds
@@ -746,9 +746,10 @@ function escalatedMagnitude(cfg: FightConfig, base: number, hitIndex: number): n
  * 2026-09-15) — its per-rung value is a flat charge, since a charge has no
  * magnitude of its own to escalate. Freeze has no stacks, so it is the one
  * effect where the firing unit's `level` (2026-09-23) still scales the
- * number: a chain "+N" makes each freeze rung last longer. */
-function escalatedDurationSec(cfg: FightConfig, baseSec: number, hitIndex: number, level = 1): number {
-  return baseSec * chainEscalationFactor(cfg, hitIndex) * level;
+ * number: a chain "+N" makes each freeze rung last longer. `boost` is the
+ * same fatigue multiplier escalatedMagnitude takes. */
+function escalatedDurationSec(cfg: FightConfig, baseSec: number, hitIndex: number, level = 1, boost = 1): number {
+  return baseSec * chainEscalationFactor(cfg, hitIndex) * level * boost;
 }
 
 /** One target's outcome from a single chain rung. Attack/heal effects that
@@ -817,6 +818,10 @@ function resolveOneEffect(
   // stays correct even though each rung is resolved by a separate call.
   stunHeld: Map<string, number>,
 ): ChainHitEntry[] | null {
+  // Fatigue makes every escalated rung a little stronger (guard is a flat
+  // charge count and ignores it). It scales a backfire equally — a frayed
+  // unit's mistake is as big as its success.
+  const boost = fatigueMagnitudeMult(cfg, hero.fatigue);
   // A damage effect's real payoff lands on the enemy, backfire on the
   // player's own side; a heal effect is the mirror of that (real payoff
   // heals the player's own side, backfire heals the enemy) — same asymmetry
@@ -835,7 +840,7 @@ function resolveOneEffect(
     case "scorch": {
       const targets = targetSide.heroes.filter((h) => h.alive && h.hp > 0);
       if (targets.length === 0) return null;
-      const damage = escalatedMagnitude(cfg, cfg.chainScorchBase, hitIndex);
+      const damage = escalatedMagnitude(cfg, cfg.chainScorchBase, hitIndex, boost);
       return targets.map((target) => {
         const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false, dmgOpts);
         hero.dealt += applied;
@@ -860,7 +865,7 @@ function resolveOneEffect(
     case "expose": {
       const target = highestHpAliveHero(targetSide);
       if (!target) return null;
-      const damage = escalatedMagnitude(cfg, cfg.chainExposeBase, hitIndex);
+      const damage = escalatedMagnitude(cfg, cfg.chainExposeBase, hitIndex, boost);
       const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false, dmgOpts);
       hero.dealt += applied;
       let marked = false;
@@ -882,8 +887,8 @@ function resolveOneEffect(
     case "ward": {
       const allies = targetSide.heroes.filter((h) => h.alive && h.hp > 0);
       if (allies.length === 0) return null;
-      const raw = escalatedMagnitude(cfg, cfg.chainWardBase, hitIndex);
-      const shieldRaw = escalatedMagnitude(cfg, cfg.chainWardShield, hitIndex) + (level - 1) * cfg.chainShieldPerLevel;
+      const raw = escalatedMagnitude(cfg, cfg.chainWardBase, hitIndex, boost);
+      const shieldRaw = escalatedMagnitude(cfg, cfg.chainWardShield, hitIndex, boost) + (level - 1) * cfg.chainShieldPerLevel;
       return allies.map((target) => {
         const room = target.maxHp - target.hp;
         const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
@@ -912,7 +917,7 @@ function resolveOneEffect(
       // docstring): at the shared normal-beat cap, a support's chain was
       // capped to single digits regardless of length.
       const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
-      const raw = escalatedMagnitude(cfg, cfg.chainMendBase, hitIndex);
+      const raw = escalatedMagnitude(cfg, cfg.chainMendBase, hitIndex, boost);
       const potent = Math.min(raw, cap);
       const amount = room > 0 ? Math.max(1, Math.min(potent, room)) : 0;
       target.hp += amount;
@@ -976,7 +981,7 @@ function resolveOneEffect(
       const targetSideForLookup = backfire ? player : enemy;
       const target = targetId ? targetSideForLookup.heroes.find((h) => h.id === targetId) : undefined;
       if (!target) return null;
-      let sec = escalatedDurationSec(cfg, cfg.chainStunBaseSec, hitIndex, level);
+      let sec = escalatedDurationSec(cfg, cfg.chainStunBaseSec, hitIndex, level, boost);
       // Deep freeze: freezing an Exposed enemy lasts longer. Only ever a
       // payoff on the real (non-backfire) side.
       if (c && !backfire && c.payoffs.has("deepFreeze") && (target.marks?.exposed ?? 0) > 0) {
@@ -1068,8 +1073,8 @@ function resolveChainHit(
  */
 export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: number): FightResult {
   // Work on private copies so the caller's setup objects aren't mutated.
-  const player: SideState = { heroes: cloneHeroes(setup.player.heroes, cfg), dpsBonus: setup.player.dpsBonus };
-  const enemy: SideState = { heroes: cloneHeroes(setup.enemy.heroes, cfg), dpsBonus: setup.enemy.dpsBonus };
+  const player: SideState = { heroes: cloneHeroes(setup.player.heroes), dpsBonus: setup.player.dpsBonus };
+  const enemy: SideState = { heroes: cloneHeroes(setup.enemy.heroes), dpsBonus: setup.enemy.dpsBonus };
   const events: FightEvent[] = [];
 
   // The marks/payoff context (see FightCtx's docstring) is live only for the
@@ -1126,10 +1131,9 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
   let ignited = false;
   let hotHeroId: string | null = null;
   // Whether the CURRENT chain (hotHeroId) is a backfire — decided once, at
-  // fire time, by backfireChanceFor(cfg, firing hero's chainAffinity)
-  // (2026-08-14 chain rebuild; per-hero since the 2026-08-19 affinity-as-risk
-  // pass — see config.ts's backfireChanceBase docstring). Meaningless while
-  // hotHeroId is null.
+  // fire time, by backfireChanceFor(cfg, firing hero's fatigue) (2026-08-14
+  // chain rebuild; fatigue-driven since 2026-09-30 — see config.ts's
+  // backfireAtFresh docstring). Meaningless while hotHeroId is null.
   let chainBackfire = false;
   // The CURRENT chain's ability list (config.ts's ChainEffect; became a list
   // 2026-09-29, add-don't-swap — see DECISIONS.md) — set the instant
@@ -1230,7 +1234,7 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
         // damper checks/beatsheet.ts and checks/projection.ts use to disable
         // continuation entirely.
         const capped = bonusHitsLanded >= cfg.chainMaxHits;
-        const chance = capped ? 0 : chainContinuationChance(cfg, bonusHitsLanded);
+        const chance = capped ? 0 : chainContinuationChance(cfg, bonusHitsLanded, hero.fatigue);
         const rolled = rng.chance(chance);
         const hits = rolled
           ? resolveChainHit(t, rng, cfg, player, enemy, hero, bonusHitsLanded + 1, chainBackfire, chainStunHeld)
@@ -1392,8 +1396,9 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
         // The roll always happens, whether or not cfg.forceBackfire overrides
         // what it decides — see that field's own docstring (config.ts) for
         // why this keeps the RNG stream identical to today's game.
-        const rolled = rng.chance(backfireChanceFor(cfg, ready.chainAffinity));
+        const rolled = rng.chance(backfireChanceFor(cfg, ready.fatigue));
         chainBackfire = cfg.forceBackfire === undefined ? rolled : cfg.forceBackfire === "always";
+        if (chainBackfire) ready.backfires++;
         hotEffects = ready.chainPlan?.effects ?? ["expose"];
         bonusHitsLanded = 0;
         chainDamageSoFar = 0;

@@ -21,7 +21,17 @@ import type { RunProgress } from "./progress.js";
  * so the headless run driver (sim/run.ts) and the interactive UI
  * (render/offerScreen.ts) read the exact same rules.
  */
-export type OfferKind = "chainLevel" | "chainGain" | "payoff" | "recruit" | "statHp" | "statDamage" | "heal" | "revive" | "slot";
+export type OfferKind =
+  | "chainLevel"
+  | "chainGain"
+  | "payoff"
+  | "recruit"
+  | "statHp"
+  | "statDamage"
+  | "heal"
+  | "revive"
+  | "rest"
+  | "slot";
 
 export interface Offer {
   kind: OfferKind;
@@ -37,8 +47,9 @@ export interface Offer {
   /** "payoff" only — true when the card reads a mark the squad can already
    * make, so the offer screen can highlight the connection. */
   connects?: boolean;
-  /** "revive" only — which fallen unit this offer brings back, chosen at
-   * draw time so applyOffer doesn't have to guess. */
+  /** "revive" and "rest" — which unit this offer acts on (the fallen unit it
+   * brings back, or the worn unit it rests), chosen at draw time so applyOffer
+   * doesn't have to guess. */
   unitId?: string;
   title: string;
   detail: string;
@@ -191,6 +202,23 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
   });
 
   templates.push({
+    key: "rest",
+    size: "small",
+    eligible: (_progress, roster) => roster.heroes.some((h) => h.alive && h.fatigue > 0),
+    build: (_progress, roster) => {
+      // The most worn living unit — the one the player would otherwise have to
+      // bench to recover. Chosen at draw time, like revive's target.
+      const unit = roster.heroes.filter((h) => h.alive).sort((a, b) => b.fatigue - a.fatigue)[0]!;
+      return {
+        kind: "rest",
+        unitId: unit.id,
+        title: `Rest ${unit.name}`,
+        detail: `Takes the edge off ${unit.name}: less fatigue, so a safer chain.`,
+      };
+    },
+  });
+
+  templates.push({
     key: "slot",
     size: "big",
     eligible: (progress) => progress.slots < cfg.maxSlots,
@@ -278,6 +306,23 @@ export function drawOffers(rng: Rng, progress: RunProgress, roster: SideState, c
   const living = roster.heroes.filter((h) => h.alive).length;
   const hasFallen = roster.heroes.some((h) => !h.alive);
   const needsSafetyNet = living < progress.slots || (hasFallen && living <= progress.slots);
+  // The fatigue safety net (2026-09-30): when even the freshest units the
+  // squad could field are all past the sweet spot, there is no rested unit to
+  // rotate in, so a Rest offer is forced. Only when the roster net above did
+  // not already claim the slot.
+  const freshest = roster.heroes
+    .filter((h) => h.alive)
+    .map((h) => h.fatigue)
+    .sort((a, b) => a - b)
+    .slice(0, progress.slots);
+  const needsRest = !needsSafetyNet && freshest.length > 0 && freshest.every((f) => f >= cfg.fight.fatigueSweetSpot);
+  if (needsRest) {
+    const restIdx = pool.findIndex((p) => p.t.key === "rest");
+    if (restIdx >= 0) {
+      chosen.push(pool[restIdx]!.t);
+      pool.splice(restIdx, 1);
+    }
+  }
   if (needsSafetyNet) {
     const reviveIdx = pool.findIndex((p) => p.t.key === "revive");
     if (reviveIdx >= 0) {
@@ -389,6 +434,12 @@ export function applyOffer(
     case "revive": {
       const heroes = roster.heroes.map((h) =>
         h.id === offer.unitId ? { ...h, alive: true, hp: Math.round(h.maxHp * cfg.reviveHpFraction) } : h,
+      );
+      return { progress, roster: { ...roster, heroes } };
+    }
+    case "rest": {
+      const heroes = roster.heroes.map((h) =>
+        h.id === offer.unitId ? { ...h, fatigue: Math.max(0, h.fatigue - cfg.restFatigueCut) } : h,
       );
       return { progress, roster: { ...roster, heroes } };
     }

@@ -45,14 +45,21 @@ export function canFieldSquad(roster: RosterState, fieldSize: number): boolean {
   return livingRosterHeroes(roster).length >= fieldSize;
 }
 
+/** How much one point of fatigue counts against a unit in defaultFieldPick,
+ * in HP-fraction terms: 100 fatigue costs as much as half a health bar. Enough
+ * that, all else equal, the fresher of two units of a role takes the field —
+ * which is what makes a benched unit shed fatigue in a headless run. */
+const FATIGUE_PICK_WEIGHT = 0.005;
+
 /** The accept-default squad-mix pick: one living unit per role in
- * tank -> damage -> support priority (ties broken by current HP fraction,
- * highest first), then fills any remaining slots from the rest of the
- * living roster by HP fraction. Keeps the minimum path Play -> watch -> Play
- * even as the roster grows or shrinks — the default adapts automatically. */
+ * tank -> damage -> support priority (ties broken by current HP fraction less
+ * a fatigue penalty, highest first), then fills any remaining slots from the
+ * rest of the living roster the same way. Keeps the minimum path Play -> watch
+ * -> Play even as the roster grows or shrinks — the default adapts
+ * automatically. */
 export function defaultFieldPick(roster: RosterState, fieldSize: number): string[] {
   const living = livingRosterHeroes(roster);
-  const hpFrac = (h: HeroState) => (h.maxHp > 0 ? h.hp / h.maxHp : 0);
+  const hpFrac = (h: HeroState) => (h.maxHp > 0 ? h.hp / h.maxHp : 0) - h.fatigue * FATIGUE_PICK_WEIGHT;
   const pickedIds = new Set<string>();
   const picked: string[] = [];
 
@@ -121,6 +128,11 @@ export function fieldSquad(roster: RosterState, fieldedIds: string[], progress: 
  * squad-mix pick a real decision. Charge is NOT carried: it is zeroed here and
  * again in fieldSquad, since every fight starts at zero.
  *
+ * Fatigue (DECISIONS.md 2026-09-30) moves here too, by the same fielded-versus-
+ * benched split: a fielded unit gains it (see RunConfig's fatiguePerFight
+ * docstring for the three sources), a living benched unit loses it. Both are
+ * clamped to [0, fatigueMax].
+ *
  * Death stays permanent — a roster unit whose hp hit 0 is marked !alive here
  * and never revives on its own (a "revive" offer is the only way back). The
  * dead unit is kept in the array (not spliced out) so the round screen can
@@ -138,7 +150,18 @@ export function applyFightResultToRoster(
     if (!h.alive) return h; // already permanently dead — no-op, never revives on its own
     const wasFielded = fieldedIds.has(h.id);
     const final = wasFielded ? finalById.get(h.id) : undefined;
-    const afterFight: HeroState = final ? { ...h, hp: final.hp, alive: final.alive, charge: 0 } : h;
+    const fatigueMax = cfg.fight.fatigueMax;
+    const clampFatigue = (value: number) => Math.max(0, Math.min(fatigueMax, value));
+    let fatigue = h.fatigue;
+    if (final) {
+      const hpLostFraction = h.maxHp > 0 ? Math.max(0, h.hp - final.hp) / h.maxHp : 0;
+      fatigue = clampFatigue(
+        h.fatigue + cfg.fatiguePerFight + cfg.fatiguePerHpLost * hpLostFraction + cfg.fatiguePerBackfire * final.backfires,
+      );
+    } else {
+      fatigue = clampFatigue(h.fatigue - cfg.fatigueBenchRest);
+    }
+    const afterFight: HeroState = final ? { ...h, hp: final.hp, alive: final.alive, charge: 0, fatigue } : { ...h, fatigue };
     if (!afterFight.alive) return afterFight; // just died this fight — no recovery tick
     const fraction = wasFielded ? cfg.autoRecoverFraction : cfg.benchedRecoverFraction;
     return { ...afterFight, hp: Math.min(afterFight.maxHp, afterFight.hp + afterFight.maxHp * fraction) };

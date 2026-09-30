@@ -21,9 +21,6 @@ export interface ChainPlan {
    * "gains" offer has ever added, base ability first. A rung resolves ALL of
    * these, not just one — see fight.ts's resolveChainHit. */
   effects: ChainEffect[];
-  /** This hero's own backfireChanceFor(cfg, chainAffinity), cached alongside
-   * the plan it was used to derive so both travel together. */
-  backfireChance: number;
 }
 
 export interface HeroState {
@@ -52,21 +49,22 @@ export interface HeroState {
    * heroes.ts). Meaningless without healPerBeat set. */
   attacksWhileHealing?: boolean;
 
-  /** VOLATILITY ONLY (2026-08-19 affinity-as-risk pass, unchanged by the
-   * 2026-09-13 chain-effect rebuild): feeds config.ts's backfireChanceFor —
-   * higher affinity means a bigger backfire chance, nothing about what a
-   * hero's chain does or how big it lands (see chainEffects below for that).
-   * It also doesn't scale how fast `charge` accrues — every hero fills at
-   * the same rate, so two heroes' bars read as directly comparable at
-   * field-pick time. See heroes.ts's PLAYER_HERO_POOL for why each hero's
-   * value differs: this is "how much of a gamble is this hero to have go
-   * hot," nothing else. */
-  chainAffinity: number;
+  /** How worn this unit is (DECISIONS.md 2026-09-30 "Fatigue replaces
+   * per-role backfire odds"), from 0 to config.ts's fatigueMax. PERSISTS for
+   * the whole run, per unit: it rises when the unit is fielded, loses HP or
+   * backfires, and falls on the bench or with a Rest card (sim/roster.ts's
+   * applyFightResultToRoster, sim/offers.ts). In a fight it sets this unit's
+   * backfire chance (config.ts's backfireChanceFor) and makes its chains a
+   * little longer and stronger. Enemies carry 0 and never read it. */
+  fatigue: number;
+  /** How many of this unit's chains backfired THIS fight — zeroed at fight
+   * start by cloneHeroes, folded into `fatigue` afterwards by the roster. */
+  backfires: number;
 
   /** This hero's own chain ABILITIES (2026-09-13, "a hero's chain names its
    * own enemy" rebuild; became a list 2026-09-29 — a "gains" offer adds to
    * it, never replaces it, see DECISIONS.md and sim/offers.ts). Set on
-   * HeroDef/HeroState alike, same as chainAffinity; enemies author no value
+   * HeroDef/HeroState alike, same as fatigue; enemies author no value
    * (they never chain — only the player side is ever scanned to ignite
    * one). */
   chainEffects?: ChainEffect[];

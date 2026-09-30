@@ -118,33 +118,42 @@ export interface FightConfig {
    * hpScale (sim/encounters.ts's buildEnemySide). The one knob that makes
    * enemies tougher to absorb the extra chains; 1 is inert. */
   enemyHpScale: number;
-  /** The coin flip at the moment a chain fires (2026-08-14 chain rebuild):
-   * this fraction of the time the chain aims at the wrong side instead of
-   * the right one — an attacker's escalating hits land on its OWN team, a
-   * healer's escalating heal restores the ENEMY. Same mechanic, same
-   * magnitude formula (hero.chainAffinity scales a backfire exactly as it
-   * scales a real payoff), just aimed backwards — see fight.ts's chain
-   * resolution. No advance telegraph; the player finds out which way it
-   * went only when it fires (colour reads instantly — gold burst vs red
-   * implosion).
+  /**
+   * Fatigue (DECISIONS.md 2026-09-30 "Fatigue replaces per-role backfire
+   * odds"). A unit's fatigue runs from 0 to `fatigueMax`, persists for the
+   * whole run, and sets two things in a fight: how likely its chain is to
+   * backfire, and how long and strong its chains are.
    *
-   * 2026-08-19 (affinity-as-risk pass — see DECISIONS.md/STATE.md's
-   * attribution investigation): no longer a flat constant. Before this pass,
-   * chainAffinity scaled payoff/backfire MAGNITUDE symmetrically while every
-   * hero shared this same flat chance — at those odds, symmetric magnitude
-   * is NET POSITIVE expected value, so more affinity was strictly more EV,
-   * never a real tradeoff (clearest case: Hollow vs Bracer was +73%
-   * affinity, +9% DPS, for only -7.7% maxHp — an upgrade, not a choice). Use
-   * backfireChanceFor(cfg, chainAffinity) below instead of reading this
-   * field directly. */
-  backfireChanceBase: number;
-  /** See backfireChanceFor below — the risk half of "more affinity, more
-   * volatility." Additional backfire chance per +1.0 of chainAffinity above
-   * (or below) 1.0. Positive: more affinity means more real risk. Anchored
-   * at 1.0 rather than the pool's actual min/max so this file stays
-   * pool-agnostic (sim/config.ts must not import sim/heroes.ts's specific
-   * stat block). */
-  backfireChanceAffinitySlope: number;
+   * The coin flip at the moment a chain fires (2026-08-14 chain rebuild) is
+   * unchanged: this fraction of the time the chain aims at the wrong side —
+   * an attacker's escalating hits land on its OWN team, a healer's heal
+   * restores the ENEMY — at the same magnitude a real payoff would have had.
+   * What changed is where the odds come from. They were a per-role constant
+   * (chainAffinity, 2026-08-19); they are now `backfireChanceFor(cfg, fatigue)`,
+   * a curve through three anchors: `backfireAtFresh` at 0, `backfireAtSweetSpot`
+   * at `fatigueSweetSpot`, and `backfireAtBreaking` at `fatigueMax`.
+   *
+   * The curve is deliberately shallow up to the sweet spot and steep after
+   * it. The chain boost below rises linearly, so a unit's expected value per
+   * chain peaks somewhere in the middle and falls off past it — the point of
+   * "push or rest". If the backfire rose as gently as the boost did, maximum
+   * fatigue would always be the right call (the 2026-08-19 trap).
+   */
+  fatigueMax: number;
+  /** Fatigue at which each tier starts — Worn, Frayed, Breaking (Fresh starts
+   * at 0). Presentation only: nothing in the sim reads a tier, only the
+   * continuous value. */
+  fatigueTierFloors: [number, number, number];
+  fatigueSweetSpot: number;
+  backfireAtFresh: number;
+  backfireAtSweetSpot: number;
+  backfireAtBreaking: number;
+  /** At `fatigueMax`, added to every continuation chance (chainContinuationChance)
+   * and scaled down linearly with fatigue — a frayed unit's chains run longer. */
+  fatigueContinuationBonus: number;
+  /** At `fatigueMax`, the fraction added to every escalated rung's magnitude
+   * (fatigueMagnitudeMult), scaled down linearly with fatigue. */
+  fatigueMagnitudeBonus: number;
 
   /**
    * The enemy bruiser's telegraphed heavy hit (2026-08-07 rebuild) — the
@@ -177,7 +186,8 @@ export interface FightConfig {
    *
    * No hero term. `chainAffinity` was dropped from this formula by the
    * 2026-09-13 rebuild (heroes differ by EFFECT now, not by magnitude) and
-   * is purely the backfire-risk lever — see backfireChanceFor. The base was
+   * has since been removed altogether; fatigue scales the result at the call
+   * site instead (fatigueMagnitudeMult). The base was
    * also the hot hero's own damage/healPerBeat stat before that rebuild;
    * it is a per-effect constant now. This docstring claimed both until
    * 2026-09-21. */
@@ -640,6 +650,22 @@ export interface RunConfig {
    * which is what makes the squad-mix pick a real rotation decision rather
    * than "always field the same three." */
   benchedRecoverFraction: number;
+
+  /**
+   * Between-round fatigue rules (2026-09-30, DECISIONS.md "Fatigue replaces
+   * per-role backfire odds"; sim/roster.ts's applyFightResultToRoster reads
+   * them). A FIELDED unit gains `fatiguePerFight` for taking part, plus
+   * `fatiguePerHpLost` times the fraction of its own maxHp it lost net over the
+   * fight, plus `fatiguePerBackfire` per chain of its that backfired. A
+   * BENCHED living unit loses `fatigueBenchRest`. A "rest" offer
+   * (sim/offers.ts) cuts one unit by `restFatigueCut`. Fatigue stays inside
+   * [0, fightCfg.fatigueMax]; the ceiling is what stops a backfire spiral.
+   */
+  fatiguePerFight: number;
+  fatiguePerHpLost: number;
+  fatiguePerBackfire: number;
+  fatigueBenchRest: number;
+  restFatigueCut: number;
 }
 
 export const DEFAULT_FIGHT_CONFIG: FightConfig = {
@@ -685,35 +711,21 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   chargeThreshold: 45,
   chargeTricklePerSec: 6,
   enemyHpScale: 1.6,
-  // 0.10 — batch-verified alongside chargeThreshold above: at 220/0.10, the
-  // default draft (always-heal, n=800) landed run completion at ~28%, close
-  // to STATE.md's existing ~28% baseline for the OLD (pre-2026-08-15) chain
-  // mechanic. Higher values (0.15-0.25) were tested and eroded completion
-  // roughly linearly (26% / 22% / 18%) with no cliff — a legitimate
-  // further-tuning knob, not a value chosen to avoid a bug.
-  //
-  // Re-tuned 0.10 -> 0.12 (2026-08-15, chain-payoff-axis pass): moving a
-  // chain's payoff spread onto length (steeper escalation past
-  // chainEscalationKneeHit — see heroes.ts's chainAffinity docstring for
-  // the full rationale) pushed always-heal completion up to ~30.9% at
-  // backfireChance=0.10, n=1500 — the escalation curve makes both a real
-  // payoff AND a backfire bigger equally, but a losing fight is more likely
-  // to end (by wipe) before a chain reaches the steep part of the curve,
-  // while a winning one can ride a long chain further, so the net effect
-  // skewed the game slightly easier. 0.12 lands back at ~29.6%, within a
-  // point of the ~28% baseline.
-  //
-  // Restructured flat -> per-hero (2026-08-19, affinity-as-risk pass): this
-  // value becomes backfireChanceBase, the rate at chainAffinity===1.0 (Vex
-  // exactly — sees zero change from the flat-0.12 era). Strawman
-  // (unverified against a played session, only batch-measured — same as
-  // every value in this file): backfireChanceAffinitySlope=0.15 spreads real
-  // backfire risk ~7.5% (Cairn, 0.7 affinity) to ~18% (Rook, 1.4 affinity)
-  // across the pool's current range. Re-batch (`npm run check:chaindist`)
-  // before trusting either number again if chainAffinity's own pool range
-  // moves.
-  backfireChanceBase: 0.12,
-  backfireChanceAffinitySlope: 0.15,
+
+  // Fatigue (2026-09-30, DECISIONS.md "Fatigue replaces per-role backfire
+  // odds") — first-pass strawmen, see the FightConfig docstring for the shape.
+  // The backfire anchors replace the old per-role 0.12 +/- slope (which ran
+  // ~9% for a tank to ~16% for a damage unit). With ~6 chains a fight, a flat
+  // 12% would put a backfire in about half of all fights, so the fresh anchor
+  // sits well under it and only a worn unit gets near it.
+  fatigueMax: 100,
+  fatigueTierFloors: [25, 50, 80],
+  fatigueSweetSpot: 45,
+  backfireAtFresh: 0.03,
+  backfireAtSweetSpot: 0.1,
+  backfireAtBreaking: 0.55,
+  fatigueContinuationBonus: 0.1,
+  fatigueMagnitudeBonus: 0.35,
 
   // Wind-up (2026-08-07 rebuild, retuned twice after batch passes — see
   // DECISIONS.md's "fight causality rebuild" entry): the initial strawman
@@ -858,6 +870,15 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   // squad-mix pick's rotation pressure), once there is a bench to reward.
   autoRecoverFraction: 0.4,
   benchedRecoverFraction: 0.6,
+
+  // First-pass strawmen — see the RunConfig docstring. Tuned so a unit that is
+  // fielded every round drifts toward the sweet spot by mid-run rather than
+  // maxing out in a handful of fights.
+  fatiguePerFight: 3,
+  fatiguePerHpLost: 25,
+  fatiguePerBackfire: 4,
+  fatigueBenchRest: 12,
+  restFatigueCut: 30,
 };
 
 /** Look up a PRD-style table: index by count, clamp to the last (capped) entry. */
@@ -886,30 +907,62 @@ export function chainEscalationFactor(cfg: FightConfig, hitIndex: number): numbe
   return cfg.chainEscalationKneeHit + (hitIndex - cfg.chainEscalationKneeHit) * cfg.chainEscalationStepMultiplier;
 }
 
-/** The chance a firing chain backfires, as a function of the firing hero's
- * own chainAffinity (2026-08-19, affinity-as-risk pass — see
- * backfireChanceBase/backfireChanceAffinitySlope's docstrings above). Pure
- * and hero-agnostic, same convention as chainEscalationFactor: this file
- * never imports the specific hero pool, so the formula is anchored at
- * chainAffinity === 1.0 rather than the pool's actual min/max. Clamped to
- * [0, 1] defensively — the pool's current range (0.7-1.4) never approaches
- * either bound at the current base/slope, but a future hero or a retuned
- * slope shouldn't be able to produce a nonsense probability. */
-export function backfireChanceFor(cfg: FightConfig, chainAffinity: number): number {
-  return Math.max(0, Math.min(1, cfg.backfireChanceBase + cfg.backfireChanceAffinitySlope * (chainAffinity - 1)));
+/** How worn a unit is, as a fraction of `fatigueMax` in [0, 1]. Clamped so a
+ * stray out-of-range value can't push any of the fatigue formulas below off
+ * their anchors. */
+export function fatigueFraction(cfg: FightConfig, fatigue: number): number {
+  return cfg.fatigueMax > 0 ? Math.max(0, Math.min(1, fatigue / cfg.fatigueMax)) : 0;
 }
 
-/** prdLookup against cfg's own continuation table, damped by
- * cfg.chainContinuationScale (default 1, inert) — see that field's own
- * docstring for why the scale exists as a separate knob on top of the table.
- * Clamped to [0, 1] defensively, same convention as backfireChanceFor.
+export type FatigueTier = "fresh" | "worn" | "frayed" | "breaking";
+
+/** The tier a fatigue value falls in — presentation only, see
+ * fatigueTierFloors. */
+export function fatigueTier(cfg: FightConfig, fatigue: number): FatigueTier {
+  const [worn, frayed, breaking] = cfg.fatigueTierFloors;
+  if (fatigue >= breaking) return "breaking";
+  if (fatigue >= frayed) return "frayed";
+  if (fatigue >= worn) return "worn";
+  return "fresh";
+}
+
+/** The chance a firing chain backfires, as a function of the firing unit's
+ * fatigue (DECISIONS.md 2026-09-30). Piecewise linear through three anchors —
+ * backfireAtFresh at 0, backfireAtSweetSpot at fatigueSweetSpot,
+ * backfireAtBreaking at fatigueMax — so the rise is gentle to the sweet spot
+ * and steep after it (see the FightConfig docstring for why). Pure, same
+ * convention as chainEscalationFactor. Clamped to [0, 1] defensively. */
+export function backfireChanceFor(cfg: FightConfig, fatigue: number): number {
+  const f = Math.max(0, Math.min(cfg.fatigueMax, fatigue));
+  const sweet = Math.max(0, Math.min(cfg.fatigueMax, cfg.fatigueSweetSpot));
+  let p: number;
+  if (f <= sweet) {
+    p = sweet > 0 ? cfg.backfireAtFresh + (cfg.backfireAtSweetSpot - cfg.backfireAtFresh) * (f / sweet) : cfg.backfireAtSweetSpot;
+  } else {
+    const span = cfg.fatigueMax - sweet;
+    p = cfg.backfireAtSweetSpot + (cfg.backfireAtBreaking - cfg.backfireAtSweetSpot) * ((f - sweet) / span);
+  }
+  return Math.max(0, Math.min(1, p));
+}
+
+/** The factor a unit's fatigue multiplies every escalated chain rung by:
+ * 1 when fresh, 1 + fatigueMagnitudeBonus at fatigueMax. */
+export function fatigueMagnitudeMult(cfg: FightConfig, fatigue: number): number {
+  return 1 + cfg.fatigueMagnitudeBonus * fatigueFraction(cfg, fatigue);
+}
+
+/** prdLookup against cfg's own continuation table, plus the firing unit's
+ * fatigue bonus, damped by cfg.chainContinuationScale (default 1, inert) — see
+ * that field's own docstring for why the scale exists as a separate knob on
+ * top of the table. `fatigue` defaults to 0 so a caller that has no unit to
+ * ask (a check) gets the plain table. Clamped to [0, 1] defensively, same
+ * convention as backfireChanceFor.
  *
  * 2026-09-13 ("a hero's chain names its own enemy" rebuild): heroes no longer
- * carry their own continuation table — every hero reads this same one, same
- * as before the 2026-08-20 per-hero-profile pass. What differs between heroes
- * now is the EFFECT a rung produces (ChainEffect above), not how likely the
- * chain is to keep running. */
-export function chainContinuationChance(cfg: FightConfig, hitsSoFar: number): number {
-  const raw = prdLookup(cfg.chainChanceByHitsSoFar, hitsSoFar);
+ * carry their own continuation table — every hero reads this same one. What
+ * differs between heroes now is the EFFECT a rung produces (ChainEffect
+ * above), and, since 2026-09-30, how worn the unit is. */
+export function chainContinuationChance(cfg: FightConfig, hitsSoFar: number, fatigue = 0): number {
+  const raw = prdLookup(cfg.chainChanceByHitsSoFar, hitsSoFar) + cfg.fatigueContinuationBonus * fatigueFraction(cfg, fatigue);
   return Math.max(0, Math.min(1, raw * cfg.chainContinuationScale));
 }

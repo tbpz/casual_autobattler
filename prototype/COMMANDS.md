@@ -3,7 +3,7 @@
 ```
 npm install
 npm run dev                        # play it — http://localhost:5173
-npm run check                      # determinism + beatsheet + run-shape + offers + projection + marks regression checks
+npm run check                      # determinism + beatsheet + run-shape + offers + projection + marks + fatigue regression checks
 npm run fight -- --seed 7          # one fight, headless (starting tank+damage+support squad vs. round 1), prints the event log
 npm run lab -- --roles tank,damage,support --charge 0,90,0 --encounter 3 --seed 7
                                     # one hand-picked fight, headless — arbitrary role squad, arbitrary

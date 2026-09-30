@@ -1,6 +1,6 @@
-import type { RunConfig } from "../sim/config.js";
+import { backfireChanceFor, fatigueTier, type RunConfig } from "../sim/config.js";
 import type { HeroState } from "../sim/types.js";
-import { MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY, PLAYER_ROLES, ROLE_LABEL, ROLE_POOL, type PlayerRole } from "../sim/roles.js";
+import { PLAYER_ROLES, ROLE_LABEL, type PlayerRole } from "../sim/roles.js";
 import type { RunProgress } from "../sim/progress.js";
 import { MARK_CHIP, PAYOFF_DEFS, payoffConnects } from "../sim/payoffs.js";
 import { squadChainEffects } from "../sim/offers.js";
@@ -9,7 +9,6 @@ import { defaultFieldPick, type RosterState } from "../sim/roster.js";
 import { roundEnemySide, ROUND_PLAN } from "../sim/rounds.js";
 import type { EncounterKind } from "../sim/encounters.js";
 import {
-  backfireRiskPipCount,
   chainAnswersSlam,
   chainEffectChip,
   chainEffectLines,
@@ -43,12 +42,6 @@ function unitOrdinal(name: string): string {
   return m ? m[1]! : "?";
 }
 
-function backfireRiskWord(count: number): string {
-  if (count <= 2) return "low";
-  if (count === 3) return "medium";
-  return "high";
-}
-
 function strongerCountWord(n: number): string {
   if (n === 1) return "once";
   if (n === 2) return "twice";
@@ -60,9 +53,9 @@ function strongerCountWord(n: number): string {
  * DECISIONS.md's 2026-09-23 entries — this replaces the old one-text-row-
  * per-unit list wholesale, drawn from design/canvas/RoundStart/RoundGrown/
  * RoundPress.dc.html). One band per ROLE (icon, ability chips, a +N
- * "stronger" badge, a ✓-vs-slam tag, backfire-risk dots) with that role's
- * units drawn underneath as round tokens — a charge ring + an HP bar, a
- * number, nothing else. Tapping a band header (or a held payoff card) toggles
+ * "stronger" badge, a ✓-vs-slam tag) with that role's units drawn underneath
+ * as round tokens — a fatigue-tier ring + an HP bar, a number, and the tier
+ * word once a unit is no longer Fresh (DECISIONS.md 2026-09-30). Tapping a band header (or a held payoff card) toggles
  * a floating popover with the full sentences the header only hints at — same
  * words the old row always showed, just one tap away instead of always on
  * screen. It floats rather than sitting inline so opening it never moves the
@@ -259,7 +252,6 @@ export function renderRoundScreen(
     const roleProgress = progress.chain[role];
     const answersSlam = chainAnswersSlam(roleProgress.effects, enemyPreview);
     const strongerCount = chainStrongerCount(progress, role);
-    const pipCount = backfireRiskPipCount(cfg.fight, ROLE_POOL[role].chainAffinity, MIN_CHAIN_AFFINITY, MAX_CHAIN_AFFINITY);
 
     const band = document.createElement("div");
     band.className = "round-band";
@@ -299,15 +291,6 @@ export function renderRoundScreen(
       bandHeader.appendChild(tag);
     }
 
-    const dots = document.createElement("span");
-    dots.className = "round-backfire-dots";
-    dots.title = "backfire risk";
-    for (let i = 0; i < 5; i++) {
-      const dot = document.createElement("span");
-      dot.className = `round-backfire-dot${i < pipCount ? " filled" : ""}`;
-      dots.appendChild(dot);
-    }
-    bandHeader.appendChild(dots);
     band.appendChild(bandHeader);
 
     // The detail popover (tap to toggle) — floats over the page, so opening
@@ -329,7 +312,13 @@ export function renderRoundScreen(
       if (strongerCount > 0) {
         lines.push(popoverMeta(`Made stronger ${strongerCountWord(strongerCount)}.`));
       }
-      lines.push(popoverMeta(`Backfire risk: ${backfireRiskWord(pipCount)} (${pipCount} of 5).`));
+      // Backfire risk is per unit now (DECISIONS.md 2026-09-30): each living
+      // unit's own fatigue tier and the chance its next chain goes wrong.
+      for (const u of roleUnits) {
+        if (!u.alive) continue;
+        const chance = Math.round(backfireChanceFor(cfg.fight, u.fatigue) * 100);
+        lines.push(popoverMeta(`${u.name}: ${fatigueTier(cfg.fight, u.fatigue)} — ${chance}% backfire.`));
+      }
       togglePopover(bandHeader, lines);
     });
     bandHeader.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -356,16 +345,21 @@ export function renderRoundScreen(
       const isSelected = selected.has(h.id);
       const severity = hpSeverity(h);
       const hpFrac = h.maxHp > 0 ? Math.max(h.hp, 0) / h.maxHp : 0;
+      const tier = fatigueTier(cfg.fight, h.fatigue);
+      const backfirePct = Math.round(backfireChanceFor(cfg.fight, h.fatigue) * 100);
 
       const wrap = document.createElement("button");
       wrap.type = "button";
       wrap.className = `round-token${isSelected ? "" : " not-picked"}`;
+      wrap.title = `${h.name}: ${tier}, ${backfirePct}% backfire`;
       wrap.innerHTML = `
         <div class="round-token-body-wrap">
+          <div class="round-token-ring tier-${tier}"></div>
           <div class="round-token-body" style="background: var(${ROLE_CSS_VAR[role]})">${ordinal}</div>
           <div class="round-token-badge${isSelected ? "" : " hollow"}" style="background: ${isSelected ? `var(${ROLE_CSS_VAR[role]})` : ""}">${isSelected ? "✓" : ""}</div>
         </div>
         <div class="round-token-hp"><div class="round-token-hp-fill${severity === "ok" ? "" : ` ${severity}`}" style="width: ${(hpFrac * 100).toFixed(1)}%"></div></div>
+        <div class="round-token-tier tier-${tier}">${tier === "fresh" ? "&nbsp;" : tier}</div>
       `;
       wrap.addEventListener("click", () => toggle(h.id));
       const badge = wrap.querySelector(".round-token-badge") as HTMLElement;

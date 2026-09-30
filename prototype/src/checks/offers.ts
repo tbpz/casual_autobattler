@@ -54,6 +54,9 @@ function checkInvariants(label: string): void {
   for (const h of roster.heroes) {
     if (h.alive && h.hp <= 0) invariantBroken ??= `${label}: ${h.name} is "alive" at ${h.hp} HP`;
     if (h.hp > h.maxHp) invariantBroken ??= `${label}: ${h.name} is over its own max (${h.hp}/${h.maxHp})`;
+    // 2026-09-30 (fatigue): whatever offers and fights do to a unit, its
+    // fatigue stays inside [0, fatigueMax].
+    if (h.fatigue < 0 || h.fatigue > cfg.fight.fatigueMax) invariantBroken ??= `${label}: ${h.name} fatigue out of range (${h.fatigue})`;
   }
   // 2026-09-30 (marks and payoffs): the payoff list never passes its cap and
   // never holds a card twice.
