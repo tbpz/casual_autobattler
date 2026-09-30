@@ -10,6 +10,106 @@
 
 ---
 
+## [2026-09-30] Fatigue replaces per-role backfire odds; it persists per unit across fights
+
+- **Decision:**
+  - Each unit carries its own fatigue, kept across fights for the whole run.
+  - The round screen shows it as tiers (Fresh, Worn, Frayed, Breaking), not a number.
+  - Fatigue rises when a unit is fielded, when it loses HP, and when its chain backfires.
+  - Fatigue falls when a unit sits on the bench, or when a Rest reward card is taken.
+  - The offer safety net forces a Rest offer when every fielded unit is past the sweet spot.
+  - Fatigue affects chains only: higher fatigue makes chains slightly longer and slightly stronger.
+  - Backfire chance has a small floor when Fresh, so no chain is fully safe.
+  - Backfire chance then climbs steeply, so the best expected value sits mid-fatigue and drops at the top.
+  - Breaking is the top of that curve, with no separate event.
+- **Why:**
+  - Per-role backfire odds were hidden numbers the player never chose. Fatigue is visible and caused by rotation.
+  - The 2026-08-19 affinity entry found that payoff and backfire scaling together at low odds make more risk strictly better.
+  - The mid-fatigue peak keeps "push or rest" a real choice.
+  - Fatigue takes over the pick-time role the carried-over charge bar had.
+- **Replaces:**
+  - The per-role backfire chance from the 2026-08-19 affinity-as-risk pass.
+  - Live values will sit in `prototype/src/sim/config.ts`.
+
+## [2026-09-30] Chains fire every fight: charge resets per fight and fills faster
+
+- **Decision:**
+  - Charge starts at zero every fight and no longer carries over.
+  - Every hero also gains charge slowly with time, on top of charge from its own job.
+  - The time trickle guarantees a healer chains even when nobody is hurt early.
+  - The target is that every hero chains at least once per fight.
+  - The first chain must land while the fight is still undecided, not only near its end.
+  - Chains stay one at a time; a hero that fills mid-chain waits its turn.
+  - Each chain is worth less, and enemies get tougher, so chains decide most of a fight.
+  - Enemies do not chain in this pass.
+  - Starting a fight with charge already filled is left for a later reward card.
+- **Why:**
+  - Tu: chains happened about once a match, often only once the fight was already decided.
+  - Fights without chains read as trade hits only, and chain-centred choices felt meaningless.
+  - The old high charge threshold existed because charge carried over; that reason is gone.
+- **Replaces:**
+  - Run-long charge persistence from the 2026-08-14 chain rebuild.
+  - Live values will sit in `prototype/src/sim/config.ts`.
+
+## [2026-09-30] A payoff card is offered only after the player has met every mark it reads
+
+- **Decision:**
+  - A payoff card enters the offer draw only once every mark it reads has been introduced.
+  - A mark is introduced when a role's base ability makes it, or when the ability that makes it
+    has appeared on an offer screen this run, taken or not.
+  - The ability need not be bought first; seeing its offer card is the introduction.
+  - A card "connects" only when the squad can make every mark it reads, not just one of them.
+  - Payoff card text stays as is; no "how to earn this" hint.
+- **Why:**
+  - Tu: a Freeze payoff offered with no Freeze in the squad confuses the player, who can't judge
+    a card for a mark they've never seen or know how to earn.
+  - Deep freeze and Open wound showed the "connects" badge at round 1 on Expose alone, while
+    doing nothing.
+  - Tu rejected a strict "ability first, payoff after" rule; the goal is introducing the
+    concept, not ordering purchases.
+- **Replaces:**
+  - Loosens the 2026-09-30 payoff-card entry's draw: unmet cards no longer draw at a low weight.
+
+## [2026-09-30] Chain abilities are redesigned to leave marks; chain +N adds stacks
+
+- **Decision:**
+  - The six chain abilities each leave a mark (Exposed, Frozen, Burn, Shield) instead of only
+    moving a number.
+  - Guard, Freeze, Expose, Scorch, Mend and Ward replace guard, stun, poundBiggest, strikeAll,
+    mendOne and mendAll as the player-facing set.
+  - Each role keeps exactly one pair for now: Tank Guard/Freeze, Damage Expose/Scorch, Healer
+    Mend/Ward.
+  - Chain "+N" no longer means hits harder; it means each rung leaves one extra mark stack.
+  - Role-specific abilities beyond this pair are deferred to a later design pass.
+- **Why:**
+  - Tu: the abilities were "boring", and pound-biggest and mend-one only scaled a number.
+  - An ability with nothing for another card to read can't be part of a build.
+  - One pair per role keeps roles legible while the mark system is unproven.
+- **Replaces:**
+  - The 2026-09-23 "chain upgrades stack abilities" entry's ability set and its `+N` meaning.
+    Its add-don't-swap rule and the "never say level" rule are unchanged.
+
+## [2026-09-30] Upgrades become set-up and pay-off combos: marks plus squad-wide payoff cards
+
+- **Decision:**
+  - New offer kind, "payoff cards": squad-wide passives that react to marks (for example, a hit
+    on a Frozen enemy does extra).
+  - Payoff cards belong to the squad, not to a role, so a build can cross roles.
+  - A run holds a capped number of payoff cards (about 6 when decided; the value lives in code).
+  - At the cap, taking a new payoff card means dropping one already held.
+  - Existing number cards (HP, damage, heal, slots, recruit, revive) stay as filler.
+  - Build order, one mechanism at a time: marks and payoffs, then chains passing charge or
+    rungs to each other, then rule-benders.
+- **Why:**
+  - Tu: the game is still not fun enough, and upgrades should combine into a build stronger than
+    expected.
+  - Number-only upgrades add up linearly, so no combination can beat its parts.
+  - Marks come first because relays and rule-benders both need something to pass or bend.
+  - A cap makes late offers a real keep-or-pivot choice.
+- **Replaces:**
+  - Nothing removed. Narrows the 2026-09-23 offer pool's role: number cards no longer carry the
+    run's growth on their own.
+
 ## [2026-09-24] The round screen drops its fight prediction
 
 - **Decision:**
