@@ -10,6 +10,92 @@
 
 ---
 
+## [2026-10-01] A stranded round 1 win ends the run, and Collection sits on the run-end screens
+
+- **Decision:**
+  - A round 1 win that leaves too few units to field a squad ends the run. It gets no relic and no safety-net offer.
+  - The Collection button is on the run-over and run-complete screens.
+  - It also shows on the relic screen once any run has ended.
+- **Why:**
+  - Round 1 now rewards a relic only, so there is no offer slot to carry a revive or recruit.
+  - Measured 2026-10-01 at n=3000: about 0.7% of round 1 wins lose a unit, so the case is rare.
+  - A unit lost in round 1 is a real loss, the same as in later rounds.
+  - The run-end screens are where a player has just finished a run and has something to look at.
+- **Replaces:**
+  - Settles the Collection placement left open in "No relic is pre-selected, and Collection appears after the first run".
+  - Not covered by the safety net in `sim/offers.ts`, which still applies from the round 2 win on.
+
+## [2026-10-01] No relic is pre-selected, and Collection appears after the first run
+
+- **Decision:**
+  - No relic is pre-selected on the relic screen. The player taps one.
+  - The Collection button appears only after the first run has ended.
+- **Why:**
+  - The relic screen now comes after a fight, so the player has seen enough to choose.
+  - A pre-selected relic would look like a recommendation, and the offer screens avoid dressing any row as the right answer.
+  - Before the first run ends, the Collection holds nothing, so the button is noise.
+- **Replaces:**
+  - The line "One relic is pre-selected" in the entry two below, "The relic pick moves from run start to right after the first win".
+  - Settles the "when does the Collection button first appear" item in that same entry.
+  - Not built yet; this logs the design only.
+
+## [2026-10-01] The relic pick is the round 1 reward, and a relic's job is run identity
+
+- **Decision:**
+  - The round 1 win's reward is the relic pick only.
+  - Normal three-upgrade offers start from the round 2 win.
+  - A relic's job is run identity: it sets the direction a run builds toward.
+- **Why:**
+  - Mixing relics into the normal offer screen makes them read as one more upgrade.
+  - Two choices back to back right after fight 1 is heavy for a new player.
+  - A screen of its own gives the relic its own moment.
+  - Cost: one fewer normal upgrade per run.
+- **Replaces:**
+  - Settles the "relic replaces or adds to the first card offer" question in the entry just below.
+  - Not built yet; this logs the design only.
+
+## [2026-10-01] The relic pick moves from run start to right after the first win
+
+- **Decision:**
+  - A run opens straight on round 1: default squad, Play. No screen asks for a choice first.
+  - The relic pick comes after the first win, on every run, not only a player's first.
+  - One relic is pre-selected on that screen, so accepting the default is one tap.
+  - The draw stays random. No filter to relics the player has seen work.
+- **Why:**
+  - A new player can't judge a relic before watching a fight. Its text uses words not yet learned: chain, backfire, exposed, worn.
+  - The pick was the one screen with no default. That broke the bet that every screen is accept-default.
+  - After one fight the player has seen charge, a chain and an enemy, so relic text points at something real.
+  - One flow for every run is simpler to build and test than a first-run special case.
+- **Replaces:**
+  - The relic screen as the first screen of a run (`render/app.ts`, `render/relicScreen.ts`).
+  - The "choose before any fight" part of the 2026-10-01 build-depth entry below.
+  - Not built yet; this logs the design only.
+  - Not settled: does the relic replace the first card offer, or come in addition to it?
+  - Not settled: when does the Collection button first appear?
+  - Not settled: relic text needs a plain-language rewrite. Ember heart is hardest, since no backfire may have happened yet.
+
+## [2026-10-01] Shield shows as a segment on the HP bar in fights, not as a badge
+
+- **Decision:**
+  - In a fight, Shield is a teal segment on the unit's HP bar. The badge row no longer carries it.
+  - When HP plus Shield is more than max HP, the bar rescales so both fit (the League of Legends way).
+  - The HP ghost fill ignores rescales and lags only on real HP loss.
+  - The Shield segment gets its own lag ghost, so a hit that eats the shield reads like an HP loss.
+  - A small number stays on the segment, because some cards depend on the exact size.
+  - The "BLOCKED N" popup goes. The shrinking segment is the feedback.
+  - A shield breaking gets a flash on the bar, because Shatterguard fires on it.
+  - The segment keeps the existing Shield color (`--mark-shield` in `style.css`).
+  - Shield is still a mark. The ⛊ icon stays in card text, chips, the collection and the card intro gate.
+- **Why:**
+  - Shield is health-equivalent: it soaks damage before HP. Exposed and Burn are stack counts.
+  - Dota 2 and League of Legends both draw shield on the HP bar, so players already read it that way.
+  - Shield bash and Aegis depend on shield size, so a bare segment without a number loses information.
+  - Rescaling would make the HP ghost look like damage taken whenever a shield lands, hence the ghost rule.
+- **Replaces:**
+  - The Shield badge in the fight view's mark-badge row (`render/fightView.ts`).
+  - The "BLOCKED N" absorb popup.
+  - Not built yet; this logs the design only.
+
 ## [2026-10-01] Build depth comes from cards on a "when X, do Y" engine, built all at once
 
 - **Decision:**

@@ -220,7 +220,7 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
 
   for (const id of cfg.cardPool ?? CARD_IDS) {
     const def = CARD_DEFS[id];
-    if (def.kind === "relic") continue; // relics are picked at run start, never offered
+    if (def.kind === "relic") continue; // relics are the round 1 reward, never offered
     const isDuo = def.kind === "duo";
     templates.push({
       key: `card:${id}`,

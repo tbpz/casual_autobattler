@@ -15,13 +15,14 @@ import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
 import type { ChainEffect } from "../sim/config.js";
 import { runFight } from "../sim/fight.js";
 import { makeSquadFromRoles, type PlayerRole } from "../sim/roles.js";
-import { makeEnemySide } from "../sim/run.js";
+import { makeEnemySide, makeOfferPolicy, runRun } from "../sim/run.js";
+import { RunSession } from "../render/runSession.js";
 import { CARD_DEFS, CARD_IDS, duoUnlocked } from "../sim/cards/index.js";
 import type { CardId } from "../sim/cards/index.js";
 import type { FightResult } from "../sim/events.js";
 import { Rng as RelicRng } from "../sim/rng.js";
 import { makeInitialProgress, heldCards } from "../sim/progress.js";
-import { applyRelicStart, drawRelicChoices } from "../sim/relics.js";
+import { applyRelic, drawRelicChoices } from "../sim/relics.js";
 import { makeStartingRoster } from "../sim/roles.js";
 import { RELIC_IDS } from "../sim/cards/index.js";
 
@@ -152,7 +153,7 @@ for (const [id, scenario] of Object.entries(SCENARIOS) as [CardId, Scenario][]) 
   check("Aegis: with it the Shield goes past the base cap", withAegis > run.fight.shieldCapFractionOfMaxHp + 0.01, `${withAegis.toFixed(2)}`);
 }
 
-// --- Relics: a start-of-run pick of one from three, held outside the card list.
+// --- Relics: the round 1 reward, a pick of one from three, held outside the card list.
 {
   const choices = drawRelicChoices(new RelicRng(5));
   check("relic: three distinct choices are drawn, all relics", choices.length === 3 && new Set(choices).size === 3 && choices.every((c) => RELIC_IDS.includes(c)));
@@ -162,22 +163,87 @@ for (const [id, scenario] of Object.entries(SCENARIOS) as [CardId, Scenario][]) 
 
   const progress = makeInitialProgress(run);
   const roster = makeStartingRoster(progress.bonus);
-  const taken = applyRelicStart(progress, roster, "bastion", new RelicRng(1));
+  const taken = applyRelic(progress, roster, "bastion", new RelicRng(1));
   check("relic: taking one sets progress.relic and leaves the card list empty", taken.progress.relic === "bastion" && taken.progress.cards.length === 0);
   check("relic: heldCards puts the relic first, ahead of the cards", heldCards({ ...taken.progress, cards: ["execute"] })[0] === "bastion");
   check("relic: a non-Mercenary relic leaves the roster alone", taken.roster.heroes.length === roster.heroes.length);
 
-  const merc = applyRelicStart(progress, roster, "mercenary", new RelicRng(1));
+  const merc = applyRelic(progress, roster, "mercenary", new RelicRng(1));
   check("relic: Mercenary adds a fourth unit", merc.roster.heroes.length === roster.heroes.length + 1);
   const ids = merc.roster.heroes.map((h) => h.id);
   check("relic: the Mercenary has an id of its own", new Set(ids).size === ids.length);
   let threw = false;
   try {
-    applyRelicStart(progress, roster, "execute", new RelicRng(1));
+    applyRelic(progress, roster, "execute", new RelicRng(1));
   } catch {
     threw = true;
   }
   check("relic: an ordinary card cannot be taken as a relic", threw);
+}
+
+// --- The relic is round 1's reward (DECISIONS.md, 2026-10-01): the run opens on a
+// fight, the win's reward is the relic and not offers, and a win that leaves too
+// few units to field gets nothing and ends the run.
+{
+  const batchRun = (seed: number, opts?: Parameters<typeof runRun>[5]) =>
+    runRun(run, new Rng(seed), new Rng((seed ^ 0x51ed270b) >>> 0), makeOfferPolicy("build"), seed, opts);
+  const SEEDS = 600;
+  let fieldable: ReturnType<typeof batchRun> | undefined;
+  let stranded: ReturnType<typeof batchRun> | undefined;
+  let strandedWithRelic = 0;
+  let strandedNotOver = 0;
+  for (let seed = 1; seed <= SEEDS; seed++) {
+    const r = batchRun(seed);
+    if (r.rounds[0]!.outcome !== "win") continue;
+    if (r.rounds[0]!.relicTaken) fieldable ??= r;
+    else {
+      stranded ??= r;
+      if (r.finalProgress.relic) strandedWithRelic++;
+      if (r.outcome !== "over" || r.overReason !== "rosterExhausted" || r.roundsWon !== 1) strandedNotOver++;
+    }
+  }
+  check("opening: a round 1 win takes a relic and no offer", !!fieldable && fieldable.rounds[0]!.offerTaken === null && !!fieldable.finalProgress.relic);
+  check("opening: round 1 is fought with no relic held, round 2 with it first", !!fieldable && fieldable.heldByRound[0]!.length === 0 && fieldable.heldByRound[1]![0] === fieldable.rounds[0]!.relicTaken);
+  check("opening: round 2's win is back to the normal offers", !!fieldable && fieldable.rounds[1] !== undefined && (fieldable.rounds[1].outcome === "loss" || fieldable.rounds[1].offerTaken !== null));
+  check("opening: a round 1 win that strands the roster exists in the seed range", !!stranded, `${SEEDS} seeds`);
+  check("opening: a stranded win gets no relic and ends the run as rosterExhausted", strandedWithRelic === 0 && strandedNotOver === 0);
+
+  const none = fieldable ? batchRun(fieldable.seed, { relicPick: null }) : undefined;
+  check("opening: relicPick null takes no relic and still gives no round 1 offer", !!none && none.finalProgress.relic === undefined && none.rounds[0]!.offerTaken === null && none.rounds[0]!.relicTaken === undefined);
+
+  // The interactive session follows the same rule as the batch driver.
+  let sessionOk = false;
+  let doubleTapIgnored = false;
+  let strandedSessionOk = false;
+  let sawStranded = false;
+  let parity = true;
+  for (let seed = 1; seed <= SEEDS && !(sessionOk && sawStranded); seed++) {
+    const s = new RunSession(run, seed);
+    const result = s.playNextRound();
+    if (result.outcome !== "win") continue;
+    if (s.awaitingRelic) {
+      if (sessionOk) continue;
+      const choices = s.relicChoices;
+      const noOffers = s.pendingOffers.length === 0;
+      s.pickRelic(choices[0]!);
+      const took = s.progress.relic === choices[0] && s.currentRoundIndex === 1 && !s.awaitingRelic;
+      s.pickRelic(choices[1]!);
+      doubleTapIgnored = s.progress.relic === choices[0];
+      sessionOk = noOffers && took;
+      const b = batchRun(seed);
+      if (b.rounds[0]!.relicTaken !== choices[0]) parity = false;
+    } else if (!sawStranded) {
+      sawStranded = true;
+      s.pickRelic(s.relicChoices[0]!);
+      strandedSessionOk = s.progress.relic === undefined && s.pendingOffers.length === 0;
+      s.resolveOffer(null);
+      strandedSessionOk &&= s.status === "over" && s.overReason === "rosterExhausted";
+    }
+  }
+  check("session: after a round 1 win it waits on the relic, with no offers, and the pick advances the run", sessionOk);
+  check("session: a second relic pick is ignored", doubleTapIgnored);
+  check("session: a stranded round 1 win offers no relic and ends the run", sawStranded && strandedSessionOk);
+  check("session: the relic taken matches the batch driver's for the same seed", parity);
 }
 
 // --- Duos are only unlocked by their parts.

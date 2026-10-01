@@ -16,6 +16,20 @@
 
 ---
 
+### [2026-10-01 #1] Logged a decision bullet Tu never confirmed, and broke the entry format
+
+- **Said:** Appended the relic-timing entry to `DECISIONS.md` as the confirmed decision, including
+  the bullet "The Collection button stays off the first screen of a run."
+- **Actually:** Tu confirmed three things: the pick moves to after the first win, it applies to
+  every run, and the draw stays random. The Collection line was my own addition, and it contradicted
+  the entry's own open question about when the Collection button first appears. I also added a
+  "Still open" section, which is not one of the format's Decision / Why / Replaces fields.
+- **Caught by:** Myself, on a word-count pass over the entry before ending the turn. I then asked
+  Tu, who approved the fix.
+- **Why:** I filled the Decision list with what seemed a sensible consequence instead of limiting it
+  to what Tu had said yes to. The skill says an entry records a confirmed decision, not extras.
+- **Tag:** wrote down my own inference as the user's decision
+
 ### [2026-09-23 #5] Republished the canvas with the wrong escaping scheme, breaking rendering, then claimed it was verified
 
 - **Said:** "Canvas republished — Version 7, verified byte-for-byte that only those three frames

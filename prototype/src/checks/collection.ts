@@ -11,6 +11,7 @@ import {
   loadCollection,
   parseCollection,
   recordRelic,
+  recordRunEnded,
   recordSeen,
   recordTaken,
   saveCollection,
@@ -48,6 +49,9 @@ const throwing: StorageLike = {
   check("taken: taking it again adds nothing", c.taken.filter((id) => id === "spread").length === 1);
   c = recordRelic(c, "bastion");
   check("relic: a picked relic is recorded", c.relics.includes("bastion"));
+  check("runs ended: starts at zero", c.runsEnded === 0);
+  c = recordRunEnded(recordRunEnded(c));
+  check("runs ended: each ended run adds one", c.runsEnded === 2);
 
   const store = fakeStorage();
   saveCollection(c, store);
@@ -64,6 +68,9 @@ const throwing: StorageLike = {
   const old = parseCollection(JSON.stringify({ v: 1, seen: ["execute", "aCardThatWasRemoved"], taken: [], relics: [] }));
   check("a card no longer in the game drops out of an old save", old.seen.length === 1 && old.seen[0] === "execute");
   check("a malformed list reads as empty, not a crash", parseCollection(JSON.stringify({ v: 1, seen: "oops" })).seen.length === 0);
+  check("a save from before runs-ended existed reads as zero", old.runsEnded === 0);
+  check("a malformed runs-ended reads as zero", parseCollection(JSON.stringify({ v: 1, runsEnded: "many" })).runsEnded === 0 && parseCollection(JSON.stringify({ v: 1, runsEnded: -3 })).runsEnded === 0);
+  check("a saved runs-ended survives a reload", parseCollection(JSON.stringify({ v: 1, runsEnded: 4 })).runsEnded === 4);
 }
 
 {

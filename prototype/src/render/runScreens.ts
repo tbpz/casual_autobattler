@@ -312,6 +312,7 @@ export function renderRunOverScreen(
   lastProjection: Projection | null,
   onRetry: () => void,
   testMode = false,
+  onCollection?: () => void,
 ): void {
   container.innerHTML = "";
   const screen = document.createElement("div");
@@ -366,10 +367,16 @@ export function renderRunOverScreen(
   retry.textContent = "New run";
   retry.addEventListener("click", onRetry);
   screen.appendChild(retry);
+  appendCollectionButton(screen, onCollection);
   container.appendChild(screen);
 }
 
-export function renderRunCompleteScreen(container: HTMLElement, roundsPlayed: number, onRetry: () => void): void {
+export function renderRunCompleteScreen(
+  container: HTMLElement,
+  roundsPlayed: number,
+  onRetry: () => void,
+  onCollection?: () => void,
+): void {
   container.innerHTML = "";
   const screen = document.createElement("div");
   screen.className = "screen";
@@ -378,5 +385,18 @@ export function renderRunCompleteScreen(container: HTMLElement, roundsPlayed: nu
   retry.textContent = "New run";
   retry.addEventListener("click", onRetry);
   screen.appendChild(retry);
+  appendCollectionButton(screen, onCollection);
   container.appendChild(screen);
+}
+
+/** The Collection button on a run-end screen (2026-10-01): it appears once a run
+ * has ended, which is exactly when these screens show. Same look as the relic
+ * screen's. */
+function appendCollectionButton(screen: HTMLElement, onCollection?: () => void): void {
+  if (!onCollection) return;
+  const collection = document.createElement("button");
+  collection.className = "offer-back";
+  collection.textContent = "Collection";
+  collection.addEventListener("click", onCollection);
+  screen.appendChild(collection);
 }

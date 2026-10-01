@@ -2,12 +2,14 @@ import type { CardId } from "../sim/cards/index.js";
 import { CARD_DEFS, MARK_CHIP } from "../sim/cards/index.js";
 
 /**
- * 2026-10-01 (the build-depth plan, "G. a pick at the start of the run"). The
- * first screen of a run: three relics, pick one. Each is a small rule-bender
- * held all run (sim/relics.ts), so it points the run at a build before the first
+ * 2026-10-01 (the build-depth plan, "G. a pick at the start of the run", moved by
+ * DECISIONS.md's relic-timing entries). The reward for winning round 1: three
+ * relics, pick one. Each is a small rule-bender held for the rest of the run
+ * (sim/relics.ts), so it points the run at a build once the player has seen a
  * fight. Reuses the offer screen's row frame (style.css's .offer-row) so a relic
  * reads as the same kind of choice as the picks that follow, and — like those —
- * no row is dressed up to look like the right answer.
+ * no row is dressed up or pre-selected as the right answer. The Collection
+ * button is passed in only once a run has ended.
  */
 export function renderRelicScreen(
   container: HTMLElement,

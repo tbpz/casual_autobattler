@@ -15,19 +15,19 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 > **"I assemble my squad, press play, and watch it pay off far bigger than I expected — a cascade I set in motion but couldn't fully predict, that looked like it might fail first, and that I can still claim as mine."**
 
-- **Watch-native** — every screen is accept-default, so the minimum path is Play → watch → Play.
+- **Watch-native** — a run opens on a fight, and every screen but the relic pick is accept-default.
 - **Unpredictable** — chain length is the loudest dice; per-hit variance, backfire, and the encounter draw are the rest.
 - **Losable** — a run can genuinely be lost, and a backfire can create a losing position outright.
 - **Attributable** — the round screen names each role's chain and the enemy before the player picks who fights.
 
 ## Where it stands
 
-A run opens with a relic pick and grows over 20 rounds through reward cards, role upgrades and duo cards. Cards are "when X, do Y" rules that can set each other off. Chains fire every fight and each unit's fatigue sets its backfire odds. All of it is batch-verified; the new relic, offer, collection and cascade screens are built but not yet opened in a browser, and no full run has been played by hand since the rework.
+A run grows over 20 rounds through a relic, reward cards, role upgrades and duo cards; cards are "when X, do Y" rules that can set each other off. The sim is batch-verified, but no full run has been played by hand since the card rework. The work now is a friendlier opening: a run starts straight on round 1, and the relic pick becomes round 1's reward — designed, not built. The shield segment on the HP bar is built but not yet seen in a browser.
 
 ## Next up
 
-1. **Play a run** (`npm run dev`): do the relic, offer, cascade, recap and collection screens work, and do you want to try a combo next run?
-2. **See whether duos get offered in real play** — the batch policies rarely hold both parts.
+1. **Build the new opening** as the three newest `DECISIONS.md` entries specify: round 1 first, relic pick as its reward, no pre-selection, Collection after the first run.
+2. **Play a run** (`npm run dev`): do the opening, relic, offer, cascade, recap and shield screens work, and do you want to try a combo next run?
 3. **Rebalance outliers** from the batch synergy block (`npm run batch -- --offers build`): Punish is the weakest card, Restless the weakest relic.
 4. **Pick a target for chains' share of damage** — it is about 38% of player damage now.
 5. Fix the healer-only stalemate and the two recap wording bugs ("for 0" on a guard/stun save; the guard's repeated "against" line).
@@ -43,13 +43,16 @@ A run opens with a relic pick and grows over 20 rounds through reward cards, rol
 | Fatigue — per-unit, sets backfire odds and chain size | batch-verified | `sim/roster.ts`, `sim/config.ts`, `checks/fatigue.ts` |
 | Chain abilities — 12; each role has 3 upgrade options, 2 drawn per run | batch-verified | `sim/roles.ts`, `sim/progress.ts`, `checks/abilities.ts` |
 | Chain legibility — pacing, HUD, pips, end card, cascade popups | built | `render/playback.ts`, `render/fightView.ts` |
+| Shield on the HP bar — segment, ghosts, break flash | built | `render/hpBar.ts`, `render/fightView.ts`, `checks/hpBar.ts` |
 | Round screen — squad pick, fatigue, relic and card chips, duo hints | built | `render/roundScreen.ts`, `design/HANDOFF.md` |
+| Round screen onboarding — fatigue detail shows before a player has seen it | not started | `render/roundScreen.ts` |
 | Marks — each chain ability leaves one | batch-verified | `sim/fight.ts`, `checks/marks.ts` |
 | Card engine — hooks, cascades, depth cap | batch-verified | `sim/cards/engine.ts`, `checks/cards.ts` |
 | Card pool — 34 cards incl. 6 duos | batch-verified | `sim/cards/defs/`, `checks/cardpool.ts` |
 | Card intro gate — a card waits for its marks; a duo waits for its parts | batch-verified | `sim/offers.ts`, `checks/offers.ts` |
 | Offer pool — 3 per win, card weight capped | batch-verified | `sim/offers.ts`, `render/offerScreen.ts` |
-| Relics — pick 1 of 3 at run start | batch-verified | `sim/relics.ts`, `render/relicScreen.ts` |
+| Relics — 6, pick 1 of 3, held all run | batch-verified | `sim/relics.ts`, `sim/cards/defs/relic.ts` |
+| New opening — round 1 first, relic as round 1 reward, Collection after first run | not started | `render/app.ts`, `render/relicScreen.ts`, `render/runSession.ts`, `sim/run.ts` |
 | Collection — cross-run, duo silhouettes | built | `sim/collection.ts`, `render/collectionScreen.ts` |
 | Synergy report — best cards and pairs, per-relic rounds | batch-verified | `batch/synergy.ts` |
 | Rest card — cuts one unit's fatigue | batch-verified | `sim/offers.ts`, `checks/fatigue.ts` |
@@ -65,11 +68,13 @@ A run opens with a relic pick and grows over 20 rounds through reward cards, rol
 - Chains every fight still feel unpredictable, rather than averaging out into a steady trade.
 - Fatigue's mid-level peak makes "push or rest" a real choice, not always-rest or always-push.
 - Cards and duos give a combo worth chasing next run — the bet this whole pass exists for.
+- A relic picked after one fight gives the run an identity, not just one more upgrade.
 - A cascade stays readable on a phone screen.
-- Twenty rounds feel like a run, not a drag.
 
 ## Open questions
 
+- What does each relic's text say to a player who has seen only one fight? Gates Next up #1.
+- Do today's relics set a run's identity, or do some need to be bigger rule changes? Answered by Next up #2.
 - What share of a fight's outcome should chains decide? Gates Next up #4.
 - Are Smoke, Bulwark and Kindling fairly strong, or is the pool uneven? Gates Next up #3.
 

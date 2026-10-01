@@ -54,7 +54,7 @@ export interface SynergyReport {
   cards: CardScore[];
   /** Pairs held together for at least `minRounds` fights, best lift first. */
   pairs: PairScore[];
-  /** Per relic: runs that started with it and how many were completed. */
+  /** Per relic: runs that took it and how many were completed. */
   relics: { relic: CardId; runs: number; completed: number; meanRoundsWon: number }[];
   minRounds: number;
 }

@@ -525,7 +525,8 @@ export interface FightConfig {
   /** Wildfire: the share of its normal decay a burn keeps (0 = never fades). */
   wildfireDecayFraction: number;
   /**
-   * Relics (2026-10-01; sim/relics.ts): one is picked at run start. Ember heart
+   * Relics (2026-10-01; sim/relics.ts): one is picked as the reward for winning
+   * round `relicRound`, and held for the rest of the run. Ember heart
    * puts `emberHeartBurn` Burn on every enemy when a chain backfires; Frost
    * crown freezes the front enemy `frostCrownSec` at fight start; Hunter's eye
    * starts every enemy with `huntersEyeStacks` Exposed; Bastion starts each unit
@@ -742,6 +743,9 @@ export interface RunConfig {
    * sim/offers.ts) hands out after each win.
    */
   roundsPerRun: number;
+  /** The 0-based round whose win reward is the relic pick instead of the normal
+   * offers (2026-10-01: a run opens on a fight, so the pick comes after one). */
+  relicRound: number;
   /** Units fielded per round at run start (sim/roles.ts's PLAYER_ROLES, one
    * of each) — grows over the run via the "slot" offer (sim/offers.ts),
    * capped at maxSlots below. Replaces the old fixed playerN. */
@@ -1067,6 +1071,7 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   // number below is a first-pass strawman, same convention as the rest of
   // this file — meant to move by playing, not a balance pass.
   roundsPerRun: 20,
+  relicRound: 0,
   startingSlots: 3,
   maxSlots: 5,
   maxRosterSize: 10,

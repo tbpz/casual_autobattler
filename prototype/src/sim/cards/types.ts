@@ -53,7 +53,7 @@ export type CardId =
   | "cinderShield"
   | "glass"
   | "phoenix"
-  // Relics: one is picked at the start of a run and held all run (sim/relics.ts).
+  // Relics: one is picked as the round 1 reward and held after that (sim/relics.ts).
   | "emberHeart"
   | "frostCrown"
   | "huntersEye"

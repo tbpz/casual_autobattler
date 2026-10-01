@@ -2,8 +2,8 @@ import { frontEnemy, livingAllies, livingEnemies } from "../helpers.js";
 import type { CardDef } from "../types.js";
 
 /**
- * Relics: one is picked from three at the start of a run and held all run
- * (sim/relics.ts). Each bends one rule of the whole run, so the same card pool
+ * Relics: one is picked from three as the reward for the first win and held
+ * for the rest of the run (sim/relics.ts). Each bends one rule of the whole run, so the same card pool
  * plays differently under a different relic. They are never offered mid-run, and
  * never take a card slot.
  */
@@ -121,12 +121,12 @@ export const RESTLESS: CardDef = {
 export const MERCENARY: CardDef = {
   id: "mercenary",
   title: "Mercenary",
-  detail: "When the run starts, a fourth unit of a random role joins.",
+  detail: "A fourth unit of a random role joins your squad.",
   icon: "⚔",
   kind: "relic",
   reads: [],
   makes: [],
   // Does its work once, when the relic is picked (sim/relics.ts's
-  // applyRelicStart) — nothing in a fight.
+  // applyRelic) — nothing in a fight.
   hooks: [],
 };

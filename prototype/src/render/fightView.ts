@@ -1,6 +1,7 @@
 import type { ChainEffect, FatigueTier, FightConfig } from "../sim/config.js";
 import { chainEffectVerb, fatigueFraction, fatigueTier } from "../sim/config.js";
 import { fatiguePipsHtml } from "./heroPickShared.js";
+import { hpBarLayout } from "./hpBar.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
 import { ROLE_SORT_PRIORITY } from "../sim/roles.js";
 import { MARK_CHIP, CARD_DEFS, type CardId } from "../sim/cards/index.js";
@@ -38,6 +39,10 @@ interface HeroSlot {
    * without touching name/hp-bar/counter below, which stay put as ordinary
    * flow siblings underneath it. */
   perch: HTMLElement;
+  /** Body-sized wrapper around body + chargeRing + freezeRing — lunge and
+   * flinch animate THIS, so the rings travel with the body instead of
+   * staying behind. */
+  core: HTMLElement;
   body: HTMLElement;
   hpFill: HTMLElement;
   /** Lags behind hpFill via a longer, delayed CSS transition (see
@@ -50,7 +55,32 @@ interface HeroSlot {
    * equally true (and equally informative) of a player hero eating a
    * wind-up slam. */
   hpGhostFill: HTMLElement;
+  /** The Shield segment (DECISIONS.md 2026-10-01, "Shield shows as a segment
+   * on the HP bar"). Runs from the bar's left edge to the end of the Shield and
+   * sits UNDER hpFill, so the part you see is the stretch past the HP fill —
+   * no left offset to keep in step with it. The bar's scale and the layers'
+   * widths come from hpBarLayout. */
+  hpShieldFill: HTMLElement;
+  /** Lags behind hpShieldFill while the Shield drains, same device as
+   * hpGhostFill. Both ghosts get `.instant` whenever the change is not a real
+   * loss (a Shield landing rescales the bar and moves the HP fill's right edge
+   * without any HP lost), so only damage ever leaves a trailing gap. */
+  hpShieldGhost: HTMLElement;
+  /** A flash at the HP/Shield boundary the moment a Shield breaks — Shatterguard
+   * fires on that moment. Lives beside the track, not in it, so its glow is
+   * not clipped by the track's overflow:hidden. */
+  hpBreakFlash: HTMLElement;
+  /** The label holds the HP text and a teal "⛊N" for the Shield amount. */
   hpLabel: HTMLElement;
+  hpLabelText: HTMLElement;
+  hpShieldLabel: HTMLElement;
+  /** HP and Shield as last rendered: updateSide compares against them to tell
+   * a real loss from a rescale, and a Shield breaking from a Shield that was
+   * never there. Reset on restart so a rewound fight neither flashes nor lags. */
+  lastHp: number;
+  lastShield: number;
+  lastHpFrac: number;
+  lastEdgeFrac: number;
   counter: HTMLElement;
   status: HTMLElement;
   /** The charge (CHAIN) bar fill — player-side only; built for every slot
@@ -92,12 +122,13 @@ interface HeroSlot {
   guardPips: HTMLElement;
   guardPipEls: HTMLElement[];
   guardCount: HTMLElement;
-  /** Exposed / Burn / Shield badges (2026-09-30, marks and payoffs) — a row
-   * under the name that shows each mark's stack count, hidden at zero. Built
-   * for every slot on both sides (a backfire puts marks on the player's own
-   * side) and driven every tick off HeroSnapshot.marks (updateSide), not off
-   * events, so it stays correct under pause/step/scrub. */
-  markBadges: { exposed: HTMLElement; burn: HTMLElement; shield: HTMLElement };
+  /** Exposed / Burn badges (2026-09-30, marks and payoffs) — a row under the
+   * name that shows each mark's stack count, hidden at zero. Shield is not
+   * here: it is a segment on the HP bar (hpShieldFill). Built for every slot on
+   * both sides (a backfire puts marks on the player's own side) and driven
+   * every tick off HeroSnapshot.marks (updateSide), not off events, so it stays
+   * correct under pause/step/scrub. */
+  markBadges: { exposed: HTMLElement; burn: HTMLElement };
   markRow: HTMLElement;
   /** Hollow's "stun" chain effect, as a ring drawn around the hero's own
    * body (2026-09-16 freeze-layout pass — replaces a countdown ROW that
@@ -417,6 +448,8 @@ export class FightView {
    * what showAttack's bow check reads to see whether a front-rank enemy is
    * still alive to arc a player attack around. */
   private lastEnemyHeroes: HeroSnapshot[] = [];
+  /** Latest snapshot render() saw — renderFrame redraws the slam tells from it. */
+  private lastSnapshot: TickSnapshot | null = null;
   /** Whether each hero (by id) sits in its side's FRONT rank — the leading
    * run of that side's build-time roster order sharing index 0's own role
    * tier (ROLE_SORT_PRIORITY), computed once in buildSide (2026-09-16
@@ -623,6 +656,7 @@ export class FightView {
     this.lastPlayerHpFraction = 1;
     this.lastPlayerHeroes = [];
     this.lastEnemyHeroes = [];
+    this.lastSnapshot = null;
     this.anyChainFiredThisFight = false;
     this.windupChargingState.clear();
     this.windupJustCancelled.clear();
@@ -640,8 +674,6 @@ export class FightView {
       refs.body.classList.remove(
         "down",
         "hot",
-        "lunge",
-        "flinch",
         "healed",
         "broken",
         "charging",
@@ -651,6 +683,7 @@ export class FightView {
         "bypassed",
         "struck-back",
       );
+      refs.core.classList.remove("lunge", "flinch");
       refs.body.querySelectorAll(".impact-flash").forEach((el) => el.remove());
       refs.freezeRing.classList.remove("show");
       refs.status.classList.remove("show", "loud");
@@ -665,6 +698,17 @@ export class FightView {
       refs.chargeFill.style.width = "0%";
       refs.chargeGhostFill.style.width = "0%";
       refs.lastChargeFraction = 0;
+      // A restart is not a Shield breaking or an HP loss: drop the Shield layers
+      // without a lag or a flash, and forget the last values so the next render
+      // reads as a rewind, not damage (-Infinity HP makes both ghosts snap).
+      refs.hpShieldFill.style.width = "0%";
+      refs.hpShieldGhost.classList.add("instant");
+      refs.hpShieldGhost.style.width = "0%";
+      refs.hpBreakFlash.classList.remove("pulse");
+      refs.lastHp = Number.NEGATIVE_INFINITY;
+      refs.lastShield = 0;
+      refs.lastHpFrac = -1;
+      refs.lastEdgeFrac = -1;
     }
   }
 
@@ -798,10 +842,33 @@ export class FightView {
     for (const hero of heroes) {
       const refs = map.get(hero.id);
       if (!refs) continue;
-      const fraction = hero.maxHp > 0 ? Math.max(hero.hp, 0) / hero.maxHp : 0;
-      refs.hpFill.style.width = `${(fraction * 100).toFixed(1)}%`;
-      refs.hpGhostFill.style.width = `${(fraction * 100).toFixed(1)}%`;
-      refs.hpLabel.textContent = `${Math.round(Math.max(hero.hp, 0))}/${Math.round(hero.maxHp)}`;
+      // HP and Shield share one bar (DECISIONS.md 2026-10-01): it keeps the
+      // max-HP scale until HP + Shield no longer fits, then rescales so both do.
+      const shield = hero.alive ? hero.marks.shield : 0;
+      const { hpFrac, edgeFrac } = hpBarLayout(hero.hp, hero.maxHp, shield);
+      refs.hpFill.style.width = `${(hpFrac * 100).toFixed(1)}%`;
+      refs.hpShieldFill.style.width = `${(edgeFrac * 100).toFixed(1)}%`;
+      // Each ghost only trails a real loss. A Shield landing shrinks the HP
+      // fill (the rescale) with no HP lost, so the HP ghost snaps with it;
+      // likewise the Shield ghost snaps unless the Shield itself dropped.
+      // The class is only touched on the tick the edge actually moves: a lag
+      // already under way must keep its transition across the ticks after it.
+      if (hpFrac !== refs.lastHpFrac) refs.hpGhostFill.classList.toggle("instant", hero.hp >= refs.lastHp);
+      refs.hpGhostFill.style.width = `${(hpFrac * 100).toFixed(1)}%`;
+      if (edgeFrac !== refs.lastEdgeFrac) refs.hpShieldGhost.classList.toggle("instant", !(shield < refs.lastShield));
+      refs.hpShieldGhost.style.width = `${(edgeFrac * 100).toFixed(1)}%`;
+      if (hero.alive && refs.lastShield >= 0.5 && shield < 0.5) {
+        refs.hpBreakFlash.style.left = `${(hpFrac * 100).toFixed(1)}%`;
+        pulseClass(refs.hpBreakFlash, "pulse", 500);
+      }
+      refs.lastHp = hero.hp;
+      refs.lastShield = shield;
+      refs.lastHpFrac = hpFrac;
+      refs.lastEdgeFrac = edgeFrac;
+      refs.hpLabelText.textContent = `${Math.round(Math.max(hero.hp, 0))}/${Math.round(hero.maxHp)}`;
+      const shieldVisible = shield >= 0.5;
+      refs.hpShieldLabel.classList.toggle("show", shieldVisible);
+      if (shieldVisible) refs.hpShieldLabel.textContent = ` ${MARK_CHIP.shield.icon}${Math.round(shield)}`;
       refs.body.classList.toggle("down", !hero.alive);
       // .hot (2026-08-14 chain rebuild): a single, immediate glow — there is
       // no more "earn the glow" delay. Its colour is driven by --chain-color
@@ -862,7 +929,7 @@ export class FightView {
         refs.guardCount.textContent = overCap ? `⛨ ×${snapshot.guardCharges}` : "";
       }
       refs.counter.textContent = counterText(hero);
-      for (const mark of ["exposed", "burn", "shield"] as const) {
+      for (const mark of ["exposed", "burn"] as const) {
         const n = hero.marks[mark];
         const badge = refs.markBadges[mark];
         const visible = hero.alive && n >= 0.5;
@@ -913,15 +980,42 @@ export class FightView {
 
       refs.body.classList.toggle("charging", isCharging);
       refs.chargeFill.classList.toggle("committed", isCharging);
+    }
+    this.drawWindupFrame(snapshot, snapshot.t);
+  }
 
+  /** Per-animation-frame redraw of the slam's continuous tells (SLAM bar,
+   * aim line) between snapshots. Snapshots arrive at cfg.tickRate (20/s,
+   * fewer under a chain's slow-motion), so drawing these only in render()
+   * made the line grow in visible 50ms+ steps — the "low FPS during a slam"
+   * report. Playback calls this every frame with its own sim clock; the
+   * discrete state (classes, cancel detection) stays in updateWindupTells.
+   * `simT` is the same clock that picks the snapshot, so pause/step still
+   * land exactly. */
+  renderFrame(simT: number): void {
+    if (this.lastSnapshot) this.drawWindupFrame(this.lastSnapshot, simT);
+  }
+
+  /** Reads every needed rect first, then writes — one layout flush per
+   * frame instead of one per bruiser. */
+  private drawWindupFrame(snapshot: TickSnapshot, simT: number): void {
+    this.lastSnapshot = snapshot;
+    const draws: Array<{ aimLine: HTMLElement; from: HTMLElement; to: HTMLElement; progress: number; bypass: boolean }> = [];
+
+    for (const hero of snapshot.enemyHeroes) {
+      if (hero.role !== "bruiser") continue;
+      const refs = this.enemyHeroes.get(hero.id);
+      if (!refs) continue;
+
+      const isCharging = hero.alive && hero.windupFireT !== undefined;
       let fraction = 0;
       if (hero.alive && isCharging) {
         const telegraphSec = this.cfg.windupTelegraphSec;
-        const remaining = (hero.windupFireT as number) - snapshot.t;
+        const remaining = (hero.windupFireT as number) - simT;
         fraction = telegraphSec > 0 ? Math.max(0, Math.min(1, remaining / telegraphSec)) : 0;
       } else if (hero.alive && hero.nextWindupT !== undefined) {
         const intervalSec = hero.windupIntervalSec ?? this.cfg.windupIntervalSec;
-        const remaining = hero.nextWindupT - snapshot.t;
+        const remaining = hero.nextWindupT - simT;
         fraction = intervalSec > 0 ? Math.max(0, Math.min(1, 1 - remaining / intervalSec)) : 0;
       }
       refs.chargeFill.style.width = `${(fraction * 100).toFixed(1)}%`;
@@ -929,7 +1023,7 @@ export class FightView {
 
       // This bruiser's aim line is mid-swing (startAimSwing) — it owns the
       // line's position for the swing's own duration; the ordinary
-      // snapshot-driven positioning below would fight it every tick.
+      // positioning below would fight it every frame.
       if (this.aimSwings.has(hero.id)) continue;
 
       const aimLine = this.aimLineFor(hero.id);
@@ -939,18 +1033,23 @@ export class FightView {
         // The bar's own fraction drains 1 -> 0 across the telegraph; the aim
         // line reads the same countdown the other way, growing 0 -> 1 so it
         // touches the victim exactly as the bar (and the hit) reaches empty.
-        this.updateAimLine(aimLine, refs.body, target.body, 1 - fraction);
-        // The wind-up target is picked by the same weighted dice as a normal
-        // attack (fight.ts's pickWindupTargetId), so it can be someone
-        // behind a living tank too — dash the line for the whole telegraph
-        // rather than draw it solid straight through whoever's in the way
-        // (2026-09-16 back-row pass, same reasoning as showAttack's `bow`).
-        const slamBypasses = !this.heroIsFront.get(hero.windupTargetId as string) && this.frontGroupHasSurvivor("player");
-        aimLine.classList.toggle("bypass", slamBypasses);
+        // The target is picked by the same weighted dice as a normal attack,
+        // so it can be behind a living tank — dash the line then (2026-09-16
+        // back-row pass, same reasoning as showAttack's `bow`).
+        const bypass = !this.heroIsFront.get(hero.windupTargetId as string) && this.frontGroupHasSurvivor("player");
+        draws.push({ aimLine, from: refs.body, to: target.body, progress: 1 - fraction, bypass });
       } else {
         this.hideAimLine(aimLine);
       }
     }
+
+    // Read pass, then write pass (see docstring).
+    const centers = draws.map((d) => ({ a: this.centerOf(d.from), b: this.centerOf(d.to) }));
+    draws.forEach((d, i) => {
+      const { a, b } = centers[i] as (typeof centers)[number];
+      this.writeAimLine(d.aimLine, a, b, d.progress);
+      d.aimLine.classList.toggle("bypass", d.bypass);
+    });
   }
 
   /** Drives Hollow's "stun" freeze — the ring around the body and the
@@ -1015,9 +1114,7 @@ export class FightView {
    * (0 = still at the attacker, 1 = reaching the victim) of the distance
    * between them. Written directly from the snapshot, no CSS transition on
    * length — see .aim-line's own docstring for why. */
-  private updateAimLine(el: HTMLElement, from: HTMLElement, to: HTMLElement, progress: number): void {
-    const a = this.centerOf(from);
-    const b = this.centerOf(to);
+  private writeAimLine(el: HTMLElement, a: { x: number; y: number }, b: { x: number; y: number }, progress: number): void {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const dist = Math.hypot(dx, dy);
@@ -1140,9 +1237,6 @@ export class FightView {
       case "burnTick":
         if (e.amount >= 1) this.showMarkPopup(e.side, e.targetId, `-${Math.round(e.amount)}`, "burn", 300, "burn:" + e.targetId);
         break;
-      case "shieldAbsorb":
-        if (e.amount >= 1) this.showMarkPopup(e.side, e.targetId, `BLOCKED ${Math.round(e.amount)}`, "shield", 350, "shield:" + e.targetId);
-        break;
       case "chainEnd":
         this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.totalStunSec, e.killedIds, e.backfire, e.reason, e.effects);
         break;
@@ -1237,13 +1331,13 @@ export class FightView {
   /** Points `body`'s existing lunge animation at `target` instead of a fixed
    * per-side direction, so the attacker's own motion carries "who I'm
    * swinging at" even if the tracer is missed. */
-  private lungeToward(body: HTMLElement, target: HTMLElement, maxDist: number): void {
-    const a = this.centerOf(body);
+  private lungeToward(core: HTMLElement, target: HTMLElement, maxDist: number): void {
+    const a = this.centerOf(core);
     const b = this.centerOf(target);
     const dist = Math.hypot(b.x - a.x, b.y - a.y) || 1;
-    body.style.setProperty("--lunge-x", `${(((b.x - a.x) / dist) * maxDist).toFixed(1)}px`);
-    body.style.setProperty("--lunge-y", `${(((b.y - a.y) / dist) * maxDist).toFixed(1)}px`);
-    pulseClass(body, "lunge", 250);
+    core.style.setProperty("--lunge-x", `${(((b.x - a.x) / dist) * maxDist).toFixed(1)}px`);
+    core.style.setProperty("--lunge-y", `${(((b.y - a.y) / dist) * maxDist).toFixed(1)}px`);
+    pulseClass(core, "lunge", 250);
   }
 
   /** The core attribution device: a small dot that visibly travels from
@@ -1375,11 +1469,11 @@ export class FightView {
       // The front rank steps into the clash line to trade the blow — see
       // STEP_IN_PX's own docstring for why this lunge is bigger than a
       // back-rank attacker's.
-      this.lungeToward(attacker.body, target.body, STEP_IN_PX);
+      this.lungeToward(attacker.core, target.body, STEP_IN_PX);
     } else {
       // The back rank never leaves its row — a small recoil (lungeToward's
       // negative maxDist) reads as "throwing," not "stepping forward."
-      this.lungeToward(attacker.body, target.body, -RECOIL_PX);
+      this.lungeToward(attacker.core, target.body, -RECOIL_PX);
     }
     this.fireTracer(
       attacker.body,
@@ -1409,7 +1503,7 @@ export class FightView {
     // is a second attribution cue ("that one is heading for Cairn").
     setTimeout(() => {
       target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
-      pulseClass(target.body, "flinch", 300);
+      pulseClass(target.core, "flinch", 300);
       this.showImpactFlash(target.body, frac);
       const label = bypass ? `↷-${damage}` : `-${damage}`;
       this.showPopup(target.body, label, "normal", 1, 0, attacker.accent, offsetX);
@@ -1435,7 +1529,7 @@ export class FightView {
     if (!target) return;
 
     if (healer) {
-      this.lungeToward(healer.body, target.body, 10);
+      this.lungeToward(healer.core, target.body, 10);
       this.fireTracer(healer.body, target.body, HEAL_ACCENT);
     }
 
@@ -1496,7 +1590,7 @@ export class FightView {
     this.showCallout(`${name} FALLS`, true, "var(--muted)", true, heroId);
     if (refs) {
       refs.body.style.setProperty("--flinch-scale", "1");
-      pulseClass(refs.body, "flinch", 300);
+      pulseClass(refs.core, "flinch", 300);
       this.showImpactFlash(refs.body, 1);
     }
   }
@@ -1584,9 +1678,9 @@ export class FightView {
       if (gen !== this.windupGen) return; // reset() happened mid-flight — see windupGen's docstring
       const maxHp = this.heroMaxHp.get(targetId) ?? 1;
       const frac = Math.max(0.3, Math.min(1, damage / maxHp));
-      if (attacker) this.lungeToward(attacker.body, target.body, 14);
+      if (attacker) this.lungeToward(attacker.core, target.body, 14);
       target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
-      pulseClass(target.body, "flinch", 300);
+      pulseClass(target.core, "flinch", 300);
       this.showImpactFlash(target.body, frac);
       this.showPopup(target.body, `-${damage}`, "windup", 1 + frac, 0, WINDUP_ACCENT);
       this.arena.classList.remove("shake");
@@ -1627,13 +1721,13 @@ export class FightView {
             // recoils away from its new victim (lungeToward's maxDist going
             // negative just runs the same lunge backwards, see its own
             // docstring) — distinct in both motion and colour from a save.
-            this.lungeToward(originalTarget.body, target.body, -10);
+            this.lungeToward(originalTarget.core, target.body, -10);
             this.showHeroStatusTell(originalTargetId, "STEPS ASIDE", "var(--backfire)", true);
           } else {
             // The ordinary spared bystander, and Bracer stepping IN toward
             // the attacker to take the hit.
             this.showHeroStatusTell(originalTargetId, "SAFE");
-            this.lungeToward(target.body, attacker.body, 10);
+            this.lungeToward(target.core, attacker.body, 10);
             this.showHeroStatusTell(targetId, "TAKES THE SLAM", HEAL_ACCENT, true);
           }
           land();
@@ -1645,7 +1739,7 @@ export class FightView {
     const heldLand = () => {
       land();
       if (redirect !== "guardHeld" || gen !== this.windupGen) return;
-      if (attacker) this.lungeToward(target.body, attacker.body, 10);
+      if (attacker) this.lungeToward(target.core, attacker.body, 10);
       this.showHeroStatusTell(targetId, "TAKES THE SLAM", HEAL_ACCENT, true);
     };
 
@@ -1735,7 +1829,7 @@ export class FightView {
     const chainFlightMs = chainBlocker ? LOB_TRACER_MS : TRACER_MS;
 
     if (attacker && target) {
-      this.lungeToward(attacker.body, target.body, 14);
+      this.lungeToward(attacker.core, target.body, 14);
       this.fireTracer(attacker.body, target.body, chainColor, 8, "chain-tracer", chainFlightMs, !!chainBlocker, chainBlocker?.body);
     }
 
@@ -1777,7 +1871,7 @@ export class FightView {
             pulseClass(target.body, "healed", 500);
           } else {
             target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
-            pulseClass(target.body, "flinch", 300);
+            pulseClass(target.core, "flinch", 300);
             this.showImpactFlash(target.body, frac);
           }
           const sign = kind === "heal" ? "+" : "-";
@@ -2235,12 +2329,36 @@ function makeHeroSlot(
   const hpGhostFill = document.createElement("div");
   hpGhostFill.className = "hp-ghost-fill";
   hpTrack.appendChild(hpGhostFill);
+  // The Shield layers (DECISIONS.md 2026-10-01) sit between the HP ghost and
+  // the HP fill: the Shield's own ghost, then the Shield itself, both running
+  // from the left edge so the opaque HP fill hides their left part. Painting
+  // order is DOM order, same as the ghost/fill pair above.
+  const hpShieldGhost = document.createElement("div");
+  hpShieldGhost.className = "hp-shield-ghost";
+  hpTrack.appendChild(hpShieldGhost);
+  const hpShieldFill = document.createElement("div");
+  hpShieldFill.className = "hp-shield-fill";
+  hpTrack.appendChild(hpShieldFill);
   const hpFill = document.createElement("div");
   hpFill.className = "hp-fill";
   hpTrack.appendChild(hpFill);
 
+  // The track clips its children, so the break flash lives in a wrapper beside
+  // it: a glow drawn inside the track would be cut off at the bar's edge.
+  const hpBar = document.createElement("div");
+  hpBar.className = "hp-bar";
+  hpBar.appendChild(hpTrack);
+  const hpBreakFlash = document.createElement("div");
+  hpBreakFlash.className = "hp-break-flash";
+  hpBar.appendChild(hpBreakFlash);
+
   const hpLabel = document.createElement("div");
   hpLabel.className = "hp-label";
+  const hpLabelText = document.createElement("span");
+  hpLabel.appendChild(hpLabelText);
+  const hpShieldLabel = document.createElement("span");
+  hpShieldLabel.className = "hp-label-shield";
+  hpLabel.appendChild(hpShieldLabel);
 
   const counter = document.createElement("div");
   counter.className = "job-counter";
@@ -2292,11 +2410,11 @@ function makeHeroSlot(
   guardPips.appendChild(guardCount);
 
   // Mark badges (2026-09-30) — one small pill per stack mark, hidden until it
-  // has stacks; see HeroSlot.markBadges.
+  // has stacks; see HeroSlot.markBadges. Shield is drawn on the HP bar instead.
   const markRow = document.createElement("div");
   markRow.className = "mark-row";
   const markBadges = {} as HeroSlot["markBadges"];
-  for (const mark of ["exposed", "burn", "shield"] as const) {
+  for (const mark of ["exposed", "burn"] as const) {
     const badge = document.createElement("span");
     badge.className = `mark-badge mark-${mark}`;
     badge.title = MARK_CHIP[mark].word;
@@ -2327,9 +2445,12 @@ function makeHeroSlot(
   const chargeRing = document.createElement("div");
   chargeRing.className = "charge-ring";
 
-  perch.appendChild(body);
-  perch.appendChild(chargeRing);
-  perch.appendChild(freezeRing);
+  const core = document.createElement("div");
+  core.className = "body-core";
+  core.appendChild(body);
+  core.appendChild(chargeRing);
+  core.appendChild(freezeRing);
+  perch.appendChild(core);
 
   // Fatigue pips (2026-09-30, design/canvas/FatiguePips.dc.html) — a stack
   // beside the body, lit to the unit's tier. Player side only: enemies author
@@ -2339,7 +2460,7 @@ function makeHeroSlot(
 
   slot.appendChild(perch);
   slot.appendChild(name);
-  slot.appendChild(hpTrack);
+  slot.appendChild(hpBar);
   slot.appendChild(hpLabel);
   slot.appendChild(chargeTrack);
   slot.appendChild(chargeLabel);
@@ -2350,10 +2471,20 @@ function makeHeroSlot(
   return {
     slot,
     perch,
+    core,
     body,
     hpFill,
     hpGhostFill,
+    hpShieldFill,
+    hpShieldGhost,
+    hpBreakFlash,
     hpLabel,
+    hpLabelText,
+    hpShieldLabel,
+    lastHp: Number.NEGATIVE_INFINITY,
+    lastShield: 0,
+    lastHpFrac: -1,
+    lastEdgeFrac: -1,
     chargeFill,
     chargeGhostFill,
     chargeLabel,

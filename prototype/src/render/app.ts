@@ -9,7 +9,16 @@ import { renderRoundScreen } from "./roundScreen.js";
 import { renderOfferScreen } from "./offerScreen.js";
 import { renderRelicScreen } from "./relicScreen.js";
 import { renderCollectionScreen } from "./collectionScreen.js";
-import { loadCollection, recordRelic, recordSeen, recordTaken, saveCollection, type Collection, type StorageLike } from "../sim/collection.js";
+import {
+  loadCollection,
+  recordRelic,
+  recordRunEnded,
+  recordSeen,
+  recordTaken,
+  saveCollection,
+  type Collection,
+  type StorageLike,
+} from "../sim/collection.js";
 
 const cfg = DEFAULT_RUN_CONFIG;
 
@@ -59,6 +68,8 @@ export function mountApp(root: HTMLElement): void {
     saveCollection(next, storage());
   }
 
+  // The round 1 reward (2026-10-01): pick a relic. No row is pre-selected, and the
+  // Collection button only shows once a run has ended — before that it is empty.
   function showRelicScreen(): void {
     renderRelicScreen(
       root,
@@ -66,9 +77,9 @@ export function mountApp(root: HTMLElement): void {
       (id) => {
         remember(recordRelic(collection, id));
         session.pickRelic(id);
-        showRoundScreen();
+        afterRoundResolved();
       },
-      () => renderCollectionScreen(root, collection, showRelicScreen),
+      collection.runsEnded > 0 ? () => renderCollectionScreen(root, collection, showRelicScreen) : undefined,
     );
     appendSeedBadge(root, session.seed);
   }
@@ -76,8 +87,36 @@ export function mountApp(root: HTMLElement): void {
   function startNewRun(): void {
     const seed = pinnedSeed !== null && pinnedSeed !== "" ? Number(pinnedSeed) : Math.floor(Math.random() * 1_000_000_000);
     session = new RunSession(cfg, seed);
-    // A run opens with a relic pick (2026-10-01), then the first round screen.
-    showRelicScreen();
+    // A run opens straight on its first fight (2026-10-01); the relic pick is that
+    // fight's reward.
+    showRoundScreen();
+  }
+
+  // The two ways a run ends. Each records the ended run once, then shows its
+  // screen; the screen's Collection button comes back to the same screen.
+  function endRun(how: "over" | "complete"): void {
+    remember(recordRunEnded(collection));
+    if (how === "over") showRunOver();
+    else showRunComplete();
+  }
+
+  function showRunOver(): void {
+    renderRunOverScreen(
+      root,
+      session.rounds.length,
+      session.overReason,
+      session.lastFightResult,
+      session.lastProjection,
+      startNewRun,
+      testMode,
+      () => renderCollectionScreen(root, collection, showRunOver),
+    );
+    appendSeedBadge(root, session.seed);
+  }
+
+  function showRunComplete(): void {
+    renderRunCompleteScreen(root, session.rounds.length, startNewRun, () => renderCollectionScreen(root, collection, showRunComplete));
+    appendSeedBadge(root, session.seed);
   }
 
   function showRoundScreen(): void {
@@ -116,6 +155,7 @@ export function mountApp(root: HTMLElement): void {
       (snapshot, events) => view.render(snapshot, events),
       () => onFightEnd(result),
       cfg.fight.chainFullTellThreshold,
+      (simT) => view.renderFrame(simT),
     );
 
     const pauseBtn = document.createElement("button");
@@ -146,21 +186,20 @@ export function mountApp(root: HTMLElement): void {
     // before the screen changes underneath it.
     setTimeout(() => {
       if (session.status === "over") {
-        renderRunOverScreen(
-          root,
-          session.rounds.length,
-          session.overReason,
-          session.lastFightResult,
-          session.lastProjection,
-          startNewRun,
-          testMode,
-        );
-        appendSeedBadge(root, session.seed);
+        endRun("over");
         return;
       }
-      renderRoundRecap(root, session.currentRoundIndex, result, session.lastProjection, showOfferScreen, testMode);
+      renderRoundRecap(root, session.currentRoundIndex, result, session.lastProjection, showReward, testMode);
       appendSeedBadge(root, session.seed);
     }, 900);
+  }
+
+  // After a win's recap: the relic pick on the relic round, the normal offers on
+  // every other. A relic round that left too few units to field has neither: it
+  // falls through to the offer path with nothing to show, which ends the run.
+  function showReward(): void {
+    if (session.awaitingRelic) showRelicScreen();
+    else showOfferScreen();
   }
 
   function showOfferScreen(): void {
@@ -177,9 +216,13 @@ export function mountApp(root: HTMLElement): void {
   function onOfferChosen(offer: Offer | null, dropCardId?: CardId): void {
     if (offer?.kind === "card" && offer.card) remember(recordTaken(collection, offer.card));
     session.resolveOffer(offer, dropCardId);
+    afterRoundResolved();
+  }
+
+  // The step after a win's reward (an offer or the relic) has been applied.
+  function afterRoundResolved(): void {
     if (session.status === "complete") {
-      renderRunCompleteScreen(root, session.rounds.length, startNewRun);
-      appendSeedBadge(root, session.seed);
+      endRun("complete");
       return;
     }
     // A WIN can still end the run here — the roster falling below
@@ -187,16 +230,7 @@ export function mountApp(root: HTMLElement): void {
     // fielded. Distinct from a round LOSS, which onFightEnd already caught
     // before the offer screen was ever shown.
     if (session.status === "over") {
-      renderRunOverScreen(
-        root,
-        session.rounds.length,
-        session.overReason,
-        session.lastFightResult,
-        session.lastProjection,
-        startNewRun,
-        testMode,
-      );
-      appendSeedBadge(root, session.seed);
+      endRun("over");
       return;
     }
     showRoundScreen();

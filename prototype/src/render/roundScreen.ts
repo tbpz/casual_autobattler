@@ -228,7 +228,7 @@ export function renderRoundScreen(
     for (const [id, refs] of tokenRefs) {
       const isSelected = selected.has(id);
       refs.wrap.classList.toggle("not-picked", !isSelected);
-      refs.badge.classList.toggle("hollow", !isSelected);
+      refs.badge.classList.toggle("unpicked", !isSelected);
       refs.badge.textContent = isSelected ? "✓" : "";
     }
     refreshFightingStrip();
@@ -358,7 +358,7 @@ export function renderRoundScreen(
         <div class="round-token-main">
           <div class="round-token-body-wrap">
             <div class="round-token-body" style="background: var(${ROLE_CSS_VAR[role]})">${ordinal}</div>
-            <div class="round-token-badge${isSelected ? "" : " hollow"}" style="background: ${isSelected ? `var(${ROLE_CSS_VAR[role]})` : ""}">${isSelected ? "✓" : ""}</div>
+            <div class="round-token-badge${isSelected ? "" : " unpicked"}" style="background: var(${ROLE_CSS_VAR[role]})">${isSelected ? "✓" : ""}</div>
           </div>
           ${fatiguePipsHtml(tier)}
         </div>

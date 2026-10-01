@@ -198,6 +198,10 @@ export class Playback {
   private result: FightResult;
   private onTick: PlaybackListener;
   private onEnd: (() => void) | null;
+  /** Called every animation frame with the dilated sim clock, between
+   * snapshots (snapshots only arrive at the sim tick rate), so continuous
+   * tells can animate smoothly. See FightView.renderFrame. */
+  private onFrame: ((simT: number) => void) | null;
   private chainWindows: ChainWindow[];
 
   private paused = true;
@@ -207,10 +211,17 @@ export class Playback {
   private rafId: number | null = null;
   private lastEmittedIndex = -1;
 
-  constructor(result: FightResult, onTick: PlaybackListener, onEnd?: () => void, deepenAtHit = 5) {
+  constructor(
+    result: FightResult,
+    onTick: PlaybackListener,
+    onEnd?: () => void,
+    deepenAtHit = 5,
+    onFrame?: (simT: number) => void,
+  ) {
     this.result = result;
     this.onTick = onTick;
     this.onEnd = onEnd ?? null;
+    this.onFrame = onFrame ?? null;
     this.chainWindows = buildChainWindows(result.events, deepenAtHit);
   }
 
@@ -264,6 +275,7 @@ export class Playback {
     this.currentRate += (targetRate - this.currentRate) * ease;
     this.elapsedSec += wallDeltaSec * this.currentRate;
     this.emitUpTo(this.elapsedSec);
+    this.onFrame?.(this.elapsedSec);
     if (this.elapsedSec >= this.result.durationSec) {
       this.pause();
       this.onEnd?.();

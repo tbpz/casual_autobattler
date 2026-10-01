@@ -17,7 +17,7 @@ import {
   type RosterState,
 } from "../sim/roster.js";
 import { heldCards, makeInitialProgress, relicRngFor, upgradeRngFor, type RunProgress } from "../sim/progress.js";
-import { applyRelicStart, drawRelicChoices } from "../sim/relics.js";
+import { applyRelic, drawRelicChoices } from "../sim/relics.js";
 import { applyOffer, drawOffers, noteIntroduced, type Offer } from "../sim/offers.js";
 import type { CardId } from "../sim/cards/index.js";
 import { summarizeLoss, summarizeWin, type RoundSummary } from "../sim/run.js";
@@ -60,9 +60,13 @@ export class RunSession {
   pendingOffers: Offer[] = [];
   status: "in-progress" | "complete" | "over" = "in-progress";
   overReason: "loss" | "rosterExhausted" | null = null;
-  /** The three relics offered at run start (2026-10-01; sim/relics.ts). The
-   * run waits for pickRelic before its first round. */
+  /** The three relics on offer as the round 1 reward (2026-10-01;
+   * sim/relics.ts). */
   relicChoices: CardId[];
+  /** True after a win in cfg.relicRound, while the relic pick is the reward the
+   * run is waiting on. False when that win left too few units to field a squad:
+   * there is nothing to pick, and resolveOffer(null) ends the run. */
+  awaitingRelic = false;
 
   constructor(cfg: RunConfig, seed: number) {
     this.cfg = cfg;
@@ -80,14 +84,16 @@ export class RunSession {
     return this.progressValue;
   }
 
-  /** Takes the start-of-run relic. Called once, before the first round; a
-   * second call is ignored so a double-tap can't swap it. Mercenary also
-   * adds its fourth unit to the roster. */
+  /** Takes the relic that is the reward for the relic round's win, and ends
+   * that round. Ignored unless a pick is pending, so a double-tap can't take
+   * a second one. Mercenary also adds its fourth unit to the roster. */
   pickRelic(id: CardId): void {
-    if (this.progressValue.relic || !this.relicChoices.includes(id)) return;
-    const started = applyRelicStart(this.progressValue, this.roster, id, this.relicRng);
-    this.progressValue = started.progress;
-    this.roster = started.roster;
+    if (!this.awaitingRelic || !this.relicChoices.includes(id)) return;
+    const applied = applyRelic(this.progressValue, this.roster, id, this.relicRng);
+    this.progressValue = applied.progress;
+    this.roster = applied.roster;
+    this.awaitingRelic = false;
+    this.finishRound(null, id);
   }
 
   get currentRoundIndex(): number {
@@ -177,6 +183,12 @@ export class RunSession {
     }
 
     this.roster = applyFightResultToRoster(this.roster, player, result, this.cfg);
+    // The relic round's reward is the relic pick, not offers (2026-10-01).
+    if (this.roundIndex === this.cfg.relicRound) {
+      this.pendingOffers = [];
+      this.awaitingRelic = this.canFieldNextRound;
+      return result;
+    }
     this.pendingOffers = drawOffers(this.offerRng, this.progressValue, this.roster, this.cfg, this.roundIndex);
     this.progressValue = noteIntroduced(this.progressValue, this.pendingOffers);
     return result;
@@ -195,10 +207,16 @@ export class RunSession {
       this.roster = applied.roster;
     }
     this.pendingOffers = [];
+    return this.finishRound(offer);
+  }
 
+  /** Closes the round just won — records its summary, then advances to the
+   * next round, or to run-complete or run-over. Shared by resolveOffer and
+   * pickRelic. */
+  private finishRound(offer: Offer | null, relicTaken?: CardId): RoundSummary {
     const result = this.lastFightResult;
-    if (!result) throw new Error("resolveOffer called before playNextRound");
-    const summary = summarizeWin(this.roundIndex, result, offer, this.roster, this.fieldedThisRound);
+    if (!result) throw new Error("finishRound called before playNextRound");
+    const summary = summarizeWin(this.roundIndex, result, offer, this.roster, this.fieldedThisRound, relicTaken);
     this.rounds.push(summary);
 
     this.roundIndex++;

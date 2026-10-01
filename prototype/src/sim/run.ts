@@ -15,7 +15,7 @@ import {
 import { drawRoundEncounters, roundEnemySide } from "./rounds.js";
 import { makeStartingRoster } from "./roles.js";
 import { heldCards, makeInitialProgress, relicRngFor, upgradeRngFor, type RunProgress } from "./progress.js";
-import { applyRelicStart, drawRelicChoices } from "./relics.js";
+import { applyRelic, drawRelicChoices } from "./relics.js";
 import type { CardId } from "./cards/index.js";
 import { applyOffer, defaultCardDrop, drawOffers, noteIntroduced, type Offer } from "./offers.js";
 
@@ -108,6 +108,9 @@ export interface RoundSummary {
   /** The offer taken after this round's win, null for a loss (no offer is
    * ever shown after a loss) — see sim/offers.ts's Offer. */
   offerTaken: Offer | null;
+  /** The relic taken as this round's reward, on the round that hands one out
+   * (cfg.relicRound) — that round's reward is the relic, so offerTaken is null. */
+  relicTaken?: CardId;
   /** Living ROSTER units after this round (out of the full roster, not just
    * this round's fielded squad) — the run-wide "how much of my roster is
    * left" figure. */
@@ -166,6 +169,7 @@ export function summarizeWin(
   offerTaken: Offer | null,
   roster: RosterState,
   fieldedIds: string[],
+  relicTaken?: CardId,
 ): RoundSummary {
   return {
     roundIndex,
@@ -173,6 +177,7 @@ export function summarizeWin(
     ignited: result.ignited,
     chainLength: result.chainLength,
     offerTaken,
+    ...(relicTaken ? { relicTaken } : {}),
     livingHeroesAfter: roster.heroes.filter((h) => h.alive).length,
     playerHpAfter: sideHp(roster),
     playerMaxHpAfter: sideMaxHp(roster),
@@ -185,11 +190,11 @@ export interface RunOptions {
    * MUST be pure and MUST NOT consume `rng`: doing so would shift the fight
    * RNG stream and break every seed-pinned check in checks/. */
   fieldPick?: FieldPick;
-  /** Picks the run's starting relic from the three drawn (sim/relics.ts).
-   * Default: the first drawn, which is itself a seeded random draw. `null`
-   * starts the run with no relic at all — for checks that want to isolate the
-   * rest. */
-  startPick?: ((choices: CardId[]) => CardId) | null;
+  /** Picks the relic from the three drawn (sim/relics.ts) as the reward for
+   * winning round cfg.relicRound. Default: the first drawn, which is itself a
+   * seeded random draw. `null` gives the run no relic at all — for checks that
+   * want to isolate the rest. Either way that round's reward is not an offer. */
+  relicPick?: ((choices: CardId[]) => CardId) | null;
 }
 
 /** Runs one full `cfg.roundsPerRun`-round run to completion. Pure given
@@ -209,16 +214,6 @@ export function runRun(
   const fieldPick = opts?.fieldPick ?? defaultFieldPick;
   let progress = makeInitialProgress(cfg, upgradeRngFor(seed));
   let roster: RosterState = makeStartingRoster(progress.bonus);
-
-  // The start-of-run relic (2026-10-01): three drawn from the run's own relic
-  // stream, one picked, applied before round 1.
-  if (opts?.startPick !== null) {
-    const relicRng = relicRngFor(seed);
-    const choices = drawRelicChoices(relicRng);
-    const started = applyRelicStart(progress, roster, (opts?.startPick ?? ((c) => c[0]!))(choices), relicRng);
-    progress = started.progress;
-    roster = started.roster;
-  }
 
   const rounds: RoundSummary[] = [];
   const fightResults: FightResult[] = [];
@@ -245,6 +240,23 @@ export function runRun(
     }
 
     roster = applyFightResultToRoster(roster, player, result, cfg);
+
+    // The relic round's reward is the relic pick, not offers (2026-10-01). A
+    // win that leaves too few units to field gets nothing: the run ends at the
+    // top of the next loop, with no safety net.
+    if (i === cfg.relicRound) {
+      let relicTaken: CardId | undefined;
+      if (opts?.relicPick !== null && canFieldSquad(roster, progress.slots)) {
+        const relicRng = relicRngFor(seed);
+        const choices = drawRelicChoices(relicRng);
+        relicTaken = (opts?.relicPick ?? ((c) => c[0]!))(choices);
+        const applied = applyRelic(progress, roster, relicTaken, relicRng);
+        progress = applied.progress;
+        roster = applied.roster;
+      }
+      rounds.push(summarizeWin(i, result, null, roster, fieldedIds, relicTaken));
+      continue;
+    }
 
     const offers = drawOffers(offerRng, progress, roster, cfg, i);
     progress = noteIntroduced(progress, offers);

@@ -70,8 +70,8 @@ export interface RunProgress {
    * (drawUpgradeOptions). A "chainGain" offer only ever names one of these, so
    * two runs push the same role toward different builds. */
   upgradeOptions: Record<PlayerRole, ChainEffect[]>;
-  /** 2026-10-01: the relic picked at run start (sim/relics.ts), held all run
-   * and never in the card list — so it takes no card slot and can't be dropped.
+  /** 2026-10-01: the relic picked as the round 1 reward (sim/relics.ts), held
+   * from then on and never in the card list — so it takes no card slot and can't be dropped.
    * Undefined until the pick is made. */
   relic?: CardId;
 }

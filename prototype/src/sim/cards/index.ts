@@ -74,7 +74,7 @@ export const POOL_CARD_IDS: CardId[] = CARD_IDS.filter((id) => CARD_DEFS[id].kin
 
 export const DUO_IDS: CardId[] = CARD_IDS.filter((id) => CARD_DEFS[id].kind === "duo");
 
-/** The relics a run may start with — picked from three at run start, never offered after. */
+/** The relics a run may take — picked from three as the round 1 reward, never offered after. */
 export const RELIC_IDS: CardId[] = CARD_IDS.filter((id) => CARD_DEFS[id].kind === "relic");
 
 /** The marks each chain ability leaves. Exposed/Burn/Shield are stacks;

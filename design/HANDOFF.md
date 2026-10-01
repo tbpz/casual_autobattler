@@ -4,9 +4,9 @@
 **Source files:** `design/canvas/*.dc.html`, `design/canvas/canvas.json` — edit these, then republish (see
 "Publishing" below). Don't hand-edit `fight-field-layout.html`; it's a build output, regenerated on publish.
 
-## What's on the canvas (2026-09-30 cleanup)
+## What's on the canvas (2026-09-30 cleanup; frame 7 added 2026-10-01)
 
-Six frames, as still pictures: no motion, no interaction. Colours and sizes are copied from the real code
+Seven frames, as still pictures: no motion, no interaction. Colours and sizes are copied from the real code
 (`prototype/src/style.css`, `render/roundScreen.ts`, `render/fightView.ts`), so a change here is a real proposal.
 Units, HP and fatigue values are made up for the picture, not read from a run.
 
@@ -19,6 +19,9 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
 6. **OfferAfter** — the reward-pick screen, built 2026-09-30 (`render/offerScreen.ts`, `style.css` `.offer-row`): three full-width rows, each with a
    category rail (Chain, Stats, Squad, Recovery, Reaction), a named role pill, the change as a big headline, and a quiet "↳" line linking an
    offer to what the run holds (any kind can carry one). Every row has the same frame; nothing is gold, so no kind looks like the answer.
+7. **ShieldBar** — built 2026-10-01 (`render/fightView.ts`, `render/hpBar.ts`, `style.css` `.hp-shield-fill`; `DECISIONS.md` "Shield shows as a segment on the HP bar"), with number placement A. The frame's own label on the published canvas still says "proposal, not built". Nine states of the HP bar with a
+   teal shield segment (today's badge, under max, over max with rescale, a hit eating shield, draining while over max, a break flash, a 4-point
+   sliver, the Aegis cap, an enemy), plus the number-placement choice. Bars are drawn wider than on a phone.
 
 Round-screen idea, in one paragraph: units are grouped by role. One band per role holds its icon, one chip per ability
 the chain has picked up ("guard", "freeze"), a `+N` badge once the chain has been made stronger (never the word "level"), and a ✓
@@ -49,6 +52,9 @@ Built 2026-09-30, matching the canvas: `render/heroPickShared.ts` (`fatiguePipsH
 3. **Per-unit damage/speed numbers** were dropped (every unit of a role shares them). Gone for good, or behind the same press?
 4. **The bench-heals-faster hint** was dropped with the old "resting" look. `benchedRecoverFraction` still exists in `sim/config.ts`.
    Does the rule need a hint on the round screen?
+5. **Shield number placement** (frame 7). A: the HP label gains a teal `⛊40`. B: a small teal tag sits at the bar's right end. Cards 2–9 use A.
+6. **Shield rescale side effects** (frame 7, cards 3, 5, 8). The rescale shrinks the blue HP fill while shielded (Aegis: half the bar), and it
+   grows back as the shield drains with no HP change. Acceptable, or would an overlay read better?
 
 ## What the canvas does not cover
 

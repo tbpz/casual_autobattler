@@ -412,6 +412,15 @@ body {
   max-width: 100%;
 }
 
+/* The track's wrapper (2026-10-01 shield-on-the-HP-bar pass): the track clips
+   its children, so the Shield-break flash sits beside it in here and its glow
+   can spill past the bar's edge. A direct slot child with width:100%, same as
+   the track was. */
+.hp-bar {
+  position: relative;
+  width: 100%;
+}
+
 .hp-track {
   position: relative;
   width: 100%;
@@ -427,14 +436,17 @@ body {
    first in the DOM (see fightView.ts's makeHeroSlot) so normal stacking
    order puts it underneath without needing z-index. */
 .hp-fill,
-.hp-ghost-fill {
+.hp-ghost-fill,
+.hp-shield-fill,
+.hp-shield-ghost {
   position: absolute;
   inset: 0;
   height: 100%;
   width: 100%;
 }
 
-.hp-fill {
+.hp-fill,
+.hp-shield-fill {
   transition: width 0.15s linear;
 }
 
@@ -453,6 +465,60 @@ body {
   transition: width 0.6s ease-out 0.45s;
 }
 
+/* The Shield segment (2026-10-01, DECISIONS.md "Shield shows as a segment on
+   the HP bar"). It runs from the bar's left edge to the end of the Shield and
+   sits UNDER .hp-fill, so only the stretch past the HP fill shows. Its ghost is
+   the same lag device as .hp-ghost-fill, in the Shield's colour. */
+.hp-shield-fill {
+  background: var(--mark-shield);
+  width: 0;
+}
+
+.hp-shield-ghost {
+  background: var(--mark-shield);
+  opacity: 0.4;
+  width: 0;
+  transition: width 0.6s ease-out 0.45s;
+}
+
+/* fightView.ts's updateSide sets this on a ghost whenever its edge moves
+   without a real loss — a Shield landing rescales the bar and shrinks the HP
+   fill with no HP lost — so the ghost snaps instead of faking damage. Same
+   escape hatch as .charge-fill.instant. */
+.hp-ghost-fill.instant,
+.hp-shield-ghost.instant {
+  transition: none;
+}
+
+/* A flash at the HP/Shield boundary when a Shield breaks. Positioned (left) by
+   fightView.ts; the glow spills outside the track, which is why it lives in
+   .hp-bar rather than in the track. */
+.hp-break-flash {
+  position: absolute;
+  top: -3px;
+  height: 14px;
+  width: 3px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 0 6px 2px var(--mark-shield);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hp-break-flash.pulse {
+  animation: hp-break-flash 0.5s ease-out;
+}
+
+@keyframes hp-break-flash {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .player-side .hp-fill {
   background: var(--player);
 }
@@ -466,6 +532,16 @@ body {
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   white-space: nowrap;
+}
+
+.hp-label-shield {
+  display: none;
+  color: var(--mark-shield);
+  font-weight: 800;
+}
+
+.hp-label-shield.show {
+  display: inline;
 }
 
 .job-counter {
@@ -850,17 +926,28 @@ body {
 .body.player-body {
   background: var(--accent, var(--player));
   box-shadow: 0 0 0 1px var(--panel);
-  --flinch-y: 4px;
 }
 
 .body.enemy-body {
   background: var(--enemy);
+}
+
+/* Body + charge/freeze rings move as one (lunge/flinch animate this, not
+   .body). Exactly body-sized so the rings' positioning math is unchanged;
+   the perch's own transform stays reserved for the depth pop. */
+.body-core {
+  position: relative;
+  width: var(--body-size, 40px);
+  height: var(--body-size, 40px);
   --flinch-y: -4px;
 }
 
+.player-side .body-core {
+  --flinch-y: 4px;
+}
+
 /* Role sizing/shape — a tank or bruiser reads as bigger and tougher at a
-   glance; support gets a squarish shape to hint "utility" rather than a
-   fighter; the bruiser is the biggest and most saturated body on screen,
+   glance; the bruiser is the biggest and most saturated body on screen,
    since killing it is meant to be the dip's legible turnaround. Sizes come
    from --body-size (2026-09-16 freeze-layout pass, declared once per role on
    .hero-slot.role-* above) so .freeze-ring can read the same number instead
@@ -872,10 +959,6 @@ body {
 .body.role-bruiser {
   width: var(--body-size);
   height: var(--body-size);
-}
-
-.body.role-support {
-  border-radius: 10px;
 }
 
 .body.role-bruiser {
@@ -1106,7 +1189,7 @@ body {
   }
 }
 
-.body.lunge {
+.body-core.lunge {
   animation: lunge 0.25s ease-out;
 }
 
@@ -1131,7 +1214,7 @@ body {
   }
 }
 
-.body.flinch {
+.body-core.flinch {
   animation: flinch 0.3s ease-out;
 }
 
@@ -2052,7 +2135,7 @@ button:disabled {
 
 .round-token-row {
   display: flex;
-  gap: 10px;
+  gap: 19px;
   margin-top: 6px;
   padding-left: 2px;
   flex-wrap: wrap;
@@ -2085,9 +2168,17 @@ button:disabled {
    fatigue-tier ring — the ring means charge on the fight screen, and charge
    resets to 0 every fight, so it has nothing to show at pick time. */
 .round-token-main {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  position: relative;
+}
+
+/* The pips hang off the circle's right edge instead of widening the token, so
+   the HP bar and tier word below centre on the circle alone. The row gap is
+   widened by the pips' footprint (4px gap + 5px pip) to keep tokens apart. */
+.round-token-main > .fatigue-pips {
+  position: absolute;
+  left: calc(100% + 4px);
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 /* Fatigue pips — a stack of 4, lit from the bottom up to the unit's tier
@@ -2184,8 +2275,10 @@ button:disabled {
   font-weight: 800;
 }
 
-.round-token-badge.hollow {
-  background: var(--track-bg);
+/* The badge only shows when it says something (picked ✓, fallen ✕); the
+   dimmed token already says "not picked". */
+.round-token-badge.unpicked {
+  display: none;
 }
 
 .round-token-badge.fallen {
@@ -2664,7 +2757,6 @@ button:disabled {
   color: var(--mark-burn);
 }
 
-.mark-badge.mark-shield,
 .mark-chip.mark-shield {
   color: var(--mark-shield);
 }

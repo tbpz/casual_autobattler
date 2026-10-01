@@ -22,6 +22,9 @@ export interface Collection {
   taken: CardId[];
   /** Every relic ever picked. */
   relics: CardId[];
+  /** How many runs have ended (lost or completed). The Collection button on the
+   * relic screen appears once this is above zero (2026-10-01). */
+  runsEnded: number;
 }
 
 export const COLLECTION_KEY = "autobattler.collection.v1";
@@ -33,7 +36,7 @@ export interface StorageLike {
 }
 
 export function emptyCollection(): Collection {
-  return { v: 1, seen: [], taken: [], relics: [] };
+  return { v: 1, seen: [], taken: [], relics: [], runsEnded: 0 };
 }
 
 function addAll(list: readonly CardId[], ids: readonly CardId[]): CardId[] {
@@ -53,6 +56,10 @@ export function recordRelic(c: Collection, id: CardId): Collection {
   return { ...c, relics: addAll(c.relics, [id]) };
 }
 
+export function recordRunEnded(c: Collection): Collection {
+  return { ...c, runsEnded: c.runsEnded + 1 };
+}
+
 /** Parses what storage returned. Anything unreadable, or from a different
  * version, is an empty collection; ids no longer in the registry are dropped so
  * an old save can't poison the screen after a card is removed. */
@@ -63,7 +70,9 @@ export function parseCollection(raw: string | null): Collection {
     if (data.v !== 1) return emptyCollection();
     const known = (list: unknown): CardId[] =>
       Array.isArray(list) ? (list.filter((id): id is CardId => typeof id === "string" && (CARD_IDS as string[]).includes(id))) : [];
-    return { v: 1, seen: known(data.seen), taken: known(data.taken), relics: known(data.relics) };
+    // A save from before runsEnded existed reads as 0 (the version stays 1).
+    const ended = typeof data.runsEnded === "number" && Number.isFinite(data.runsEnded) && data.runsEnded > 0 ? Math.floor(data.runsEnded) : 0;
+    return { v: 1, seen: known(data.seen), taken: known(data.taken), relics: known(data.relics), runsEnded: ended };
   } catch {
     return emptyCollection();
   }
