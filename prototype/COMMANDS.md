@@ -14,7 +14,7 @@ npm run run -- --seed 7 --offers greedy
                                     # "build" = greedy that also chases connected payoff cards and ability gains
 npm run batch -- --n 1000 --offers greedy
                                     # distribution report across N runs at one offer policy
-npm run batch -- --n 300 --offers greedy --set chargeThreshold=45,enemyHpScale=1.6
+npm run batch -- --n 300 --offers greedy --set chargeThreshold=45,enemyHpScale=1.8
                                     # --set key=number,... overrides numeric fight/run config for this
                                     # invocation only (a tuning sweep without editing config.ts)
 npm run build                      # tsc + vite production build
@@ -33,3 +33,32 @@ without the query params.
 role per slot, any encounter, a starting charge % per unit, and watch;
 optionally run two such fights side by side on one shared clock. See
 `src/lab/`.
+
+## Cards, abilities and relics (2026-10-01)
+
+```
+npm run batch -- --n 3000 --offers build --cards shatter,execute,frostbolt
+                                    # --cards restricts the offer pool to those cards, in that order
+                                    # (RunConfig.cardPool) — try one mark's cards alone. Unknown ids throw.
+npm run lab -- --cards shatterguard,brittle,crack --abilities tank:guard+stun+brace,damage:expose+scorch
+                                    # hold cards / give a role abilities for one fight; card triggers print as
+                                    # "CARD x <- cause (depth n)", so a cascade shows in the log.
+```
+
+In the browser, the lab takes the same thing from the URL:
+`?lab=1&cards=shatterguard,brittle&abilities=tank:guard+stun`.
+
+The batch report now ends with a **synergy** block (`src/batch/synergy.ts`): best and
+worst cards by win-over-expected per fight, the best card *pairs* by lift over the better
+card (a pair that wins far more together than either alone is a duo waiting to be
+named), and per-relic mean rounds won. Read it off `--offers build`; `greedy` rarely
+takes cards. "card triggers" replaces the old "payoff triggers" line.
+
+New checks, all part of `npm run check`: `check:cards` (the event engine: order,
+cascade cap, cause tags, determinism), `check:abilities` (the six new chain abilities,
+the upgrade pools and the per-run draw), `check:cardpool` (every card fires in a forced
+scenario; relics; duo unlock rules), `check:collection` (the cross-run collection's
+storage rules).
+
+The collection lives in `localStorage` under `autobattler.collection.v1` and is opened
+from the relic screen that starts every run.

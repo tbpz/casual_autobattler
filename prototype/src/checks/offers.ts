@@ -12,8 +12,8 @@ import { makeInitialProgress } from "../sim/progress.js";
 import { makeStartingRoster, PLAYER_ROLES, ROLE_POOL } from "../sim/roles.js";
 import { applyFightResultToRoster, canFieldSquad, defaultFieldPick, fieldSquad } from "../sim/roster.js";
 import { drawRoundEncounters, roundEnemySide } from "../sim/rounds.js";
-import { applyOffer, defaultPayoffDrop, drawOffers, noteIntroduced } from "../sim/offers.js";
-import { PAYOFF_DEFS, marksMadeBy } from "../sim/payoffs.js";
+import { applyOffer, defaultCardDrop, drawOffers, noteIntroduced, squadChainEffects } from "../sim/offers.js";
+import { CARD_DEFS, duoUnlocked, marksMadeBy } from "../sim/cards/index.js";
 import { runFight } from "../sim/fight.js";
 
 let failed = false;
@@ -60,9 +60,9 @@ function checkInvariants(label: string): void {
   }
   // 2026-09-30 (marks and payoffs): the payoff list never passes its cap and
   // never holds a card twice.
-  if (progress.payoffs.length > cfg.payoffCap) invariantBroken ??= `${label}: payoffs past the cap (${progress.payoffs.length})`;
-  if (new Set(progress.payoffs).size !== progress.payoffs.length) {
-    invariantBroken ??= `${label}: a payoff card is held twice (${progress.payoffs.join(",")})`;
+  if (progress.cards.length > cfg.cardCap) invariantBroken ??= `${label}: payoffs past the cap (${progress.cards.length})`;
+  if (new Set(progress.cards).size !== progress.cards.length) {
+    invariantBroken ??= `${label}: a payoff card is held twice (${progress.cards.join(",")})`;
   }
   if (roster.heroes.length > cfg.maxRosterSize) invariantBroken ??= `${label}: roster grew past maxRosterSize (${roster.heroes.length})`;
 }
@@ -72,7 +72,7 @@ for (let i = 0; i < cfg.roundsPerRun && !invariantBroken; i++) {
   const fieldedIds = defaultFieldPick(roster, progress.slots);
   const player = fieldSquad(roster, fieldedIds, progress);
   const enemy = roundEnemySide(cfg, i, roundOrder[i]!);
-  const result = runFight({ player, enemy, payoffs: progress.payoffs }, cfg.fight, rng, seed);
+  const result = runFight({ player, enemy, cards: progress.cards }, cfg.fight, rng, seed);
   if (result.outcome === "loss") break;
 
   roster = applyFightResultToRoster(roster, player, result, cfg);
@@ -80,12 +80,23 @@ for (let i = 0; i < cfg.roundsPerRun && !invariantBroken; i++) {
   // 2026-09-30 (introduce a mark before its payoff): a drawn payoff card may
   // only read marks the player has already met, via progress.introduced as it
   // stood BEFORE this draw's own ability offers are noted.
-  const met = marksMadeBy(progress.introduced);
+  // A mark a held card lays counts as met too (2026-10-01): the card said so
+  // on its own offer, e.g. "Makes ♨ burn".
+  const met = marksMadeBy(progress.introduced, progress.cards);
   for (const offer of offers) {
-    if (offer.kind !== "payoff") continue;
-    const unmet = PAYOFF_DEFS[offer.payoff!].reads.filter((mark) => !met.has(mark));
+    if (offer.kind !== "card") continue;
+    const def = CARD_DEFS[offer.card!];
+    if (def.kind === "duo") {
+      // A duo is gated by its parts, not by marks: it may only be offered with
+      // every part in hand.
+      if (!duoUnlocked(offer.card!, squadChainEffects(progress, roster), progress.cards)) {
+        invariantBroken ??= `round ${i + 1}: duo "${offer.title}" offered without its parts`;
+      }
+      continue;
+    }
+    const unmet = def.reads.filter((mark) => !met.has(mark));
     if (unmet.length > 0) {
-      invariantBroken ??= `round ${i + 1}: payoff "${offer.title}" offered before ${unmet.join(",")} was introduced`;
+      invariantBroken ??= `round ${i + 1}: card "${offer.title}" offered before ${unmet.join(",")} was introduced`;
     }
   }
   progress = noteIntroduced(progress, offers);
@@ -94,7 +105,7 @@ for (let i = 0; i < cfg.roundsPerRun && !invariantBroken; i++) {
   // state," not the population checks/runShape.ts already covers.
   for (const offer of offers) {
     anyOfferSeen = true;
-    const applied = applyOffer(progress, roster, offer, cfg, defaultPayoffDrop(progress, roster, offer, cfg));
+    const applied = applyOffer(progress, roster, offer, cfg, defaultCardDrop(progress, roster, offer, cfg));
     progress = applied.progress;
     roster = applied.roster;
     checkInvariants(`round ${i + 1}, offer "${offer.title}"`);

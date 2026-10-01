@@ -1,6 +1,7 @@
 import type { Offer, OfferKind } from "../sim/offers.js";
-import type { PayoffId } from "../sim/payoffs.js";
-import { MARK_CHIP, PAYOFF_DEFS } from "../sim/payoffs.js";
+import type { CardId } from "../sim/cards/index.js";
+import type { MarkId } from "../sim/config.js";
+import { MARK_CHIP, CARD_DEFS } from "../sim/cards/index.js";
 import type { PlayerRole } from "../sim/roles.js";
 import { ROLE_LABEL } from "../sim/roles.js";
 import { ROLE_CSS_VAR } from "./roundScreen.js";
@@ -47,7 +48,7 @@ const KIND_CATEGORY: Record<OfferKind, CategoryKey> = {
   heal: "recovery",
   revive: "recovery",
   rest: "recovery",
-  payoff: "reaction",
+  card: "reaction",
 };
 
 interface RowParts {
@@ -57,10 +58,15 @@ interface RowParts {
   title?: string;
   detail: string;
   role?: PlayerRole;
-  /** Payoff only — the marks the card reads. */
-  reads?: PayoffId;
+  /** A card offer only — the card, so the row can show its own icon and the
+   * marks it reads and makes. */
+  card?: CardId;
   worksWith?: string;
   replaces?: boolean;
+}
+
+function markChips(marks: readonly MarkId[]): string {
+  return marks.map((m) => `<span class="mark-chip">${MARK_CHIP[m].icon} ${MARK_CHIP[m].word}</span>`).join("");
 }
 
 function rowHtml(p: RowParts): string {
@@ -68,13 +74,17 @@ function rowHtml(p: RowParts): string {
   const pill = p.role
     ? `<span class="offer-role" style="--role-color: var(${ROLE_CSS_VAR[p.role]})">${ROLE_LABEL[p.role]}</span>`
     : `<span class="offer-role offer-role-all">All</span>`;
-  const reads = p.reads
-    ? `<span class="offer-reads">reads ${PAYOFF_DEFS[p.reads].reads
-        .map((m) => `<span class="mark-chip">${MARK_CHIP[m].icon} ${MARK_CHIP[m].word}</span>`)
-        .join("")}</span>`
+  const def = p.card ? CARD_DEFS[p.card] : undefined;
+  // A card carries its own glyph in the rail (so a card can be told from the
+  // next one at a glance, and recalled next run), and a duo says so.
+  const railIcon = def ? def.icon : cat.icon;
+  const railWord = def ? (def.kind === "duo" ? "DUO" : "CARD") : cat.word;
+  const reads = def
+    ? (def.reads.length > 0 ? `<span class="offer-reads">reads ${markChips(def.reads)}</span>` : "") +
+      (def.makes.length > 0 ? `<span class="offer-reads">makes ${markChips(def.makes)}</span>` : "")
     : "";
   return (
-    `<span class="offer-rail"><span class="offer-rail-icon">${cat.icon}</span><span class="offer-rail-word">${cat.word}</span></span>` +
+    `<span class="offer-rail"><span class="offer-rail-icon">${railIcon}</span><span class="offer-rail-word">${railWord}</span></span>` +
     `<span class="offer-body">` +
     `<span class="offer-head"><span class="offer-headline">${p.headline}</span>${pill}</span>` +
     (p.title ? `<span class="offer-title">${p.title}</span>` : "") +
@@ -89,9 +99,9 @@ function rowHtml(p: RowParts): string {
 export function renderOfferScreen(
   container: HTMLElement,
   offers: Offer[],
-  held: PayoffId[],
+  held: CardId[],
   cap: number,
-  onChoose: (offer: Offer, dropPayoffId?: PayoffId) => void,
+  onChoose: (offer: Offer, dropCardId?: CardId) => void,
 ): void {
   container.innerHTML = "";
   const screen = document.createElement("div");
@@ -107,7 +117,7 @@ export function renderOfferScreen(
     if (held.length > 0) {
       const heldLine = document.createElement("div");
       heldLine.className = "offer-held";
-      heldLine.textContent = `Your cards (${held.length}/${cap}): ${held.map((id) => PAYOFF_DEFS[id].title).join(", ")}`;
+      heldLine.textContent = `Your cards (${held.length}/${cap}): ${held.map((id) => CARD_DEFS[id].title).join(", ")}`;
       screen.appendChild(heldLine);
     }
 
@@ -116,19 +126,19 @@ export function renderOfferScreen(
     for (const offer of offers) {
       const btn = document.createElement("button");
       btn.className = `offer-row cat-${KIND_CATEGORY[offer.kind]}`;
-      const isPayoff = offer.kind === "payoff" && offer.payoff !== undefined;
+      const isCard = offer.kind === "card" && offer.card !== undefined;
       btn.innerHTML = rowHtml({
         category: KIND_CATEGORY[offer.kind],
         headline: offer.headline,
         title: offer.title === offer.headline ? undefined : offer.title,
         detail: offer.detail,
         role: offer.role,
-        reads: isPayoff ? offer.payoff : undefined,
+        card: isCard ? offer.card : undefined,
         worksWith: offer.worksWith,
-        replaces: isPayoff && held.length >= cap,
+        replaces: isCard && held.length >= cap,
       });
       btn.addEventListener("click", () => {
-        if (isPayoff && held.length >= cap) renderDrop(offer);
+        if (isCard && held.length >= cap) renderDrop(offer);
         else onChoose(offer);
       });
       choices.appendChild(btn);
@@ -149,9 +159,9 @@ export function renderOfferScreen(
       btn.className = "offer-row cat-reaction";
       btn.innerHTML = rowHtml({
         category: "reaction",
-        headline: `Drop ${PAYOFF_DEFS[id].title}`,
-        detail: PAYOFF_DEFS[id].detail,
-        reads: id,
+        headline: `Drop ${CARD_DEFS[id].title}`,
+        detail: CARD_DEFS[id].detail,
+        card: id,
       });
       btn.addEventListener("click", () => onChoose(offer, id));
       choices.appendChild(btn);

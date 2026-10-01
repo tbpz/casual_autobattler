@@ -6,7 +6,7 @@
  */
 import type { ChainEffect } from "./config.js";
 import type { Marks, Role } from "./types.js";
-import type { PayoffId } from "./payoffs.js";
+import type { CardId } from "./cards/index.js";
 
 export type Side = "player" | "enemy";
 
@@ -146,11 +146,23 @@ export type FightEvent =
       originalTargetId: string | null;
       redirect: "guard" | "guardBackfire" | "guardHeld" | "targetDied" | null;
     }
-  /** A held payoff card fired (2026-09-30; sim/payoffs.ts). `amount` is
+  /** A held card fired (2026-09-30; sim/cards/index.ts). `amount` is
    * whatever the card added — extra damage, stacks moved, shield granted, or
    * 0 when the trigger is the whole effect (Execute). Every trigger gets an
-   * event so the render layer can name it on screen. */
-  | { type: "payoffTriggered"; t: number; payoff: PayoffId; side: Side; targetId: string; amount: number }
+   * event so the render layer can name it on screen. `causeCard` is the card
+   * whose effect set this one off (2026-10-01), absent when the fight's own
+   * rules did; `depth` is how deep in a cascade it sits, 1 being straight
+   * from the rules. */
+  | {
+      type: "cardTriggered";
+      t: number;
+      card: CardId;
+      side: Side;
+      targetId: string;
+      amount: number;
+      causeCard?: CardId;
+      depth: number;
+    }
   /** A burn tick landed (2026-09-30). `amount` is the HP actually removed. */
   | { type: "burnTick"; t: number; side: Side; targetId: string; amount: number }
   /** A Shield absorbed part or all of a hit (2026-09-30). */

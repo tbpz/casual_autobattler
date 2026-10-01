@@ -6,7 +6,9 @@
  * already does. Nothing here is a new sim mechanism.
  */
 import { Rng } from "../sim/rng.js";
-import type { RunConfig } from "../sim/config.js";
+import type { ChainEffect, RunConfig } from "../sim/config.js";
+import { CARD_IDS, type CardId } from "../sim/cards/index.js";
+import { PLAYER_ROLES } from "../sim/roles.js";
 import { runFight } from "../sim/fight.js";
 import { makeSquadFromRoles, type PlayerRole } from "../sim/roles.js";
 import { buildEnemySide, encounterAt } from "../sim/encounters.js";
@@ -33,6 +35,42 @@ export interface LabSetup {
    * slot-not-array-position convention as chargePercents. Undefined slots
    * default to 100 (fresh). */
   hpPercents?: number[];
+  /** Cards held for this fight (2026-10-01), in held order — to try a card or a
+   * combination without playing a run to find it. */
+  cards?: CardId[];
+  /** Chain abilities per role, replacing the role's base ability list for every
+   * unit of that role (2026-10-01). Unset roles keep their base ability. */
+  abilities?: Partial<Record<PlayerRole, ChainEffect[]>>;
+}
+
+const KNOWN_EFFECTS: ChainEffect[] = [
+  "scorch", "expose", "guard", "stun", "ward", "mend", "brace", "quake", "frostbolt", "siphon", "cauterize", "chill",
+];
+
+/** Reads the lab's extras from text: `cards` as `a,b,c`, `abilities` as
+ * `tank:guard+brace,support:mend+chill`. Unknown names throw, so a typo is an
+ * error rather than a silently empty setup. Shared by the lab screen (URL) and
+ * the CLI. */
+export function parseLabExtras(cards: string | null | undefined, abilities: string | null | undefined): Pick<LabSetup, "cards" | "abilities"> {
+  const out: Pick<LabSetup, "cards" | "abilities"> = {};
+  if (cards) {
+    const ids = cards.split(",").filter((s) => s.length > 0);
+    for (const id of ids) if (!(CARD_IDS as string[]).includes(id)) throw new Error(`lab: unknown card "${id}"`);
+    out.cards = ids as CardId[];
+  }
+  if (abilities) {
+    const map: Partial<Record<PlayerRole, ChainEffect[]>> = {};
+    for (const part of abilities.split(",").filter((s) => s.length > 0)) {
+      const [role, list] = part.split(":");
+      if (!PLAYER_ROLES.includes(role as PlayerRole)) throw new Error(`lab: unknown role "${role}"`);
+      const effects = (list ?? "").split("+").filter((s) => s.length > 0);
+      for (const e of effects) if (!(KNOWN_EFFECTS as string[]).includes(e)) throw new Error(`lab: unknown ability "${e}"`);
+      if (effects.length === 0) throw new Error(`lab: no abilities for "${role}"`);
+      map[role as PlayerRole] = effects as ChainEffect[];
+    }
+    out.abilities = map;
+  }
+  return out;
 }
 
 /** Builds the FightSetup runFight actually consumes, from a LabSetup.
@@ -56,12 +94,14 @@ export function buildLabFightSetup(setup: LabSetup, cfg: RunConfig): FightSetup 
     const hpPct = setup.hpPercents?.[slot] ?? 100;
     hero.hp = Math.max(0, Math.round((hpPct / 100) * hero.maxHp));
     hero.alive = hero.hp > 0;
+    const effects = setup.abilities?.[role];
+    if (effects) hero.chainEffects = effects;
   });
   const encounter = encounterAt(setup.encounterIndex);
   if (!encounter) throw new Error(`buildLabFightSetup: no encounter at index ${setup.encounterIndex}`);
   const scale = 1 + setup.rampIndex * 0.05;
   const enemy = buildEnemySide(cfg.fight, encounter, scale, scale);
-  return { player, enemy };
+  return { player, enemy, cards: setup.cards };
 }
 
 /** Runs one lab fight to completion. A FRESH Rng(setup.seed) every call —

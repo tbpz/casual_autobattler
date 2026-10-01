@@ -52,6 +52,8 @@
  * without ever leaving you fielding fewer than a full, fair squad.
  */
 
+import type { CardId } from "./cards/types.js";
+
 // EnemyArchetype (a single "the bruiser" / "the grunt" stat block shared by
 // every fight, only scaled bigger) is GONE (2026-08-09, encounter-table
 // pass — see sim/encounters.ts's top docstring). Each of the run's 5 fights
@@ -374,6 +376,24 @@ export interface FightConfig {
    * noise, not by a real amount. No retune needed FOR THE HOLD ITSELF; this
    * remains otherwise untuned, per the batch-verify note above. */
   chainStunBaseSec: number;
+  /**
+   * 2026-10-01 (the six branching abilities — see ChainEffect's docstring).
+   * First-pass strawmen, same convention as every number here. Damage and heal
+   * bases escalate on the shared curve like the four above; the two freeze
+   * lengths escalate like chainStunBaseSec. `chainBraceShieldFraction` is a
+   * fraction of the BRACING hero's max HP (the base the curve then scales), so
+   * +HP on a tank is also a bigger Brace. `chainSiphonHealFraction` is the part
+   * of the damage Siphon actually dealt that comes back as healing.
+   */
+  chainBraceShieldFraction: number;
+  chainQuakeBase: number;
+  chainFrostboltBase: number;
+  chainFrostboltFreezeSec: number;
+  chainSiphonBase: number;
+  chainSiphonHealFraction: number;
+  chainCauterizeHealBase: number;
+  chainCauterizeBurnBase: number;
+  chainChillSec: number;
 
   /**
    * How many slam-redirects one "guard" rung buys (2026-09-15,
@@ -419,7 +439,7 @@ export interface FightConfig {
   chainShieldPerLevel: number;
 
   /**
-   * Payoff-card tunables (2026-09-30; sim/payoffs.ts). `executeHpFraction`: an
+   * Payoff-card tunables (2026-09-30; sim/cards/index.ts). `executeHpFraction`: an
    * Exposed enemy at or below this HP fraction dies outright. `shatterMult`:
    * all damage on a Frozen body is multiplied by this. `punishDamagePerStack`:
    * a tank's normal hit on an Exposed body adds this fraction of the tank's
@@ -436,6 +456,89 @@ export interface FightConfig {
   openWoundMult: number;
   spikedShieldExposeStacks: number;
   bulwarkShield: number;
+  /**
+   * 2026-10-01 (cards on a "when X, do Y" engine; sim/cards/engine.ts): how
+   * many cards deep one cascade may go — a card's effect can raise a hook that
+   * runs another card, and so on. At this depth a hook raises nothing, so cards
+   * that feed each other end instead of looping forever.
+   */
+  cascadeMaxDepth: number;
+  /**
+   * 2026-10-01: tunables for the cards added with the engine (sim/cards/defs/),
+   * first-pass strawmen like every number here. Grouped by the card that reads
+   * them. Exposed: `weakSpotPerStack` is a fraction of the Damage unit's own
+   * damage per Exposed stack on its target (so +damage on that role is also a
+   * bigger Weak spot); `crackThreshold` stacks make an enemy freeze for
+   * `crackFreezeSec` and cost `crackSpendStacks`; `hunterMarkStacks` land on
+   * the front enemy when a chain starts. Frozen: `coldSnapSec` freeze on a
+   * backfire; `brittleExposeStacks` when a freeze ends; Frostbite gives
+   * `frostbiteBurnPerSec` Burn stacks per second of freeze; Permafrost adds
+   * `permafrostChainBonus` to a chain's continue chance while any enemy is
+   * frozen. Burn: Kindling adds `kindlingBurn` per Damage attack; Inferno adds
+   * `infernoPerTick` per earlier enemy burn tick this fight, up to
+   * `infernoCap`; Smoke shields your weakest unit for `smokeShieldFraction` of
+   * a tick. Shield: Overflow turns `overflowFraction` of wasted healing into
+   * Shield; Shield bash adds `shieldBashFraction` of the Tank's Shield to its
+   * hit; Shatterguard freezes a shield-breaker `shatterguardFreezeSec`; Aegis
+   * lifts the Shield cap to `aegisCapFraction` of max HP. General: Momentum
+   * makes each rung `momentumPerChain` bigger per chain already finished this
+   * fight, up to `momentumCap` chains; Second wind fires below
+   * `secondWindHpFraction` HP and gives `secondWindChargeFraction` of a full
+   * bar; Iron hide adds one mark stack per `ironHideHpPerStack` Tank max HP;
+   * Bloodlust gives `bloodlustChargeFraction` of a bar per enemy death. Duos:
+   * Fortress hurts a slammer for `fortressReflectFraction` of the guardian's
+   * max HP; Thermal shock multiplies a burn's pent-up damage by
+   * `thermalShockMult`; Killing frost's Execute line on a frozen enemy is
+   * `killingFrostHpFraction`; Cinder shield gives an attacker
+   * `cinderShieldBurn` Burn; Phoenix stands a fallen unit back up at
+   * `phoenixHpFraction` HP with `phoenixShield` Shield.
+   */
+  weakSpotPerStack: number;
+  crackThreshold: number;
+  crackSpendStacks: number;
+  crackFreezeSec: number;
+  hunterMarkStacks: number;
+  coldSnapSec: number;
+  brittleExposeStacks: number;
+  frostbiteBurnPerSec: number;
+  permafrostChainBonus: number;
+  kindlingBurn: number;
+  infernoPerTick: number;
+  infernoCap: number;
+  smokeShieldFraction: number;
+  overflowFraction: number;
+  shieldBashFraction: number;
+  shatterguardFreezeSec: number;
+  aegisCapFraction: number;
+  momentumPerChain: number;
+  momentumCap: number;
+  secondWindHpFraction: number;
+  secondWindChargeFraction: number;
+  ironHideHpPerStack: number;
+  bloodlustChargeFraction: number;
+  fortressReflectFraction: number;
+  thermalShockMult: number;
+  killingFrostHpFraction: number;
+  cinderShieldBurn: number;
+  phoenixHpFraction: number;
+  phoenixShield: number;
+  /** Wildfire: the share of its normal decay a burn keeps (0 = never fades). */
+  wildfireDecayFraction: number;
+  /**
+   * Relics (2026-10-01; sim/relics.ts): one is picked at run start. Ember heart
+   * puts `emberHeartBurn` Burn on every enemy when a chain backfires; Frost
+   * crown freezes the front enemy `frostCrownSec` at fight start; Hunter's eye
+   * starts every enemy with `huntersEyeStacks` Exposed; Bastion starts each unit
+   * with `bastionShieldFraction` of its max HP as Shield; Restless starts each
+   * unit with `restlessChargeFraction` of a full bar but `restlessFatigue` extra
+   * fatigue for that fight (stronger, riskier chains).
+   */
+  emberHeartBurn: number;
+  frostCrownSec: number;
+  huntersEyeStacks: number;
+  bastionShieldFraction: number;
+  restlessChargeFraction: number;
+  restlessFatigue: number;
 
   /**
    * 2026-09-04 (deciding-factors measurement rig — see
@@ -487,7 +590,7 @@ export interface FightConfig {
  * rebuild — see DECISIONS.md; renamed and given marks 2026-09-30, see the
  * "chain abilities are redesigned to leave marks" entry). Every ability does
  * its old job AND leaves a mark (MarkId below) that a payoff card
- * (sim/payoffs.ts) can read:
+ * (sim/cards/index.ts) can read:
  *  - "scorch" — damage to every living body on the target side at once, and a
  *    Burn stack on each. Good against a crowd.
  *  - "expose" — damage to the highest-current-HP living body on the target
@@ -504,11 +607,34 @@ export interface FightConfig {
  *    each a small Shield. Good against steady chip damage from many hits.
  *  - "mend" — heals the worst-hurt living ally on the target side; healing
  *    past full HP becomes Shield. Good against a threat that hunts one hero.
+ * 2026-10-01 (roles branch — see sim/roles.ts's ROLE_UPGRADE_POOL) six more,
+ * two per role, so every role can reach three marks:
+ *  - "brace" — the firing hero shields itself, sized off its own max HP.
+ *  - "quake" — a small hit on every enemy, each left Exposed.
+ *  - "frostbolt" — freezes the front enemy, then hits it (so the hit lands on
+ *    a frozen body).
+ *  - "siphon" — hits the weakest enemy and heals your worst-hurt hero for part
+ *    of it; healing past full becomes Shield.
+ *  - "cauterize" — heals the worst-hurt ally and sets the enemy that last hit
+ *    them burning.
+ *  - "chill" — freezes the enemy that last hit your weakest hero.
  * A backfire mirrors the identical effect onto the WRONG side (attacker
  * effects and their marks hit the firing hero's own side; healer effects heal
  * and shield the enemy) — same convention the pre-rebuild chain always used.
  */
-export type ChainEffect = "scorch" | "expose" | "guard" | "stun" | "ward" | "mend";
+export type ChainEffect =
+  | "scorch"
+  | "expose"
+  | "guard"
+  | "stun"
+  | "ward"
+  | "mend"
+  | "brace"
+  | "quake"
+  | "frostbolt"
+  | "siphon"
+  | "cauterize"
+  | "chill";
 
 /** The four marks (2026-09-30). Exposed/Burn/Shield are stacks on a body
  * (types.ts's HeroState.marks); Frozen is the existing stun fields. All last
@@ -546,6 +672,18 @@ export function chainEffectLines(effect: ChainEffect): { does: string; against: 
       return { does: "Heals the whole squad and shields them.", against: "Good against lots of small hits." };
     case "mend":
       return { does: "Heals your worst-hurt hero; extra becomes shield.", against: "Good when one hero takes all the hits." };
+    case "brace":
+      return { does: "Shields itself, more the tougher it is.", against: "Good for a tank that soaks." };
+    case "quake":
+      return { does: "Hits every enemy a little and exposes them.", against: "Good against a crowd." };
+    case "frostbolt":
+      return { does: "Freezes the front enemy, then hits it.", against: "Good with anything that loves frozen." };
+    case "siphon":
+      return { does: "Hits the weakest enemy and heals from it.", against: "Good for finishing and staying up." };
+    case "cauterize":
+      return { does: "Heals the hurt hero and burns their attacker.", against: "Good when one enemy hunts one hero." };
+    case "chill":
+      return { does: "Freezes whoever hit your weakest hero.", against: "Good against a hunter." };
   }
 }
 
@@ -577,6 +715,18 @@ export function chainEffectChip(effect: ChainEffect): { icon: string; word: stri
       return { icon: "✺", word: "scorch" };
     case "ward":
       return { icon: "✚", word: "ward" };
+    case "brace":
+      return { icon: "⛊", word: "brace" };
+    case "quake":
+      return { icon: "≋", word: "quake" };
+    case "frostbolt":
+      return { icon: "❆", word: "frostbolt" };
+    case "siphon":
+      return { icon: "☍", word: "siphon" };
+    case "cauterize":
+      return { icon: "♨", word: "cauterize" };
+    case "chill":
+      return { icon: "❅", word: "chill" };
   }
 }
 
@@ -614,14 +764,36 @@ export interface RunConfig {
    * — see sim/roster.ts's stampProgressOntoSquad for how it reaches a unit. */
   chainLevelStep: number;
   chainLevelCap: number;
-  /** Payoff cards (2026-09-30; sim/payoffs.ts, sim/offers.ts): the most a run
+  /** Payoff cards (2026-09-30; sim/cards/index.ts, sim/offers.ts): the most a run
    * can hold at once — taking another at the cap means dropping one held.
-   * `payoffWeight` is a payoff offer's flat draw weight (they don't ramp with
-   * the round like small/big offers do); `payoffConnectBoost` multiplies it by
+   * `cardWeight` is a payoff offer's flat draw weight (they don't ramp with
+   * the round like small/big offers do); `cardConnectBoost` multiplies it by
    * `1 + boost` when the card reads a mark the squad can already make. */
-  payoffCap: number;
-  payoffWeight: number;
-  payoffConnectBoost: number;
+  cardCap: number;
+  cardWeight: number;
+  cardConnectBoost: number;
+  /** 2026-10-01: a duo card's draw weight is `cardWeight * duoBoost` once both
+   * its parts are held — the whole point of holding the parts is to see it.
+   * `borrowWeightFraction` scales `cardWeight` for a "borrow" offer (a role
+   * taking another role's base ability), which is meant to be rare. */
+  duoBoost: number;
+  /** The most the whole card group may weigh in one draw (sim/offers.ts's
+   * drawOffers). Cards draw at flat per-card weights, so without a cap a bigger
+   * pool crowds the number offers out of the three on screen; past the cap every
+   * card's weight shrinks together. */
+  cardGroupWeightCap: number;
+  borrowWeightFraction: number;
+  /** Restricts the offer pool to these cards, in this order (undefined = every
+   * card). For experiments and checks — `--cards a,b,c` on the batch CLI — never
+   * set by a real run. */
+  cardPool?: CardId[];
+  /** 2026-10-01 (roles branch): the most abilities a role's chain may gain on
+   * top of its base — a role is offered upgrades from the pool its run drew
+   * (RunProgress.upgradeOptions) until it holds this many. */
+  maxUpgradesPerRole: number;
+  /** How many of a role's pool the run draws as that role's upgrade options at
+   * run start (sim/progress.ts's drawUpgradeOptions). */
+  upgradeOptionsPerRole: number;
   /** How many of each win's offers are drawn from build pieces only (payoff
    * cards and ability gains) before the ordinary weighted draw fills the rest
    * (sim/offers.ts's drawOffers). 0 turns the guarantee off. */
@@ -708,9 +880,13 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // then found by sweeping it back to roughly the pre-rework ~10% run
   // completion (11.8% at n=1000). It also lengthens fights, which is what
   // gives the queue room. All three are strawmen to move by playing.
+  // 2026-10-01 (cards, abilities and relics): the squad got stronger, which
+  // shortened fights (17.0s to 15.5s), dropped heroes-who-chained to 84% and
+  // lifted greedy completion to 12%. Swept again: 1.8 puts completion at 9.4%
+  // and heroes-who-chained at 86% (n=1000, greedy), 2.0 at 5.2% / 87%.
   chargeThreshold: 45,
   chargeTricklePerSec: 6,
-  enemyHpScale: 1.6,
+  enemyHpScale: 1.8,
 
   // Fatigue (2026-09-30, DECISIONS.md "Fatigue replaces per-role backfire
   // odds") — first-pass strawmen, see the FightConfig docstring for the shape.
@@ -807,6 +983,15 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // not re-verified against completion rate or the failsafe-termination rate
   // in its own right.
   chainStunBaseSec: 0.75,
+  chainBraceShieldFraction: 0.04,
+  chainQuakeBase: 4,
+  chainFrostboltBase: 9,
+  chainFrostboltFreezeSec: 0.5,
+  chainSiphonBase: 9,
+  chainSiphonHealFraction: 0.6,
+  chainCauterizeHealBase: 3,
+  chainCauterizeBurnBase: 3,
+  chainChillSec: 0.5,
   // NOT rescaled by the 2026-09-21 pass: guard is a flat charge per rung and
   // never reads the escalation curve (see its docstring above).
   chainGuardChargesPerRung: 1,
@@ -830,6 +1015,43 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   openWoundMult: 3,
   spikedShieldExposeStacks: 2,
   bulwarkShield: 25,
+  cascadeMaxDepth: 6,
+  weakSpotPerStack: 0.25,
+  crackThreshold: 5,
+  crackSpendStacks: 2,
+  crackFreezeSec: 1,
+  hunterMarkStacks: 1,
+  coldSnapSec: 1.5,
+  brittleExposeStacks: 2,
+  frostbiteBurnPerSec: 2,
+  permafrostChainBonus: 0.15,
+  kindlingBurn: 1,
+  infernoPerTick: 1,
+  infernoCap: 15,
+  smokeShieldFraction: 0.5,
+  overflowFraction: 1,
+  shieldBashFraction: 0.25,
+  shatterguardFreezeSec: 1,
+  aegisCapFraction: 1,
+  momentumPerChain: 0.1,
+  momentumCap: 10,
+  secondWindHpFraction: 0.3,
+  secondWindChargeFraction: 0.5,
+  ironHideHpPerStack: 90,
+  bloodlustChargeFraction: 0.4,
+  fortressReflectFraction: 0.1,
+  thermalShockMult: 5,
+  killingFrostHpFraction: 0.5,
+  cinderShieldBurn: 2,
+  phoenixHpFraction: 0.3,
+  phoenixShield: 20,
+  wildfireDecayFraction: 0.5,
+  emberHeartBurn: 5,
+  frostCrownSec: 4,
+  huntersEyeStacks: 2,
+  bastionShieldFraction: 0.08,
+  restlessChargeFraction: 0.7,
+  restlessFatigue: 2,
 
   // See this field's own docstring above — default "weighted" is today's
   // shipped behaviour (pickWeightedTargetId's dice roll), not a change.
@@ -852,9 +1074,14 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   offersPerWin: 3,
   chainLevelStep: 1,
   chainLevelCap: 5,
-  payoffCap: 6,
-  payoffWeight: 1.2,
-  payoffConnectBoost: 1.5,
+  cardCap: 8,
+  cardWeight: 1.2,
+  cardConnectBoost: 1.5,
+  duoBoost: 6,
+  cardGroupWeightCap: 12,
+  borrowWeightFraction: 0.25,
+  maxUpgradesPerRole: 2,
+  upgradeOptionsPerRole: 2,
   buildOffersGuaranteed: 1,
   statHpStep: 20,
   statDamageStep: 2,

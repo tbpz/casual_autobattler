@@ -1,12 +1,13 @@
 import { Rng } from "../sim/rng.js";
 import { DEFAULT_RUN_CONFIG, type RunConfig } from "../sim/config.js";
 import { runFight } from "../sim/fight.js";
+import { CARD_IDS, type CardId } from "../sim/cards/index.js";
 import { makeInitialProgress } from "../sim/progress.js";
 import { makeStartingRoster, PLAYER_ROLES, type PlayerRole } from "../sim/roles.js";
 import type { FightEvent, FightResult } from "../sim/events.js";
 import { makeEnemySide, makeOfferPolicy, runRun, type OfferPolicyName, type RunResult } from "../sim/run.js";
 import { BatchAggregator, formatReport } from "./report.js";
-import { runLabFight, type LabSetup } from "../lab/labFight.js";
+import { parseLabExtras, runLabFight, type LabSetup } from "../lab/labFight.js";
 
 function parseArgs(argv: string[]): Record<string, string> {
   const out: Record<string, string> = {};
@@ -51,8 +52,8 @@ function formatEvent(e: FightEvent): string {
       return `[t=${t}] ${e.sourceId} winds up on ${e.targetId ?? "?"} — fires at t=${e.fireT.toFixed(2)}`;
     case "windupHit":
       return `[t=${t}] ${e.sourceId} SLAMS ${e.targetId}: ${e.damage} dmg${e.redirect ? ` (redirect: ${e.redirect}, was ${e.originalTargetId})` : ""}`;
-    case "payoffTriggered":
-      return `[t=${t}] PAYOFF ${e.payoff} on ${e.targetId} (${e.amount})`;
+    case "cardTriggered":
+      return `[t=${t}] CARD ${e.card}${e.causeCard ? ` <- ${e.causeCard}` : ""} (depth ${e.depth}) on ${e.targetId} (${Math.round(e.amount)})`;
     case "burnTick":
       return `[t=${t}] ${e.side} ${e.targetId} burns: ${e.amount.toFixed(1)}`;
     case "shieldAbsorb":
@@ -124,7 +125,17 @@ function applyOverrides(base: RunConfig, spec: string | undefined): RunConfig {
   return { ...(run as unknown as RunConfig), fight: fight as unknown as RunConfig["fight"] };
 }
 
-const cfg: RunConfig = applyOverrides(DEFAULT_RUN_CONFIG, args.set);
+/** `--cards execute,shatter,...`: restricts the offer pool to these cards, in
+ * this order (RunConfig.cardPool) — to try one mark's cards on their own, or to
+ * reproduce an older pool. Unknown ids throw. */
+function applyCardPool(base: RunConfig, spec: string | undefined): RunConfig {
+  if (!spec) return base;
+  const ids = spec.split(",").filter((s) => s.length > 0);
+  for (const id of ids) if (!(CARD_IDS as string[]).includes(id)) throw new Error(`--cards: unknown card "${id}"`);
+  return { ...base, cardPool: ids as CardId[] };
+}
+
+const cfg: RunConfig = applyCardPool(applyOverrides(DEFAULT_RUN_CONFIG, args.set), args.cards);
 
 switch (cmd) {
   case "fight": {
@@ -148,7 +159,16 @@ switch (cmd) {
     const chargePercents = args.charge ? args.charge.split(",").map(Number) : roles.map(() => 0);
     const encounterIndex = args.encounter ? Number(args.encounter) : 0;
     const rampIndex = args.ramp ? Number(args.ramp) : 0;
-    const labSetup: LabSetup = { roles, chargePercents, encounterIndex, rampIndex, seed };
+    // --cards a,b,c holds those cards; --abilities tank:guard+brace,support:mend+chill
+    // gives a role those abilities (2026-10-01).
+    const labSetup: LabSetup = {
+      roles,
+      chargePercents,
+      encounterIndex,
+      rampIndex,
+      seed,
+      ...parseLabExtras(args.cards, args.abilities),
+    };
     const result = runLabFight(labSetup, cfg);
     printFightLog(result, "lab fight");
     break;

@@ -2871,3 +2871,67 @@ button:disabled {
   background: var(--surface-selected);
   border-color: var(--muted);
 }
+
+/* 2026-10-01 (cards on an event engine): the run's relic sits first in the card
+   row with a ring, and a card set off by another card reads a touch smaller so
+   the chain of causes ("← Spiked shield") stays legible when several land at once. */
+.round-relic-card {
+  border-color: var(--ignite);
+  color: var(--text);
+}
+
+.damage-popup.card-caused {
+  font-size: 0.9em;
+}
+
+/* 2026-10-01: the collection screen (render/collectionScreen.ts). A card never
+   met is a dim silhouette; a duo not yet found still names the parts it needs. */
+.collection-heading {
+  font-size: 0.85em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 14px 0 6px;
+}
+
+.collection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.collection-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--track-bg);
+  font-size: 0.78em;
+}
+
+.collection-cell.collection-unknown {
+  opacity: 0.55;
+}
+
+.collection-cell.collection-taken {
+  border: 1px solid var(--muted);
+}
+
+.collection-cell.collection-duo.collection-unknown {
+  border: 1px dashed var(--muted);
+  opacity: 0.8;
+}
+
+.collection-icon {
+  font-size: 1.3em;
+}
+
+.collection-name {
+  font-weight: 800;
+}
+
+.collection-needs,
+.collection-text {
+  color: #c7cad6;
+}

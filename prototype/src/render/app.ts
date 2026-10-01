@@ -1,12 +1,15 @@
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
 import type { Offer } from "../sim/offers.js";
-import type { PayoffId } from "../sim/payoffs.js";
+import type { CardId } from "../sim/cards/index.js";
 import { FightView } from "./fightView.js";
 import { Playback } from "./playback.js";
 import { RunSession } from "./runSession.js";
 import { renderRunCompleteScreen, renderRunOverScreen, renderRoundRecap } from "./runScreens.js";
 import { renderRoundScreen } from "./roundScreen.js";
 import { renderOfferScreen } from "./offerScreen.js";
+import { renderRelicScreen } from "./relicScreen.js";
+import { renderCollectionScreen } from "./collectionScreen.js";
+import { loadCollection, recordRelic, recordSeen, recordTaken, saveCollection, type Collection, type StorageLike } from "../sim/collection.js";
 
 const cfg = DEFAULT_RUN_CONFIG;
 
@@ -39,10 +42,42 @@ export function mountApp(root: HTMLElement): void {
   // The player's squad-mix pick for the round about to be played.
   let pendingFieldedIds: string[] = [];
 
+  // What the player has met across runs (2026-10-01; sim/collection.ts), kept in
+  // localStorage. Storage can be missing or refuse (a private window), so it is
+  // reached through a function that may return undefined, and a run plays the
+  // same either way.
+  const storage = (): StorageLike | undefined => {
+    try {
+      return window.localStorage;
+    } catch {
+      return undefined;
+    }
+  };
+  let collection: Collection = loadCollection(storage());
+  function remember(next: Collection): void {
+    collection = next;
+    saveCollection(next, storage());
+  }
+
+  function showRelicScreen(): void {
+    renderRelicScreen(
+      root,
+      session.relicChoices,
+      (id) => {
+        remember(recordRelic(collection, id));
+        session.pickRelic(id);
+        showRoundScreen();
+      },
+      () => renderCollectionScreen(root, collection, showRelicScreen),
+    );
+    appendSeedBadge(root, session.seed);
+  }
+
   function startNewRun(): void {
     const seed = pinnedSeed !== null && pinnedSeed !== "" ? Number(pinnedSeed) : Math.floor(Math.random() * 1_000_000_000);
     session = new RunSession(cfg, seed);
-    showRoundScreen();
+    // A run opens with a relic pick (2026-10-01), then the first round screen.
+    showRelicScreen();
   }
 
   function showRoundScreen(): void {
@@ -133,12 +168,15 @@ export function mountApp(root: HTMLElement): void {
       onOfferChosen(null);
       return;
     }
-    renderOfferScreen(root, session.pendingOffers, session.progress.payoffs, cfg.payoffCap, onOfferChosen);
+    // Every card put on screen counts as met, taken or not.
+    remember(recordSeen(collection, session.pendingOffers.flatMap((o) => (o.kind === "card" && o.card ? [o.card] : []))));
+    renderOfferScreen(root, session.pendingOffers, session.progress.cards, cfg.cardCap, onOfferChosen);
     appendSeedBadge(root, session.seed);
   }
 
-  function onOfferChosen(offer: Offer | null, dropPayoffId?: PayoffId): void {
-    session.resolveOffer(offer, dropPayoffId);
+  function onOfferChosen(offer: Offer | null, dropCardId?: CardId): void {
+    if (offer?.kind === "card" && offer.card) remember(recordTaken(collection, offer.card));
+    session.resolveOffer(offer, dropCardId);
     if (session.status === "complete") {
       renderRunCompleteScreen(root, session.rounds.length, startNewRun);
       appendSeedBadge(root, session.seed);

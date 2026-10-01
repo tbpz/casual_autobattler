@@ -1,10 +1,10 @@
-import { backfireChanceFor, fatigueTier, type RunConfig } from "../sim/config.js";
+import { backfireChanceFor, fatigueTier, type MarkId, type RunConfig } from "../sim/config.js";
 import type { HeroState } from "../sim/types.js";
 import { PLAYER_ROLES, ROLE_LABEL, type PlayerRole } from "../sim/roles.js";
 import type { RunProgress } from "../sim/progress.js";
-import { MARK_CHIP, PAYOFF_DEFS, payoffConnects } from "../sim/payoffs.js";
+import { MARK_CHIP, CARD_DEFS, DUO_IDS, cardConnects, duoUnlocked } from "../sim/cards/index.js";
 import { squadChainEffects } from "../sim/offers.js";
-import { chainStrongerCount } from "../sim/progress.js";
+import { chainStrongerCount, heldCards } from "../sim/progress.js";
 import { defaultFieldPick, type RosterState } from "../sim/roster.js";
 import { roundEnemySide, ROUND_PLAN } from "../sim/rounds.js";
 import type { EncounterKind } from "../sim/encounters.js";
@@ -374,33 +374,58 @@ export function renderRoundScreen(
     panel.appendChild(band);
   }
 
-  // ---------- held payoff cards (2026-09-30) ----------
-  if (progress.payoffs.length > 0) {
+  // ---------- relic and held cards (2026-09-30, relic 2026-10-01) ----------
+  if (progress.cards.length > 0 || progress.relic) {
     const payoffRow = document.createElement("div");
     payoffRow.className = "round-payoff-row";
     const payoffLabel = document.createElement("span");
     payoffLabel.className = "round-payoff-label";
-    payoffLabel.textContent = `CARDS ${progress.payoffs.length}/${cfg.payoffCap}`;
+    payoffLabel.textContent = `CARDS ${progress.cards.length}/${cfg.cardCap}`;
     payoffRow.appendChild(payoffLabel);
     const squadEffects = squadChainEffects(progress, roster);
-    for (const id of progress.payoffs) {
-      const def = PAYOFF_DEFS[id];
+    const held = heldCards(progress);
+    const markLine = (label: string, marks: readonly MarkId[]): HTMLElement => {
+      const el = document.createElement("div");
+      el.className = "round-popover-reads";
+      el.innerHTML = `${label} ` + marks.map((m) => `<span class="mark-chip mark-${m}">${MARK_CHIP[m].icon} ${MARK_CHIP[m].word}</span>`).join("");
+      return el;
+    };
+    // The relic first, then the cards in the order they were taken.
+    for (const id of progress.relic ? [progress.relic, ...progress.cards] : progress.cards) {
+      const def = CARD_DEFS[id];
+      const isRelic = def.kind === "relic";
       const chip = document.createElement("button");
       chip.type = "button";
-      chip.className = "round-payoff-card";
-      chip.textContent = def.title;
+      chip.className = isRelic ? "round-payoff-card round-relic-card" : "round-payoff-card";
+      chip.textContent = `${def.icon} ${def.title}`;
       chip.addEventListener("click", () => {
         const title = document.createElement("div");
-        title.innerHTML = `<strong>${def.title}.</strong> ${def.detail}`;
-        const reads = document.createElement("div");
-        reads.className = "round-popover-reads";
-        reads.innerHTML =
-          "reads " + def.reads.map((m) => `<span class="mark-chip mark-${m}">${MARK_CHIP[m].icon} ${MARK_CHIP[m].word}</span>`).join("");
-        const connects = payoffConnects(id, squadEffects);
-        const status = connects
-          ? Object.assign(document.createElement("div"), { className: "round-popover-answer", textContent: "★ Connects to your squad." })
-          : popoverMeta("Nothing in your squad makes this yet.");
-        togglePopover(chip, [title, reads, status]);
+        title.innerHTML = `<strong>${def.title}${isRelic ? " (relic)" : ""}.</strong> ${def.detail}`;
+        const parts: HTMLElement[] = [title];
+        if (def.reads.length > 0) parts.push(markLine("reads", def.reads));
+        if (def.makes.length > 0) parts.push(markLine("makes", def.makes));
+        if (!isRelic) {
+          parts.push(
+            cardConnects(id, squadEffects, held)
+              ? Object.assign(document.createElement("div"), { className: "round-popover-answer", textContent: "★ Connects to your squad." })
+              : popoverMeta("Nothing in your squad makes this yet."),
+          );
+        }
+        // A duo this card is a part of: what it pairs with, or that it is unlocked.
+        for (const duoId of DUO_IDS) {
+          const needs = CARD_DEFS[duoId].needs;
+          if (!needs?.cards?.includes(id)) continue;
+          const others = needs.cards.filter((c) => c !== id);
+          const missing = others.filter((c) => !held.includes(c));
+          parts.push(
+            popoverMeta(
+              missing.length === 0 && duoUnlocked(duoId, squadEffects, held)
+                ? `✧ Duo ${CARD_DEFS[duoId].title} is ready to be offered.`
+                : `Pairs with ${others.map((c) => CARD_DEFS[c].title).join(" + ")} into ${CARD_DEFS[duoId].title}.`,
+            ),
+          );
+        }
+        togglePopover(chip, parts);
       });
       payoffRow.appendChild(chip);
     }

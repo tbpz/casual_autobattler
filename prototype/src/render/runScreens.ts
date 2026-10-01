@@ -1,5 +1,6 @@
 import type { FightEvent, FightResult } from "../sim/events.js";
 import type { Projection } from "../sim/projection.js";
+import { CARD_DEFS, type CardId } from "../sim/cards/index.js";
 
 /** The per-hero job lines (soaked/dealt/restored) plus a projected-vs-actual
  * spare-time line — the surprise-carrier "bigger than I expected" needs a
@@ -133,7 +134,39 @@ function fullAnswerKey(result: FightResult): string[] {
     lines.push(`${Math.round(d.t)}s — ${heroName(d.heroId)} (${d.side}) fell`);
   }
 
+  const cards = cardsRecapLine(result);
+  if (cards) lines.push(cards);
+
   return lines.length > 0 ? lines : ["No chain fired, nobody fell."];
+}
+
+/** One line naming which cards fired this fight and how often, and — where a
+ * card was set off by another — which one (2026-10-01): "Brittle ×3 (after
+ * Shatterguard ×2) · Execute ×1". Undefined when no card fired. This is the
+ * written half of the cascade the fight view shows on the bodies. */
+function cardsRecapLine(result: FightResult): string | undefined {
+  const counts = new Map<CardId, number>();
+  const causes = new Map<CardId, Map<CardId, number>>();
+  for (const e of result.events) {
+    if (e.type !== "cardTriggered") continue;
+    counts.set(e.card, (counts.get(e.card) ?? 0) + 1);
+    if (e.causeCard) {
+      const byCause = causes.get(e.card) ?? new Map<CardId, number>();
+      byCause.set(e.causeCard, (byCause.get(e.causeCard) ?? 0) + 1);
+      causes.set(e.card, byCause);
+    }
+  }
+  if (counts.size === 0) return undefined;
+  const parts = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([card, n]) => {
+      const byCause = causes.get(card);
+      const after = byCause
+        ? ` (after ${[...byCause.entries()].sort((a, b) => b[1] - a[1]).map(([c, m]) => `${CARD_DEFS[c].title} ×${m}`).join(", ")})`
+        : "";
+      return `${CARD_DEFS[card].title} ×${n}${after}`;
+    });
+  return `Cards: ${parts.join(" · ")}`;
 }
 
 /** Wraps the game's own explanation (recap lines, chain/miss tag, and in
@@ -232,6 +265,14 @@ export function renderRoundRecap(
       tag.textContent = missLine;
       revealContainer.appendChild(tag);
     }
+  }
+
+  const cardsLine = cardsRecapLine(result);
+  if (cardsLine) {
+    const tag = document.createElement("p");
+    tag.className = "recap-cards";
+    tag.textContent = cardsLine;
+    revealContainer.appendChild(tag);
   }
 
   if (testMode) appendAnswerKey(revealContainer, result);

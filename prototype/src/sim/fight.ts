@@ -4,12 +4,13 @@ import { backfireChanceFor, chainContinuationChance, chainEscalationFactor, fati
 import type { ChainPlan, FightSetup, HeroState, Marks, SideState } from "./types.js";
 import { sideHp, sideMaxHp } from "./types.js";
 import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "./events.js";
-import type { PayoffId } from "./payoffs.js";
+import type { CardApi, CardId, HookName, HookPayloads } from "./cards/index.js";
+import { CardEngine } from "./cards/engine.js";
 
 /**
- * Per-fight context for the marks and payoff rules (2026-09-30). Every hit in
+ * Per-fight context for the marks and card rules (2026-09-30). Every hit in
  * the game funnels through applyDamageFrom, which has no events array, config
- * or payoff set of its own — threading those through six call sites would have
+ * or card list of its own — threading those through six call sites would have
  * touched every signature in this file. runFight sets this before its loop
  * and clears it in a finally, so it is only ever non-null while one fight is
  * running (fights are synchronous and never nest). A null context means "no
@@ -20,7 +21,10 @@ interface FightCtx {
   /** Sim-clock time of the tick being resolved — set at the top of each tick. */
   t: number;
   cfg: FightConfig;
-  payoffs: ReadonlySet<PayoffId>;
+  /** The held cards' listeners (2026-10-01) — see runHook. */
+  cards: CardEngine;
+  /** What a card may do to this fight — built once per fight, see makeCardApi. */
+  api: CardApi;
   player: SideState;
   enemy: SideState;
 }
@@ -41,31 +45,120 @@ function markStacks(level: number): number {
   return Math.max(1, Math.round(level));
 }
 
+function isOnEnemySide(c: FightCtx, h: HeroState): boolean {
+  return c.enemy.heroes.includes(h);
+}
+
+// The three mark helpers below are the only places a mark is laid, so each
+// raises markApplied afterwards (2026-10-01): a card that reads "a mark just
+// landed" (Crack) sees every source — chain rungs, Spiked shield, other cards.
 function addExposed(c: FightCtx, h: HeroState, stacks: number): void {
   const m = marksOf(h);
   m.exposed = Math.min(c.cfg.exposedStackCap, m.exposed + stacks);
+  runHook(c, "markApplied", { target: h, mark: "exposed", stacks, onEnemySide: isOnEnemySide(c, h) });
 }
 
 function addBurn(h: HeroState, stacks: number): void {
   marksOf(h).burn += stacks;
+  if (ctx) runHook(ctx, "markApplied", { target: h, mark: "burn", stacks, onEnemySide: isOnEnemySide(ctx, h) });
 }
 
-/** Grants Shield, capped at a fraction of the body's maxHp. Returns what was
- * actually added. */
+/** Grants Shield, capped at a fraction of the body's maxHp (a card may raise
+ * the fraction — Aegis). Returns what was actually added. */
 function addShield(c: FightCtx, h: HeroState, amount: number): number {
   const m = marksOf(h);
-  const room = Math.max(0, h.maxHp * c.cfg.shieldCapFractionOfMaxHp - m.shield);
+  const onEnemySide = isOnEnemySide(c, h);
+  const cap = { target: h, onEnemySide, fraction: c.cfg.shieldCapFractionOfMaxHp };
+  runHook(c, "shieldCap", cap);
+  const room = Math.max(0, h.maxHp * cap.fraction - m.shield);
   const added = Math.min(room, amount);
   m.shield += added;
+  if (added > 0) runHook(c, "markApplied", { target: h, mark: "shield", stacks: added, onEnemySide });
   return added;
 }
 
-function firePayoff(c: FightCtx, payoff: PayoffId, side: Side, targetId: string, amount: number): void {
-  c.events.push({ type: "payoffTriggered", t: c.t, payoff, side, targetId, amount });
+/** Freezes `target` for `baseSec` more seconds outside a chain — a card's
+ * freeze (Crack, Cold snap, Shatterguard). Same fields a chain's freeze sets,
+ * minus the chain's hold: it simply runs out. Returns the seconds frozen. */
+function plainFreeze(c: FightCtx, target: HeroState, baseSec: number): number {
+  if (!target.alive || target.hp <= 0) return 0;
+  const freeze = { target, backfire: false, sec: baseSec };
+  runHook(c, "beforeFreeze", freeze);
+  const sec = freeze.sec;
+  const alreadyFrozen = (target.stunnedUntilT ?? c.t) > c.t;
+  if (!alreadyFrozen) target.stunnedFromT = c.t;
+  const until = (alreadyFrozen ? target.stunnedUntilT! : c.t) + sec;
+  target.stunnedUntilT = until;
+  target.nextAttackT = Math.max(target.nextAttackT, until);
+  if (target.nextWindupT !== undefined) target.nextWindupT = Math.max(target.nextWindupT, until);
+  target.windupFireT = undefined;
+  target.windupTargetId = undefined;
+  runHook(c, "frozen", { target, sec, backfire: false, onEnemySide: isOnEnemySide(c, target) });
+  return sec;
 }
 
 function isFrozen(h: HeroState, t: number): boolean {
   return (h.stunnedUntilT ?? 0) > t;
+}
+
+/** Raises one hook: every held card listening on it runs now, in held order
+ * (cards/engine.ts). Modify hooks hand back their changed payload field, so the
+ * caller reads it again afterwards. */
+function runHook<K extends HookName>(c: FightCtx, hook: K, payload: HookPayloads[K]): void {
+  c.cards.run(hook, payload, c.api);
+}
+
+/** The surface cards act through (cards/types.ts's CardApi). Each method is one
+ * of this file's own helpers, so a card's effect looks to every other card
+ * exactly like a built-in one. */
+function makeCardApi(c: () => FightCtx): CardApi {
+  return {
+    get cfg() {
+      return c().cfg;
+    },
+    get t() {
+      return c().t;
+    },
+    get player() {
+      return c().player;
+    },
+    get enemy() {
+      return c().enemy;
+    },
+    isFrozen: (h) => isFrozen(h, c().t),
+    sideLabel: (side) => sideLabelOf(c(), side),
+    addExposed: (h, stacks) => addExposed(c(), h, stacks),
+    addBurn: (h, stacks) => addBurn(h, stacks),
+    addShield: (h, amount) => addShield(c(), h, amount),
+    damage: (side, targetId, amount) => {
+      const cx = c();
+      const { died, applied } = applyDamageFrom(side, targetId, amount, 0, false);
+      const label = sideLabelOf(cx, side);
+      for (const id of died) cx.events.push({ type: "heroDown", t: cx.t, side: label, heroId: id });
+      return applied;
+    },
+    freeze: (target, sec) => plainFreeze(c(), target, sec),
+    addCharge: (h, amount) => {
+      h.charge += amount;
+    },
+    counter: (key) => c().cards.counter(key),
+    bump: (key, by = 1) => c().cards.bump(key, by),
+    once: (key) => c().cards.once(key),
+    fire: (card: CardId, side: Side, targetId: string, amount: number) => {
+      const cx = c();
+      const { causeCard, depth } = cx.cards.firing();
+      cx.events.push({
+        type: "cardTriggered",
+        t: cx.t,
+        card,
+        side,
+        targetId,
+        amount,
+        ...(causeCard ? { causeCard } : {}),
+        depth,
+      });
+    },
+  };
 }
 
 /** Who dealt a hit, and whether it was a chain rung — the two facts the
@@ -118,9 +211,10 @@ function applyDamageFrom(
     const onEnemySide = c !== null && side === c.enemy;
     let mult = 1;
     if (c && hero.marks && hero.marks.exposed > 0) mult += hero.marks.exposed * c.cfg.exposedDamagePerStack;
-    if (c && onEnemySide && c.payoffs.has("shatter") && isFrozen(hero, c.t)) {
-      mult *= c.cfg.shatterMult;
-      firePayoff(c, "shatter", "enemy", hero.id, c.cfg.shatterMult);
+    if (c) {
+      const hit = { target: hero, onEnemySide, mult };
+      runHook(c, "beforeDamage", hit);
+      mult = hit.mult;
     }
     let incoming = remaining * mult;
     let absorbed = 0;
@@ -130,26 +224,20 @@ function applyDamageFrom(
       incoming -= absorbed;
       absorbedTotal += absorbed;
       c.events.push({ type: "shieldAbsorb", t: c.t, side: sideLabelOf(c, side), targetId: hero.id, amount: absorbed });
-      // Spiked shield: the attacker that hit a Shield pays for it.
-      const source = opts?.source;
-      if (c.payoffs.has("spikedShield") && source && source.alive && !side.heroes.includes(source)) {
-        addExposed(c, source, c.cfg.spikedShieldExposeStacks);
-        firePayoff(c, "spikedShield", sideLabelOf(c, side) === "enemy" ? "player" : "enemy", source.id, c.cfg.spikedShieldExposeStacks);
-      }
+      runHook(c, "shieldAbsorbed", { side, source: opts?.source, absorbed });
+      if (hero.marks.shield <= 1e-9) runHook(c, "shieldBroken", { side, target: hero, source: opts?.source });
     }
     let taken = Math.min(hero.hp, incoming);
     hero.hp -= taken;
-    // Execute: an Exposed enemy pushed to or below the line dies outright.
-    if (c && onEnemySide && c.payoffs.has("execute") && hero.hp > 0 && hero.marks && hero.marks.exposed > 0) {
-      if (hero.hp / hero.maxHp <= c.cfg.executeHpFraction) {
-        taken += hero.hp;
-        hero.hp = 0;
-        firePayoff(c, "execute", "enemy", hero.id, 0);
-      }
+    if (c) {
+      const hit = { target: hero, onEnemySide, taken };
+      runHook(c, "afterHit", hit);
+      taken = hit.taken;
     }
     hero.soaked += taken;
     hero.charge += taken * chargeWeightSoaked;
     hero.hitsTaken += 1;
+    if (opts?.source && !side.heroes.includes(opts.source)) hero.lastHitBy = opts.source.id;
     applied += taken;
     remaining -= (absorbed + Math.min(taken, incoming)) / mult;
     if (remaining < 1e-6) remaining = 0;
@@ -157,14 +245,10 @@ function applyDamageFrom(
       hero.hp = 0;
       hero.alive = false;
       died.push(hero.id);
-      // Spread: a burning enemy's death hands its Burn to the next body.
-      if (c && onEnemySide && c.payoffs.has("spread") && hero.marks && hero.marks.burn > 0) {
-        const next = side.heroes.find((h) => h !== hero && h.alive && h.hp > 0);
-        if (next) {
-          addBurn(next, hero.marks.burn);
-          next.burnFrom = hero.burnFrom;
-          firePayoff(c, "spread", "enemy", next.id, hero.marks.burn);
-        }
+      if (c) {
+        runHook(c, "death", { side, hero, onEnemySide });
+        // A card may bring the body back (Phoenix): then it did not die.
+        if (hero.alive) died.pop();
       }
     }
     if (!spillOverkill) break;
@@ -513,6 +597,8 @@ function cloneHeroes(heroes: HeroState[]): HeroState[] {
     // check, the lab) deliberately pre-seeds some on the setup it hands in.
     marks: h.marks ? { ...h.marks } : { exposed: 0, burn: 0, shield: 0 },
     burnFrom: undefined,
+    lastHitBy: undefined,
+    thawSeenT: h.stunnedUntilT,
     chainPlan: resolveChainPlan(h),
   }));
 }
@@ -554,6 +640,9 @@ function performHeroAction(
         hero.restored += amount;
         hero.charge += amount * cfg.chargeWeightRestored;
         events.push({ type: "heal", t, side: attackerSideLabel, healerId: hero.id, targetId: target.id, amount });
+        // Part of the beat's heal may have had nowhere to go (Overflow reads it).
+        const wasted = Math.min(hero.healPerBeat, cap) - amount;
+        if (ctx && wasted > 0) runHook(ctx, "overheal", { target, amount: wasted, onEnemySide: attackerSideLabel === "enemy" });
       }
     }
     // Ward's hybrid identity (2026-08-08, see heroes.ts): the heal doesn't
@@ -566,24 +655,21 @@ function performHeroAction(
   if (!targetId) return;
   const base = (hero.damage + (isPlayerAttacker ? attackerSide.dpsBonus : 0)) * damageMultiplier;
   let damage = rollDamage(base, rng, cfg.damageVariance);
-  // Punish: a player tank's normal hit on an Exposed body cashes the stacks in
-  // for extra damage. Consumed BEFORE the hit lands so the same stacks don't
-  // also amplify it through applyDamageFrom.
-  if (ctx && isPlayerAttacker && hero.role === "tank" && ctx.payoffs.has("punish")) {
-    const victim = defenderSide.heroes.find((h) => h.id === targetId);
-    const stacks = victim?.marks?.exposed ?? 0;
-    if (victim && stacks > 0) {
-      const bonus = Math.max(1, Math.round(hero.damage * cfg.punishDamagePerStack * stacks));
-      damage += bonus;
-      victim.marks!.exposed = 0;
-      firePayoff(ctx, "punish", "enemy", victim.id, bonus);
-    }
+  // Cards that change a normal attack before it lands (Punish) listen here.
+  if (ctx) {
+    const swing = { hero, isPlayerAttacker, victim: defenderSide.heroes.find((h) => h.id === targetId), damage };
+    runHook(ctx, "beforeBasicAttack", swing);
+    damage = swing.damage;
   }
   const { died, applied } = applyDamageFrom(defenderSide, targetId, damage, cfg.chargeWeightSoaked, true, { source: hero });
   hero.dealt += applied;
   hero.charge += applied * cfg.chargeWeightDealt;
   events.push({ type: "attack", t, side: attackerSideLabel, attackerId: hero.id, targetId, damage });
   for (const id of died) events.push({ type: "heroDown", t, side: defenderSideLabel, heroId: id });
+  if (ctx) {
+    const target = defenderSide.heroes.find((h) => h.id === targetId);
+    runHook(ctx, "afterBasicAttack", { hero, isPlayerAttacker, target, applied, killed: died.includes(targetId) });
+  }
 }
 
 /** Re-evaluates every living tank's holding/broken state after a beat.
@@ -679,19 +765,20 @@ function handleBruiserBeat(
         // Exposed — one stack, plus one per chain "+N" on the guardian.
         if (ctx) {
           addExposed(ctx, hero, markStacks(guardian.chainLevel ?? 1));
-          // Bulwark: a blocked slam also shields the whole squad.
-          if (ctx.payoffs.has("bulwark")) {
-            for (const ally of player.heroes) if (ally.alive && ally.hp > 0) addShield(ctx, ally, cfg.bulwarkShield);
-            firePayoff(ctx, "bulwark", "player", guardian.id, cfg.bulwarkShield);
-          }
+          // Cards that answer a blocked slam (Bulwark) listen here, before the
+          // slam is applied below, so a shield they grant soaks it.
+          runHook(ctx, "guardBlock", { guardian, slammer: hero, side: player });
         }
       }
     }
 
     hero.windupFireT = undefined;
     hero.windupTargetId = undefined;
-    hero.nextWindupT = t + (hero.windupIntervalSec ?? cfg.windupIntervalSec);
-    hero.nextAttackT = t + hero.attackIntervalSec;
+    // A card may have frozen the slammer while its slam resolved (Crack, on the
+    // Exposed the block just left) — its next actions wait out the freeze.
+    const frozenUntil = hero.stunnedUntilT ?? 0;
+    hero.nextWindupT = Math.max(t + (hero.windupIntervalSec ?? cfg.windupIntervalSec), frozenUntil);
+    hero.nextAttackT = Math.max(t + hero.attackIntervalSec, frozenUntil);
     if (!targetId) return false;
     const damage = Math.max(1, Math.round(hero.damage * cfg.windupDamageMultiplier));
     const { died, applied } = applyDamageFrom(player, targetId, damage, cfg.chargeWeightSoaked, true, { source: hero });
@@ -786,6 +873,76 @@ interface ChainHitEntry {
   markStacks?: number;
 }
 
+/** The living body on `side` with this id, if there is one. */
+function aliveOnSide(side: SideState, id: string | undefined): HeroState | undefined {
+  return id === undefined ? undefined : side.heroes.find((h) => h.id === id && h.alive && h.hp > 0);
+}
+
+/** Who a freezing rung (Freeze, Frostbolt) picks. Payoff: deterministic
+ * front-most, same reasoning as a normal player attack — makeEncounterEnemySide
+ * puts bruisers first, so this reliably freezes the boss on purpose. Backfire:
+ * weighted-random own hero, the same rule an enemy's own attack uses against
+ * the player — a freeze turned on yourself shouldn't be aimable. */
+function pickFreezeTarget(player: SideState, enemy: SideState, rng: Rng, cfg: FightConfig, backfire: boolean): HeroState | undefined {
+  const targetId = backfire ? pickWeightedTargetId(player, rng, cfg) : frontMostAliveId(enemy);
+  const lookupSide = backfire ? player : enemy;
+  return targetId ? lookupSide.heroes.find((h) => h.id === targetId) : undefined;
+}
+
+/** Freezes `target` for `baseSec` more seconds and returns the rung's "stun"
+ * entry. The one place a freeze lands (2026-10-01 — Freeze, Frostbolt and
+ * Chill all go through it), so cards that stretch a freeze (Deep freeze, via the
+ * beforeFreeze hook) see every one of them.
+ *
+ * Additive across the whole CHAIN (2026-09-15 freeze-visibility pass, held
+ * continuously since 2026-09-16 — see runFight's per-tick pin below, which is
+ * what actually keeps this from lapsing between rungs; this function only
+ * grows the running total each rung adds to). stunHeld carries the total for
+ * THIS chain; if the target walked in already frozen by something else (a
+ * still-draining freeze left over from an earlier chain), that leftover is
+ * folded in once, on the first rung to touch this target, so nothing already
+ * bought is wasted. stunnedFromT anchors the render layer's drain once the
+ * chain releases the hold (releaseStunHold) — only moved here when the body
+ * wasn't already frozen by anything. */
+function freezeBody(
+  c: FightCtx | null,
+  t: number,
+  target: HeroState,
+  baseSec: number,
+  backfire: boolean,
+  stunHeld: Map<string, number>,
+): ChainHitEntry {
+  let sec = baseSec;
+  if (c) {
+    const freeze = { target, backfire, sec };
+    runHook(c, "beforeFreeze", freeze);
+    sec = freeze.sec;
+  }
+  const alreadyFrozen = (target.stunnedUntilT ?? t) > t;
+  if (!alreadyFrozen) target.stunnedFromT = t;
+  const carryover = stunHeld.get(target.id) ?? (alreadyFrozen ? target.stunnedUntilT! - t : 0);
+  const total = carryover + sec;
+  stunHeld.set(target.id, total);
+  target.stunnedUntilT = t + total;
+  target.stunnedHeld = true;
+  target.nextAttackT = Math.max(target.nextAttackT, target.stunnedUntilT);
+  if (target.nextWindupT !== undefined) target.nextWindupT = Math.max(target.nextWindupT, target.stunnedUntilT);
+  // Cancels an in-progress telegraph outright — this is Hollow's whole point
+  // ("cancelling a wind-up in progress"), not merely delaying it.
+  target.windupFireT = undefined;
+  target.windupTargetId = undefined;
+  if (c) runHook(c, "frozen", { target, sec, backfire, onEnemySide: isOnEnemySide(c, target) });
+  return {
+    kind: "stun",
+    targetId: target.id,
+    amount: 0,
+    intended: 0,
+    died: [],
+    durationSec: sec,
+    durationTotalSec: total,
+  };
+}
+
 /** Resolves ONE ability's outcome for a single chain rung — the body of the
  * old single-effect resolveChainHit, unchanged in what each case does; only
  * split out so resolveChainHit below can call it once per ability a chain
@@ -820,7 +977,7 @@ function resolveOneEffect(
   // Fatigue makes every escalated rung a little stronger (guard is a flat
   // charge count and ignores it). It scales a backfire equally — a frayed
   // unit's mistake is as big as its success.
-  const boost = fatigueMagnitudeMult(cfg, hero.fatigue);
+  let boost = fatigueMagnitudeMult(cfg, hero.fatigue);
   // A damage effect's real payoff lands on the enemy, backfire on the
   // player's own side; a heal effect is the mirror of that (real payoff
   // heals the player's own side, backfire heals the enemy) — same asymmetry
@@ -832,7 +989,19 @@ function resolveOneEffect(
   // Marks are only in play inside runFight (ctx set); every branch below that
   // leaves one guards on this. Stacks per rung: 1, plus one per chain "+N".
   const c = ctx;
-  const stacks = markStacks(level);
+  let stacks = markStacks(level);
+  if (c) {
+    // Cards that size a rung (Momentum) or its mark stacks (Iron hide) listen
+    // here. A backfire is never made bigger by them — only the real payoff is.
+    if (!backfire) {
+      const size = { hero, mult: 1 };
+      runHook(c, "chainMagnitude", size);
+      boost *= size.mult;
+    }
+    const stackHook = { hero, stacks };
+    runHook(c, "chainStacks", stackHook);
+    stacks = stackHook.stacks;
+  }
   const dmgOpts: DamageOpts = { source: hero, chain: true };
 
   switch (effect) {
@@ -894,6 +1063,11 @@ function resolveOneEffect(
         const amount = room > 0 ? Math.max(1, Math.min(raw, cap, room)) : 0;
         target.hp += amount;
         if (!backfire) hero.restored += amount;
+        // What the heal had no room for (Overflow reads it).
+        if (c && !backfire) {
+          const wasted = Math.min(raw, cap) - amount;
+          if (wasted > 0) runHook(c, "overheal", { target, amount: wasted, onEnemySide: false });
+        }
         const shield = c ? addShield(c, target, shieldRaw) : 0;
         return {
           kind: "heal" as const,
@@ -976,52 +1150,146 @@ function resolveOneEffect(
       // reliably freezes the boss on purpose. Backfire: weighted-random own
       // hero, the same rule an enemy's own attack uses against the player —
       // a stun turned on yourself shouldn't be aimable.
-      const targetId = backfire ? pickWeightedTargetId(player, rng, cfg) : frontMostAliveId(enemy);
-      const targetSideForLookup = backfire ? player : enemy;
-      const target = targetId ? targetSideForLookup.heroes.find((h) => h.id === targetId) : undefined;
+      const target = pickFreezeTarget(player, enemy, rng, cfg, backfire);
       if (!target) return null;
-      let sec = escalatedDurationSec(cfg, cfg.chainStunBaseSec, hitIndex, level, boost);
-      // Deep freeze: freezing an Exposed enemy lasts longer. Only ever a
-      // payoff on the real (non-backfire) side.
-      if (c && !backfire && c.payoffs.has("deepFreeze") && (target.marks?.exposed ?? 0) > 0) {
-        sec *= cfg.deepFreezeMult;
-        firePayoff(c, "deepFreeze", "enemy", target.id, cfg.deepFreezeMult);
-      }
-      // Additive across the whole CHAIN (2026-09-15 freeze-visibility pass,
-      // held continuously since 2026-09-16 — see runFight's per-tick pin
-      // below, which is what actually keeps this from lapsing between
-      // rungs; this function only grows the running total each rung adds
-      // to). stunHeld carries the total for THIS chain; if the target
-      // walked in already frozen by something else (a still-draining
-      // freeze left over from an earlier chain), that leftover is folded in
-      // once, on the first rung to touch this target, so nothing already
-      // bought is wasted. stunnedFromT anchors the render layer's drain
-      // once the chain releases the hold (releaseStunHold) — only moved
-      // here when the body wasn't already frozen by anything.
-      const alreadyFrozen = (target.stunnedUntilT ?? t) > t;
-      if (!alreadyFrozen) target.stunnedFromT = t;
-      const carryover = stunHeld.get(target.id) ?? (alreadyFrozen ? target.stunnedUntilT! - t : 0);
-      const total = carryover + sec;
-      stunHeld.set(target.id, total);
-      target.stunnedUntilT = t + total;
-      target.stunnedHeld = true;
-      target.nextAttackT = Math.max(target.nextAttackT, target.stunnedUntilT);
-      if (target.nextWindupT !== undefined) target.nextWindupT = Math.max(target.nextWindupT, target.stunnedUntilT);
-      // Cancels an in-progress telegraph outright — this is Hollow's whole
-      // point ("cancelling a wind-up in progress"), not merely delaying it.
-      target.windupFireT = undefined;
-      target.windupTargetId = undefined;
+      const sec = escalatedDurationSec(cfg, cfg.chainStunBaseSec, hitIndex, level, boost);
+      return [freezeBody(c, t, target, sec, backfire, stunHeld)];
+    }
+    case "brace": {
+      // The firing hero shields ITSELF, sized off its own max HP so +HP on a
+      // tank is also a bigger Brace; a backfire shields the biggest enemy
+      // instead. Never whiffs — the shield may just be capped, which still
+      // counts as a landed rung, same as Guard.
+      const target = backfire ? highestHpAliveHero(enemy) : hero;
+      if (!target) return null;
+      const raw =
+        escalatedMagnitude(cfg, hero.maxHp * cfg.chainBraceShieldFraction, hitIndex, boost) + (level - 1) * cfg.chainShieldPerLevel;
+      const shield = c ? addShield(c, target, raw) : 0;
       return [
         {
-          kind: "stun" as const,
+          kind: "heal" as const,
           targetId: target.id,
           amount: 0,
-          intended: 0,
+          intended: raw,
           died: [] as string[],
-          durationSec: sec,
-          durationTotalSec: total,
+          ...(shield > 0 ? { mark: "shield" as const, markStacks: shield } : {}),
         },
       ];
+    }
+    case "quake": {
+      const targets = targetSide.heroes.filter((h) => h.alive && h.hp > 0);
+      if (targets.length === 0) return null;
+      const damage = escalatedMagnitude(cfg, cfg.chainQuakeBase, hitIndex, boost);
+      return targets.map((target) => {
+        const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false, dmgOpts);
+        hero.dealt += applied;
+        let marked = false;
+        if (c && !died.includes(target.id)) {
+          addExposed(c, target, stacks);
+          marked = true;
+        }
+        return {
+          kind: "damage" as const,
+          targetId: target.id,
+          amount: applied,
+          intended: damage,
+          died,
+          ...(marked ? { mark: "exposed" as const, markStacks: stacks } : {}),
+        };
+      });
+    }
+    case "frostbolt": {
+      const target = pickFreezeTarget(player, enemy, rng, cfg, backfire);
+      if (!target) return null;
+      const foe = backfire ? player : enemy;
+      // Freeze first, then hit: the bolt lands on a body that is already
+      // frozen, so a held Shatter doubles it.
+      const sec = escalatedDurationSec(cfg, cfg.chainFrostboltFreezeSec, hitIndex, level, boost);
+      const frozen = freezeBody(c, t, target, sec, backfire, stunHeld);
+      const damage = escalatedMagnitude(cfg, cfg.chainFrostboltBase, hitIndex, boost);
+      const { died, applied } = applyDamageFrom(foe, target.id, damage, 0, false, dmgOpts);
+      hero.dealt += applied;
+      return [frozen, { kind: "damage" as const, targetId: target.id, amount: applied, intended: damage, died }];
+    }
+    case "siphon": {
+      const foe = backfire ? player : enemy;
+      const friends = backfire ? enemy : player;
+      const victim = lowestHpAliveHero(foe);
+      if (!victim) return null;
+      const damage = escalatedMagnitude(cfg, cfg.chainSiphonBase, hitIndex, boost);
+      const { died, applied } = applyDamageFrom(foe, victim.id, damage, 0, false, dmgOpts);
+      hero.dealt += applied;
+      const out: ChainHitEntry[] = [{ kind: "damage", targetId: victim.id, amount: applied, intended: damage, died }];
+      // What it took comes back as healing on the worst-hurt friend; healing
+      // past full HP becomes Shield, same as Mend.
+      const patient = mostWoundedAliveHero(friends) ?? lowestFractionAliveHero(friends);
+      if (patient) {
+        const room = patient.maxHp - patient.hp;
+        const raw = Math.round(applied * cfg.chainSiphonHealFraction);
+        const potent = Math.min(raw, patient.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp);
+        const amount = room > 0 ? Math.min(potent, room) : 0;
+        patient.hp += amount;
+        if (!backfire) hero.restored += amount;
+        const shield = c ? addShield(c, patient, Math.max(0, potent - room)) : 0;
+        out.push({
+          kind: "heal",
+          targetId: patient.id,
+          amount,
+          intended: raw,
+          died: [],
+          ...(shield > 0 ? { mark: "shield" as const, markStacks: shield } : {}),
+        });
+      }
+      return out;
+    }
+    case "cauterize": {
+      const foe = backfire ? player : enemy;
+      const friends = backfire ? enemy : player;
+      const patient = mostWoundedAliveHero(friends) ?? lowestFractionAliveHero(friends);
+      if (!patient) return null;
+      const room = patient.maxHp - patient.hp;
+      const cap = patient.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
+      const raw = escalatedMagnitude(cfg, cfg.chainCauterizeHealBase, hitIndex, boost);
+      const amount = room > 0 ? Math.max(1, Math.min(raw, cap, room)) : 0;
+      patient.hp += amount;
+      if (!backfire) hero.restored += amount;
+      if (c && !backfire) {
+        const wasted = Math.min(raw, cap) - amount;
+        if (wasted > 0) runHook(c, "overheal", { target: patient, amount: wasted, onEnemySide: false });
+      }
+      const out: ChainHitEntry[] = [{ kind: "heal", targetId: patient.id, amount, intended: raw, died: [] }];
+      // The enemy that last hit this friend burns; with no record, the biggest.
+      const attacker = aliveOnSide(foe, patient.lastHitBy) ?? highestHpAliveHero(foe);
+      if (attacker) {
+        const damage = escalatedMagnitude(cfg, cfg.chainCauterizeBurnBase, hitIndex, boost);
+        const { died, applied } = applyDamageFrom(foe, attacker.id, damage, 0, false, dmgOpts);
+        hero.dealt += applied;
+        let marked = false;
+        if (c && !died.includes(attacker.id)) {
+          addBurn(attacker, stacks);
+          if (!backfire) attacker.burnFrom = hero.id;
+          marked = true;
+        }
+        out.push({
+          kind: "damage",
+          targetId: attacker.id,
+          amount: applied,
+          intended: damage,
+          died,
+          ...(marked ? { mark: "burn" as const, markStacks: stacks } : {}),
+        });
+      }
+      return out;
+    }
+    case "chill": {
+      const foe = backfire ? player : enemy;
+      const friends = backfire ? enemy : player;
+      // Whoever last hit the weakest friend; with no record, the front-most.
+      const weakest = lowestFractionAliveHero(friends);
+      const target = aliveOnSide(foe, weakest?.lastHitBy) ?? foe.heroes.find((h) => h.alive && h.hp > 0);
+      if (!target) return null;
+      const sec = escalatedDurationSec(cfg, cfg.chainChillSec, hitIndex, level, boost);
+      return [freezeBody(c, t, target, sec, backfire, stunHeld)];
     }
   }
 }
@@ -1076,9 +1344,17 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   const enemy: SideState = { heroes: cloneHeroes(setup.enemy.heroes), dpsBonus: setup.enemy.dpsBonus };
   const events: FightEvent[] = [];
 
-  // The marks/payoff context (see FightCtx's docstring) is live only for the
+  // The marks/card context (see FightCtx's docstring) is live only for the
   // duration of this call.
-  ctx = { events, t: 0, cfg, payoffs: new Set(setup.payoffs ?? []), player, enemy };
+  ctx = {
+    events,
+    t: 0,
+    cfg,
+    cards: CardEngine.forHeld(setup.cards ?? [], cfg.cascadeMaxDepth),
+    api: makeCardApi(() => ctx!),
+    player,
+    enemy,
+  };
   try {
     return runFightLoop(events, player, enemy, cfg, rng, seed);
   } finally {
@@ -1097,12 +1373,10 @@ function tickBurn(events: FightEvent[], t: number, cfg: FightConfig, c: FightCtx
     for (const hero of side.heroes) {
       const burn = hero.marks?.burn ?? 0;
       if (!hero.alive || hero.hp <= 0 || burn <= 0) continue;
-      let damage = burn * cfg.burnDamagePerStack;
-      // Open wound: burn ticks on an Exposed enemy count extra.
-      if (label === "enemy" && c.payoffs.has("openWound") && (hero.marks?.exposed ?? 0) > 0) {
-        damage *= cfg.openWoundMult;
-        firePayoff(c, "openWound", "enemy", hero.id, Math.round(damage));
-      }
+      const tick = { hero, side: label, damage: burn * cfg.burnDamagePerStack };
+      // Cards that change a burn tick's damage (Open wound) listen here.
+      runHook(c, "beforeBurnTick", tick);
+      const damage = tick.damage;
       const { died, applied } = applyDamageFrom(side, hero.id, damage, 0, false);
       events.push({ type: "burnTick", t, side: label, targetId: hero.id, amount: applied });
       const source = hero.burnFrom ? c.player.heroes.find((h) => h.id === hero.burnFrom) : undefined;
@@ -1111,7 +1385,10 @@ function tickBurn(events: FightEvent[], t: number, cfg: FightConfig, c: FightCtx
         if (source.alive) source.charge += applied * cfg.chargeWeightDealt;
       }
       for (const id of died) events.push({ type: "heroDown", t, side: label, heroId: id });
-      hero.marks!.burn = Math.max(0, burn - cfg.burnDecayPerTick);
+      runHook(c, "burnTick", { hero, side: label, applied });
+      const fade = { hero, side: label, decay: cfg.burnDecayPerTick };
+      runHook(c, "beforeBurnDecay", fade);
+      hero.marks!.burn = Math.max(0, burn - fade.decay);
     }
   }
   if (isWiped(c.enemy)) return "win";
@@ -1202,6 +1479,9 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
     chainStunHeld = new Map();
   }
 
+  // Cards that set a fight up (starting marks, shields) listen here.
+  runHook(ctx!, "fightStart", { t: 0 });
+
   for (let tick = 1; tick <= maxTicks; tick++) {
     const t = tick * dt;
     endT = t;
@@ -1233,7 +1513,13 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
         // damper checks/beatsheet.ts and checks/projection.ts use to disable
         // continuation entirely.
         const capped = bonusHitsLanded >= cfg.chainMaxHits;
-        const chance = capped ? 0 : chainContinuationChance(cfg, bonusHitsLanded, hero.fatigue);
+        let chance = capped ? 0 : chainContinuationChance(cfg, bonusHitsLanded, hero.fatigue);
+        if (!capped) {
+          // Cards that make a chain likelier to go on (Permafrost) listen here.
+          const roll = { hero, chance };
+          runHook(ctx!, "beforeChainRoll", roll);
+          chance = Math.min(1, roll.chance);
+        }
         const rolled = rng.chance(chance);
         const hits = rolled
           ? resolveChainHit(t, rng, cfg, player, enemy, hero, bonusHitsLanded + 1, chainBackfire, chainStunHeld)
@@ -1287,6 +1573,7 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
             reason,
             effects: hotEffects!,
           });
+          runHook(ctx!, "chainEnd", { hero, backfire: chainBackfire, length: bonusHitsLanded });
           finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
           releaseStunHold(t);
           hotHeroId = null;
@@ -1356,6 +1643,7 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
           // declaration comment above) — non-null here by that invariant.
           effects: hotEffects!,
         });
+        if (hotHero) runHook(ctx!, "chainEnd", { hero: hotHero, backfire: chainBackfire, length: bonusHitsLanded });
         finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
         releaseStunHold(t);
         hotHeroId = null;
@@ -1405,6 +1693,7 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
         chainKillIds = [];
         chainStunHeld = new Map();
         events.push({ type: "chainStart", t, heroId: ready.id, backfire: chainBackfire, effects: hotEffects });
+        runHook(ctx!, "chainStart", { hero: ready, backfire: chainBackfire });
       }
     }
 
@@ -1421,7 +1710,10 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
     // exactly as long as it visibly reads frozen. Once the chain ends
     // (releaseStunHold, above), this block simply stops running for that
     // chain's targets and they drain normally from wherever this left them.
-    if (!outcome && hotHeroId !== null && (hotEffects?.includes("stun") ?? false) && chainStunHeld.size > 0) {
+    // chainStunHeld is only ever filled by freezeBody, so it being non-empty
+    // already means the live chain has a freezing ability (Freeze, Frostbolt,
+    // Chill) — no need to ask which.
+    if (!outcome && hotHeroId !== null && chainStunHeld.size > 0) {
       const stunSide = chainBackfire ? player : enemy;
       for (const [id, total] of chainStunHeld) {
         const held = stunSide.heroes.find((h) => h.id === id);
@@ -1429,6 +1721,20 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
         held.stunnedUntilT = t + total;
         held.nextAttackT = Math.max(held.nextAttackT, held.stunnedUntilT);
         if (held.nextWindupT !== undefined) held.nextWindupT = Math.max(held.nextWindupT, held.stunnedUntilT);
+      }
+    }
+
+    // A freeze that has just run out (2026-10-01): cards that read "when it
+    // thaws" (Brittle) listen here. Each freeze is announced once — thawSeenT
+    // remembers which stunnedUntilT was already announced.
+    if (!outcome) {
+      for (const side of [enemy, player]) {
+        for (const h of side.heroes) {
+          if (h.alive && h.stunnedUntilT !== undefined && h.stunnedUntilT <= t && h.thawSeenT !== h.stunnedUntilT) {
+            h.thawSeenT = h.stunnedUntilT;
+            runHook(ctx!, "thawed", { target: h, onEnemySide: side === enemy });
+          }
+        }
       }
     }
 

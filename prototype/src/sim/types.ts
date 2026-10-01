@@ -5,7 +5,7 @@
  * living hero on the opposing side (see fight.ts's targeting helpers).
  */
 import type { ChainEffect } from "./config.js";
-import type { PayoffId } from "./payoffs.js";
+import type { CardId } from "./cards/index.js";
 
 export type Role = "tank" | "damage" | "support" | "bruiser" | "grunt";
 
@@ -182,6 +182,15 @@ export interface HeroState {
    * their damage to it (dealt and charge), so the Damage role's job still
    * fills its own chain meter. Undefined when nobody claims the burn. */
   burnFrom?: string;
+  /** The id of the unit on the other side that last hit this body with an
+   * attack, chain hit or slam (2026-10-01 — Cauterize and Chill aim at "whoever
+   * hit your hero"). Reset at fight start by fight.ts's cloneHeroes; burn ticks
+   * and card effects never set it. */
+  lastHitBy?: string;
+  /** The `stunnedUntilT` whose thaw has already been announced to the cards
+   * (2026-10-01) — fight.ts starts it at the hero's current value so a stale
+   * freeze from an earlier fight never reads as a fresh thaw. */
+  thawSeenT?: number;
 }
 
 export interface Marks {
@@ -242,7 +251,8 @@ export function sideLivingCount(side: SideState): number {
 export interface FightSetup {
   player: SideState;
   enemy: SideState;
-  /** The squad-wide payoff cards this run holds (2026-09-30; sim/payoffs.ts).
-   * Optional — checks and lab callers that build a one-off fight omit it. */
-  payoffs?: PayoffId[];
+  /** The squad-wide cards this run holds (2026-09-30; sim/cards/index.ts), in
+   * held order — the order their listeners run in. Optional — checks and lab
+   * callers that build a one-off fight omit it. */
+  cards?: CardId[];
 }

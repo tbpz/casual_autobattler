@@ -16,9 +16,10 @@ import {
   livingRosterHeroes,
   type RosterState,
 } from "../sim/roster.js";
-import { makeInitialProgress, type RunProgress } from "../sim/progress.js";
+import { heldCards, makeInitialProgress, relicRngFor, upgradeRngFor, type RunProgress } from "../sim/progress.js";
+import { applyRelicStart, drawRelicChoices } from "../sim/relics.js";
 import { applyOffer, drawOffers, noteIntroduced, type Offer } from "../sim/offers.js";
-import type { PayoffId } from "../sim/payoffs.js";
+import type { CardId } from "../sim/cards/index.js";
 import { summarizeLoss, summarizeWin, type RoundSummary } from "../sim/run.js";
 
 /**
@@ -35,6 +36,7 @@ export class RunSession {
   private cfg: RunConfig;
   private rng: Rng;
   private offerRng: Rng;
+  private relicRng: Rng;
   private seedValue: number;
   private roster: RosterState;
   private progressValue: RunProgress;
@@ -58,19 +60,34 @@ export class RunSession {
   pendingOffers: Offer[] = [];
   status: "in-progress" | "complete" | "over" = "in-progress";
   overReason: "loss" | "rosterExhausted" | null = null;
+  /** The three relics offered at run start (2026-10-01; sim/relics.ts). The
+   * run waits for pickRelic before its first round. */
+  relicChoices: CardId[];
 
   constructor(cfg: RunConfig, seed: number) {
     this.cfg = cfg;
     this.seedValue = seed;
     this.rng = new Rng(seed);
     this.offerRng = new Rng((seed ^ 0x51ed270b) >>> 0);
-    this.progressValue = makeInitialProgress(cfg);
+    this.progressValue = makeInitialProgress(cfg, upgradeRngFor(seed));
     this.roster = makeStartingRoster(this.progressValue.bonus);
     this.roundOrder = drawRoundEncounters(seed, cfg.roundsPerRun);
+    this.relicRng = relicRngFor(seed);
+    this.relicChoices = drawRelicChoices(this.relicRng);
   }
 
   get progress(): RunProgress {
     return this.progressValue;
+  }
+
+  /** Takes the start-of-run relic. Called once, before the first round; a
+   * second call is ignored so a double-tap can't swap it. Mercenary also
+   * adds its fourth unit to the roster. */
+  pickRelic(id: CardId): void {
+    if (this.progressValue.relic || !this.relicChoices.includes(id)) return;
+    const started = applyRelicStart(this.progressValue, this.roster, id, this.relicRng);
+    this.progressValue = started.progress;
+    this.roster = started.roster;
   }
 
   get currentRoundIndex(): number {
@@ -147,7 +164,7 @@ export class RunSession {
     // actually shown on the round screen, not a value derived after the
     // fact from the outcome.
     this.lastProjection = project(player, enemy, this.cfg.fight);
-    const setup: FightSetup = { player, enemy, payoffs: this.progressValue.payoffs };
+    const setup: FightSetup = { player, enemy, cards: heldCards(this.progressValue) };
     const result = runFight(setup, this.cfg.fight, this.rng, this.seedValue);
     this.lastFightResult = result;
     this.fightResults.push(result);
@@ -171,9 +188,9 @@ export class RunSession {
    * always non-empty here (drawOffers falls back to whatever's eligible),
    * except in the degenerate case where nothing at all is eligible — that
    * round simply advances with no change. */
-  resolveOffer(offer: Offer | null, dropPayoffId?: PayoffId): RoundSummary {
+  resolveOffer(offer: Offer | null, dropCardId?: CardId): RoundSummary {
     if (offer) {
-      const applied = applyOffer(this.progressValue, this.roster, offer, this.cfg, dropPayoffId);
+      const applied = applyOffer(this.progressValue, this.roster, offer, this.cfg, dropCardId);
       this.progressValue = applied.progress;
       this.roster = applied.roster;
     }

@@ -17,7 +17,7 @@ import { sideMaxHp } from "../sim/types.js";
 import { FightView } from "../render/fightView.js";
 import { LabClock, LAB_SPEEDS, type LabSpeed } from "./labClock.js";
 import { LabStats } from "./labStats.js";
-import { runLabFight, type LabSetup } from "./labFight.js";
+import { parseLabExtras, runLabFight, type LabSetup } from "./labFight.js";
 
 interface LabHeroSlotState {
   role: PlayerRole;
@@ -53,6 +53,19 @@ function cloneColumnState(state: LabColumnState): LabColumnState {
   };
 }
 
+/** The lab's cards and abilities come from the URL (2026-10-01), not from a
+ * control: `?lab=1&cards=shatter,execute&abilities=tank:guard+stun,damage:expose`.
+ * Read once; a typo shows as an error in the console and the lab runs without. */
+const labExtras = ((): Pick<LabSetup, "cards" | "abilities"> => {
+  try {
+    const q = new URLSearchParams(location.search);
+    return parseLabExtras(q.get("cards"), q.get("abilities"));
+  } catch (err) {
+    console.error(err);
+    return {};
+  }
+})();
+
 function toLabSetup(state: LabColumnState): LabSetup {
   return {
     roles: state.heroSlots.map((s) => s.role),
@@ -60,6 +73,7 @@ function toLabSetup(state: LabColumnState): LabSetup {
     encounterIndex: state.encounterIndex,
     rampIndex: state.rampIndex,
     seed: state.seed,
+    ...labExtras,
   };
 }
 

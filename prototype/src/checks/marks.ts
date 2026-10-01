@@ -17,7 +17,7 @@ import { makeSquadFromRoles, type PlayerRole } from "../sim/roles.js";
 import { makeEnemySide } from "../sim/run.js";
 import type { ChainEffect } from "../sim/config.js";
 import type { FightResult } from "../sim/events.js";
-import type { PayoffId } from "../sim/payoffs.js";
+import type { CardId } from "../sim/cards/index.js";
 import type { FightSetup } from "../sim/types.js";
 
 let failed = false;
@@ -33,7 +33,7 @@ const run = DEFAULT_RUN_CONFIG;
  * chain level and a custom ability list, against a fresh Pack encounter. */
 function chainSetup(
   roles: PlayerRole[],
-  opts: { level?: number; effects?: ChainEffect[]; payoffs?: PayoffId[]; calm?: boolean } = {},
+  opts: { level?: number; effects?: ChainEffect[]; cards?: CardId[]; calm?: boolean } = {},
 ): FightSetup {
   const player = makeSquadFromRoles(roles);
   const firing = player.heroes.find((h) => h.role === roles[0])!;
@@ -43,7 +43,7 @@ function chainSetup(
   const enemy = makeEnemySide(run, 0, 0);
   // calm: the enemy never acts, so the squad is still at full HP when the chain lands.
   if (opts.calm) for (const h of enemy.heroes) h.nextAttackT = 1000;
-  return { player, enemy, payoffs: opts.payoffs };
+  return { player, enemy, cards: opts.cards };
 }
 
 function fight(setup: FightSetup, backfire: "always" | "never" = "never", seed = 7): FightResult {
@@ -156,8 +156,8 @@ function firstChainHit(result: FightResult) {
 // --- Payoff cards.
 {
   // Shatter: an enemy frozen for the whole fight dies sooner with the card.
-  const frozenSetup = (payoffs: PayoffId[]): FightSetup => {
-    const setup: FightSetup = { player: makeSquadFromRoles(["tank", "damage", "support"]), enemy: makeEnemySide(run, 0, 0), payoffs };
+  const frozenSetup = (cards: CardId[]): FightSetup => {
+    const setup: FightSetup = { player: makeSquadFromRoles(["tank", "damage", "support"]), enemy: makeEnemySide(run, 0, 0), cards };
     for (const h of setup.enemy.heroes) {
       h.stunnedUntilT = 1000;
       h.nextAttackT = 1000;
@@ -166,14 +166,14 @@ function firstChainHit(result: FightResult) {
   };
   const plain = fight(frozenSetup([]));
   const shattered = fight(frozenSetup(["shatter"]));
-  check("shatter: it fires on a frozen enemy", shattered.events.some((e) => e.type === "payoffTriggered" && e.payoff === "shatter"));
+  check("shatter: it fires on a frozen enemy", shattered.events.some((e) => e.type === "cardTriggered" && e.card === "shatter"));
   check("shatter: the fight ends sooner with the card", shattered.durationSec < plain.durationSec * 0.8, `${shattered.durationSec.toFixed(1)}s vs ${plain.durationSec.toFixed(1)}s`);
-  check("shatter: without the card nothing fires", !plain.events.some((e) => e.type === "payoffTriggered"));
+  check("shatter: without the card nothing fires", !plain.events.some((e) => e.type === "cardTriggered"));
 }
 {
   // Execute: an Exposed enemy already below the line dies on the first hit.
-  const setup = (payoffs: PayoffId[]): FightSetup => {
-    const s: FightSetup = { player: makeSquadFromRoles(["tank", "damage", "support"]), enemy: makeEnemySide(run, 0, 0), payoffs };
+  const setup = (cards: CardId[]): FightSetup => {
+    const s: FightSetup = { player: makeSquadFromRoles(["tank", "damage", "support"]), enemy: makeEnemySide(run, 0, 0), cards };
     const front = s.enemy.heroes[0]!;
     // Big enough that one hit leaves it under the line instead of killing it.
     front.maxHp = 1000;
@@ -183,18 +183,18 @@ function firstChainHit(result: FightResult) {
   };
   const with_ = fight(setup(["execute"]));
   const without = fight(setup([]));
-  const executed = with_.events.find((e) => e.type === "payoffTriggered" && e.payoff === "execute");
+  const executed = with_.events.find((e) => e.type === "cardTriggered" && e.card === "execute");
   check("execute: it fires on an Exposed enemy under the line", executed !== undefined);
-  check("execute: without the card it does not", !without.events.some((e) => e.type === "payoffTriggered"));
+  check("execute: without the card it does not", !without.events.some((e) => e.type === "cardTriggered"));
 }
 {
   // Spread: a burning enemy's death hands its Burn to the next body.
-  const s: FightSetup = { player: makeSquadFromRoles(["tank", "damage", "support"]), enemy: makeEnemySide(run, 0, 0), payoffs: ["spread"] };
+  const s: FightSetup = { player: makeSquadFromRoles(["tank", "damage", "support"]), enemy: makeEnemySide(run, 0, 0), cards: ["spread"] };
   const front = s.enemy.heroes[0]!;
   front.hp = 1;
   front.marks = { exposed: 0, burn: 4, shield: 0 };
   const result = fight(s);
-  const spread = result.events.find((e) => e.type === "payoffTriggered" && e.payoff === "spread");
+  const spread = result.events.find((e) => e.type === "cardTriggered" && e.card === "spread");
   check("spread: it fires when a burning enemy dies", spread !== undefined);
   check(
     "spread: the next enemy is burning afterwards",

@@ -1,6 +1,7 @@
+import { SynergyTracker, formatSynergy, type SynergyReport } from "./synergy.js";
 import { fatigueTier, type FatigueTier, type RunConfig } from "../sim/config.js";
 import type { RunResult } from "../sim/run.js";
-import type { PayoffId } from "../sim/payoffs.js";
+import type { CardId } from "../sim/cards/index.js";
 
 /**
  * Aggregates N runs into the distribution report archive/PROTOTYPE_PLAN.md's
@@ -205,8 +206,11 @@ export interface BatchReport {
   /** 2026-09-30 (marks and payoffs): how many times each payoff card fired
    * across all fights, and how many runs took it — a card taken but never
    * triggered is dead weight. Only cards taken at least once appear. */
-  payoffTriggers: Partial<Record<PayoffId, number>>;
-  payoffTaken: Partial<Record<PayoffId, number>>;
+  cardTriggers: Partial<Record<CardId, number>>;
+  cardTaken: Partial<Record<CardId, number>>;
+  /** 2026-10-01: which cards and pairs win fights beyond their round's own
+   * win rate (batch/synergy.ts) — the way to find a combination nobody wrote. */
+  synergy: SynergyReport;
 }
 
 /**
@@ -255,8 +259,9 @@ export class BatchAggregator {
   private fatigueSumByRound: number[];
   private fatigueCountByRound: number[];
   private restTaken = 0;
-  private payoffTriggers: Partial<Record<PayoffId, number>> = {};
-  private payoffTaken: Partial<Record<PayoffId, number>> = {};
+  private cardTriggers: Partial<Record<CardId, number>> = {};
+  private cardTaken: Partial<Record<CardId, number>> = {};
+  private synergy: SynergyTracker;
   // One scalar per fight (fr.durationSec), not the fight's own per-tick
   // snapshot array — see this file's top docstring, 2026-08-26 entry.
   private durations: number[] = [];
@@ -264,6 +269,7 @@ export class BatchAggregator {
 
   constructor(cfg: RunConfig) {
     this.cfg = cfg;
+    this.synergy = new SynergyTracker(cfg.roundsPerRun);
     this.reachedCount = new Array(cfg.roundsPerRun).fill(0) as number[];
     this.wonCount = new Array(cfg.roundsPerRun).fill(0) as number[];
     this.deathsByFightIndex = new Array(cfg.roundsPerRun).fill(0) as number[];
@@ -274,6 +280,7 @@ export class BatchAggregator {
   add(r: RunResult): void {
     this.n++;
     if (r.outcome === "complete") this.completed++;
+    this.synergy.add(r);
 
     for (const f of r.rounds) {
       this.reachedCount[f.roundIndex] = (this.reachedCount[f.roundIndex] ?? 0) + 1;
@@ -287,7 +294,7 @@ export class BatchAggregator {
 
     for (const round of r.rounds) {
       const taken = round.offerTaken;
-      if (taken?.kind === "payoff" && taken.payoff) this.payoffTaken[taken.payoff] = (this.payoffTaken[taken.payoff] ?? 0) + 1;
+      if (taken?.kind === "card" && taken.card) this.cardTaken[taken.card] = (this.cardTaken[taken.card] ?? 0) + 1;
       if (taken?.kind === "rest") this.restTaken++;
     }
 
@@ -393,7 +400,7 @@ export class BatchAggregator {
    * see this file's top docstring, 2026-09-15 entry. */
   private countGuardActivity(events: RunResult["fightResults"][number]["events"]): void {
     for (const e of events) {
-      if (e.type === "payoffTriggered") this.payoffTriggers[e.payoff] = (this.payoffTriggers[e.payoff] ?? 0) + 1;
+      if (e.type === "cardTriggered") this.cardTriggers[e.card] = (this.cardTriggers[e.card] ?? 0) + 1;
       else if (e.type === "chainHit" && e.kind === "guard") this.guardChargesGranted += e.charges ?? 0;
       else if (e.type === "windupHit" && (e.redirect === "guard" || e.redirect === "guardBackfire" || e.redirect === "guardHeld")) this.slamsRedirected++;
     }
@@ -470,8 +477,9 @@ export class BatchAggregator {
       guardChargesGranted: this.guardChargesGranted,
       slamsRedirected: this.slamsRedirected,
       fractionGuardChargesSpent: this.guardChargesGranted > 0 ? this.slamsRedirected / this.guardChargesGranted : 0,
-      payoffTriggers: this.payoffTriggers,
-      payoffTaken: this.payoffTaken,
+      cardTriggers: this.cardTriggers,
+      cardTaken: this.cardTaken,
+      synergy: this.synergy.report(),
     };
   }
 }
@@ -518,7 +526,8 @@ export function formatReport(report: BatchReport, label: string): string {
     `  fielded fatigue:       ${report.meanFieldedFatigueByRound.map((f, i) => `r${i + 1}=${f.toFixed(0)}`).join("  ")}`,
     `  rest cards taken:      ${report.restTaken}`,
     `  guard charges spent:   ${(report.fractionGuardChargesSpent * 100).toFixed(1)}%  (${report.slamsRedirected}/${report.guardChargesGranted} — bounded by opportunity, not by the mechanism; see this file's docstring)`,
-    `  payoff triggers:       ${Object.keys(report.payoffTaken).length === 0 ? "(none held)" : Object.keys(report.payoffTaken).map((id) => `${id}=${report.payoffTriggers[id as PayoffId] ?? 0} (taken ${report.payoffTaken[id as PayoffId]}x)`).join("  ")}`,
+    `  card triggers:       ${Object.keys(report.cardTaken).length === 0 ? "(none held)" : Object.keys(report.cardTaken).map((id) => `${id}=${report.cardTriggers[id as CardId] ?? 0} (taken ${report.cardTaken[id as CardId]}x)`).join("  ")}`,
+    ...formatSynergy(report.synergy),
   ];
   return lines.join("\n");
 }

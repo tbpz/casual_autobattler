@@ -10,6 +10,27 @@
 
 ---
 
+## [2026-10-01] Build depth comes from cards on a "when X, do Y" engine, built all at once
+
+- **Decision:**
+  - A fight raises events (a mark lands, a shield breaks, a freeze ends, a unit dies, a chain starts).
+  - Every card is "when [event], do [effect]", and an effect raises events too, so one card can set off another.
+  - A depth cap ends loops of cards feeding each other.
+  - The build-depth ideas ship together: per-mark card sets, links between marks, cards that use stats,
+    roles with three possible upgrades, duo cards, cards that build up in a fight, a run-start relic,
+    and named cards with icons.
+  - Duos are offered only once both parts are held; a collection screen shows unfound duos as silhouettes.
+  - The batch report finds strong card pairs, so duos can come from measurement rather than from us.
+- **Why:**
+  - Upgrades gave Tu no "this would be strong with that" ideas the way Hades boons and Slay the Spire cards do.
+  - The old pool had about 14 build pieces, one fixed upgrade per role, and payoffs that read a mark but never made one.
+  - Tu rejected testing only the shield set, because a set he designed himself cannot surprise him.
+  - Rules that connect cards through shared events create combos nobody wrote down.
+- **Replaces:**
+  - The fixed one-upgrade-per-role rule.
+  - The eight hard-coded payoff branches in the fight code.
+  - Evidence: a 2026-10-01 batch (n=3000) ranked cards and pairs by win over expected, and showed one relic far ahead until tuned.
+
 ## [2026-09-30] Fatigue shows as tier pips beside each unit, on both screens
 
 - **Decision:**

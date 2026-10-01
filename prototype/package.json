@@ -11,13 +11,17 @@
     "lab": "tsx src/batch/cli.ts lab",
     "run": "tsx src/batch/cli.ts run",
     "batch": "tsx src/batch/cli.ts batch",
-    "check": "npm run check:determinism && npm run check:beatsheet && npm run check:runshape && npm run check:offers && npm run check:projection && npm run check:marks && npm run check:fatigue",
+    "check": "npm run check:determinism && npm run check:beatsheet && npm run check:runshape && npm run check:offers && npm run check:projection && npm run check:marks && npm run check:cards && npm run check:abilities && npm run check:cardpool && npm run check:collection && npm run check:fatigue",
     "check:determinism": "tsx src/checks/determinism.ts",
     "check:beatsheet": "tsx src/checks/beatsheet.ts",
     "check:runshape": "tsx src/checks/runShape.ts",
     "check:offers": "tsx src/checks/offers.ts",
     "check:projection": "tsx src/checks/projection.ts",
     "check:marks": "tsx src/checks/marks.ts",
+    "check:cards": "tsx src/checks/cards.ts",
+    "check:abilities": "tsx src/checks/abilities.ts",
+    "check:cardpool": "tsx src/checks/cardpool.ts",
+    "check:collection": "tsx src/checks/collection.ts",
     "check:fatigue": "tsx src/checks/fatigue.ts"
   },
   "devDependencies": {

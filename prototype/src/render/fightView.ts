@@ -3,7 +3,7 @@ import { chainEffectVerb, fatigueFraction, fatigueTier } from "../sim/config.js"
 import { fatiguePipsHtml } from "./heroPickShared.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
 import { ROLE_SORT_PRIORITY } from "../sim/roles.js";
-import { MARK_CHIP, PAYOFF_DEFS, type PayoffId } from "../sim/payoffs.js";
+import { MARK_CHIP, CARD_DEFS, type CardId } from "../sim/cards/index.js";
 
 /** Reads one custom property off :root — the single point where a number
  * that style.css also defines (a colour, a duration, a scale) enters this
@@ -1134,8 +1134,8 @@ export class FightView {
           e.markStacks,
         );
         break;
-      case "payoffTriggered":
-        this.showPayoffTriggered(e.payoff, e.side, e.targetId, e.amount);
+      case "cardTriggered":
+        this.showCardTriggered(e.card, e.side, e.targetId, e.amount, e.causeCard, e.depth);
         break;
       case "burnTick":
         if (e.amount >= 1) this.showMarkPopup(e.side, e.targetId, `-${Math.round(e.amount)}`, "burn", 300, "burn:" + e.targetId);
@@ -2050,26 +2050,38 @@ export class FightView {
     popup.classList.add("mark-popup");
   }
 
-  /** Names a payoff card's trigger on screen (2026-09-30) — the legibility
+  /** Names a card's trigger on screen (2026-09-30) — the legibility
    * requirement: a combo's pay-off is only felt if the player can see WHICH
-   * card just did it. */
-  private showPayoffTriggered(payoff: PayoffId, side: "player" | "enemy", targetId: string, amount: number): void {
-    const title = PAYOFF_DEFS[payoff].title.toUpperCase();
+   * card just did it. 2026-10-01: with cards setting each other off, the popup
+   * also names the card that caused this one ("← Spiked shield"), and a cascade
+   * three or more deep gets a CASCADE callout — that is the show the card
+   * system exists to put on screen. */
+  private showCardTriggered(card: CardId, side: "player" | "enemy", targetId: string, amount: number, causeCard: CardId | undefined, depth: number): void {
+    const def = CARD_DEFS[card];
+    const title = `${def.icon} ${def.title.toUpperCase()}`;
+    // The older cards report a multiplier or a bonus in `amount`; the rest are
+    // named by their text alone.
     const suffix =
-      payoff === "shatter" || payoff === "deepFreeze" || payoff === "openWound"
+      card === "shatter" || card === "deepFreeze" || card === "openWound"
         ? ` ×${Math.round(amount)}`
-        : payoff === "punish" || payoff === "spread" || payoff === "bulwark"
+        : card === "punish" || card === "spread" || card === "bulwark"
           ? ` +${Math.round(amount)}`
           : "";
+    const cause = causeCard ? `  ← ${CARD_DEFS[causeCard].title}` : "";
     const slot = (side === "enemy" ? this.enemyHeroes : this.playerHeroes).get(targetId);
     if (!slot) return;
     const now = performance.now();
-    const key = `payoff:${payoff}:${targetId}`;
+    const key = `card:${card}:${targetId}`;
     if (now - (this.markPopupSeen.get(key) ?? -Infinity) < 500) return;
     this.markPopupSeen.set(key, now);
-    const popup = this.showPopup(slot.body, `${title}${suffix}`, "chain", 1.05, 3, "var(--ignite)", 0);
+    const popup = this.showPopup(slot.body, `${title}${suffix}${cause}`, "chain", 1.05, 3, "var(--ignite)", 0);
     popup.classList.add("payoff-popup");
-    this.showHeroStatusTell(targetId, title, "var(--ignite)", true);
+    if (causeCard) popup.classList.add("card-caused");
+    this.showHeroStatusTell(targetId, `${title}${cause}`, "var(--ignite)", true);
+    if (depth >= 3 && now - (this.markPopupSeen.get("cascade") ?? -Infinity) > 1500) {
+      this.markPopupSeen.set("cascade", now);
+      this.showCallout(`CASCADE ×${depth}`, false, "var(--ignite)");
+    }
   }
 
   private showPopup(

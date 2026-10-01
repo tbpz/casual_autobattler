@@ -34,14 +34,18 @@ export const ROLE_LABEL: Record<PlayerRole, string> = {
   support: "Healer",
 };
 
-/** What a role's chain grows INTO via a "chainGain" offer (sim/offers.ts) —
- * one upgrade target per role, added to the role's ability list (never
- * replacing it), the three effects the old six-hero pool carried beyond
- * each role's base identity. */
-export const ROLE_CHAIN_UPGRADE: Record<PlayerRole, ChainEffect> = {
-  tank: "stun",
-  damage: "scorch",
-  support: "ward",
+/** What a role's chain can grow INTO via a "chainGain" offer (sim/offers.ts) —
+ * the role's upgrade pool, added to its ability list (never replacing the
+ * base). 2026-10-01 (roles branch): was one fixed upgrade per role
+ * (ROLE_CHAIN_UPGRADE); now three, of which a run draws some as that role's
+ * options (sim/progress.ts's drawUpgradeOptions) and a role may hold at most
+ * cfg.maxUpgradesPerRole. Every role's pool reaches three different marks, so a
+ * shield Tank or a burn Healer is a real route. The first entry is the old
+ * single upgrade. */
+export const ROLE_UPGRADE_POOL: Record<PlayerRole, ChainEffect[]> = {
+  tank: ["stun", "brace", "quake"],
+  damage: ["scorch", "frostbolt", "siphon"],
+  support: ["ward", "cauterize", "chill"],
 };
 
 export interface RoleDef {

@@ -14,8 +14,10 @@ import {
 } from "./roster.js";
 import { drawRoundEncounters, roundEnemySide } from "./rounds.js";
 import { makeStartingRoster } from "./roles.js";
-import { makeInitialProgress, type RunProgress } from "./progress.js";
-import { applyOffer, defaultPayoffDrop, drawOffers, noteIntroduced, type Offer } from "./offers.js";
+import { heldCards, makeInitialProgress, relicRngFor, upgradeRngFor, type RunProgress } from "./progress.js";
+import { applyRelicStart, drawRelicChoices } from "./relics.js";
+import type { CardId } from "./cards/index.js";
+import { applyOffer, defaultCardDrop, drawOffers, noteIntroduced, type Offer } from "./offers.js";
 
 export { roundEnemySide as makeEnemySide } from "./rounds.js";
 
@@ -40,7 +42,7 @@ const GREEDY_KIND_PRIORITY: Record<Offer["kind"], number> = {
   // Payoff cards (2026-09-30): kept just under "slot" so the greedy
   // baseline population still grows its squad (checks/runShape.ts asserts
   // it). The "build" policy below is the one that chases payoffs.
-  payoff: 35,
+  card: 35,
   // Rest (2026-09-30): the base is what a barely-worn unit's Rest is worth.
   // restRank below lifts it above everything except revive once the unit it
   // would rest is properly worn.
@@ -88,7 +90,7 @@ export function makeOfferPolicy(name: OfferPolicyName, rng?: Rng): OfferPolicy {
               ? 1000 + restRank(o, roster)
               : o.kind === "chainLevel"
                 ? 600
-                : o.kind === "payoff" && o.connects
+                : o.kind === "card" && o.connects
                   ? 500
                   : o.kind === "chainGain"
                     ? 450
@@ -131,6 +133,10 @@ export interface RunResult {
   overReason?: "loss" | "rosterExhausted";
   roundsWon: number;
   finalProgress: RunProgress;
+  /** The cards held (relic first) going into each round that was fought, by
+   * round index — what a pair-synergy analysis needs to know about every fight
+   * (2026-10-01), since the final hand says little about the fights before it. */
+  heldByRound: CardId[][];
 }
 
 /**
@@ -179,6 +185,11 @@ export interface RunOptions {
    * MUST be pure and MUST NOT consume `rng`: doing so would shift the fight
    * RNG stream and break every seed-pinned check in checks/. */
   fieldPick?: FieldPick;
+  /** Picks the run's starting relic from the three drawn (sim/relics.ts).
+   * Default: the first drawn, which is itself a seeded random draw. `null`
+   * starts the run with no relic at all — for checks that want to isolate the
+   * rest. */
+  startPick?: ((choices: CardId[]) => CardId) | null;
 }
 
 /** Runs one full `cfg.roundsPerRun`-round run to completion. Pure given
@@ -196,29 +207,41 @@ export function runRun(
   opts?: RunOptions,
 ): RunResult {
   const fieldPick = opts?.fieldPick ?? defaultFieldPick;
-  let progress = makeInitialProgress(cfg);
+  let progress = makeInitialProgress(cfg, upgradeRngFor(seed));
   let roster: RosterState = makeStartingRoster(progress.bonus);
+
+  // The start-of-run relic (2026-10-01): three drawn from the run's own relic
+  // stream, one picked, applied before round 1.
+  if (opts?.startPick !== null) {
+    const relicRng = relicRngFor(seed);
+    const choices = drawRelicChoices(relicRng);
+    const started = applyRelicStart(progress, roster, (opts?.startPick ?? ((c) => c[0]!))(choices), relicRng);
+    progress = started.progress;
+    roster = started.roster;
+  }
 
   const rounds: RoundSummary[] = [];
   const fightResults: FightResult[] = [];
   const roundOrder = drawRoundEncounters(seed, cfg.roundsPerRun);
+  const heldByRound: CardId[][] = [];
 
   for (let i = 0; i < cfg.roundsPerRun; i++) {
     if (!canFieldSquad(roster, progress.slots)) {
-      return { seed, rounds, fightResults, outcome: "over", overReason: "rosterExhausted", roundsWon: i, finalProgress: progress };
+      return { seed, rounds, fightResults, outcome: "over", overReason: "rosterExhausted", roundsWon: i, finalProgress: progress, heldByRound };
     }
 
     const fieldedIds = fieldPick(roster, progress.slots, { fightIndex: i, encounterIndex: roundOrder[i]! });
     const player = fieldSquad(roster, fieldedIds, progress);
     const enemy = roundEnemySide(cfg, i, roundOrder[i]!);
 
-    const setup: FightSetup = { player, enemy, payoffs: progress.payoffs };
+    heldByRound.push([...heldCards(progress)]);
+    const setup: FightSetup = { player, enemy, cards: heldCards(progress) };
     const result = runFight(setup, cfg.fight, rng, seed);
     fightResults.push(result);
 
     if (result.outcome === "loss") {
       rounds.push(summarizeLoss(i, result, sideMaxHp(roster), fieldedIds));
-      return { seed, rounds, fightResults, outcome: "over", overReason: "loss", roundsWon: i, finalProgress: progress };
+      return { seed, rounds, fightResults, outcome: "over", overReason: "loss", roundsWon: i, finalProgress: progress, heldByRound };
     }
 
     roster = applyFightResultToRoster(roster, player, result, cfg);
@@ -228,7 +251,7 @@ export function runRun(
     let offerTaken: Offer | null = null;
     if (offers.length > 0) {
       offerTaken = offerPolicy(offers, progress, roster);
-      const applied = applyOffer(progress, roster, offerTaken, cfg, defaultPayoffDrop(progress, roster, offerTaken, cfg));
+      const applied = applyOffer(progress, roster, offerTaken, cfg, defaultCardDrop(progress, roster, offerTaken, cfg));
       progress = applied.progress;
       roster = applied.roster;
     }
@@ -236,5 +259,5 @@ export function runRun(
     rounds.push(summarizeWin(i, result, offerTaken, roster, fieldedIds));
   }
 
-  return { seed, rounds, fightResults, outcome: "complete", roundsWon: cfg.roundsPerRun, finalProgress: progress };
+  return { seed, rounds, fightResults, outcome: "complete", roundsWon: cfg.roundsPerRun, finalProgress: progress, heldByRound };
 }

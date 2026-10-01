@@ -1,12 +1,12 @@
 import type { Rng } from "./rng.js";
 import type { ChainEffect, RunConfig } from "./config.js";
 import { chainEffectChip, chainEffectVerb } from "./config.js";
-import type { PayoffId } from "./payoffs.js";
-import { MARK_CHIP, PAYOFF_DEFS, PAYOFF_IDS, payoffConnects, pickPayoffToDrop } from "./payoffs.js";
+import type { CardId } from "./cards/index.js";
+import { MARK_CHIP, CARD_DEFS, CARD_IDS, cardConnects, duoUnlocked, marksMadeBy, pickCardToDrop } from "./cards/index.js";
 import type { SideState } from "./types.js";
 import type { PlayerRole } from "./roles.js";
-import { PLAYER_ROLES, ROLE_CHAIN_UPGRADE, ROLE_LABEL, makeUnitState } from "./roles.js";
-import type { RunProgress } from "./progress.js";
+import { PLAYER_ROLES, ROLE_LABEL, ROLE_POOL, ROLE_UPGRADE_POOL, makeUnitState } from "./roles.js";
+import { heldCards, type RunProgress } from "./progress.js";
 
 /**
  * 2026-09-23 (roles/rounds rebuild — see DECISIONS.md and STATE.md).
@@ -24,7 +24,7 @@ import type { RunProgress } from "./progress.js";
 export type OfferKind =
   | "chainLevel"
   | "chainGain"
-  | "payoff"
+  | "card"
   | "recruit"
   | "statHp"
   | "statDamage"
@@ -41,9 +41,9 @@ export interface Offer {
    * DECISIONS.md). */
   effect?: ChainEffect;
   /** "payoff" only — the squad-wide card this offer adds (2026-09-30;
-   * sim/payoffs.ts). At the payoff cap, taking it means dropping a held one:
-   * applyOffer's `dropPayoffId`. */
-  payoff?: PayoffId;
+   * sim/cards/index.ts). At the payoff cap, taking it means dropping a held one:
+   * applyOffer's `dropCardId`. */
+  card?: CardId;
   /** "payoff" only — true when the card reads a mark the squad can already
    * make, so the offer screen can highlight the connection. */
   connects?: boolean;
@@ -68,13 +68,17 @@ interface OfferTemplate {
   key: string;
   /** "small" offers are common early, rare late; "big" offers are the
    * reverse — see weightFor below. */
-  size: "small" | "big" | "payoff";
+  size: "small" | "big" | "card";
   /** "payoff" templates only — which card, so drawOffers can tilt the weight
    * toward cards that connect to what the squad can make. */
-  payoff?: PayoffId;
+  card?: CardId;
   /** "chainGain" templates only — the ability it would add, so drawOffers can
    * tilt toward a gain that unlocks a payoff card the run already holds. */
   gainEffect?: ChainEffect;
+  /** A "chainGain" template that should come up seldom (a role borrowing
+   * another role's ability) — it draws at cfg.borrowWeightFraction of the
+   * usual flat build-piece weight. */
+  rare?: boolean;
   eligible(progress: RunProgress, roster: SideState, cfg: RunConfig): boolean;
   build(progress: RunProgress, roster: SideState, cfg: RunConfig): Offer;
 }
@@ -104,39 +108,75 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       },
     });
 
-    templates.push({
-      key: `chainGain:${role}`,
-      size: "big",
-      gainEffect: ROLE_CHAIN_UPGRADE[role],
-      eligible: (progress) => !progress.chain[role].effects.includes(ROLE_CHAIN_UPGRADE[role]),
-      build: (progress, roster) => {
-        const upgrade = ROLE_CHAIN_UPGRADE[role];
-        // The ability's own round-screen chip, so the offer names it the way
-        // the player will see it once taken.
-        const chip = chainEffectChip(upgrade);
-        // "Feeds your Shatter": a held card this ability would bring to life.
-        // Only when the role actually has a unit, since squadChainEffects
-        // ignores a role nobody on the roster plays.
-        const squad = squadChainEffects(progress, roster);
-        const fed = roster.heroes.some((h) => h.role === role)
-          ? progress.payoffs.find((id) => !payoffConnects(id, squad) && payoffConnects(id, [...squad, upgrade]))
-          : undefined;
-        // 2026-09-29 (add-don't-swap — see DECISIONS.md): every chain hit now
-        // does EVERY ability the chain has, so this reads as "also", never
-        // "instead of" — Tu: "the chain is upgraded and accumulate these
-        // ability, that's all."
-        const line = `Also ${chainEffectVerb(upgrade)}.`;
-        return {
-          kind: "chainGain",
-          role,
-          effect: upgrade,
-          headline: `New: ${chip.icon} ${chip.word}`,
-          title: `${label} chain — gains an ability`,
-          detail: line,
-          worksWith: fed ? `Feeds your ${PAYOFF_DEFS[fed].title}` : undefined,
-        };
-      },
-    });
+    // One template per ability in the role's pool (2026-10-01, roles branch),
+    // offered only when this run drew it as one of the role's options and the
+    // role still has room for another upgrade.
+    for (const upgrade of ROLE_UPGRADE_POOL[role]) {
+      templates.push({
+        key: `chainGain:${role}:${upgrade}`,
+        size: "big",
+        gainEffect: upgrade,
+        eligible: (progress) =>
+          progress.upgradeOptions[role].includes(upgrade) &&
+          !progress.chain[role].effects.includes(upgrade) &&
+          progress.chain[role].effects.length - 1 < cfg.maxUpgradesPerRole,
+        build: (progress, roster) => {
+          // The ability's own round-screen chip, so the offer names it the way
+          // the player will see it once taken.
+          const chip = chainEffectChip(upgrade);
+          // "Feeds your Shatter": a held card this ability would bring to life.
+          // Only when the role actually has a unit, since squadChainEffects
+          // ignores a role nobody on the roster plays.
+          const squad = squadChainEffects(progress, roster);
+          const fed = roster.heroes.some((h) => h.role === role)
+            ? progress.cards.find((id) => !cardConnects(id, squad, heldCards(progress)) && cardConnects(id, [...squad, upgrade], heldCards(progress)))
+            : undefined;
+          // 2026-09-29 (add-don't-swap — see DECISIONS.md): every chain hit now
+          // does EVERY ability the chain has, so this reads as "also", never
+          // "instead of" — Tu: "the chain is upgraded and accumulate these
+          // ability, that's all."
+          const line = `Also ${chainEffectVerb(upgrade)}.`;
+          return {
+            kind: "chainGain",
+            role,
+            effect: upgrade,
+            headline: `New: ${chip.icon} ${chip.word}`,
+            title: `${label} chain — gains an ability`,
+            detail: line,
+            worksWith: fed ? `Feeds your ${CARD_DEFS[fed].title}` : undefined,
+          };
+        },
+      });
+    }
+
+    // Borrow (2026-10-01): a role takes another role's BASE ability, counted
+    // against the same cfg.maxUpgradesPerRole. Rare on purpose — it is how a
+    // Tank ends up with Mend, the strangest builds in the game.
+    for (const other of PLAYER_ROLES) {
+      if (other === role) continue;
+      const borrowed = ROLE_POOL[other].baseChain;
+      templates.push({
+        key: `borrow:${role}:${borrowed}`,
+        size: "big",
+        gainEffect: borrowed,
+        rare: true,
+        eligible: (progress, roster) =>
+          roster.heroes.some((h) => h.role === role) &&
+          !progress.chain[role].effects.includes(borrowed) &&
+          progress.chain[role].effects.length - 1 < cfg.maxUpgradesPerRole,
+        build: () => {
+          const chip = chainEffectChip(borrowed);
+          return {
+            kind: "chainGain",
+            role,
+            effect: borrowed,
+            headline: `Borrow: ${chip.icon} ${chip.word}`,
+            title: `${label} chain — borrows the ${ROLE_LABEL[other].toLowerCase()}'s ability`,
+            detail: `Also ${chainEffectVerb(borrowed)}.`,
+          };
+        },
+      });
+    }
 
     templates.push({
       key: `recruit:${role}`,
@@ -178,28 +218,35 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
     });
   }
 
-  for (const id of PAYOFF_IDS) {
+  for (const id of cfg.cardPool ?? CARD_IDS) {
+    const def = CARD_DEFS[id];
+    if (def.kind === "relic") continue; // relics are picked at run start, never offered
+    const isDuo = def.kind === "duo";
     templates.push({
-      key: `payoff:${id}`,
-      size: "payoff",
-      payoff: id,
-      // Not offered until the player has met every mark it reads — seen on an
-      // ability offer or made by the squad — so no card asks for a judgment
-      // about a mark nothing has introduced yet.
-      eligible: (progress) => !progress.payoffs.includes(id) && payoffConnects(id, progress.introduced),
+      key: `card:${id}`,
+      size: "card",
+      card: id,
+      // An ordinary card is not offered until the player has met every mark it
+      // reads — seen on an ability offer, made by the squad, or made by a card
+      // already held — so no card asks for a judgment about a mark nothing has
+      // introduced yet. A duo is offered only once all its parts are in hand.
+      eligible: (progress, roster) =>
+        !progress.cards.includes(id) &&
+        (isDuo
+          ? duoUnlocked(id, squadChainEffects(progress, roster), heldCards(progress))
+          : cardConnects(id, progress.introduced, heldCards(progress))),
       build: (progress, roster) => {
-        const def = PAYOFF_DEFS[id];
         const squad = squadChainEffects(progress, roster);
-        const connects = payoffConnects(id, squad);
-        // When it connects, every mark it reads is one the squad makes — except
-        // a card gated on an ability (Bulwark), which names the ability.
-        let worksWith: string | undefined;
-        if (connects) {
-          worksWith = def.needsEffects
-            ? `Your squad has ${def.needsEffects.filter((e) => squad.includes(e)).map((e) => chainEffectChip(e).word).join(" + ")}`
-            : `Your squad makes ${def.reads.map((m) => `${MARK_CHIP[m].icon} ${MARK_CHIP[m].word}`).join(" + ")}`;
-        }
-        return { kind: "payoff", payoff: id, connects, headline: def.title, title: def.title, detail: def.detail, worksWith };
+        const connects = cardConnects(id, squad, heldCards(progress));
+        return {
+          kind: "card",
+          card: id,
+          connects,
+          headline: def.title,
+          title: def.title,
+          detail: def.detail,
+          worksWith: cardWorksWith(id, squad, heldCards(progress)),
+        };
       },
     });
   }
@@ -268,6 +315,34 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
   return templates;
 }
 
+/** The neutral "why this card is here" line on a card offer (2026-10-01): a duo
+ * names the parts the player holds, a card fed by a held card names it, a card
+ * the squad's own abilities feed names the marks, and a card that makes a mark
+ * says so. Undefined when there is nothing honest to say. Display only. */
+function cardWorksWith(id: CardId, squad: readonly ChainEffect[], held: readonly CardId[]): string | undefined {
+  const def = CARD_DEFS[id];
+  const chip = (m: keyof typeof MARK_CHIP): string => `${MARK_CHIP[m].icon} ${MARK_CHIP[m].word}`;
+  if (def.needs) {
+    const parts = [
+      ...(def.needs.cards ?? []).map((c) => CARD_DEFS[c].title),
+      ...(def.needs.effects ?? []).filter((e) => squad.includes(e)).map((e) => chainEffectChip(e).word),
+      ...(def.needs.marks ?? []).map(chip),
+    ];
+    return `Duo: you hold ${parts.join(" + ")}`;
+  }
+  if (def.reads.length === 0) return def.makes.length > 0 ? `Makes ${def.makes.map(chip).join(" + ")}` : undefined;
+  if (!cardConnects(id, squad, held)) return undefined;
+  if (def.needsEffects) return `Your squad has ${def.needsEffects.filter((e) => squad.includes(e)).map((e) => chainEffectChip(e).word).join(" + ")}`;
+  // Marks the abilities alone do not make but a held card does: name the card.
+  const byAbility = marksMadeBy(squad);
+  const fedBy = def.reads
+    .filter((m) => !byAbility.has(m))
+    .map((m) => held.find((h) => CARD_DEFS[h].makes.includes(m)))
+    .filter((h): h is CardId => h !== undefined);
+  if (fedBy.length > 0) return `Fed by your ${[...new Set(fedBy)].map((h) => CARD_DEFS[h].title).join(" + ")}`;
+  return `Your squad makes ${def.reads.map(chip).join(" + ")}`;
+}
+
 /** Small early, big late — a linear ramp over how far into the run this win
  * landed (0 at round 1, 1 at the last round), same "weighted by how far
  * into the run you are" rule confirmed before writing this file. */
@@ -324,19 +399,43 @@ export function drawOffers(rng: Rng, progress: RunProgress, roster: SideState, c
   // The mirror tilt: an ability gain that would unlock a payoff card the run
   // already holds (and that nothing the squad has now unlocks) is boosted the
   // same way, so holding Shatter makes Freeze show up.
+  // A card that reads nothing (a maker, a general card) is always "connected"
+  // and would always draw boosted, so only cards that read something get the
+  // tilt — and a duo gets its own, bigger one.
   const unlocksHeld = (gain: ChainEffect): boolean =>
-    progress.payoffs.some((id) => payoffConnects(id, [gain]) && !payoffConnects(id, effects));
+    progress.cards.some(
+      (id) => CARD_DEFS[id].reads.length > 0 && cardConnects(id, [gain], heldCards(progress)) && !cardConnects(id, effects, heldCards(progress)),
+    );
+  const cardWeight = (id: CardId): number => {
+    const def = CARD_DEFS[id];
+    if (def.kind === "duo") return cfg.cardWeight * cfg.duoBoost;
+    return cfg.cardWeight * (def.reads.length > 0 && cardConnects(id, effects, heldCards(progress)) ? 1 + cfg.cardConnectBoost : 1);
+  };
   const pool = eligible.map((t) => ({
     t,
     weight:
-      t.size === "payoff"
-        ? cfg.payoffWeight * (t.payoff && payoffConnects(t.payoff, effects) ? 1 + cfg.payoffConnectBoost : 1)
+      t.size === "card"
+        ? cardWeight(t.card!)
         : t.gainEffect
-          ? // An ability gain is a build piece like a payoff card, so it draws at
-            // the same flat weight instead of the late-run ramp of a "big" offer.
-            cfg.payoffWeight * (unlocksHeld(t.gainEffect) ? 1 + cfg.payoffConnectBoost : 1)
+          ? // An ability gain is a build piece like a card, so it draws at the
+            // same flat weight instead of the late-run ramp of a "big" offer; a
+            // borrow is the rare one.
+            cfg.cardWeight * (t.rare ? cfg.borrowWeightFraction : 1) * (unlocksHeld(t.gainEffect) ? 1 + cfg.cardConnectBoost : 1)
           : Math.max(0.01, weightFor(t.size, roundsIntoRun)),
   }));
+  // The card group as a whole never outweighs cfg.cardGroupWeightCap
+  // (2026-10-01): each card draws at its own flat weight, so a pool four times
+  // as big would otherwise put four times as many card offers on screen and
+  // crowd out the recruits, slots and HP a run lives on. Past the cap every
+  // card's weight shrinks together, so the mix between cards (a duo, a
+  // connected card) holds while the pool's size only adds variety. Below the
+  // cap — the sparse early game — nothing changes.
+  const cardEntries = pool.filter((p) => p.t.size === "card");
+  const cardTotal = cardEntries.reduce((sum, p) => sum + p.weight, 0);
+  if (cardTotal > cfg.cardGroupWeightCap) {
+    const squeeze = cfg.cardGroupWeightCap / cardTotal;
+    for (const p of cardEntries) p.weight *= squeeze;
+  }
   const chosen: OfferTemplate[] = [];
 
   const living = roster.heroes.filter((h) => h.alive).length;
@@ -381,7 +480,7 @@ export function drawOffers(rng: Rng, progress: RunProgress, roster: SideState, c
   // the pool, a purely weighted draw buries the payoff cards and ability gains
   // a build is made of — and a run only has ~5-19 picks. The first
   // cfg.buildOffersGuaranteed non-safety-net slots draw from those only.
-  const isBuildPiece = (t: OfferTemplate): boolean => t.size === "payoff" || t.gainEffect !== undefined;
+  const isBuildPiece = (t: OfferTemplate): boolean => t.size === "card" || t.gainEffect !== undefined;
   const draw = (candidates: typeof pool): void => {
     const total = candidates.reduce((sum, p) => sum + p.weight, 0);
     let roll = rng.next() * total;
@@ -414,22 +513,22 @@ export function applyOffer(
   roster: SideState,
   offer: Offer,
   cfg: RunConfig,
-  dropPayoffId?: PayoffId,
+  dropCardId?: CardId,
 ): { progress: RunProgress; roster: SideState } {
   switch (offer.kind) {
-    case "payoff": {
-      const id = offer.payoff!;
-      if (progress.payoffs.includes(id)) return { progress, roster };
+    case "card": {
+      const id = offer.card!;
+      if (progress.cards.includes(id)) return { progress, roster };
       // At the cap the new card replaces one held (2026-09-30 decision);
       // the caller must say which. Below the cap it is simply added.
-      if (progress.payoffs.length >= cfg.payoffCap) {
-        if (!dropPayoffId || !progress.payoffs.includes(dropPayoffId)) {
-          throw new Error("applyOffer: payoff cap reached — a held card must be named to drop");
+      if (progress.cards.length >= cfg.cardCap) {
+        if (!dropCardId || !progress.cards.includes(dropCardId)) {
+          throw new Error("applyOffer: card cap reached — a held card must be named to drop");
         }
-        const kept = progress.payoffs.filter((p) => p !== dropPayoffId);
-        return { progress: { ...progress, payoffs: [...kept, id] }, roster };
+        const kept = progress.cards.filter((p) => p !== dropCardId);
+        return { progress: { ...progress, cards: [...kept, id] }, roster };
       }
-      return { progress: { ...progress, payoffs: [...progress.payoffs, id] }, roster };
+      return { progress: { ...progress, cards: [...progress.cards, id] }, roster };
     }
     case "chainLevel": {
       const role = offer.role!;
@@ -488,7 +587,7 @@ export function applyOffer(
 /** The headless drop choice when a payoff offer is taken at the cap — the
  * interactive UI asks the player instead. Undefined when there is nothing to
  * drop (below the cap, or not a payoff offer). */
-export function defaultPayoffDrop(progress: RunProgress, roster: SideState, offer: Offer, cfg: RunConfig): PayoffId | undefined {
-  if (offer.kind !== "payoff" || progress.payoffs.length < cfg.payoffCap) return undefined;
-  return pickPayoffToDrop(progress.payoffs, squadChainEffects(progress, roster));
+export function defaultCardDrop(progress: RunProgress, roster: SideState, offer: Offer, cfg: RunConfig): CardId | undefined {
+  if (offer.kind !== "card" || progress.cards.length < cfg.cardCap) return undefined;
+  return pickCardToDrop(progress.cards, squadChainEffects(progress, roster), progress.relic ? [progress.relic] : []);
 }
