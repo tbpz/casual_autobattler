@@ -28,7 +28,7 @@ A run grows over 20 rounds through a relic (round 1's reward), reward cards, rol
 
 1. **Fix the cards that rarely fire:** Glass fires only when a freeze ends; Overflow, Ember heart, Cold snap, Bulwark and Deep freeze fire in under half their held fights (the "rarely fires" line of `npm run batch -- --offers build`).
 2. **Rebalance outliers** from the synergy block: Punish is the weakest card by a wide margin, and recheck whether Exposed's cards still trail Burn's.
-3. **Play more runs** (`npm run dev`), a different build each time, and send the `export` file — a build verdict is checked against it, and so is whether fatigue and Recruit now feel survivable and the coloured mark words read clearly.
+3. **Play more runs** (`npm run dev`), a different build each time, and send the `export` file — a build verdict is checked against it, and so is whether fatigue and Recruit now feel survivable, whether you bench tired heroes by hand now the squad stays put, and the coloured mark words read clearly.
 4. **Pick a target for chains' share of damage** — it is about 44% of player damage now.
 5. Fix the healer-only stalemate and the two recap wording bugs ("for 0" on a guard/stun save; the guard's repeated "against" line).
 
@@ -44,7 +44,7 @@ A run grows over 20 rounds through a relic (round 1's reward), reward cards, rol
 | Chain abilities — 12; each role has 3 upgrade options, 2 drawn per run | batch-verified | `sim/roles.ts`, `sim/progress.ts`, `checks/abilities.ts` |
 | Chain legibility — pacing, HUD, pips, end card, cascade popups | built | `render/playback.ts`, `render/fightView.ts` |
 | Shield on the HP bar — segment, ghosts, break flash | built | `render/hpBar.ts`, `render/fightView.ts`, `checks/hpBar.ts` |
-| Round screen — squad pick, fatigue, relic and card chips, duo hints | built | `render/roundScreen.ts`, `design/HANDOFF.md` |
+| Round screen — squad pick starts as last round's squad, fatigue, relic and card chips, duo hints | built | `render/roundScreen.ts`, `sim/roster.ts`, `design/HANDOFF.md` |
 | Round screen onboarding — fatigue detail shows before a player has seen it | not started | `render/roundScreen.ts` |
 | Marks — each chain ability leaves one | batch-verified | `sim/fight.ts`, `checks/marks.ts` |
 | Card engine — hooks, cascades, depth cap | batch-verified | `sim/cards/engine.ts`, `checks/cards.ts` |
@@ -69,6 +69,7 @@ A run grows over 20 rounds through a relic (round 1's reward), reward cards, rol
 
 - Chains every fight still feel unpredictable, rather than averaging out into a steady trade.
 - Push or rest stays a real choice: batch shows a frayed chain out-hitting a worn one only slightly, and fielded fatigue falls to ~13 by round 20.
+- Players bench a tired hero by hand: the batch bot rotates its squad, but the pick screen now keeps last round's.
 - Cards and duos give a combo worth chasing next run — the bet this whole pass exists for.
 - A relic picked after one fight gives the run an identity, not just one more upgrade.
 - A cascade stays readable on a phone screen.

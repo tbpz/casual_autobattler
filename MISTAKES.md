@@ -16,6 +16,18 @@
 
 ---
 
+### [2026-10-02 #3] Said a forced Rest offer catches a squad that is never benched
+
+- **Said:** After the keep-last-squad change: "the forced Rest offer still steps in once they're
+  worn enough."
+- **Actually:** `restForceAnyAt` ships at 0, so Rest is forced only when the freshest units the
+  roster could field are all past the sweet spot. A rested hero on the bench means no forced Rest.
+- **Caught by:** Myself, reading `config.ts` and the 2026-10-02 fatigue entry before logging the
+  decision.
+- **Why:** I read the `wornEnough` code in `sim/offers.ts` without checking which branch the shipped
+  config takes.
+- **Tag:** described code behaviour without checking the shipped setting
+
 ### [2026-10-02 #2] Wrote a fix plan for the off-centre chain text before checking it happens
 
 - **Said:** The first plan for "chain text starts off to the left on mobile" named two causes: the

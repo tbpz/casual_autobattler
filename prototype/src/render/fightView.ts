@@ -195,6 +195,10 @@ const GUARD_PIP_CAP = 5;
  * slam in a fight that runs ~20s. */
 const SLAM_SWING_MS = 420;
 
+/** How long the last body to fall stays visibly dead before VICTORY / DEFEAT
+ * shows (finishFight). */
+const FINAL_DEATH_HOLD_MS = 800;
+
 /** How far a BACK-rank slot sits from the centre line, in px — the WHOLE
  * slot (body, name, HP bar, the lot), not just the body (2026-09-16 second
  * back-row pass — replaces the first pass's FRONT_LEAN_PX/BACK_SET_BACK_PX,
@@ -433,6 +437,17 @@ export class FightView {
    * trying to track and cancel three separate setTimeout handles across a
    * multi-step callback chain. */
   private chainGen = 0;
+  /** Same stale-timer guard as chainGen, for the end-of-fight sequence
+   * (finishFight): reset() bumps it so a rewind can't show a result late. */
+  private resolveGen = 0;
+  /** Wall-clock time (performance.now()) the latest scheduled hit, heal or
+   * slam finishes landing — finishFight waits for it so the killing blow is
+   * seen before the body falls. */
+  private lastImpactAt = 0;
+  /** True once the VICTORY / DEFEAT text is on screen; callbacks queued by
+   * onResolveShown run at that moment. */
+  private resolveShown = false;
+  private resolveCallbacks: Array<() => void> = [];
   private built = false;
   /** Cycles a small vertical jitter across popups so near-simultaneous
    * numbers on the same target don't land on the exact same baseline. */
@@ -617,22 +632,97 @@ export class FightView {
     this.arena.classList.toggle("chain-live", this.chainPhase !== "idle");
     this.arena.classList.toggle("chain-backfire", this.chainPhase !== "idle" && snapshot.chainBackfire);
 
-    this.updateChainHud(snapshot);
-    this.updateSide(this.playerHeroes, snapshot.playerHeroes, snapshot);
-    this.updateSide(this.enemyHeroes, snapshot.enemyHeroes, snapshot);
-    this.updateWindupTells(snapshot);
-    this.updateFreezeTells(snapshot);
+    // The final tick carries the killing blow AND the result. Show the tick
+    // with the last fallers still standing; finishFight lets the blow land,
+    // drops them, then shows the result.
+    const resolveEvent = eventsThisTick.find((e) => e.type === "resolve");
+    const shown = resolveEvent ? this.withFinalFallersStanding(snapshot) : snapshot;
+    const heldIds = new Set<string>();
+    if (shown !== snapshot) {
+      const real = snapshot.playerHeroes.concat(snapshot.enemyHeroes);
+      for (const h of shown.playerHeroes.concat(shown.enemyHeroes)) {
+        if (real.some((r) => r.id === h.id && r !== h)) heldIds.add(h.id);
+      }
+    }
 
-    this.lastPlayerHpFraction = snapshot.playerMaxHp > 0 ? snapshot.playerHp / snapshot.playerMaxHp : 0;
-    this.lastPlayerHeroes = snapshot.playerHeroes;
-    this.lastEnemyHeroes = snapshot.enemyHeroes;
+    this.updateChainHud(shown);
+    this.updateSide(this.playerHeroes, shown.playerHeroes, shown);
+    this.updateSide(this.enemyHeroes, shown.enemyHeroes, shown);
+    this.updateWindupTells(shown);
+    this.updateFreezeTells(shown);
 
+    this.lastPlayerHpFraction = shown.playerMaxHp > 0 ? shown.playerHp / shown.playerMaxHp : 0;
+    this.lastPlayerHeroes = shown.playerHeroes;
+    this.lastEnemyHeroes = shown.enemyHeroes;
+
+    const heldDowns: string[] = [];
     for (const e of eventsThisTick) {
+      if (e.type === "resolve") continue;
+      if (e.type === "heroDown" && heldIds.has(e.heroId)) {
+        heldDowns.push(e.heroId);
+        continue;
+      }
       this.handleEvent(e);
     }
+    if (resolveEvent && resolveEvent.type === "resolve") this.finishFight(snapshot, heldDowns, resolveEvent.outcome);
+  }
+
+  /** A copy of `snapshot` in which every hero who dies on this tick keeps the
+   * previous tick's still-alive entry — or `snapshot` itself if nobody does. */
+  private withFinalFallersStanding(snapshot: TickSnapshot): TickSnapshot {
+    const keepAlive = (now: HeroSnapshot[], before: HeroSnapshot[]): HeroSnapshot[] =>
+      now.map((h) => (h.alive ? h : (before.find((b) => b.id === h.id && b.alive) ?? h)));
+    const playerHeroes = keepAlive(snapshot.playerHeroes, this.lastPlayerHeroes);
+    const enemyHeroes = keepAlive(snapshot.enemyHeroes, this.lastEnemyHeroes);
+    if (playerHeroes.every((h, i) => h === snapshot.playerHeroes[i]) && enemyHeroes.every((h, i) => h === snapshot.enemyHeroes[i])) {
+      return snapshot;
+    }
+    return { ...snapshot, playerHeroes, enemyHeroes };
+  }
+
+  /** The end of a fight, in order: the last hit lands, the last bodies fall
+   * and stay down for a beat, then VICTORY / DEFEAT shows. */
+  private finishFight(snapshot: TickSnapshot, heldDowns: string[], outcome: "win" | "loss"): void {
+    const gen = this.resolveGen;
+    const hitWaitMs = Math.max(0, this.lastImpactAt - performance.now()) + 40;
+    setTimeout(() => {
+      if (gen !== this.resolveGen) return;
+      this.updateSide(this.playerHeroes, snapshot.playerHeroes, snapshot);
+      this.updateSide(this.enemyHeroes, snapshot.enemyHeroes, snapshot);
+      this.lastPlayerHpFraction = snapshot.playerMaxHp > 0 ? snapshot.playerHp / snapshot.playerMaxHp : 0;
+      this.lastPlayerHeroes = snapshot.playerHeroes;
+      this.lastEnemyHeroes = snapshot.enemyHeroes;
+      for (const id of heldDowns) this.showHeroDown(id);
+      setTimeout(
+        () => {
+          if (gen !== this.resolveGen) return;
+          this.showResolve(outcome);
+          this.resolveShown = true;
+          const callbacks = this.resolveCallbacks;
+          this.resolveCallbacks = [];
+          for (const cb of callbacks) cb();
+        },
+        heldDowns.length > 0 ? FINAL_DEATH_HOLD_MS : 0,
+      );
+    }, hitWaitMs);
+  }
+
+  /** Runs `cb` once VICTORY / DEFEAT is on screen (at once if it already is). */
+  onResolveShown(cb: () => void): void {
+    if (this.resolveShown) cb();
+    else this.resolveCallbacks.push(cb);
+  }
+
+  /** Marks that a hit, heal or slam finishes landing `delayMs` from now. */
+  private noteImpact(delayMs: number): void {
+    this.lastImpactAt = Math.max(this.lastImpactAt, performance.now() + delayMs);
   }
 
   reset(): void {
+    this.resolveGen++;
+    this.lastImpactAt = 0;
+    this.resolveShown = false;
+    this.resolveCallbacks = [];
     this.resolveOverlay.classList.add("hidden");
     this.resolveOverlay.textContent = "";
     this.calloutQueue = [];
@@ -1503,6 +1593,7 @@ export class FightView {
 
     // Impact lands when the tracer arrives, not at t=0 — the flight itself
     // is a second attribution cue ("that one is heading for Cairn").
+    this.noteImpact(flightMs);
     setTimeout(() => {
       target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
       pulseClass(target.core, "flinch", 300);
@@ -1541,8 +1632,10 @@ export class FightView {
       // A heal under half a point has nothing to show, same as a chain heal's "+0".
       if (Math.round(amount) > 0) this.showPopup(target.body, `+${Math.round(amount)}`, "heal", 1, 0, HEAL_ACCENT);
     };
-    if (healer) setTimeout(land, TRACER_MS);
-    else land();
+    if (healer) {
+      this.noteImpact(TRACER_MS);
+      setTimeout(land, TRACER_MS);
+    } else land();
   }
 
   /** The shared quiet-register tell: text on a named hero's own status line
@@ -1717,6 +1810,7 @@ export class FightView {
         // (DECISIONS.md, 2026-08-06 "spectacle gated on the outcome") — they
         // land with the swing's own end, the same moment `land()` plays the
         // impact, not at the swing's start.
+        this.noteImpact(SLAM_SWING_MS + 60);
         this.startAimSwing(sourceId, attacker.body, originalTarget.body, targetId, target.body, () => {
           el.classList.remove("swing-save", "swing-betray");
           if (gen !== this.windupGen) return; // reset() happened mid-swing — see windupGen's docstring
@@ -1749,6 +1843,7 @@ export class FightView {
 
     if (attacker) {
       this.fireTracer(attacker.body, target.body, WINDUP_ACCENT, 8);
+      this.noteImpact(TRACER_MS);
       setTimeout(heldLand, TRACER_MS);
     } else {
       heldLand();
@@ -1911,8 +2006,10 @@ export class FightView {
         pulseClass(this.chainHud, "emphasize", 500);
       }
     };
-    if (attacker && target) setTimeout(land, chainFlightMs);
-    else land();
+    if (attacker && target) {
+      this.noteImpact(chainFlightMs);
+      setTimeout(land, chainFlightMs);
+    } else land();
   }
 
   /** The chain's ending, owning the handoff from "live" through an optional

@@ -58,13 +58,33 @@ const FATIGUE_PICK_WEIGHT = 0.005;
  * -> Play even as the roster grows or shrinks — the default adapts
  * automatically. */
 export function defaultFieldPick(roster: RosterState, fieldSize: number): string[] {
+  return pickSquad(roster, fieldSize, []);
+}
+
+/** The pre-ticked squad on the round screen: last round's squad stays as it
+ * was (minus anyone who has since died), and only empty slots are filled the
+ * way defaultFieldPick fills them. A tired hero is never swapped out for a
+ * fresher one — players found that confusing. */
+export function carryOverFieldPick(roster: RosterState, fieldSize: number, previous: string[]): string[] {
+  return pickSquad(roster, fieldSize, previous);
+}
+
+function pickSquad(roster: RosterState, fieldSize: number, keep: string[]): string[] {
   const living = livingRosterHeroes(roster);
   const hpFrac = (h: HeroState) => (h.maxHp > 0 ? h.hp / h.maxHp : 0) - h.fatigue * FATIGUE_PICK_WEIGHT;
   const pickedIds = new Set<string>();
   const picked: string[] = [];
 
+  for (const id of keep) {
+    if (picked.length >= fieldSize) break;
+    if (pickedIds.has(id) || !living.some((h) => h.id === id)) continue;
+    picked.push(id);
+    pickedIds.add(id);
+  }
+
   for (const role of FIELD_ROLE_ORDER) {
     if (picked.length >= fieldSize) break;
+    if (living.some((h) => h.role === role && pickedIds.has(h.id))) continue;
     const best = living
       .filter((h) => h.role === role && !pickedIds.has(h.id))
       .sort((a, b) => hpFrac(b) - hpFrac(a))[0];

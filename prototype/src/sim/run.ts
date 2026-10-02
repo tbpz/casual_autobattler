@@ -258,6 +258,12 @@ export function runRun(
       continue;
     }
 
+    // The final round's win ends the run — no offers to pick from.
+    if (i === cfg.roundsPerRun - 1) {
+      rounds.push(summarizeWin(i, result, null, roster, fieldedIds));
+      continue;
+    }
+
     const offers = drawOffers(offerRng, progress, roster, cfg, i);
     progress = noteIntroduced(progress, offers);
     let offerTaken: Offer | null = null;

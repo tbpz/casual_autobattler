@@ -5,7 +5,7 @@ import type { RunProgress } from "../sim/progress.js";
 import { CARD_DEFS, DUO_IDS, cardConnects, duoUnlocked } from "../sim/cards/index.js";
 import { squadChainEffects } from "../sim/offers.js";
 import { chainStrongerCount, heldCards } from "../sim/progress.js";
-import { defaultFieldPick, type RosterState } from "../sim/roster.js";
+import type { RosterState } from "../sim/roster.js";
 import { roundEnemySide, ROUND_PLAN } from "../sim/rounds.js";
 import type { EncounterKind } from "../sim/encounters.js";
 import {
@@ -85,6 +85,7 @@ export function renderRoundScreen(
   // round's own kind. Kept in the signature so app.ts's call site doesn't
   // need to change.
   _roundKind: EncounterKind,
+  preticked: string[],
   onPlay: (fieldedIds: string[]) => void,
 ): void {
   container.innerHTML = "";
@@ -156,7 +157,7 @@ export function renderRoundScreen(
 
   const enemyPreview = roundEnemySide(cfg, roundIndex, encounterIndex);
   const fieldSize = progress.slots;
-  const selected = new Set<string>(defaultFieldPick(roster, fieldSize));
+  const selected = new Set<string>(preticked);
 
   // ---------- header: round counter + progress bar ----------
   const header = document.createElement("div");

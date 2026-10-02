@@ -98,6 +98,7 @@ export function mountApp(root: HTMLElement): void {
       session.currentEncounterName,
       session.currentEncounterBlurb,
       session.currentRoundKind,
+      session.defaultFielding,
       (fieldedIds) => {
         pendingFieldedIds = fieldedIds;
         playCurrentFight();
@@ -121,7 +122,7 @@ export function mountApp(root: HTMLElement): void {
     playback = new Playback(
       result,
       (snapshot, events) => view.render(snapshot, events),
-      () => onFightEnd(result),
+      () => onFightEnd(result, view),
       cfg.fight.chainFullTellThreshold,
       (simT) => view.renderFrame(simT),
     );
@@ -149,17 +150,19 @@ export function mountApp(root: HTMLElement): void {
     appendSeedBadge(root, session);
   }
 
-  function onFightEnd(result: ReturnType<RunSession["playNextRound"]>): void {
-    // Small pause so the resolve overlay (VICTORY/DEFEAT) is actually seen
-    // before the screen changes underneath it.
-    setTimeout(() => {
-      if (session.status === "over") {
-        showRunOver();
-        return;
-      }
-      renderRoundRecap(root, session.currentRoundIndex, result, session.lastProjection, showReward, testMode);
-      appendSeedBadge(root, session);
-    }, 900);
+  function onFightEnd(result: ReturnType<RunSession["playNextRound"]>, view: FightView): void {
+    // The overlay (VICTORY/DEFEAT) only shows after the last hit lands and the
+    // last body falls, so the pause starts from when it appears, not from now.
+    view.onResolveShown(() => {
+      setTimeout(() => {
+        if (session.status === "over") {
+          showRunOver();
+          return;
+        }
+        renderRoundRecap(root, session.currentRoundIndex, result, session.lastProjection, showReward, testMode);
+        appendSeedBadge(root, session);
+      }, 900);
+    });
   }
 
   // After a win's recap: the relic pick on the relic round, the normal offers on

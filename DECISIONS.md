@@ -10,6 +10,22 @@
 
 ---
 
+## [2026-10-02] The pick screen keeps last round's squad
+
+- **Decision:**
+  - The round screen pre-ticks the squad fielded last round, minus any hero who has died.
+  - Only an empty slot is filled automatically, by the old default rule (missing role first, then best remaining).
+  - A living hero is never swapped out for being tired; resting a hero is the player's call.
+  - The first round of a run uses the old default pick.
+  - The headless sim keeps the rotating default (`defaultFieldPick`); only the screen uses `carryOverFieldPick`, both in `sim/roster.ts`.
+- **Why:**
+  - With 4 or more heroes the old default swapped fresher heroes in every round, and players were confused when their picks changed unasked.
+- **Replaces:**
+  - The round screen's use of `defaultFieldPick` for its pre-ticked squad.
+  - Accepted cost: a player who only taps Play keeps the same heroes, and their fatigue keeps rising.
+  - With a rested hero on the bench no Rest offer is forced, because `restForceAnyAt` ships off (2026-10-02 fatigue entry).
+  - Not covered: batch numbers model a bot that rotates, so a tap-Play player's fatigue is unmeasured.
+
 ## [2026-10-02] Marks and guard pips are drawn on the body, not in a row
 
 - **Decision:**

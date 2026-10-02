@@ -11,7 +11,7 @@ import { project, type Projection } from "../sim/projection.js";
 import {
   applyFightResultToRoster,
   canFieldSquad,
-  defaultFieldPick,
+  carryOverFieldPick,
   fieldSquad,
   livingRosterHeroes,
   type RosterState,
@@ -185,7 +185,7 @@ export class RunSession {
   /** The accept-default squad-mix pick — pre-checked on the round screen so
    * the minimum path stays Play -> watch -> Play. */
   get defaultFielding(): string[] {
-    return defaultFieldPick(this.roster, this.progressValue.slots);
+    return carryOverFieldPick(this.roster, this.progressValue.slots, this.fieldedThisRound);
   }
 
   /** Whether the roster can even field a full squad for the next round. */
@@ -207,7 +207,10 @@ export class RunSession {
    * NOT apply one — call resolveOffer() once the player (or the
    * accept-default) picks. */
   playNextRound(fieldedIds?: string[]): FightResult {
-    const ids = fieldedIds ?? this.defaultFielding;
+    // Read before fieldedThisRound is overwritten: the round log records what
+    // the screen pre-ticked, which depends on last round's squad.
+    const defaultIds = this.defaultFielding;
+    const ids = fieldedIds ?? defaultIds;
     this.fieldedThisRound = ids;
     const player = fieldSquad(this.roster, ids, this.progressValue);
     const enemy = roundEnemySide(this.cfg, this.roundIndex, this.currentEncounterIndex);
@@ -237,7 +240,7 @@ export class RunSession {
       encounterIndex: this.currentEncounterIndex,
       encounterName: this.currentEncounterName,
       fieldedIds: [...ids],
-      defaultFieldedIds: this.defaultFielding,
+      defaultFieldedIds: defaultIds,
       squad,
       progressBefore,
       projection: this.lastProjection,
@@ -261,6 +264,11 @@ export class RunSession {
     if (this.roundIndex === this.cfg.relicRound) {
       this.pendingOffers = [];
       this.awaitingRelic = this.canFieldNextRound;
+      return result;
+    }
+    // The final round's win ends the run — no offers to pick from.
+    if (this.roundIndex === this.cfg.roundsPerRun - 1) {
+      this.pendingOffers = [];
       return result;
     }
     this.pendingOffers = drawOffers(this.offerRng, this.progressValue, this.roster, this.cfg, this.roundIndex);
