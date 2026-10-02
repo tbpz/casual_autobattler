@@ -692,16 +692,34 @@ body {
   background: var(--windup);
 }
 
-/* Bracer's guard, as a standing "N slams covered" row (2026-09-15
-   guard-visibility pass) — a direct slot child, same shape as
-   .charge-track/.charge-label above. Hidden by default; fightView.ts's
-   updateSide reveals it (.show) only on the hero who is the CURRENT
-   guardian, with charges > 0 (SideState.guardHeroId/guardCharges) — never on
-   the enemy side, since guardHeroId is always a player hero id. */
+/* Bracer's guard, as a standing "N slams covered" readout (2026-09-15
+   guard-visibility pass) — a direct slot child. Hidden by default;
+   fightView.ts's updateSide reveals it (.show) only on the hero who is the
+   CURRENT guardian, with charges > 0 (SideState.guardHeroId/guardCharges) —
+   never on the enemy side, since guardHeroId is always a player hero id.
+   2026-10-02 (design/canvas MarkSlots, option A): drawn ON the body, in a
+   dark pill (the freeze timer's own pill style) in the upper part of it,
+   instead of an in-flow row under the HP number. Higher than centre so a
+   frozen guarding tank still shows its freeze countdown, which is centred. The row only took height while a tank was
+   guarding, so each guard starting or ending grew and shrank the card and
+   shoved the centre line, the player row and the callout band — same bug the
+   freeze ring was moved out of layout for (2026-09-16). Absolute, so it takes
+   no room either way. A slot child (not a perch child) on purpose: the perch
+   carries the back-rank dim and the hit-pop transform, and a pill inside it
+   would be dimmed and would jump with every pop. */
 .guard-pips {
   display: none;
+  position: absolute;
+  top: calc(var(--body-size, 40px) * 0.25);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  background: rgba(20, 22, 28, 0.85);
+  pointer-events: none;
 }
 
 .guard-pips.show {
@@ -713,8 +731,8 @@ body {
 }
 
 .guard-pip {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 2px;
   background: var(--track-bg);
   border: 1px solid var(--track-border);
@@ -2717,11 +2735,24 @@ button:disabled {
 }
 
 /* Marks and payoff cards (2026-09-30). */
+
+/* The Exposed / Burn badges are drawn ON the body, straddling its bottom edge
+   (2026-10-02, design/canvas MarkSlots, option A) — out of layout, so a mark
+   landing or wearing off can no longer grow the card and shove the field. The
+   old in-flow row sat under the HP number with no height until a badge
+   showed. Centred on the body's bottom edge with translate(-50%, -50%), so the
+   row's own height doesn't matter. A slot child, not a perch child, for the
+   reason given at .guard-pips above. */
 .mark-row {
+  position: absolute;
+  top: var(--body-size, 40px);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
   display: flex;
-  justify-content: center;
-  gap: 3px;
-  min-height: 0;
+  gap: 2px;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .mark-badge {

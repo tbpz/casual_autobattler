@@ -4,9 +4,9 @@
 **Source files:** `design/canvas/*.dc.html`, `design/canvas/canvas.json` — edit these, then republish (see
 "Publishing" below). Don't hand-edit `fight-field-layout.html`; it's a build output, regenerated on publish.
 
-## What's on the canvas (2026-09-30 cleanup; frame 7 added 2026-10-01)
+## What's on the canvas (2026-09-30 cleanup; frame 7 added 2026-10-01; frame 8 added 2026-10-02)
 
-Seven frames, as still pictures: no motion, no interaction. Colours and sizes are copied from the real code
+Eight frames, as still pictures: no motion, no interaction. Colours and sizes are copied from the real code
 (`prototype/src/style.css`, `render/roundScreen.ts`, `render/fightView.ts`), so a change here is a real proposal.
 Units, HP and fatigue values are made up for the picture, not read from a run.
 
@@ -26,6 +26,14 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
 7. **ShieldBar** — built 2026-10-01 (`render/fightView.ts`, `render/hpBar.ts`, `style.css` `.hp-shield-fill`; `DECISIONS.md` "Shield shows as a segment on the HP bar"), with number placement A. The frame's own label on the published canvas still says "proposal, not built". Nine states of the HP bar with a
    teal shield segment (today's badge, under max, over max with rescale, a hit eating shield, draining while over max, a break flash, a 4-point
    sliver, the Aegis cap, an enemy), plus the number-placement choice. Bars are drawn wider than on a phone.
+8. **MarkSlots** — **built 2026-10-02, option A** (`style.css` `.mark-row` / `.guard-pips`; comments in `render/fightView.ts`). The bug: the Exposed / Burn badge
+   row and a guarding tank's pip row were in-flow rows that didn't exist until needed, so a mark landing grew the card and shoved the centre line, the
+   player row and the callout band. Tu picked A of three (B: reserved rows, +30px of field even at rest; C: a stack beside the body); B and C were removed from
+   the frame. The frame shows the bug and A as "nothing held" / "marks landed" pairs with dashed guide lines showing what moved, plus six edge cases.
+   How A is built: both are absolute **slot** children (not perch children, so the back-rank dim and hit-pop don't touch them). Badges are centred on the
+   body's bottom edge. The guard pips sit in a dark pill at 25% down the body, not centred, so a frozen guarding tank still shows its centred freeze timer.
+   Five pips (`GUARD_PIP_CAP`) just fit a 52px tank body. Cost: the badges cover a slice of the chain ring at 6 o'clock and the lower edge of small bodies.
+   The frame is generated from a scratch script, so edit the `.dc.html` by hand from here on.
 
 Round-screen idea, in one paragraph: units are grouped by role. One band per role holds its icon, one chip per ability
 the chain has picked up ("guard", "freeze"), a `+N` badge once the chain has been made stronger (never the word "level"), and a ✓

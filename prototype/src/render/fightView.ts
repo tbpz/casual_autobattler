@@ -113,8 +113,9 @@ interface HeroSlot {
    * player heroes hitting the front-most enemy) so overlapping numbers
    * separate instead of stacking at one pixel. */
   offsetIndex: number;
-  /** A standing "N slams covered" row (2026-09-15 guard-visibility pass) —
-   * player-side only, built for every slot for simplicity and hidden by
+  /** A standing "N slams covered" readout (2026-09-15 guard-visibility pass),
+   * drawn on the body in a pill, out of layout (2026-10-02) — player-side
+   * only, built for every slot for simplicity and hidden by
    * style.css on the enemy side (same convention as chargeFill). Snapshot-
    * driven off SideState.guardHeroId/guardCharges/guardInverted every tick
    * (updateSide), not event-driven, so it stays correct under pause/step/
@@ -122,8 +123,9 @@ interface HeroSlot {
   guardPips: HTMLElement;
   guardPipEls: HTMLElement[];
   guardCount: HTMLElement;
-  /** Exposed / Burn badges (2026-09-30, marks and payoffs) — a row under the
-   * name that shows each mark's stack count, hidden at zero. Shield is not
+  /** Exposed / Burn badges (2026-09-30, marks and payoffs) — a strip over the
+   * body's bottom edge, out of layout (2026-10-02) so a mark landing never
+   * resizes the card. Shows each mark's stack count, hidden at zero. Shield is not
    * here: it is a segment on the HP bar (hpShieldFill). Built for every slot on
    * both sides (a backfire puts marks on the player's own side) and driven
    * every tick off HeroSnapshot.marks (updateSide), not off events, so it stays
@@ -2393,7 +2395,8 @@ function makeHeroSlot(
   chargeLabel.className = isSlamBar ? "charge-label windup" : "charge-label";
   chargeLabel.textContent = isSlamBar ? "SLAM" : "CHAIN";
 
-  // Guard row (2026-09-15 guard-visibility pass) — built for every slot for
+  // Guard pips (2026-09-15 guard-visibility pass; since 2026-10-02 a pill on
+  // the body, out of layout) — built for every slot for
   // simplicity, same convention as chargeTrack above; style.css hides it on
   // the enemy side, since only a player hero is ever the guardian. Hidden by
   // default (updateSide only reveals it while this hero IS the live
@@ -2413,6 +2416,8 @@ function makeHeroSlot(
 
   // Mark badges (2026-09-30) — one small pill per stack mark, hidden until it
   // has stacks; see HeroSlot.markBadges. Shield is drawn on the HP bar instead.
+  // The row is absolutely positioned over the body's bottom edge (style.css
+  // .mark-row), so it never takes layout room.
   const markRow = document.createElement("div");
   markRow.className = "mark-row";
   const markBadges = {} as HeroSlot["markBadges"];

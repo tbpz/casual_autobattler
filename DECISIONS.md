@@ -10,6 +10,26 @@
 
 ---
 
+## [2026-10-02] Marks and guard pips are drawn on the body, not in a row
+
+- **Decision:**
+  - Exposed/Burn badges and a guarding tank's pips are overlays on the unit's body, out of layout.
+  - Badges straddle the body's bottom edge; the guard pips sit in a dark pill on the body.
+  - A reserved row under the HP number and a stack beside the body were drawn on canvas frame 8 and rejected.
+  - Both options are removed from the canvas.
+  - The pill sits above the body's centre so a frozen guarding tank still shows its freeze timer.
+  - The values live in `style.css` (`.mark-row`, `.guard-pips`); the change is in git.
+- **Why:**
+  - The old rows took height only while a mark was held, so each mark landing grew the card and shoved the centre line, the player row and the callout band.
+  - The freeze ring was moved out of layout for the same bug on 2026-09-16.
+  - A reserved row fixes the jump but costs field height all fight, even with no mark held.
+  - A side stack takes no room but collides with a neighbour's fatigue pips at tight gaps.
+  - Checked 2026-10-02 on a paused fight: with marks and guard injected on every unit, every layout rectangle measured identical.
+  - Accepted cost: badges cover a slice of the chain ring at 6 o'clock and the lower edge of small bodies.
+- **Replaces:**
+  - The in-flow `.mark-row` and `.guard-pips` rows from the 2026-09-30 marks pass and the 2026-09-15 guard-visibility pass.
+  - Not covered: how it reads on a phone with real stack sizes is unchecked until played.
+
 ## [2026-10-02] Ease fatigue and backfire, keep Recruit common, make enemies pay for it
 
 - **Decision:**
