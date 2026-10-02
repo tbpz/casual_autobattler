@@ -51,14 +51,22 @@ In the browser, the lab takes the same thing from the URL:
 The batch report now ends with a **synergy** block (`src/batch/synergy.ts`): best and
 worst cards by win-over-expected per fight, the best card *pairs* by lift over the better
 card (a pair that wins far more together than either alone is a duo waiting to be
-named), and per-relic mean rounds won. Read it off `--offers build`; `greedy` rarely
-takes cards. "card triggers" replaces the old "payoff triggers" line.
+named), a "rarely fires" line (cards that raised no trigger in over half the fights they
+were held for — Aegis and Mercenary are passive and left out), and per-relic mean rounds won.
+Read it off `--offers build`; `greedy` rarely takes cards. "card triggers" replaces the old "payoff triggers" line.
 
 New checks, all part of `npm run check`: `check:cards` (the event engine: order,
 cascade cap, cause tags, determinism), `check:abilities` (the six new chain abilities,
 the upgrade pools and the per-run draw), `check:cardpool` (every card fires in a forced
 scenario; relics; duo unlock rules), `check:collection` (the cross-run collection's
 storage rules).
+
+**Export log (2026-10-02).** Every screen's bottom-right corner reads `seed N · export`;
+clicking `export` downloads `run-<seed>-r<rounds>-<HHMM>.json` with the run so far — relic,
+cards and each role's abilities going into every round, the offers shown and taken, and per
+fight the chains, card triggers, per-unit damage/soak/heal and the full event list. A later
+export from the same run is a superset of an earlier one. Built by `src/log/runLog.ts`,
+pinned by `check:runlog`.
 
 The collection lives in `localStorage` under `autobattler.collection.v1` and is opened
 from the relic screen that starts every run.

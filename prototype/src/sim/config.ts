@@ -471,7 +471,7 @@ export interface FightConfig {
    * bigger Weak spot); `crackThreshold` stacks make an enemy freeze for
    * `crackFreezeSec` and cost `crackSpendStacks`; `hunterMarkStacks` land on
    * the front enemy when a chain starts. Frozen: `coldSnapSec` freeze on a
-   * backfire; `brittleExposeStacks` when a freeze ends; Frostbite gives
+   * backfire; `brittleExposePerSec` Exposed stacks per second of freeze (at least one a rung); Frostbite gives
    * `frostbiteBurnPerSec` Burn stacks per second of freeze; Permafrost adds
    * `permafrostChainBonus` to a chain's continue chance while any enemy is
    * frozen. Burn: Kindling adds `kindlingBurn` per Damage attack; Inferno adds
@@ -499,7 +499,7 @@ export interface FightConfig {
   crackFreezeSec: number;
   hunterMarkStacks: number;
   coldSnapSec: number;
-  brittleExposeStacks: number;
+  brittleExposePerSec: number;
   frostbiteBurnPerSec: number;
   permafrostChainBonus: number;
   kindlingBurn: number;
@@ -1026,7 +1026,7 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   crackFreezeSec: 1,
   hunterMarkStacks: 1,
   coldSnapSec: 1.5,
-  brittleExposeStacks: 2,
+  brittleExposePerSec: 0.5,
   frostbiteBurnPerSec: 2,
   permafrostChainBonus: 0.15,
   kindlingBurn: 1,

@@ -1,4 +1,4 @@
-import type { CardId } from "../sim/cards/index.js";
+import { CARD_DEFS, type CardId } from "../sim/cards/index.js";
 import type { RunResult } from "../sim/run.js";
 
 /**
@@ -48,12 +48,27 @@ export interface PairScore {
   lift: number;
 }
 
+export interface FireRate {
+  card: CardId;
+  /** Fights this card was held for. */
+  fights: number;
+  /** Share of those fights in which it raised at least one trigger. */
+  rate: number;
+  /** Triggers per fight held. */
+  perFight: number;
+}
+
 export interface SynergyReport {
   baselineWinRate: number;
   /** Cards (relics included) held for at least `minRounds` fights, best first. */
   cards: CardScore[];
   /** Pairs held together for at least `minRounds` fights, best lift first. */
   pairs: PairScore[];
+  /** How often each held card actually fires (2026-10-02), fewest first. A card
+   * that is held often and almost never fires is dead weight to the player,
+   * however good its text reads. Passive cards (Aegis, Mercenary) raise no
+   * trigger by design and are left out. */
+  fireRates: FireRate[];
   /** Per relic: runs that took it and how many were completed. */
   relics: { relic: CardId; runs: number; completed: number; meanRoundsWon: number }[];
   minRounds: number;
@@ -65,6 +80,7 @@ export class SynergyTracker {
   private readonly single = new Map<CardId, Counts>();
   private readonly pair = new Map<string, Counts>();
   private readonly relicRuns = new Map<CardId, { runs: number; completed: number; roundsWon: number }>();
+  private readonly fires = new Map<CardId, { fights: number; fired: number; triggers: number }>();
 
   constructor(roundsPerRun: number) {
     this.roundsPerRun = roundsPerRun;
@@ -94,6 +110,16 @@ export class SynergyTracker {
     r.rounds.forEach((round, i) => {
       const held = r.heldByRound[i] ?? [];
       const won = round.outcome === "win";
+      const triggered = new Map<string, number>();
+      for (const e of r.fightResults[i]?.events ?? []) if (e.type === "cardTriggered") triggered.set(e.card, (triggered.get(e.card) ?? 0) + 1);
+      for (const card of held) {
+        const f = this.fires.get(card) ?? { fights: 0, fired: 0, triggers: 0 };
+        const n = triggered.get(card) ?? 0;
+        f.fights++;
+        if (n > 0) f.fired++;
+        f.triggers += n;
+        this.fires.set(card, f);
+      }
       this.all.rounds[i]!++;
       if (won) this.all.wins[i]!++;
       for (let x = 0; x < held.length; x++) {
@@ -141,10 +167,17 @@ export class SynergyTracker {
     }
     pairs.sort((x, y) => y.lift - x.lift);
 
+    const fireRates: FireRate[] = [];
+    for (const [card, f] of this.fires) {
+      if (f.fights < minRounds || CARD_DEFS[card].passive) continue;
+      fireRates.push({ card, fights: f.fights, rate: f.fired / f.fights, perFight: f.triggers / f.fights });
+    }
+    fireRates.sort((a, b) => a.rate - b.rate);
+
     const relics = [...this.relicRuns.entries()]
       .map(([relic, e]) => ({ relic, runs: e.runs, completed: e.completed, meanRoundsWon: e.runs > 0 ? e.roundsWon / e.runs : 0 }))
       .sort((a, b) => b.meanRoundsWon - a.meanRoundsWon);
-    return { baselineWinRate: totalRounds > 0 ? totalWins / totalRounds : 0, cards, pairs, relics, minRounds };
+    return { baselineWinRate: totalRounds > 0 ? totalWins / totalRounds : 0, cards, pairs, fireRates, relics, minRounds };
   }
 }
 
@@ -158,6 +191,10 @@ export function formatSynergy(s: SynergyReport): string[] {
   const bottom = s.cards.slice(-4).reverse().map((c) => `${c.card} ${pct(c.woe)}`);
   lines.push(`    best cards:        ${top.join("  ")}`);
   lines.push(`    worst cards:       ${bottom.join("  ")}`);
+  const rare = s.fireRates.filter((f) => f.rate < 0.5).slice(0, 10);
+  if (rare.length > 0) {
+    lines.push(`    rarely fires (% of fights held, under 50%): ${rare.map((f) => `${f.card} ${(f.rate * 100).toFixed(0)}%`).join("  ")}`);
+  }
   if (s.pairs.length > 0) {
     lines.push(
       `    best pairs (lift over the better card): ` +

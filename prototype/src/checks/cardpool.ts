@@ -17,7 +17,7 @@ import { runFight } from "../sim/fight.js";
 import { makeSquadFromRoles, type PlayerRole } from "../sim/roles.js";
 import { makeEnemySide, makeOfferPolicy, runRun } from "../sim/run.js";
 import { RunSession } from "../render/runSession.js";
-import { CARD_DEFS, CARD_IDS, duoUnlocked } from "../sim/cards/index.js";
+import { CARD_DEFS, CARD_IDS, cardConnects, duoUnlocked, marksMadeBy } from "../sim/cards/index.js";
 import type { CardId } from "../sim/cards/index.js";
 import type { FightResult } from "../sim/events.js";
 import { Rng as RelicRng } from "../sim/rng.js";
@@ -252,6 +252,38 @@ for (const [id, scenario] of Object.entries(SCENARIOS) as [CardId, Scenario][]) 
   check("duo: Thermal shock needs Shatter and something that makes burn", !duoUnlocked("thermalShock", ["scorch"], []) && !duoUnlocked("thermalShock", ["expose"], ["shatter"]) && duoUnlocked("thermalShock", ["scorch"], ["shatter"]));
   check("duo: a held card that makes burn counts (Kindling feeds Thermal shock)", duoUnlocked("thermalShock", ["expose"], ["shatter", "kindling"]));
   check("duo: a bridge only counts when fed — Frostbite without frozen makes no burn", !duoUnlocked("thermalShock", ["expose"], ["shatter", "frostbite"]));
+}
+
+// --- Brittle pays out as a freeze lands, not when it ends (2026-10-02): a chain's Freeze
+// stacks to ~10 s and the enemy usually dies first, so a thaw trigger never fired.
+{
+  let sameInstant = false;
+  let diedFrozen = false;
+  for (const [round, enc] of TRIES) {
+    for (let seed = 1; seed <= 6 && !(sameInstant && diedFrozen); seed++) {
+      const result = play("brittle", freezeTank, round, enc, seed);
+      const freezes = result.events.filter((e) => e.type === "chainHit" && e.kind === "stun" && !e.backfire);
+      const first = freezes[0];
+      if (first && result.events.some((e) => e.type === "cardTriggered" && e.card === "brittle" && e.t === first.t)) sameInstant = true;
+      // An enemy that falls while a freeze is still running never thaws.
+      for (const f of freezes) {
+        if (f.type !== "chainHit" || f.targetId === null) continue;
+        const down = result.events.find((e) => e.type === "heroDown" && e.side === "enemy" && e.heroId === f.targetId);
+        if (down && down.t > f.t && triggers(result, "brittle") > 0) diedFrozen = true;
+      }
+    }
+  }
+  check("Brittle: it fires at the instant a Freeze rung lands", sameInstant);
+  check("Brittle: it fires for a frozen enemy that dies before the freeze ends", diedFrozen);
+}
+
+// --- Mend is not a Shield source (2026-10-02): it only shields past full HP.
+{
+  const base: ChainEffect[] = ["guard", "expose", "mend"];
+  check("shield: the three base abilities make no Shield", !marksMadeBy(base).has("shield"));
+  check("shield: Ward, Brace and Siphon each make Shield", (["ward", "brace", "siphon"] as ChainEffect[]).every((e) => marksMadeBy([...base, e]).has("shield")));
+  check("shield: Spiked shield does not connect to the base squad, and does with Ward", !cardConnects("spikedShield", base) && cardConnects("spikedShield", [...base, "ward"]));
+  check("shield: a held Bastion-style maker still feeds it", cardConnects("spikedShield", base, ["bastion"]));
 }
 
 if (failed) process.exit(1);

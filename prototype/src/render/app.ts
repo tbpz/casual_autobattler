@@ -9,6 +9,7 @@ import { renderRoundScreen } from "./roundScreen.js";
 import { renderOfferScreen } from "./offerScreen.js";
 import { renderRelicScreen } from "./relicScreen.js";
 import { renderCollectionScreen } from "./collectionScreen.js";
+import { downloadRunLog } from "../log/download.js";
 import {
   loadCollection,
   recordRelic,
@@ -37,11 +38,22 @@ const urlParams = new URLSearchParams(location.search);
 const testMode = urlParams.get("test") === "1";
 const pinnedSeed = urlParams.get("seed");
 
-/** The seed corner badge, present on every screen. */
-function appendSeedBadge(root: HTMLElement, seed: number): void {
+/** The seed corner badge, present on every screen, with an "export" link that
+ * downloads the run so far as JSON (log/runLog.ts). Each click writes every
+ * round played to that point, so the last file from a run is the full record. */
+function appendSeedBadge(root: HTMLElement, session: RunSession): void {
   const badge = document.createElement("div");
   badge.className = "seed-badge";
-  badge.textContent = `seed ${seed}`;
+  badge.textContent = `seed ${session.seed} · `;
+  const exportLink = document.createElement("a");
+  exportLink.className = "export-log-link";
+  exportLink.href = "#";
+  exportLink.textContent = "export";
+  exportLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    downloadRunLog(session, cfg);
+  });
+  badge.appendChild(exportLink);
   root.appendChild(badge);
 }
 
@@ -68,6 +80,13 @@ export function mountApp(root: HTMLElement): void {
     saveCollection(next, storage());
   }
 
+  // The Collection screen, with the same seed/export badge as every other
+  // screen. `back` is the screen it was opened from.
+  function showCollection(back: () => void): void {
+    renderCollectionScreen(root, collection, back);
+    appendSeedBadge(root, session);
+  }
+
   // The round 1 reward (2026-10-01): pick a relic. No row is pre-selected, and the
   // Collection button only shows once a run has ended — before that it is empty.
   function showRelicScreen(): void {
@@ -79,9 +98,9 @@ export function mountApp(root: HTMLElement): void {
         session.pickRelic(id);
         afterRoundResolved();
       },
-      collection.runsEnded > 0 ? () => renderCollectionScreen(root, collection, showRelicScreen) : undefined,
+      collection.runsEnded > 0 ? () => showCollection(showRelicScreen) : undefined,
     );
-    appendSeedBadge(root, session.seed);
+    appendSeedBadge(root, session);
   }
 
   function startNewRun(): void {
@@ -109,14 +128,14 @@ export function mountApp(root: HTMLElement): void {
       session.lastProjection,
       startNewRun,
       testMode,
-      () => renderCollectionScreen(root, collection, showRunOver),
+      () => showCollection(showRunOver),
     );
-    appendSeedBadge(root, session.seed);
+    appendSeedBadge(root, session);
   }
 
   function showRunComplete(): void {
-    renderRunCompleteScreen(root, session.rounds.length, startNewRun, () => renderCollectionScreen(root, collection, showRunComplete));
-    appendSeedBadge(root, session.seed);
+    renderRunCompleteScreen(root, session.rounds.length, startNewRun, () => showCollection(showRunComplete));
+    appendSeedBadge(root, session);
   }
 
   function showRoundScreen(): void {
@@ -135,7 +154,7 @@ export function mountApp(root: HTMLElement): void {
         playCurrentFight();
       },
     );
-    appendSeedBadge(root, session.seed);
+    appendSeedBadge(root, session);
   }
 
   function playCurrentFight(): void {
@@ -178,7 +197,7 @@ export function mountApp(root: HTMLElement): void {
     controls.appendChild(stepBtn);
 
     playback.play();
-    appendSeedBadge(root, session.seed);
+    appendSeedBadge(root, session);
   }
 
   function onFightEnd(result: ReturnType<RunSession["playNextRound"]>): void {
@@ -190,7 +209,7 @@ export function mountApp(root: HTMLElement): void {
         return;
       }
       renderRoundRecap(root, session.currentRoundIndex, result, session.lastProjection, showReward, testMode);
-      appendSeedBadge(root, session.seed);
+      appendSeedBadge(root, session);
     }, 900);
   }
 
@@ -210,7 +229,7 @@ export function mountApp(root: HTMLElement): void {
     // Every card put on screen counts as met, taken or not.
     remember(recordSeen(collection, session.pendingOffers.flatMap((o) => (o.kind === "card" && o.card ? [o.card] : []))));
     renderOfferScreen(root, session.pendingOffers, session.progress.cards, cfg.cardCap, onOfferChosen);
-    appendSeedBadge(root, session.seed);
+    appendSeedBadge(root, session);
   }
 
   function onOfferChosen(offer: Offer | null, dropCardId?: CardId): void {

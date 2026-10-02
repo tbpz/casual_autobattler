@@ -123,6 +123,7 @@ export const MERCENARY: CardDef = {
   title: "Mercenary",
   detail: "A fourth unit of a random role joins your squad.",
   icon: "⚔",
+  passive: true,
   kind: "relic",
   reads: [],
   makes: [],

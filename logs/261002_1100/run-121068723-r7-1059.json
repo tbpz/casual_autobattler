@@ -1,0 +1,8529 @@
+{
+ "about": {
+  "generatedAt": "2026-10-02T03:59:38.017Z",
+  "schemaVersion": 2,
+  "runConfig": {
+   "fight": {
+    "tickRate": 20,
+    "maxFightSec": 180,
+    "tankBreakFraction": 0.03,
+    "tankRecoverFraction": 0.2,
+    "chargeWeightDealt": 1,
+    "chargeWeightSoaked": 0.5,
+    "chargeWeightRestored": 1.5,
+    "chargeThreshold": 45,
+    "chargeTricklePerSec": 6,
+    "enemyHpScale": 1.8,
+    "fatigueMax": 100,
+    "fatigueTierFloors": [
+     25,
+     50,
+     80
+    ],
+    "fatigueSweetSpot": 45,
+    "backfireAtFresh": 0.03,
+    "backfireAtSweetSpot": 0.1,
+    "backfireAtBreaking": 0.55,
+    "fatigueContinuationBonus": 0.1,
+    "fatigueMagnitudeBonus": 0.35,
+    "windupIntervalSec": 5,
+    "windupTelegraphSec": 1.5,
+    "windupDamageMultiplier": 2,
+    "chainChanceByHitsSoFar": [
+     0.7,
+     0.75,
+     0.8,
+     0.85,
+     0.9
+    ],
+    "chainHitMultiplier": 1,
+    "chainMaxHits": 7,
+    "chainContinuationScale": 1,
+    "hotBeatIntervalFactor": 0.6,
+    "chainEscalationKneeHit": 1,
+    "chainEscalationStepMultiplier": 0.3,
+    "chainFullTellThreshold": 5,
+    "tankTargetWeight": 3,
+    "brokenTankTargetWeight": 1,
+    "damageVariance": 0.25,
+    "healMaxFractionOfTargetMaxHp": 0.06,
+    "chainHealMaxFractionOfTargetMaxHp": 0.2,
+    "chainScorchBase": 6,
+    "chainExposeBase": 18,
+    "chainWardBase": 3,
+    "chainMendBase": 4.5,
+    "chainStunBaseSec": 0.75,
+    "chainBraceShieldFraction": 0.04,
+    "chainQuakeBase": 4,
+    "chainFrostboltBase": 9,
+    "chainFrostboltFreezeSec": 0.5,
+    "chainSiphonBase": 9,
+    "chainSiphonHealFraction": 0.6,
+    "chainCauterizeHealBase": 3,
+    "chainCauterizeBurnBase": 3,
+    "chainChillSec": 0.5,
+    "chainGuardChargesPerRung": 1,
+    "exposedDamagePerStack": 0.12,
+    "exposedStackCap": 10,
+    "burnTickSec": 1,
+    "burnDamagePerStack": 3,
+    "burnDecayPerTick": 1,
+    "shieldCapFractionOfMaxHp": 0.5,
+    "chainWardShield": 4,
+    "chainShieldPerLevel": 6,
+    "executeHpFraction": 0.35,
+    "shatterMult": 2,
+    "punishDamagePerStack": 1.5,
+    "deepFreezeMult": 3,
+    "openWoundMult": 3,
+    "spikedShieldExposeStacks": 2,
+    "bulwarkShield": 25,
+    "cascadeMaxDepth": 6,
+    "weakSpotPerStack": 0.25,
+    "crackThreshold": 5,
+    "crackSpendStacks": 2,
+    "crackFreezeSec": 1,
+    "hunterMarkStacks": 1,
+    "coldSnapSec": 1.5,
+    "brittleExposeStacks": 2,
+    "frostbiteBurnPerSec": 2,
+    "permafrostChainBonus": 0.15,
+    "kindlingBurn": 1,
+    "infernoPerTick": 1,
+    "infernoCap": 15,
+    "smokeShieldFraction": 0.5,
+    "overflowFraction": 1,
+    "shieldBashFraction": 0.25,
+    "shatterguardFreezeSec": 1,
+    "aegisCapFraction": 1,
+    "momentumPerChain": 0.1,
+    "momentumCap": 10,
+    "secondWindHpFraction": 0.3,
+    "secondWindChargeFraction": 0.5,
+    "ironHideHpPerStack": 90,
+    "bloodlustChargeFraction": 0.4,
+    "fortressReflectFraction": 0.1,
+    "thermalShockMult": 5,
+    "killingFrostHpFraction": 0.5,
+    "cinderShieldBurn": 2,
+    "phoenixHpFraction": 0.3,
+    "phoenixShield": 20,
+    "wildfireDecayFraction": 0.5,
+    "emberHeartBurn": 5,
+    "frostCrownSec": 4,
+    "huntersEyeStacks": 2,
+    "bastionShieldFraction": 0.08,
+    "restlessChargeFraction": 0.7,
+    "restlessFatigue": 2,
+    "enemyTargetMode": "weighted"
+   },
+   "roundsPerRun": 20,
+   "relicRound": 0,
+   "startingSlots": 3,
+   "maxSlots": 5,
+   "maxRosterSize": 10,
+   "offersPerWin": 3,
+   "chainLevelStep": 1,
+   "chainLevelCap": 5,
+   "cardCap": 8,
+   "cardWeight": 1.2,
+   "cardConnectBoost": 1.5,
+   "duoBoost": 6,
+   "cardGroupWeightCap": 12,
+   "borrowWeightFraction": 0.25,
+   "maxUpgradesPerRole": 2,
+   "upgradeOptionsPerRole": 2,
+   "buildOffersGuaranteed": 1,
+   "statHpStep": 20,
+   "statDamageStep": 2,
+   "healFlatAmount": 30,
+   "reviveHpFraction": 0.5,
+   "autoRecoverFraction": 0.4,
+   "benchedRecoverFraction": 0.6,
+   "fatiguePerFight": 3,
+   "fatiguePerHpLost": 25,
+   "fatiguePerBackfire": 4,
+   "fatigueBenchRest": 12,
+   "restFatigueCut": 30
+  }
+ },
+ "run": {
+  "seed": 121068723,
+  "status": "over",
+  "overReason": "loss",
+  "roundsWon": 6,
+  "relic": "huntersEye",
+  "upgradeOptions": {
+   "tank": [
+    "stun",
+    "brace"
+   ],
+   "damage": [
+    "scorch",
+    "frostbolt"
+   ],
+   "support": [
+    "cauterize",
+    "chill"
+   ]
+  },
+  "finalProgress": {
+   "relic": "huntersEye",
+   "cards": [
+    "spikedShield",
+    "brittle",
+    "weakSpot"
+   ],
+   "chain": {
+    "tank": {
+     "effects": [
+      "guard",
+      "stun"
+     ],
+     "level": 1
+    },
+    "damage": {
+     "effects": [
+      "expose"
+     ],
+     "level": 1
+    },
+    "support": {
+     "effects": [
+      "mend"
+     ],
+     "level": 1
+    }
+   },
+   "bonus": {
+    "tank": {
+     "maxHp": 0,
+     "damage": 0
+    },
+    "damage": {
+     "maxHp": 0,
+     "damage": 0
+    },
+    "support": {
+     "maxHp": 0,
+     "damage": 0
+    }
+   },
+   "slots": 3
+  }
+ },
+ "rounds": [
+  {
+   "roundIndex": 0,
+   "kind": "filler",
+   "encounter": {
+    "index": 0,
+    "name": "Pack"
+   },
+   "squad": [
+    {
+     "id": "u0_tank",
+     "name": "Tank 1",
+     "role": "tank",
+     "hp": 190,
+     "maxHp": 190,
+     "fatigue": 0,
+     "chainEffects": [
+      "guard"
+     ],
+     "chainLevel": 1
+    },
+    {
+     "id": "u1_damage",
+     "name": "Damage 1",
+     "role": "damage",
+     "hp": 80,
+     "maxHp": 80,
+     "fatigue": 0,
+     "chainEffects": [
+      "expose"
+     ],
+     "chainLevel": 1
+    },
+    {
+     "id": "u2_support",
+     "name": "Healer 1",
+     "role": "support",
+     "hp": 100,
+     "maxHp": 100,
+     "fatigue": 0,
+     "chainEffects": [
+      "mend"
+     ],
+     "chainLevel": 1
+    }
+   ],
+   "fieldedIds": [
+    "u0_tank",
+    "u1_damage",
+    "u2_support"
+   ],
+   "defaultFieldedIds": [
+    "u0_tank",
+    "u1_damage",
+    "u2_support"
+   ],
+   "goingIn": {
+    "relic": null,
+    "cards": [],
+    "chain": {
+     "tank": {
+      "effects": [
+       "guard"
+      ],
+      "level": 1
+     },
+     "damage": {
+      "effects": [
+       "expose"
+      ],
+      "level": 1
+     },
+     "support": {
+      "effects": [
+       "mend"
+      ],
+      "level": 1
+     }
+    },
+    "bonus": {
+     "tank": {
+      "maxHp": 0,
+      "damage": 0
+     },
+     "damage": {
+      "maxHp": 0,
+      "damage": 0
+     },
+     "support": {
+      "maxHp": 0,
+      "damage": 0
+     }
+    },
+    "slots": 3
+   },
+   "projection": {
+    "playerDps": 12.657342657342657,
+    "enemyDps": 19.333333333333332,
+    "healPerSec": 4.363636363636363,
+    "killSec": 20.4782320441989,
+    "surviveSec": 24.716599190283404,
+    "spareSec": 4.238367146084503,
+    "margin": 1.2069693876374037,
+    "band": "comfortable",
+    "tankName": "Tank 1",
+    "tankHoldsSec": 25.468592964824122,
+    "lines": [
+     "Tank 1 holds the line for about 25s.",
+     "Tank 1 + Damage 1 should win this in about 20s.",
+     "Healer 1 restores 4.4/s."
+    ],
+    "verdict": "Comfortable floor. Should hold up — a slam is the wildcard.",
+    "chainsExpected": 21.328972375690615,
+    "chainLine": "Chain: expect ~21 this fight. Tank 1's chain takes the next slam and exposes the slammer."
+   },
+   "fight": {
+    "outcome": "win",
+    "endReason": "wipe",
+    "durationSec": 16.1,
+    "ignited": true,
+    "chainLength": 7,
+    "dipOccurred": false,
+    "chains": [
+     {
+      "t": 9.4,
+      "heroId": "u0_tank",
+      "effects": [
+       "guard"
+      ],
+      "backfire": false,
+      "length": 7,
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "capped"
+     },
+     {
+      "t": 14.55,
+      "heroId": "u2_support",
+      "effects": [
+       "mend"
+      ],
+      "backfire": false,
+      "length": 7,
+      "totalDamage": 61,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "capped"
+     },
+     {
+      "t": 16.1,
+      "heroId": "u1_damage",
+      "effects": [
+       "expose"
+      ],
+      "backfire": false,
+      "length": 2,
+      "totalDamage": 29.360000000000017,
+      "totalStunSec": 0,
+      "killedIds": [
+       "e4_grunt"
+      ],
+      "reason": "fightEnd"
+     }
+    ],
+    "cardTriggers": {},
+    "units": [
+     {
+      "id": "u0_tank",
+      "name": "Tank 1",
+      "role": "tank",
+      "hp": 179,
+      "maxHp": 190,
+      "alive": true,
+      "dealt": 109,
+      "soaked": 127,
+      "restored": 0,
+      "hitsTaken": 39,
+      "backfires": 0,
+      "fatigue": 0
+     },
+     {
+      "id": "u1_damage",
+      "name": "Damage 1",
+      "role": "damage",
+      "hp": 66.8,
+      "maxHp": 80,
+      "alive": true,
+      "dealt": 150.20000000000002,
+      "soaked": 38,
+      "restored": 0,
+      "hitsTaken": 11,
+      "backfires": 0,
+      "fatigue": 0
+     },
+     {
+      "id": "u2_support",
+      "name": "Healer 1",
+      "role": "support",
+      "hp": 88,
+      "maxHp": 100,
+      "alive": true,
+      "dealt": 0,
+      "soaked": 33,
+      "restored": 161.8,
+      "hitsTaken": 9,
+      "backfires": 0,
+      "fatigue": 0
+     }
+    ],
+    "burnDamage": {
+     "onEnemy": 0,
+     "onPlayer": 0
+    },
+    "shieldAbsorbed": {
+     "onEnemy": 0,
+     "onPlayer": 0
+    },
+    "slams": {
+     "total": 0,
+     "byRedirect": {}
+    },
+    "events": [
+     {
+      "type": "attack",
+      "t": 0.35000000000000003,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 0.5,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 0.65,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 0.8,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 0.9,
+      "side": "enemy",
+      "attackerId": "e0_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 1.1,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 8
+     },
+     {
+      "type": "heal",
+      "t": 1.1,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 1.25,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 1.3,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 1.4000000000000001,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u0_tank",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 1.55,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 1.7000000000000002,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u1_damage",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 1.8,
+      "side": "enemy",
+      "attackerId": "e0_grunt",
+      "targetId": "u1_damage",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 2.15,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 2.2,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 2.2,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 2.3000000000000003,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u1_damage",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 2.45,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u2_support",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 2.6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 2.6,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u1_damage",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 2.7,
+      "side": "enemy",
+      "attackerId": "e0_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "chainStart",
+      "t": 2.7,
+      "heroId": "u0_tank",
+      "backfire": false,
+      "effects": [
+       "guard"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 3.0500000000000003,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u2_support",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 3.2,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 3.3000000000000003,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 9
+     },
+     {
+      "type": "heal",
+      "t": 3.3000000000000003,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 3.35,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 3.5,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 3.6,
+      "side": "enemy",
+      "attackerId": "e0_grunt",
+      "targetId": "u1_damage",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 3.9000000000000004,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 3.9000000000000004,
+      "hitIndex": 1,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 1
+     },
+     {
+      "type": "attack",
+      "t": 3.95,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 4.1000000000000005,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 4.25,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 4.4,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 10
+     },
+     {
+      "type": "heroDown",
+      "t": 4.4,
+      "side": "enemy",
+      "heroId": "e0_grunt"
+     },
+     {
+      "type": "heal",
+      "t": 4.4,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 4.4,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u2_support",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 4.7,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_grunt",
+      "damage": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 4.7,
+      "hitIndex": 2,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 2
+     },
+     {
+      "type": "attack",
+      "t": 4.8500000000000005,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u2_support",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 5,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u2_support",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 5.15,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 5.300000000000001,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u1_damage",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 5.5,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_grunt",
+      "damage": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 5.5,
+      "hitIndex": 3,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 3
+     },
+     {
+      "type": "attack",
+      "t": 5.5,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e1_grunt",
+      "damage": 8
+     },
+     {
+      "type": "heal",
+      "t": 5.5,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 5.75,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 5.9,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u1_damage",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 6.050000000000001,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 6.2,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 6.25,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_grunt",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 6.25,
+      "hitIndex": 4,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 4
+     },
+     {
+      "type": "attack",
+      "t": 6.6000000000000005,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e1_grunt",
+      "damage": 8
+     },
+     {
+      "type": "heal",
+      "t": 6.6000000000000005,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 6.65,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u1_damage",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 6.800000000000001,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u1_damage",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 6.95,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 7.050000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_grunt",
+      "damage": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 7.050000000000001,
+      "hitIndex": 5,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 5
+     },
+     {
+      "type": "attack",
+      "t": 7.1000000000000005,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 7.550000000000001,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 7.7,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e1_grunt",
+      "damage": 9
+     },
+     {
+      "type": "heroDown",
+      "t": 7.7,
+      "side": "enemy",
+      "heroId": "e1_grunt"
+     },
+     {
+      "type": "heal",
+      "t": 7.7,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 7.7,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u0_tank",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 7.8500000000000005,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e2_grunt",
+      "damage": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 7.8500000000000005,
+      "hitIndex": 6,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 6
+     },
+     {
+      "type": "attack",
+      "t": 7.8500000000000005,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 8.450000000000001,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 8.6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e2_grunt",
+      "damage": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 8.6,
+      "hitIndex": 7,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 7
+     },
+     {
+      "type": "attack",
+      "t": 8.6,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u2_support",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 8.75,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 8.8,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e2_grunt",
+      "damage": 6
+     },
+     {
+      "type": "heal",
+      "t": 8.8,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 9.35,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 9.4,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e2_grunt",
+      "damage": 6
+     },
+     {
+      "type": "chainEnd",
+      "t": 9.4,
+      "chainLength": 7,
+      "heroId": "u0_tank",
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "capped",
+      "effects": [
+       "guard"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 9.4,
+      "heroId": "u2_support",
+      "backfire": false,
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 9.5,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 9.65,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 9.9,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e2_grunt",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 9.9,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 9.9,
+      "hitIndex": 1,
+      "damage": 5,
+      "intended": 5,
+      "targetId": "u0_tank",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 10.15,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e2_grunt",
+      "damage": 9
+     },
+     {
+      "type": "attack",
+      "t": 10.25,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 10.4,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u2_support",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 10.55,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u2_support",
+      "damage": 4
+     },
+     {
+      "type": "heal",
+      "t": 10.600000000000001,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 10.600000000000001,
+      "hitIndex": 2,
+      "damage": 6,
+      "intended": 6,
+      "targetId": "u0_tank",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 11,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e2_grunt",
+      "damage": 7
+     },
+     {
+      "type": "heroDown",
+      "t": 11,
+      "side": "enemy",
+      "heroId": "e2_grunt"
+     },
+     {
+      "type": "attack",
+      "t": 11.15,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "heal",
+      "t": 11.25,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 11.25,
+      "hitIndex": 3,
+      "damage": 7,
+      "intended": 7,
+      "targetId": "u1_damage",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 11.3,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u0_tank",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 11.450000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e3_grunt",
+      "damage": 8
+     },
+     {
+      "type": "heal",
+      "t": 11.9,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 11.9,
+      "hitIndex": 4,
+      "damage": 9,
+      "intended": 9,
+      "targetId": "u2_support",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 12.05,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u0_tank",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 12.100000000000001,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e3_grunt",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 12.200000000000001,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "heal",
+      "t": 12.55,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 12.55,
+      "hitIndex": 5,
+      "damage": 10,
+      "intended": 10,
+      "targetId": "u0_tank",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 12.75,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e3_grunt",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 12.950000000000001,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u0_tank",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 13.100000000000001,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 13.200000000000001,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e3_grunt",
+      "damage": 10
+     },
+     {
+      "type": "heal",
+      "t": 13.200000000000001,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "chainHit",
+      "t": 13.200000000000001,
+      "hitIndex": 6,
+      "damage": 11,
+      "intended": 11,
+      "targetId": "u0_tank",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 13.850000000000001,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "heal",
+      "t": 13.9,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u2_support",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 13.9,
+      "hitIndex": 7,
+      "damage": 13,
+      "intended": 13,
+      "targetId": "u1_damage",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 14,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u1_damage",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 14.05,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e3_grunt",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 14.3,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e3_grunt",
+      "damage": 10
+     },
+     {
+      "type": "heal",
+      "t": 14.55,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainEnd",
+      "t": 14.55,
+      "chainLength": 7,
+      "heroId": "u2_support",
+      "totalDamage": 61,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "capped",
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 14.55,
+      "heroId": "u1_damage",
+      "backfire": false,
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 14.75,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u1_damage",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 14.9,
+      "side": "enemy",
+      "attackerId": "e3_grunt",
+      "targetId": "u2_support",
+      "damage": 4
+     },
+     {
+      "type": "heal",
+      "t": 15.200000000000001,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u2_support",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 15.350000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e3_grunt",
+      "damage": 9
+     },
+     {
+      "type": "heroDown",
+      "t": 15.350000000000001,
+      "side": "enemy",
+      "heroId": "e3_grunt"
+     },
+     {
+      "type": "attack",
+      "t": 15.4,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e4_grunt",
+      "damage": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 15.4,
+      "hitIndex": 1,
+      "damage": 18,
+      "intended": 18,
+      "targetId": "e4_grunt",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "attack",
+      "t": 15.65,
+      "side": "enemy",
+      "attackerId": "e4_grunt",
+      "targetId": "u0_tank",
+      "damage": 3
+     },
+     {
+      "type": "attack",
+      "t": 16.1,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e4_grunt",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 16.1,
+      "hitIndex": 2,
+      "damage": 11.360000000000017,
+      "intended": 23,
+      "targetId": "e4_grunt",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage"
+     },
+     {
+      "type": "heroDown",
+      "t": 16.1,
+      "side": "enemy",
+      "heroId": "e4_grunt"
+     },
+     {
+      "type": "chainEnd",
+      "t": 16.1,
+      "chainLength": 2,
+      "heroId": "u1_damage",
+      "totalDamage": 29.360000000000017,
+      "totalStunSec": 0,
+      "killedIds": [
+       "e4_grunt"
+      ],
+      "backfire": false,
+      "reason": "fightEnd",
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "resolve",
+      "t": 16.1,
+      "outcome": "win",
+      "reason": "wipe"
+     }
+    ]
+   },
+   "reward": {
+    "relicChoices": [
+     "emberHeart",
+     "huntersEye",
+     "frostCrown"
+    ],
+    "relicTaken": "huntersEye",
+    "offersShown": [],
+    "offerTaken": null,
+    "droppedCard": null
+   }
+  },
+  {
+   "roundIndex": 1,
+   "kind": "normal",
+   "encounter": {
+    "index": 8,
+    "name": "Warden"
+   },
+   "squad": [
+    {
+     "id": "u0_tank",
+     "name": "Tank 1",
+     "role": "tank",
+     "hp": 190,
+     "maxHp": 190,
+     "fatigue": 4.447368421052632,
+     "chainEffects": [
+      "guard"
+     ],
+     "chainLevel": 1
+    },
+    {
+     "id": "u1_damage",
+     "name": "Damage 1",
+     "role": "damage",
+     "hp": 80,
+     "maxHp": 80,
+     "fatigue": 7.125000000000001,
+     "chainEffects": [
+      "expose"
+     ],
+     "chainLevel": 1
+    },
+    {
+     "id": "u2_support",
+     "name": "Healer 1",
+     "role": "support",
+     "hp": 100,
+     "maxHp": 100,
+     "fatigue": 6,
+     "chainEffects": [
+      "mend"
+     ],
+     "chainLevel": 1
+    }
+   ],
+   "fieldedIds": [
+    "u0_tank",
+    "u1_damage",
+    "u2_support"
+   ],
+   "defaultFieldedIds": [
+    "u0_tank",
+    "u1_damage",
+    "u2_support"
+   ],
+   "goingIn": {
+    "relic": "huntersEye",
+    "cards": [],
+    "chain": {
+     "tank": {
+      "effects": [
+       "guard"
+      ],
+      "level": 1
+     },
+     "damage": {
+      "effects": [
+       "expose"
+      ],
+      "level": 1
+     },
+     "support": {
+      "effects": [
+       "mend"
+      ],
+      "level": 1
+     }
+    },
+    "bonus": {
+     "tank": {
+      "maxHp": 0,
+      "damage": 0
+     },
+     "damage": {
+      "maxHp": 0,
+      "damage": 0
+     },
+     "support": {
+      "maxHp": 0,
+      "damage": 0
+     }
+    },
+    "slots": 3
+   },
+   "projection": {
+    "playerDps": 12.657342657342657,
+    "enemyDps": 23.923001183431953,
+    "healPerSec": 4.363636363636363,
+    "killSec": 43.75060508287292,
+    "surviveSec": 18.916769711536407,
+    "spareSec": -24.833835371336516,
+    "margin": 0.4323773277124747,
+    "band": "losing",
+    "tankName": "Tank 1",
+    "tankHoldsSec": 18.44814495629319,
+    "lines": [
+     "Tank 1 holds the line for about 18s.",
+     "Tank 1 + Damage 1 drop the Warden around 29s.",
+     "Healer 1 restores 4.4/s."
+    ],
+    "verdict": "Rough floor. You'll need a break — or a fast chain — to pull this out.",
+    "chainsExpected": 47.799283932989034,
+    "chainLine": "Chain: expect ~48 this fight. Tank 1's chain takes the next slam and exposes the slammer."
+   },
+   "fight": {
+    "outcome": "win",
+    "endReason": "wipe",
+    "durationSec": 21.85,
+    "ignited": true,
+    "chainLength": 7,
+    "dipOccurred": false,
+    "chains": [
+     {
+      "t": 9.4,
+      "heroId": "u0_tank",
+      "effects": [
+       "guard"
+      ],
+      "backfire": false,
+      "length": 7,
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "capped"
+     },
+     {
+      "t": 12.55,
+      "heroId": "u1_damage",
+      "effects": [
+       "expose"
+      ],
+      "backfire": false,
+      "length": 4,
+      "totalDamage": 151.4,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 17.85,
+      "heroId": "u2_support",
+      "effects": [
+       "mend"
+      ],
+      "backfire": false,
+      "length": 7,
+      "totalDamage": 61,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "capped"
+     },
+     {
+      "t": 21.85,
+      "heroId": "u0_tank",
+      "effects": [
+       "guard"
+      ],
+      "backfire": false,
+      "length": 5,
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "fightEnd"
+     }
+    ],
+    "cardTriggers": {
+     "huntersEye": {
+      "count": 3,
+      "amount": 6,
+      "maxDepth": 1
+     }
+    },
+    "units": [
+     {
+      "id": "u0_tank",
+      "name": "Tank 1",
+      "role": "tank",
+      "hp": 159,
+      "maxHp": 190,
+      "alive": true,
+      "dealt": 205.25791304347808,
+      "soaked": 200,
+      "restored": 0,
+      "hitsTaken": 25,
+      "backfires": 0,
+      "fatigue": 4.447368421052632
+     },
+     {
+      "id": "u1_damage",
+      "name": "Damage 1",
+      "role": "damage",
+      "hp": 49.8,
+      "maxHp": 80,
+      "alive": true,
+      "dealt": 384.5084869565217,
+      "soaked": 35,
+      "restored": 0,
+      "hitsTaken": 6,
+      "backfires": 0,
+      "fatigue": 7.125000000000001
+     },
+     {
+      "id": "u2_support",
+      "name": "Healer 1",
+      "role": "support",
+      "hp": 71,
+      "maxHp": 100,
+      "alive": true,
+      "dealt": 0,
+      "soaked": 53,
+      "restored": 197.8,
+      "hitsTaken": 9,
+      "backfires": 0,
+      "fatigue": 6
+     }
+    ],
+    "burnDamage": {
+     "onEnemy": 0,
+     "onPlayer": 0
+    },
+    "shieldAbsorbed": {
+     "onEnemy": 0,
+     "onPlayer": 0
+    },
+    "slams": {
+     "total": 2,
+     "byRedirect": {
+      "guard": 2
+     }
+    },
+    "events": [
+     {
+      "type": "cardTriggered",
+      "t": 0,
+      "card": "huntersEye",
+      "side": "enemy",
+      "targetId": "e0_bruiser",
+      "amount": 2,
+      "depth": 1
+     },
+     {
+      "type": "cardTriggered",
+      "t": 0,
+      "card": "huntersEye",
+      "side": "enemy",
+      "targetId": "e1_grunt",
+      "amount": 2,
+      "depth": 1
+     },
+     {
+      "type": "cardTriggered",
+      "t": 0,
+      "card": "huntersEye",
+      "side": "enemy",
+      "targetId": "e2_grunt",
+      "amount": 2,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 0.6000000000000001,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 1,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 1.1,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 1.1,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 1.3,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 1.3,
+      "side": "enemy",
+      "healerId": "e0_bruiser",
+      "targetId": "e0_bruiser",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 1.6,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 2,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u1_damage",
+      "damage": 5
+     },
+     {
+      "type": "attack",
+      "t": 2.2,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "heal",
+      "t": 2.2,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 2.6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 2.6,
+      "side": "enemy",
+      "healerId": "e0_bruiser",
+      "targetId": "e0_bruiser",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 2.6,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 6
+     },
+     {
+      "type": "chainStart",
+      "t": 2.6,
+      "heroId": "u0_tank",
+      "backfire": false,
+      "effects": [
+       "guard"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 3,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u2_support",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 3.3000000000000003,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 3.3000000000000003,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 3.6,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u2_support",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 3.9000000000000004,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 5
+     },
+     {
+      "type": "chainHit",
+      "t": 3.9000000000000004,
+      "hitIndex": 1,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 1
+     },
+     {
+      "type": "heal",
+      "t": 3.9000000000000004,
+      "side": "enemy",
+      "healerId": "e0_bruiser",
+      "targetId": "e0_bruiser",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 4,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u2_support",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 4.4,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "heal",
+      "t": 4.4,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u2_support",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 4.6000000000000005,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 4.7,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "chainHit",
+      "t": 4.7,
+      "hitIndex": 2,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 2
+     },
+     {
+      "type": "windupStart",
+      "t": 5,
+      "sourceId": "e0_bruiser",
+      "targetId": "u1_damage",
+      "fireT": 6.5
+     },
+     {
+      "type": "attack",
+      "t": 5,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u2_support",
+      "damage": 5
+     },
+     {
+      "type": "attack",
+      "t": 5.5,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 5.5,
+      "hitIndex": 3,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 3
+     },
+     {
+      "type": "attack",
+      "t": 5.5,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 5.5,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u2_support",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 5.6000000000000005,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u2_support",
+      "damage": 5
+     },
+     {
+      "type": "attack",
+      "t": 6,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 6.25,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 6.25,
+      "hitIndex": 4,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 4
+     },
+     {
+      "type": "windupHit",
+      "t": 6.5,
+      "sourceId": "e0_bruiser",
+      "targetId": "u0_tank",
+      "damage": 25,
+      "originalTargetId": "u1_damage",
+      "redirect": "guard"
+     },
+     {
+      "type": "attack",
+      "t": 6.6000000000000005,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 10
+     },
+     {
+      "type": "heal",
+      "t": 6.6000000000000005,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 6.6000000000000005,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 7,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 5
+     },
+     {
+      "type": "attack",
+      "t": 7.050000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 7.050000000000001,
+      "hitIndex": 5,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 4
+     },
+     {
+      "type": "attack",
+      "t": 7.6000000000000005,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 7.7,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "heal",
+      "t": 7.7,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "heal",
+      "t": 7.800000000000001,
+      "side": "enemy",
+      "healerId": "e0_bruiser",
+      "targetId": "e0_bruiser",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 7.8500000000000005,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 7.8500000000000005,
+      "hitIndex": 6,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 5
+     },
+     {
+      "type": "attack",
+      "t": 8,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 8.6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "chainHit",
+      "t": 8.6,
+      "hitIndex": 7,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 6
+     },
+     {
+      "type": "attack",
+      "t": 8.6,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u1_damage",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 8.8,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 8.8,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 9,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 9.1,
+      "side": "enemy",
+      "healerId": "e0_bruiser",
+      "targetId": "e0_bruiser",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 9.4,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "chainEnd",
+      "t": 9.4,
+      "chainLength": 7,
+      "heroId": "u0_tank",
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "capped",
+      "effects": [
+       "guard"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 9.4,
+      "heroId": "u1_damage",
+      "backfire": false,
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 9.600000000000001,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 9.9,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "chainHit",
+      "t": 9.9,
+      "hitIndex": 1,
+      "damage": 24.479999999999997,
+      "intended": 18,
+      "targetId": "e0_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "heal",
+      "t": 9.9,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 10,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u2_support",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 10.15,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "heal",
+      "t": 10.4,
+      "side": "enemy",
+      "healerId": "e0_bruiser",
+      "targetId": "e0_bruiser",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 10.600000000000001,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 10.600000000000001,
+      "hitIndex": 2,
+      "damage": 35.519999999999996,
+      "intended": 24,
+      "targetId": "e0_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "attack",
+      "t": 10.600000000000001,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 11,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 11,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 5
+     },
+     {
+      "type": "attack",
+      "t": 11.25,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 11.25,
+      "hitIndex": 3,
+      "damage": 48,
+      "intended": 30,
+      "targetId": "e0_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "attack",
+      "t": 11.450000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "windupStart",
+      "t": 11.5,
+      "sourceId": "e0_bruiser",
+      "targetId": "u2_support",
+      "fireT": 13
+     },
+     {
+      "type": "attack",
+      "t": 11.600000000000001,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 11.9,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 11.9,
+      "hitIndex": 4,
+      "damage": 43.4,
+      "intended": 35,
+      "targetId": "e1_grunt",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "attack",
+      "t": 12,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 6
+     },
+     {
+      "type": "heal",
+      "t": 12.100000000000001,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 12.55,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "chainEnd",
+      "t": 12.55,
+      "chainLength": 4,
+      "heroId": "u1_damage",
+      "totalDamage": 151.4,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "miss",
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 12.55,
+      "heroId": "u2_support",
+      "backfire": false,
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 12.600000000000001,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u1_damage",
+      "damage": 5
+     },
+     {
+      "type": "attack",
+      "t": 12.75,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "windupHit",
+      "t": 13,
+      "sourceId": "e0_bruiser",
+      "targetId": "u0_tank",
+      "damage": 25,
+      "originalTargetId": "u2_support",
+      "redirect": "guard"
+     },
+     {
+      "type": "attack",
+      "t": 13,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u2_support",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 13.200000000000001,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "heroDown",
+      "t": 13.200000000000001,
+      "side": "enemy",
+      "heroId": "e0_bruiser"
+     },
+     {
+      "type": "heal",
+      "t": 13.200000000000001,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 13.200000000000001,
+      "hitIndex": 1,
+      "damage": 5,
+      "intended": 5,
+      "targetId": "u0_tank",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 13.600000000000001,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u1_damage",
+      "damage": 6
+     },
+     {
+      "type": "heal",
+      "t": 13.9,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 13.9,
+      "hitIndex": 2,
+      "damage": 6,
+      "intended": 6,
+      "targetId": "u0_tank",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 14,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u1_damage",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 14.05,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_grunt",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 14.3,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e1_grunt",
+      "damage": 8
+     },
+     {
+      "type": "heal",
+      "t": 14.55,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 14.55,
+      "hitIndex": 3,
+      "damage": 7,
+      "intended": 7,
+      "targetId": "u0_tank",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 14.600000000000001,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u2_support",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 15,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 15.200000000000001,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 15.200000000000001,
+      "hitIndex": 4,
+      "damage": 9,
+      "intended": 9,
+      "targetId": "u0_tank",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 15.350000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_grunt",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 15.4,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e1_grunt",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 15.600000000000001,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 6
+     },
+     {
+      "type": "heal",
+      "t": 15.850000000000001,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 15.850000000000001,
+      "hitIndex": 5,
+      "damage": 10,
+      "intended": 10,
+      "targetId": "u0_tank",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 16,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 16.5,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e1_grunt",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 16.5,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 16.5,
+      "hitIndex": 6,
+      "damage": 11,
+      "intended": 11,
+      "targetId": "u0_tank",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 16.6,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 16.650000000000002,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_grunt",
+      "damage": 7
+     },
+     {
+      "type": "heroDown",
+      "t": 16.650000000000002,
+      "side": "enemy",
+      "heroId": "e1_grunt"
+     },
+     {
+      "type": "heal",
+      "t": 17.2,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 17.2,
+      "hitIndex": 7,
+      "damage": 13,
+      "intended": 13,
+      "targetId": "u0_tank",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 17.6,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e2_grunt",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 17.6,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u2_support",
+      "damage": 5
+     },
+     {
+      "type": "heal",
+      "t": 17.85,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u2_support",
+      "amount": 6
+     },
+     {
+      "type": "chainEnd",
+      "t": 17.85,
+      "chainLength": 7,
+      "heroId": "u2_support",
+      "totalDamage": 61,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "capped",
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 17.85,
+      "heroId": "u0_tank",
+      "backfire": false,
+      "effects": [
+       "guard"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 17.95,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e2_grunt",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 17.95,
+      "hitIndex": 1,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 6
+     },
+     {
+      "type": "heal",
+      "t": 18.5,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u2_support",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 18.6,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 18.75,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e2_grunt",
+      "damage": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 18.75,
+      "hitIndex": 2,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 7
+     },
+     {
+      "type": "attack",
+      "t": 18.75,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e2_grunt",
+      "damage": 9
+     },
+     {
+      "type": "attack",
+      "t": 19.55,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e2_grunt",
+      "damage": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 19.55,
+      "hitIndex": 3,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 8
+     },
+     {
+      "type": "heal",
+      "t": 19.6,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 19.6,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 5
+     },
+     {
+      "type": "attack",
+      "t": 19.85,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e2_grunt",
+      "damage": 9
+     },
+     {
+      "type": "attack",
+      "t": 20.3,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e2_grunt",
+      "damage": 9
+     },
+     {
+      "type": "chainHit",
+      "t": 20.3,
+      "hitIndex": 4,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 9
+     },
+     {
+      "type": "attack",
+      "t": 20.6,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 6
+     },
+     {
+      "type": "heal",
+      "t": 20.700000000000003,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 20.950000000000003,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e2_grunt",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 21.1,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e2_grunt",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 21.1,
+      "hitIndex": 5,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 10
+     },
+     {
+      "type": "attack",
+      "t": 21.6,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u1_damage",
+      "damage": 6
+     },
+     {
+      "type": "heal",
+      "t": 21.8,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "attack",
+      "t": 21.85,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e2_grunt",
+      "damage": 6
+     },
+     {
+      "type": "heroDown",
+      "t": 21.85,
+      "side": "enemy",
+      "heroId": "e2_grunt"
+     },
+     {
+      "type": "chainEnd",
+      "t": 21.85,
+      "chainLength": 5,
+      "heroId": "u0_tank",
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "fightEnd",
+      "effects": [
+       "guard"
+      ]
+     },
+     {
+      "type": "resolve",
+      "t": 21.85,
+      "outcome": "win",
+      "reason": "wipe"
+     }
+    ]
+   },
+   "reward": {
+    "relicChoices": null,
+    "relicTaken": null,
+    "offersShown": [
+     {
+      "kind": "chainGain",
+      "role": "tank",
+      "effect": "stun",
+      "headline": "New: ❄ freeze",
+      "title": "Tank chain — gains an ability",
+      "detail": "Also freezes one enemy, cancelling its slam."
+     },
+     {
+      "kind": "card",
+      "card": "spikedShield",
+      "connects": true,
+      "headline": "Spiked shield",
+      "title": "Spiked shield",
+      "detail": "When a shield absorbs a hit, the attacker becomes exposed.",
+      "worksWith": "Your squad makes ⛊ shield"
+     },
+     {
+      "kind": "statDamage",
+      "role": "support",
+      "headline": "+2 dmg",
+      "title": "Healer — harder-hitting",
+      "detail": "+2 damage for every healer, now and future."
+     }
+    ],
+    "offerTaken": {
+     "kind": "chainGain",
+     "role": "tank",
+     "effect": "stun",
+     "headline": "New: ❄ freeze",
+     "title": "Tank chain — gains an ability",
+     "detail": "Also freezes one enemy, cancelling its slam."
+    },
+    "droppedCard": null
+   }
+  },
+  {
+   "roundIndex": 2,
+   "kind": "normal",
+   "encounter": {
+    "index": 7,
+    "name": "Duelist"
+   },
+   "squad": [
+    {
+     "id": "u0_tank",
+     "name": "Tank 1",
+     "role": "tank",
+     "hp": 190,
+     "maxHp": 190,
+     "fatigue": 11.526315789473685,
+     "chainEffects": [
+      "guard",
+      "stun"
+     ],
+     "chainLevel": 1
+    },
+    {
+     "id": "u1_damage",
+     "name": "Damage 1",
+     "role": "damage",
+     "hp": 80,
+     "maxHp": 80,
+     "fatigue": 19.5625,
+     "chainEffects": [
+      "expose"
+     ],
+     "chainLevel": 1
+    },
+    {
+     "id": "u2_support",
+     "name": "Healer 1",
+     "role": "support",
+     "hp": 100,
+     "maxHp": 100,
+     "fatigue": 16.25,
+     "chainEffects": [
+      "mend"
+     ],
+     "chainLevel": 1
+    }
+   ],
+   "fieldedIds": [
+    "u0_tank",
+    "u1_damage",
+    "u2_support"
+   ],
+   "defaultFieldedIds": [
+    "u0_tank",
+    "u1_damage",
+    "u2_support"
+   ],
+   "goingIn": {
+    "relic": "huntersEye",
+    "cards": [],
+    "chain": {
+     "tank": {
+      "effects": [
+       "guard",
+       "stun"
+      ],
+      "level": 1
+     },
+     "damage": {
+      "effects": [
+       "expose"
+      ],
+      "level": 1
+     },
+     "support": {
+      "effects": [
+       "mend"
+      ],
+      "level": 1
+     }
+    },
+    "bonus": {
+     "tank": {
+      "maxHp": 0,
+      "damage": 0
+     },
+     "damage": {
+      "maxHp": 0,
+      "damage": 0
+     },
+     "support": {
+      "maxHp": 0,
+      "damage": 0
+     }
+    },
+    "slots": 3
+   },
+   "projection": {
+    "playerDps": 12.657342657342657,
+    "enemyDps": 19.244603076923074,
+    "healPerSec": 4.363636363636363,
+    "killSec": 27.66836685082873,
+    "surviveSec": 24.863976052687462,
+    "spareSec": -2.8043907981412666,
+    "margin": 0.8986427058286142,
+    "band": "losing",
+    "tankName": "Tank 1",
+    "tankHoldsSec": 25.657354928374176,
+    "lines": [
+     "Tank 1 holds the line for about 26s.",
+     "Tank 1 + Damage 1 drop the Duelist around 28s.",
+     "Healer 1 restores 4.4/s."
+    ],
+    "verdict": "Rough floor. You'll need a break — or a fast chain — to pull this out.",
+    "chainsExpected": 28.790533551098342,
+    "chainLine": "Chain: expect ~29 this fight. Tank 1's chain takes the next slam and exposes the slammer and freezes one enemy, cancelling its slam."
+   },
+   "fight": {
+    "outcome": "win",
+    "endReason": "wipe",
+    "durationSec": 7.300000000000001,
+    "ignited": true,
+    "chainLength": 4,
+    "dipOccurred": false,
+    "chains": [
+     {
+      "t": 5.95,
+      "heroId": "u1_damage",
+      "effects": [
+       "expose"
+      ],
+      "backfire": false,
+      "length": 4,
+      "totalDamage": 162.64,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 7.300000000000001,
+      "heroId": "u1_damage",
+      "effects": [
+       "expose"
+      ],
+      "backfire": false,
+      "length": 1,
+      "totalDamage": 32.68,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "fightEnd"
+     }
+    ],
+    "cardTriggers": {
+     "huntersEye": {
+      "count": 1,
+      "amount": 2,
+      "maxDepth": 1
+     }
+    },
+    "units": [
+     {
+      "id": "u0_tank",
+      "name": "Tank 1",
+      "role": "tank",
+      "hp": 190,
+      "maxHp": 190,
+      "alive": true,
+      "dealt": 51.96,
+      "soaked": 0,
+      "restored": 0,
+      "hitsTaken": 0,
+      "backfires": 0,
+      "fatigue": 11.526315789473685
+     },
+     {
+      "id": "u1_damage",
+      "name": "Damage 1",
+      "role": "damage",
+      "hp": 12.999999999999996,
+      "maxHp": 80,
+      "alive": true,
+      "dealt": 298.2479999999999,
+      "soaked": 91,
+      "restored": 0,
+      "hitsTaken": 4,
+      "backfires": 0,
+      "fatigue": 19.5625
+     },
+     {
+      "id": "u2_support",
+      "name": "Healer 1",
+      "role": "support",
+      "hp": 81,
+      "maxHp": 100,
+      "alive": true,
+      "dealt": 0,
+      "soaked": 19,
+      "restored": 24,
+      "hitsTaken": 1,
+      "backfires": 0,
+      "fatigue": 16.25
+     }
+    ],
+    "burnDamage": {
+     "onEnemy": 0,
+     "onPlayer": 0
+    },
+    "shieldAbsorbed": {
+     "onEnemy": 0,
+     "onPlayer": 0
+    },
+    "slams": {
+     "total": 1,
+     "byRedirect": {
+      "none": 1
+     }
+    },
+    "events": [
+     {
+      "type": "cardTriggered",
+      "t": 0,
+      "card": "huntersEye",
+      "side": "enemy",
+      "targetId": "e0_bruiser",
+      "amount": 2,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 1.1,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 1.1,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u1_damage",
+      "damage": 15
+     },
+     {
+      "type": "attack",
+      "t": 1.3,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 2.2,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 2.2,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "attack",
+      "t": 2.2,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u1_damage",
+      "damage": 16
+     },
+     {
+      "type": "chainStart",
+      "t": 2.2,
+      "heroId": "u1_damage",
+      "backfire": false,
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "windupStart",
+      "t": 2.5,
+      "sourceId": "e0_bruiser",
+      "targetId": "u1_damage",
+      "fireT": 4
+     },
+     {
+      "type": "attack",
+      "t": 2.6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 3.3000000000000003,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 3.3000000000000003,
+      "hitIndex": 1,
+      "damage": 23.56,
+      "intended": 19,
+      "targetId": "e0_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "heal",
+      "t": 3.3000000000000003,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "attack",
+      "t": 3.9000000000000004,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 4,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 4,
+      "hitIndex": 2,
+      "damage": 34,
+      "intended": 25,
+      "targetId": "e0_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "windupHit",
+      "t": 4,
+      "sourceId": "e0_bruiser",
+      "targetId": "u1_damage",
+      "damage": 38,
+      "originalTargetId": "u1_damage",
+      "redirect": null
+     },
+     {
+      "type": "heal",
+      "t": 4.4,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "attack",
+      "t": 4.65,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 10
+     },
+     {
+      "type": "chainHit",
+      "t": 4.65,
+      "hitIndex": 3,
+      "damage": 45.88,
+      "intended": 31,
+      "targetId": "e0_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "attack",
+      "t": 5.1000000000000005,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u2_support",
+      "damage": 19
+     },
+     {
+      "type": "attack",
+      "t": 5.2,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "attack",
+      "t": 5.300000000000001,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 5.300000000000001,
+      "hitIndex": 4,
+      "damage": 59.2,
+      "intended": 37,
+      "targetId": "e0_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "heal",
+      "t": 5.5,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "attack",
+      "t": 5.95,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "chainEnd",
+      "t": 5.95,
+      "chainLength": 4,
+      "heroId": "u1_damage",
+      "totalDamage": 162.64,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "miss",
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 5.95,
+      "heroId": "u1_damage",
+      "backfire": false,
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 6.2,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u1_damage",
+      "damage": 22
+     },
+     {
+      "type": "attack",
+      "t": 6.5,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "windupStart",
+      "t": 6.5,
+      "sourceId": "e0_bruiser",
+      "targetId": "u0_tank",
+      "fireT": 8
+     },
+     {
+      "type": "attack",
+      "t": 6.6000000000000005,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 6.6000000000000005,
+      "hitIndex": 1,
+      "damage": 32.68,
+      "intended": 19,
+      "targetId": "e0_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "heal",
+      "t": 6.6000000000000005,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "attack",
+      "t": 7.300000000000001,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "heroDown",
+      "t": 7.300000000000001,
+      "side": "enemy",
+      "heroId": "e0_bruiser"
+     },
+     {
+      "type": "chainEnd",
+      "t": 7.300000000000001,
+      "chainLength": 1,
+      "heroId": "u1_damage",
+      "totalDamage": 32.68,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "fightEnd",
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "resolve",
+      "t": 7.300000000000001,
+      "outcome": "win",
+      "reason": "wipe"
+     }
+    ]
+   },
+   "reward": {
+    "relicChoices": null,
+    "relicTaken": null,
+    "offersShown": [
+     {
+      "kind": "chainGain",
+      "role": "damage",
+      "effect": "guard",
+      "headline": "Borrow: ⛨ guard",
+      "title": "Damage chain — borrows the tank's ability",
+      "detail": "Also takes the next slam and exposes the slammer."
+     },
+     {
+      "kind": "heal",
+      "headline": "+30 HP each",
+      "title": "Patch up",
+      "detail": "+30 HP to every living unit."
+     },
+     {
+      "kind": "slot",
+      "headline": "+1 slot",
+      "title": "Bigger squad",
+      "detail": "Field 4 units each round instead of 3."
+     }
+    ],
+    "offerTaken": {
+     "kind": "heal",
+     "headline": "+30 HP each",
+     "title": "Patch up",
+     "detail": "+30 HP to every living unit."
+    },
+    "droppedCard": null
+   }
+  },
+  {
+   "roundIndex": 3,
+   "kind": "filler",
+   "encounter": {
+    "index": 5,
+    "name": "Anvil"
+   },
+   "squad": [
+    {
+     "id": "u0_tank",
+     "name": "Tank 1",
+     "role": "tank",
+     "hp": 190,
+     "maxHp": 190,
+     "fatigue": 14.526315789473685,
+     "chainEffects": [
+      "guard",
+      "stun"
+     ],
+     "chainLevel": 1
+    },
+    {
+     "id": "u1_damage",
+     "name": "Damage 1",
+     "role": "damage",
+     "hp": 75,
+     "maxHp": 80,
+     "fatigue": 43.5,
+     "chainEffects": [
+      "expose"
+     ],
+     "chainLevel": 1
+    },
+    {
+     "id": "u2_support",
+     "name": "Healer 1",
+     "role": "support",
+     "hp": 100,
+     "maxHp": 100,
+     "fatigue": 24,
+     "chainEffects": [
+      "mend"
+     ],
+     "chainLevel": 1
+    }
+   ],
+   "fieldedIds": [
+    "u0_tank",
+    "u1_damage",
+    "u2_support"
+   ],
+   "defaultFieldedIds": [
+    "u0_tank",
+    "u1_damage",
+    "u2_support"
+   ],
+   "goingIn": {
+    "relic": "huntersEye",
+    "cards": [],
+    "chain": {
+     "tank": {
+      "effects": [
+       "guard",
+       "stun"
+      ],
+      "level": 1
+     },
+     "damage": {
+      "effects": [
+       "expose"
+      ],
+      "level": 1
+     },
+     "support": {
+      "effects": [
+       "mend"
+      ],
+      "level": 1
+     }
+    },
+    "bonus": {
+     "tank": {
+      "maxHp": 0,
+      "damage": 0
+     },
+     "damage": {
+      "maxHp": 0,
+      "damage": 0
+     },
+     "support": {
+      "maxHp": 0,
+      "damage": 0
+     }
+    },
+    "slots": 3
+   },
+   "projection": {
+    "playerDps": 12.657342657342657,
+    "enemyDps": 6.42756923076923,
+    "healPerSec": 4.363636363636363,
+    "killSec": 37.127034696132604,
+    "surviveSec": 176.8468373232718,
+    "spareSec": 139.71980262713922,
+    "margin": 4.7632901138127615,
+    "band": "comfortable",
+    "tankName": "Tank 1",
+    "tankHoldsSec": 180,
+    "lines": [
+     "Tank 1 holds the line for about 180s.",
+     "Tank 1 + Damage 1 should win this in about 37s.",
+     "Healer 1 restores 4.4/s."
+    ],
+    "verdict": "Comfortable floor. Should hold up — a slam is the wildcard.",
+    "chainsExpected": 33.34550745472708,
+    "chainLine": "Chain: expect ~33 this fight. Tank 1's chain takes the next slam and exposes the slammer and freezes one enemy, cancelling its slam."
+   },
+   "fight": {
+    "outcome": "win",
+    "endReason": "wipe",
+    "durationSec": 13.200000000000001,
+    "ignited": true,
+    "chainLength": 7,
+    "dipOccurred": false,
+    "chains": [
+     {
+      "t": 7.050000000000001,
+      "heroId": "u1_damage",
+      "effects": [
+       "expose"
+      ],
+      "backfire": false,
+      "length": 4,
+      "totalDamage": 174,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 13.200000000000001,
+      "heroId": "u0_tank",
+      "effects": [
+       "guard",
+       "stun"
+      ],
+      "backfire": false,
+      "length": 7,
+      "totalDamage": 0,
+      "totalStunSec": 10.482149999999999,
+      "killedIds": [],
+      "reason": "fightEnd"
+     }
+    ],
+    "cardTriggers": {
+     "huntersEye": {
+      "count": 1,
+      "amount": 2,
+      "maxDepth": 1
+     }
+    },
+    "units": [
+     {
+      "id": "u0_tank",
+      "name": "Tank 1",
+      "role": "tank",
+      "hp": 190,
+      "maxHp": 190,
+      "alive": true,
+      "dealt": 129.75999999999996,
+      "soaked": 36,
+      "restored": 0,
+      "hitsTaken": 4,
+      "backfires": 0,
+      "fatigue": 14.526315789473685
+     },
+     {
+      "id": "u1_damage",
+      "name": "Damage 1",
+      "role": "damage",
+      "hp": 80,
+      "maxHp": 80,
+      "alive": true,
+      "dealt": 340.16959999999995,
+      "soaked": 0,
+      "restored": 0,
+      "hitsTaken": 0,
+      "backfires": 0,
+      "fatigue": 43.5
+     },
+     {
+      "id": "u2_support",
+      "name": "Healer 1",
+      "role": "support",
+      "hp": 100,
+      "maxHp": 100,
+      "alive": true,
+      "dealt": 0,
+      "soaked": 10,
+      "restored": 51,
+      "hitsTaken": 1,
+      "backfires": 0,
+      "fatigue": 24
+     }
+    ],
+    "burnDamage": {
+     "onEnemy": 0,
+     "onPlayer": 0
+    },
+    "shieldAbsorbed": {
+     "onEnemy": 0,
+     "onPlayer": 0
+    },
+    "slams": {
+     "total": 0,
+     "byRedirect": {}
+    },
+    "events": [
+     {
+      "type": "cardTriggered",
+      "t": 0,
+      "card": "huntersEye",
+      "side": "enemy",
+      "targetId": "e0_grunt",
+      "amount": 2,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 1.1,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 9
+     },
+     {
+      "type": "heal",
+      "t": 1.1,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "attack",
+      "t": 1.3,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 1.3,
+      "side": "enemy",
+      "attackerId": "e0_grunt",
+      "targetId": "u0_tank",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 2.2,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 8
+     },
+     {
+      "type": "heal",
+      "t": 2.2,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 2.6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 2.6,
+      "side": "enemy",
+      "attackerId": "e0_grunt",
+      "targetId": "u0_tank",
+      "damage": 10
+     },
+     {
+      "type": "attack",
+      "t": 3.3000000000000003,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 10
+     },
+     {
+      "type": "heal",
+      "t": 3.3000000000000003,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainStart",
+      "t": 3.3000000000000003,
+      "heroId": "u1_damage",
+      "backfire": false,
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 3.9000000000000004,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 3.9000000000000004,
+      "side": "enemy",
+      "attackerId": "e0_grunt",
+      "targetId": "u0_tank",
+      "damage": 10
+     },
+     {
+      "type": "attack",
+      "t": 4.4,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 4.4,
+      "hitIndex": 1,
+      "damage": 26.04,
+      "intended": 21,
+      "targetId": "e0_grunt",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "heal",
+      "t": 4.4,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 5.1000000000000005,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 5.1000000000000005,
+      "hitIndex": 2,
+      "damage": 36.72,
+      "intended": 27,
+      "targetId": "e0_grunt",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "attack",
+      "t": 5.2,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 5.2,
+      "side": "enemy",
+      "attackerId": "e0_grunt",
+      "targetId": "u0_tank",
+      "damage": 9
+     },
+     {
+      "type": "heal",
+      "t": 5.5,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 5.75,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 9
+     },
+     {
+      "type": "chainHit",
+      "t": 5.75,
+      "hitIndex": 3,
+      "damage": 48.839999999999996,
+      "intended": 33,
+      "targetId": "e0_grunt",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "attack",
+      "t": 6.4,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 9
+     },
+     {
+      "type": "chainHit",
+      "t": 6.4,
+      "hitIndex": 4,
+      "damage": 62.400000000000006,
+      "intended": 39,
+      "targetId": "e0_grunt",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "attack",
+      "t": 6.5,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 6.5,
+      "side": "enemy",
+      "attackerId": "e0_grunt",
+      "targetId": "u2_support",
+      "damage": 10
+     },
+     {
+      "type": "heal",
+      "t": 6.6000000000000005,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 7.050000000000001,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 6
+     },
+     {
+      "type": "chainEnd",
+      "t": 7.050000000000001,
+      "chainLength": 4,
+      "heroId": "u1_damage",
+      "totalDamage": 174,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "miss",
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 7.050000000000001,
+      "heroId": "u0_tank",
+      "backfire": false,
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "heal",
+      "t": 7.7,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u2_support",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 7.75,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 10
+     },
+     {
+      "type": "attack",
+      "t": 7.800000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 7.800000000000001,
+      "hitIndex": 1,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 1
+     },
+     {
+      "type": "chainHit",
+      "t": 7.800000000000001,
+      "hitIndex": 1,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_grunt",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 0.7881315789473684,
+      "durationTotalSec": 0.7881315789473684
+     },
+     {
+      "type": "attack",
+      "t": 8.6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 8.6,
+      "hitIndex": 2,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 2
+     },
+     {
+      "type": "chainHit",
+      "t": 8.6,
+      "hitIndex": 2,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_grunt",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.024571052631579,
+      "durationTotalSec": 1.8127026315789474
+     },
+     {
+      "type": "attack",
+      "t": 8.8,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 8
+     },
+     {
+      "type": "heal",
+      "t": 8.8,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 9.4,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 9.4,
+      "hitIndex": 3,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 3
+     },
+     {
+      "type": "chainHit",
+      "t": 9.4,
+      "hitIndex": 3,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_grunt",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.2610105263157896,
+      "durationTotalSec": 3.073713157894737
+     },
+     {
+      "type": "attack",
+      "t": 9.9,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 8
+     },
+     {
+      "type": "heal",
+      "t": 9.9,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u2_support",
+      "amount": 4
+     },
+     {
+      "type": "attack",
+      "t": 10.15,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 10.15,
+      "hitIndex": 4,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 4
+     },
+     {
+      "type": "chainHit",
+      "t": 10.15,
+      "hitIndex": 4,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_grunt",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.4974499999999997,
+      "durationTotalSec": 4.571163157894737
+     },
+     {
+      "type": "attack",
+      "t": 10.950000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 10.950000000000001,
+      "hitIndex": 5,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 5
+     },
+     {
+      "type": "chainHit",
+      "t": 10.950000000000001,
+      "hitIndex": 5,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_grunt",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.7338894736842105,
+      "durationTotalSec": 6.305052631578947
+     },
+     {
+      "type": "attack",
+      "t": 11,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 11,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 0.20000000000000284
+     },
+     {
+      "type": "attack",
+      "t": 11.700000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 11.700000000000001,
+      "hitIndex": 6,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 11.700000000000001,
+      "hitIndex": 6,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_grunt",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.970328947368421,
+      "durationTotalSec": 8.275381578947368
+     },
+     {
+      "type": "attack",
+      "t": 12.100000000000001,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 12.5,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_grunt",
+      "damage": 9
+     },
+     {
+      "type": "chainHit",
+      "t": 12.5,
+      "hitIndex": 7,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 12.5,
+      "hitIndex": 7,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_grunt",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 2.206768421052631,
+      "durationTotalSec": 10.482149999999999
+     },
+     {
+      "type": "attack",
+      "t": 13.200000000000001,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_grunt",
+      "damage": 7
+     },
+     {
+      "type": "heroDown",
+      "t": 13.200000000000001,
+      "side": "enemy",
+      "heroId": "e0_grunt"
+     },
+     {
+      "type": "chainEnd",
+      "t": 13.200000000000001,
+      "chainLength": 7,
+      "heroId": "u0_tank",
+      "totalDamage": 0,
+      "totalStunSec": 10.482149999999999,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "fightEnd",
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "resolve",
+      "t": 13.200000000000001,
+      "outcome": "win",
+      "reason": "wipe"
+     }
+    ]
+   },
+   "reward": {
+    "relicChoices": null,
+    "relicTaken": null,
+    "offersShown": [
+     {
+      "kind": "card",
+      "card": "spikedShield",
+      "connects": true,
+      "headline": "Spiked shield",
+      "title": "Spiked shield",
+      "detail": "When a shield absorbs a hit, the attacker becomes exposed.",
+      "worksWith": "Your squad makes ⛊ shield"
+     },
+     {
+      "kind": "card",
+      "card": "frostbite",
+      "connects": true,
+      "headline": "Frostbite",
+      "title": "Frostbite",
+      "detail": "When you freeze an enemy, it catches burn for every second.",
+      "worksWith": "Your squad makes ❄ frozen"
+     },
+     {
+      "kind": "chainLevel",
+      "role": "support",
+      "headline": "+1 stack",
+      "title": "Healer chain — stronger (+1)",
+      "detail": "Every healer's chain leaves one more mark stack per hit."
+     }
+    ],
+    "offerTaken": {
+     "kind": "card",
+     "card": "spikedShield",
+     "connects": true,
+     "headline": "Spiked shield",
+     "title": "Spiked shield",
+     "detail": "When a shield absorbs a hit, the attacker becomes exposed.",
+     "worksWith": "Your squad makes ⛊ shield"
+    },
+    "droppedCard": null
+   }
+  },
+  {
+   "roundIndex": 4,
+   "kind": "normal",
+   "encounter": {
+    "index": 2,
+    "name": "Twins"
+   },
+   "squad": [
+    {
+     "id": "u0_tank",
+     "name": "Tank 1",
+     "role": "tank",
+     "hp": 190,
+     "maxHp": 190,
+     "fatigue": 17.526315789473685,
+     "chainEffects": [
+      "guard",
+      "stun"
+     ],
+     "chainLevel": 1
+    },
+    {
+     "id": "u1_damage",
+     "name": "Damage 1",
+     "role": "damage",
+     "hp": 80,
+     "maxHp": 80,
+     "fatigue": 46.5,
+     "chainEffects": [
+      "expose"
+     ],
+     "chainLevel": 1
+    },
+    {
+     "id": "u2_support",
+     "name": "Healer 1",
+     "role": "support",
+     "hp": 100,
+     "maxHp": 100,
+     "fatigue": 27,
+     "chainEffects": [
+      "mend"
+     ],
+     "chainLevel": 1
+    }
+   ],
+   "fieldedIds": [
+    "u0_tank",
+    "u1_damage",
+    "u2_support"
+   ],
+   "defaultFieldedIds": [
+    "u0_tank",
+    "u1_damage",
+    "u2_support"
+   ],
+   "goingIn": {
+    "relic": "huntersEye",
+    "cards": [
+     "spikedShield"
+    ],
+    "chain": {
+     "tank": {
+      "effects": [
+       "guard",
+       "stun"
+      ],
+      "level": 1
+     },
+     "damage": {
+      "effects": [
+       "expose"
+      ],
+      "level": 1
+     },
+     "support": {
+      "effects": [
+       "mend"
+      ],
+      "level": 1
+     }
+    },
+    "bonus": {
+     "tank": {
+      "maxHp": 0,
+      "damage": 0
+     },
+     "damage": {
+      "maxHp": 0,
+      "damage": 0
+     },
+     "support": {
+      "maxHp": 0,
+      "damage": 0
+     }
+    },
+    "slots": 3
+   },
+   "projection": {
+    "playerDps": 12.657342657342657,
+    "enemyDps": 10.723411906354515,
+    "healPerSec": 4.363636363636363,
+    "killSec": 42.47526629834255,
+    "surviveSec": 58.17815385381713,
+    "spareSec": 15.702887555474582,
+    "margin": 1.369694858301273,
+    "band": "comfortable",
+    "tankName": "Tank 1",
+    "tankHoldsSec": 89.01615165677528,
+    "lines": [
+     "Tank 1 holds the line for about 89s.",
+     "Tank 1 + Damage 1 drop the Twin 1 around 21s.",
+     "Healer 1 restores 4.4/s."
+    ],
+    "verdict": "Comfortable floor. Should hold up — a slam is the wildcard.",
+    "chainsExpected": 40.176413475703484,
+    "chainLine": "Chain: expect ~40 this fight. Tank 1's chain takes the next slam and exposes the slammer and freezes one enemy, cancelling its slam."
+   },
+   "fight": {
+    "outcome": "win",
+    "endReason": "wipe",
+    "durationSec": 17.2,
+    "ignited": true,
+    "chainLength": 7,
+    "dipOccurred": false,
+    "chains": [
+     {
+      "t": 3.9000000000000004,
+      "heroId": "u0_tank",
+      "effects": [
+       "guard",
+       "stun"
+      ],
+      "backfire": false,
+      "length": 0,
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 6.4,
+      "heroId": "u1_damage",
+      "effects": [
+       "expose"
+      ],
+      "backfire": false,
+      "length": 3,
+      "totalDamage": 111.6,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 7.300000000000001,
+      "heroId": "u2_support",
+      "effects": [
+       "mend"
+      ],
+      "backfire": false,
+      "length": 1,
+      "totalDamage": 5,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 14.05,
+      "heroId": "u0_tank",
+      "effects": [
+       "guard",
+       "stun"
+      ],
+      "backfire": false,
+      "length": 7,
+      "totalDamage": 0,
+      "totalStunSec": 10.586887500000001,
+      "killedIds": [],
+      "reason": "capped"
+     },
+     {
+      "t": 15.4,
+      "heroId": "u1_damage",
+      "effects": [
+       "expose"
+      ],
+      "backfire": false,
+      "length": 1,
+      "totalDamage": 36.12,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 15.65,
+      "heroId": "u2_support",
+      "effects": [
+       "mend"
+      ],
+      "backfire": false,
+      "length": 0,
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 16.150000000000002,
+      "heroId": "u0_tank",
+      "effects": [
+       "guard",
+       "stun"
+      ],
+      "backfire": false,
+      "length": 0,
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 17.2,
+      "heroId": "u1_damage",
+      "effects": [
+       "expose"
+      ],
+      "backfire": false,
+      "length": 1,
+      "totalDamage": 28.360258064516138,
+      "totalStunSec": 0,
+      "killedIds": [
+       "e1_bruiser"
+      ],
+      "reason": "fightEnd"
+     }
+    ],
+    "cardTriggers": {
+     "huntersEye": {
+      "count": 2,
+      "amount": 4,
+      "maxDepth": 1
+     }
+    },
+    "units": [
+     {
+      "id": "u0_tank",
+      "name": "Tank 1",
+      "role": "tank",
+      "hp": 124,
+      "maxHp": 190,
+      "alive": true,
+      "dealt": 160.2,
+      "soaked": 143,
+      "restored": 0,
+      "hitsTaken": 10,
+      "backfires": 0,
+      "fatigue": 17.526315789473685
+     },
+     {
+      "id": "u1_damage",
+      "name": "Damage 1",
+      "role": "damage",
+      "hp": 34.6,
+      "maxHp": 80,
+      "alive": true,
+      "dealt": 377.4240000000001,
+      "soaked": 55,
+      "restored": 0,
+      "hitsTaken": 5,
+      "backfires": 0,
+      "fatigue": 46.5
+     },
+     {
+      "id": "u2_support",
+      "name": "Healer 1",
+      "role": "support",
+      "hp": 50,
+      "maxHp": 100,
+      "alive": true,
+      "dealt": 0,
+      "soaked": 56,
+      "restored": 92.6,
+      "hitsTaken": 4,
+      "backfires": 0,
+      "fatigue": 27
+     }
+    ],
+    "burnDamage": {
+     "onEnemy": 0,
+     "onPlayer": 0
+    },
+    "shieldAbsorbed": {
+     "onEnemy": 0,
+     "onPlayer": 0
+    },
+    "slams": {
+     "total": 4,
+     "byRedirect": {
+      "none": 2,
+      "guard": 2
+     }
+    },
+    "events": [
+     {
+      "type": "cardTriggered",
+      "t": 0,
+      "card": "huntersEye",
+      "side": "enemy",
+      "targetId": "e0_bruiser",
+      "amount": 2,
+      "depth": 1
+     },
+     {
+      "type": "cardTriggered",
+      "t": 0,
+      "card": "huntersEye",
+      "side": "enemy",
+      "targetId": "e1_bruiser",
+      "amount": 2,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 1.1,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 1.1500000000000001,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u0_tank",
+      "damage": 10
+     },
+     {
+      "type": "attack",
+      "t": 1.1500000000000001,
+      "side": "enemy",
+      "attackerId": "e1_bruiser",
+      "targetId": "u1_damage",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 1.3,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 2.2,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "heal",
+      "t": 2.2,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 2.3000000000000003,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u0_tank",
+      "damage": 12
+     },
+     {
+      "type": "attack",
+      "t": 2.3000000000000003,
+      "side": "enemy",
+      "attackerId": "e1_bruiser",
+      "targetId": "u0_tank",
+      "damage": 10
+     },
+     {
+      "type": "windupStart",
+      "t": 2.5,
+      "sourceId": "e1_bruiser",
+      "targetId": "u0_tank",
+      "fireT": 4
+     },
+     {
+      "type": "attack",
+      "t": 2.6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "chainStart",
+      "t": 2.6,
+      "heroId": "u0_tank",
+      "backfire": false,
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 3.3000000000000003,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 10
+     },
+     {
+      "type": "heal",
+      "t": 3.3000000000000003,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 3.45,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u0_tank",
+      "damage": 9
+     },
+     {
+      "type": "attack",
+      "t": 3.9000000000000004,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainEnd",
+      "t": 3.9000000000000004,
+      "chainLength": 0,
+      "heroId": "u0_tank",
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "miss",
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 3.9000000000000004,
+      "heroId": "u1_damage",
+      "backfire": false,
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "windupHit",
+      "t": 4,
+      "sourceId": "e1_bruiser",
+      "targetId": "u0_tank",
+      "damage": 22,
+      "originalTargetId": "u0_tank",
+      "redirect": null
+     },
+     {
+      "type": "attack",
+      "t": 4.4,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 4.4,
+      "hitIndex": 1,
+      "damage": 26.04,
+      "intended": 21,
+      "targetId": "e1_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "heal",
+      "t": 4.4,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 4.6000000000000005,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u1_damage",
+      "damage": 12
+     },
+     {
+      "type": "attack",
+      "t": 4.7,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "windupStart",
+      "t": 5,
+      "sourceId": "e0_bruiser",
+      "targetId": "u2_support",
+      "fireT": 6.5
+     },
+     {
+      "type": "attack",
+      "t": 5.1000000000000005,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "chainHit",
+      "t": 5.1000000000000005,
+      "hitIndex": 2,
+      "damage": 36.72,
+      "intended": 27,
+      "targetId": "e1_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "attack",
+      "t": 5.15,
+      "side": "enemy",
+      "attackerId": "e1_bruiser",
+      "targetId": "u0_tank",
+      "damage": 13
+     },
+     {
+      "type": "heal",
+      "t": 5.5,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 5.75,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 5.75,
+      "hitIndex": 3,
+      "damage": 48.839999999999996,
+      "intended": 33,
+      "targetId": "e1_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "attack",
+      "t": 6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 6.300000000000001,
+      "side": "enemy",
+      "attackerId": "e1_bruiser",
+      "targetId": "u0_tank",
+      "damage": 10
+     },
+     {
+      "type": "attack",
+      "t": 6.4,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 10
+     },
+     {
+      "type": "chainEnd",
+      "t": 6.4,
+      "chainLength": 3,
+      "heroId": "u1_damage",
+      "totalDamage": 111.6,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "miss",
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 6.4,
+      "heroId": "u2_support",
+      "backfire": false,
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "windupHit",
+      "t": 6.5,
+      "sourceId": "e0_bruiser",
+      "targetId": "u2_support",
+      "damage": 22,
+      "originalTargetId": "u2_support",
+      "redirect": null
+     },
+     {
+      "type": "heal",
+      "t": 6.6000000000000005,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 6.6000000000000005,
+      "hitIndex": 1,
+      "damage": 5,
+      "intended": 5,
+      "targetId": "u0_tank",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 7.050000000000001,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "attack",
+      "t": 7.300000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "heal",
+      "t": 7.300000000000001,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainEnd",
+      "t": 7.300000000000001,
+      "chainLength": 1,
+      "heroId": "u2_support",
+      "totalDamage": 5,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "miss",
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 7.300000000000001,
+      "heroId": "u0_tank",
+      "backfire": false,
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 7.5,
+      "side": "enemy",
+      "attackerId": "e1_bruiser",
+      "targetId": "u2_support",
+      "damage": 13
+     },
+     {
+      "type": "attack",
+      "t": 7.65,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u2_support",
+      "damage": 10
+     },
+     {
+      "type": "heal",
+      "t": 7.95,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 8.15,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "attack",
+      "t": 8.6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 8.6,
+      "hitIndex": 1,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 1
+     },
+     {
+      "type": "chainHit",
+      "t": 8.6,
+      "hitIndex": 1,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 0.7960065789473685,
+      "durationTotalSec": 0.7960065789473685
+     },
+     {
+      "type": "attack",
+      "t": 8.65,
+      "side": "enemy",
+      "attackerId": "e1_bruiser",
+      "targetId": "u1_damage",
+      "damage": 11
+     },
+     {
+      "type": "windupStart",
+      "t": 9,
+      "sourceId": "e1_bruiser",
+      "targetId": "u2_support",
+      "fireT": 10.5
+     },
+     {
+      "type": "heal",
+      "t": 9.05,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u2_support",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 9.25,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "attack",
+      "t": 9.4,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 9.4,
+      "hitIndex": 2,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 2
+     },
+     {
+      "type": "chainHit",
+      "t": 9.4,
+      "hitIndex": 2,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.0348085526315791,
+      "durationTotalSec": 1.8308151315789476
+     },
+     {
+      "type": "attack",
+      "t": 10.15,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 10.15,
+      "hitIndex": 3,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 3
+     },
+     {
+      "type": "chainHit",
+      "t": 10.15,
+      "hitIndex": 3,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.2736105263157897,
+      "durationTotalSec": 3.1044256578947373
+     },
+     {
+      "type": "heal",
+      "t": 10.15,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 10.350000000000001,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "windupHit",
+      "t": 10.5,
+      "sourceId": "e1_bruiser",
+      "targetId": "u0_tank",
+      "damage": 22,
+      "originalTargetId": "u2_support",
+      "redirect": "guard"
+     },
+     {
+      "type": "attack",
+      "t": 10.950000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 10.950000000000001,
+      "hitIndex": 4,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 3
+     },
+     {
+      "type": "chainHit",
+      "t": 10.950000000000001,
+      "hitIndex": 4,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.5124125,
+      "durationTotalSec": 4.616838157894737
+     },
+     {
+      "type": "heal",
+      "t": 11.25,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 11.450000000000001,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 11.65,
+      "side": "enemy",
+      "attackerId": "e1_bruiser",
+      "targetId": "u1_damage",
+      "damage": 12
+     },
+     {
+      "type": "attack",
+      "t": 11.700000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 11.700000000000001,
+      "hitIndex": 5,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 4
+     },
+     {
+      "type": "chainHit",
+      "t": 11.700000000000001,
+      "hitIndex": 5,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.7512144736842108,
+      "durationTotalSec": 6.368052631578948
+     },
+     {
+      "type": "heal",
+      "t": 12.350000000000001,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 12.5,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "chainHit",
+      "t": 12.5,
+      "hitIndex": 6,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 5
+     },
+     {
+      "type": "chainHit",
+      "t": 12.5,
+      "hitIndex": 6,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.9900164473684212,
+      "durationTotalSec": 8.35806907894737
+     },
+     {
+      "type": "attack",
+      "t": 12.55,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 12.8,
+      "side": "enemy",
+      "attackerId": "e1_bruiser",
+      "targetId": "u1_damage",
+      "damage": 12
+     },
+     {
+      "type": "attack",
+      "t": 13.3,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 13.3,
+      "hitIndex": 7,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 13.3,
+      "hitIndex": 7,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 2.2288184210526314,
+      "durationTotalSec": 10.586887500000001
+     },
+     {
+      "type": "heal",
+      "t": 13.450000000000001,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "attack",
+      "t": 13.65,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 13.950000000000001,
+      "side": "enemy",
+      "attackerId": "e1_bruiser",
+      "targetId": "u2_support",
+      "damage": 11
+     },
+     {
+      "type": "attack",
+      "t": 14.05,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "chainEnd",
+      "t": 14.05,
+      "chainLength": 7,
+      "heroId": "u0_tank",
+      "totalDamage": 0,
+      "totalStunSec": 10.586887500000001,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "capped",
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 14.05,
+      "heroId": "u1_damage",
+      "backfire": false,
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "heal",
+      "t": 14.55,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "attack",
+      "t": 14.75,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 10
+     },
+     {
+      "type": "heroDown",
+      "t": 14.75,
+      "side": "enemy",
+      "heroId": "e0_bruiser"
+     },
+     {
+      "type": "chainHit",
+      "t": 14.75,
+      "hitIndex": 1,
+      "damage": 36.12,
+      "intended": 21,
+      "targetId": "e1_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "attack",
+      "t": 14.850000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 15.100000000000001,
+      "side": "enemy",
+      "attackerId": "e1_bruiser",
+      "targetId": "u0_tank",
+      "damage": 13
+     },
+     {
+      "type": "attack",
+      "t": 15.4,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e1_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "chainEnd",
+      "t": 15.4,
+      "chainLength": 1,
+      "heroId": "u1_damage",
+      "totalDamage": 36.12,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "miss",
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 15.4,
+      "heroId": "u2_support",
+      "backfire": false,
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "windupStart",
+      "t": 15.5,
+      "sourceId": "e1_bruiser",
+      "targetId": "u2_support",
+      "fireT": 17
+     },
+     {
+      "type": "heal",
+      "t": 15.65,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainEnd",
+      "t": 15.65,
+      "chainLength": 0,
+      "heroId": "u2_support",
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "miss",
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 15.65,
+      "heroId": "u0_tank",
+      "backfire": false,
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 16.1,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e1_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 16.150000000000002,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainEnd",
+      "t": 16.150000000000002,
+      "chainLength": 0,
+      "heroId": "u0_tank",
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "miss",
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 16.150000000000002,
+      "heroId": "u1_damage",
+      "backfire": false,
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "heal",
+      "t": 16.3,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 16.900000000000002,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_bruiser",
+      "damage": 5
+     },
+     {
+      "type": "windupHit",
+      "t": 17,
+      "sourceId": "e1_bruiser",
+      "targetId": "u0_tank",
+      "damage": 22,
+      "originalTargetId": "u2_support",
+      "redirect": "guard"
+     },
+     {
+      "type": "attack",
+      "t": 17.2,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e1_bruiser",
+      "damage": 10
+     },
+     {
+      "type": "chainHit",
+      "t": 17.2,
+      "hitIndex": 1,
+      "damage": 28.360258064516138,
+      "intended": 21,
+      "targetId": "e1_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage"
+     },
+     {
+      "type": "heroDown",
+      "t": 17.2,
+      "side": "enemy",
+      "heroId": "e1_bruiser"
+     },
+     {
+      "type": "chainEnd",
+      "t": 17.2,
+      "chainLength": 1,
+      "heroId": "u1_damage",
+      "totalDamage": 28.360258064516138,
+      "totalStunSec": 0,
+      "killedIds": [
+       "e1_bruiser"
+      ],
+      "backfire": false,
+      "reason": "fightEnd",
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "resolve",
+      "t": 17.2,
+      "outcome": "win",
+      "reason": "wipe"
+     }
+    ]
+   },
+   "reward": {
+    "relicChoices": null,
+    "relicTaken": null,
+    "offersShown": [
+     {
+      "kind": "card",
+      "card": "layBare",
+      "connects": true,
+      "headline": "Lay bare",
+      "title": "Lay bare",
+      "detail": "When an exposed enemy dies, its exposure moves to the next enemy.",
+      "worksWith": "Your squad makes ✦ exposed"
+     },
+     {
+      "kind": "card",
+      "card": "brittle",
+      "connects": true,
+      "headline": "Brittle",
+      "title": "Brittle",
+      "detail": "When a freeze ends, the enemy becomes exposed.",
+      "worksWith": "Your squad makes ❄ frozen"
+     },
+     {
+      "kind": "recruit",
+      "role": "damage",
+      "headline": "+1 Damage",
+      "title": "Recruit a damage",
+      "detail": "Adds a fresh damage to your roster."
+     }
+    ],
+    "offerTaken": {
+     "kind": "card",
+     "card": "brittle",
+     "connects": true,
+     "headline": "Brittle",
+     "title": "Brittle",
+     "detail": "When a freeze ends, the enemy becomes exposed.",
+     "worksWith": "Your squad makes ❄ frozen"
+    },
+    "droppedCard": null
+   }
+  },
+  {
+   "roundIndex": 5,
+   "kind": "normal",
+   "encounter": {
+    "index": 9,
+    "name": "Glass Pair"
+   },
+   "squad": [
+    {
+     "id": "u0_tank",
+     "name": "Tank 1",
+     "role": "tank",
+     "hp": 190,
+     "maxHp": 190,
+     "fatigue": 29.210526315789473,
+     "chainEffects": [
+      "guard",
+      "stun"
+     ],
+     "chainLevel": 1
+    },
+    {
+     "id": "u1_damage",
+     "name": "Damage 1",
+     "role": "damage",
+     "hp": 66.6,
+     "maxHp": 80,
+     "fatigue": 63.6875,
+     "chainEffects": [
+      "expose"
+     ],
+     "chainLevel": 1
+    },
+    {
+     "id": "u2_support",
+     "name": "Healer 1",
+     "role": "support",
+     "hp": 90,
+     "maxHp": 100,
+     "fatigue": 42.5,
+     "chainEffects": [
+      "mend"
+     ],
+     "chainLevel": 1
+    }
+   ],
+   "fieldedIds": [
+    "u0_tank",
+    "u1_damage",
+    "u2_support"
+   ],
+   "defaultFieldedIds": [
+    "u0_tank",
+    "u1_damage",
+    "u2_support"
+   ],
+   "goingIn": {
+    "relic": "huntersEye",
+    "cards": [
+     "spikedShield",
+     "brittle"
+    ],
+    "chain": {
+     "tank": {
+      "effects": [
+       "guard",
+       "stun"
+      ],
+      "level": 1
+     },
+     "damage": {
+      "effects": [
+       "expose"
+      ],
+      "level": 1
+     },
+     "support": {
+      "effects": [
+       "mend"
+      ],
+      "level": 1
+     }
+    },
+    "bonus": {
+     "tank": {
+      "maxHp": 0,
+      "damage": 0
+     },
+     "damage": {
+      "maxHp": 0,
+      "damage": 0
+     },
+     "support": {
+      "maxHp": 0,
+      "damage": 0
+     }
+    },
+    "slots": 3
+   },
+   "projection": {
+    "playerDps": 12.657342657342657,
+    "enemyDps": 16.5984,
+    "healPerSec": 4.363636363636363,
+    "killSec": 25.776974585635358,
+    "surviveSec": 28.329112870627956,
+    "spareSec": 2.5521382849925978,
+    "margin": 1.0990084494405645,
+    "band": "comfortable",
+    "tankName": "Tank 1",
+    "tankHoldsSec": 32.93774890559524,
+    "lines": [
+     "Tank 1 holds the line for about 33s.",
+     "Tank 1 + Damage 1 drop the Glass 1 around 13s.",
+     "Healer 1 restores 4.4/s."
+    ],
+    "verdict": "Comfortable floor. Should hold up — a slam is the wildcard.",
+    "chainsExpected": 26.064529455381216,
+    "chainLine": "Chain: expect ~26 this fight. Tank 1's chain takes the next slam and exposes the slammer and freezes one enemy, cancelling its slam."
+   },
+   "fight": {
+    "outcome": "win",
+    "endReason": "wipe",
+    "durationSec": 13.65,
+    "ignited": true,
+    "chainLength": 7,
+    "dipOccurred": false,
+    "chains": [
+     {
+      "t": 4,
+      "heroId": "u1_damage",
+      "effects": [
+       "expose"
+      ],
+      "backfire": false,
+      "length": 1,
+      "totalDamage": 27.28,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 10.700000000000001,
+      "heroId": "u0_tank",
+      "effects": [
+       "guard",
+       "stun"
+      ],
+      "backfire": false,
+      "length": 7,
+      "totalDamage": 0,
+      "totalStunSec": 10.9948125,
+      "killedIds": [],
+      "reason": "capped"
+     },
+     {
+      "t": 11,
+      "heroId": "u2_support",
+      "effects": [
+       "mend"
+      ],
+      "backfire": false,
+      "length": 0,
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 11.9,
+      "heroId": "u1_damage",
+      "effects": [
+       "expose"
+      ],
+      "backfire": false,
+      "length": 1,
+      "totalDamage": 29.919999999999998,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 13.65,
+      "heroId": "u0_tank",
+      "effects": [
+       "guard",
+       "stun"
+      ],
+      "backfire": false,
+      "length": 2,
+      "totalDamage": 0,
+      "totalStunSec": 1.9013585526315788,
+      "killedIds": [],
+      "reason": "fightEnd"
+     }
+    ],
+    "cardTriggers": {
+     "huntersEye": {
+      "count": 2,
+      "amount": 4,
+      "maxDepth": 1
+     }
+    },
+    "units": [
+     {
+      "id": "u0_tank",
+      "name": "Tank 1",
+      "role": "tank",
+      "hp": 140,
+      "maxHp": 190,
+      "alive": true,
+      "dealt": 135.09283870967744,
+      "soaked": 92,
+      "restored": 0,
+      "hitsTaken": 4,
+      "backfires": 0,
+      "fatigue": 29.210526315789473
+     },
+     {
+      "id": "u1_damage",
+      "name": "Damage 1",
+      "role": "damage",
+      "hp": 27.79999999999999,
+      "maxHp": 80,
+      "alive": true,
+      "dealt": 191.1751612903226,
+      "soaked": 58,
+      "restored": 0,
+      "hitsTaken": 3,
+      "backfires": 0,
+      "fatigue": 63.6875
+     },
+     {
+      "id": "u2_support",
+      "name": "Healer 1",
+      "role": "support",
+      "hp": 80,
+      "maxHp": 100,
+      "alive": true,
+      "dealt": 0,
+      "soaked": 16,
+      "restored": 67.19999999999999,
+      "hitsTaken": 1,
+      "backfires": 0,
+      "fatigue": 42.5
+     }
+    ],
+    "burnDamage": {
+     "onEnemy": 0,
+     "onPlayer": 0
+    },
+    "shieldAbsorbed": {
+     "onEnemy": 0,
+     "onPlayer": 0
+    },
+    "slams": {
+     "total": 1,
+     "byRedirect": {
+      "none": 1
+     }
+    },
+    "events": [
+     {
+      "type": "cardTriggered",
+      "t": 0,
+      "card": "huntersEye",
+      "side": "enemy",
+      "targetId": "e0_bruiser",
+      "amount": 2,
+      "depth": 1
+     },
+     {
+      "type": "cardTriggered",
+      "t": 0,
+      "card": "huntersEye",
+      "side": "enemy",
+      "targetId": "e1_bruiser",
+      "amount": 2,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 1.1,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 1.1,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "attack",
+      "t": 1.3,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 1.4000000000000001,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u1_damage",
+      "damage": 20
+     },
+     {
+      "type": "attack",
+      "t": 1.4000000000000001,
+      "side": "enemy",
+      "attackerId": "e1_bruiser",
+      "targetId": "u0_tank",
+      "damage": 22
+     },
+     {
+      "type": "attack",
+      "t": 2.2,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "heal",
+      "t": 2.2,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "windupStart",
+      "t": 2.5,
+      "sourceId": "e1_bruiser",
+      "targetId": "u0_tank",
+      "fireT": 4
+     },
+     {
+      "type": "chainStart",
+      "t": 2.5500000000000003,
+      "heroId": "u1_damage",
+      "backfire": false,
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 2.6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 2.8000000000000003,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u2_support",
+      "damage": 16
+     },
+     {
+      "type": "attack",
+      "t": 3.3000000000000003,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 3.3000000000000003,
+      "hitIndex": 1,
+      "damage": 27.28,
+      "intended": 22,
+      "targetId": "e1_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "heal",
+      "t": 3.3000000000000003,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u2_support",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 3.9000000000000004,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 4,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainEnd",
+      "t": 4,
+      "chainLength": 1,
+      "heroId": "u1_damage",
+      "totalDamage": 27.28,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "miss",
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "windupHit",
+      "t": 4,
+      "sourceId": "e1_bruiser",
+      "targetId": "u0_tank",
+      "damage": 39,
+      "originalTargetId": "u0_tank",
+      "redirect": null
+     },
+     {
+      "type": "chainStart",
+      "t": 4,
+      "heroId": "u0_tank",
+      "backfire": false,
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 4.2,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u0_tank",
+      "damage": 16
+     },
+     {
+      "type": "heal",
+      "t": 4.4,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 4.65,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "windupStart",
+      "t": 5,
+      "sourceId": "e0_bruiser",
+      "targetId": "u2_support",
+      "fireT": 6.5
+     },
+     {
+      "type": "attack",
+      "t": 5.2,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "chainHit",
+      "t": 5.2,
+      "hitIndex": 1,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 1
+     },
+     {
+      "type": "chainHit",
+      "t": 5.2,
+      "hitIndex": 1,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 0.8266776315789472,
+      "durationTotalSec": 0.8266776315789472
+     },
+     {
+      "type": "attack",
+      "t": 5.4,
+      "side": "enemy",
+      "attackerId": "e1_bruiser",
+      "targetId": "u1_damage",
+      "damage": 23
+     },
+     {
+      "type": "heal",
+      "t": 5.5,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 5.75,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "attack",
+      "t": 6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 6,
+      "hitIndex": 2,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 2
+     },
+     {
+      "type": "chainHit",
+      "t": 6,
+      "hitIndex": 2,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.0746809210526316,
+      "durationTotalSec": 1.9013585526315788
+     },
+     {
+      "type": "heal",
+      "t": 6.6000000000000005,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 6.800000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 6.800000000000001,
+      "hitIndex": 3,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 3
+     },
+     {
+      "type": "chainHit",
+      "t": 6.800000000000001,
+      "hitIndex": 3,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.322684210526316,
+      "durationTotalSec": 3.224042763157895
+     },
+     {
+      "type": "attack",
+      "t": 6.800000000000001,
+      "side": "enemy",
+      "attackerId": "e1_bruiser",
+      "targetId": "u0_tank",
+      "damage": 15
+     },
+     {
+      "type": "attack",
+      "t": 6.8500000000000005,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 7.550000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 7.550000000000001,
+      "hitIndex": 4,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 4
+     },
+     {
+      "type": "chainHit",
+      "t": 7.550000000000001,
+      "hitIndex": 4,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.5706874999999996,
+      "durationTotalSec": 4.794730263157895
+     },
+     {
+      "type": "heal",
+      "t": 7.7,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 7.95,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "attack",
+      "t": 8.200000000000001,
+      "side": "enemy",
+      "attackerId": "e1_bruiser",
+      "targetId": "u1_damage",
+      "damage": 15
+     },
+     {
+      "type": "attack",
+      "t": 8.35,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 8.35,
+      "hitIndex": 5,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 5
+     },
+     {
+      "type": "chainHit",
+      "t": 8.35,
+      "hitIndex": 5,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.8186907894736841,
+      "durationTotalSec": 6.613421052631579
+     },
+     {
+      "type": "heal",
+      "t": 8.8,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "windupStart",
+      "t": 9,
+      "sourceId": "e1_bruiser",
+      "targetId": "u2_support",
+      "fireT": 10.5
+     },
+     {
+      "type": "attack",
+      "t": 9.05,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 9.1,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "heroDown",
+      "t": 9.1,
+      "side": "enemy",
+      "heroId": "e0_bruiser"
+     },
+     {
+      "type": "chainHit",
+      "t": 9.1,
+      "hitIndex": 6,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 9.1,
+      "hitIndex": 6,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e1_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 2.0666940789473682,
+      "durationTotalSec": 2.0666940789473682
+     },
+     {
+      "type": "attack",
+      "t": 9.9,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 9.9,
+      "hitIndex": 7,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 9.9,
+      "hitIndex": 7,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e1_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 2.314697368421052,
+      "durationTotalSec": 4.38139144736842
+     },
+     {
+      "type": "heal",
+      "t": 9.9,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 10.15,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e1_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "attack",
+      "t": 10.700000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "chainEnd",
+      "t": 10.700000000000001,
+      "chainLength": 7,
+      "heroId": "u0_tank",
+      "totalDamage": 0,
+      "totalStunSec": 10.9948125,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "capped",
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 10.700000000000001,
+      "heroId": "u2_support",
+      "backfire": false,
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "heal",
+      "t": 11,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "chainEnd",
+      "t": 11,
+      "chainLength": 0,
+      "heroId": "u2_support",
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "miss",
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 11,
+      "heroId": "u1_damage",
+      "backfire": false,
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 11.25,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e1_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 11.25,
+      "hitIndex": 1,
+      "damage": 29.919999999999998,
+      "intended": 22,
+      "targetId": "e1_bruiser",
+      "kind": "damage",
+      "backfire": false,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "attack",
+      "t": 11.450000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_bruiser",
+      "damage": 6
+     },
+     {
+      "type": "heal",
+      "t": 11.700000000000001,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "attack",
+      "t": 11.9,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e1_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainEnd",
+      "t": 11.9,
+      "chainLength": 1,
+      "heroId": "u1_damage",
+      "totalDamage": 29.919999999999998,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "miss",
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 11.9,
+      "heroId": "u0_tank",
+      "backfire": false,
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 12.55,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e1_bruiser",
+      "damage": 10
+     },
+     {
+      "type": "attack",
+      "t": 12.75,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 12.75,
+      "hitIndex": 1,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 12.75,
+      "hitIndex": 1,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e1_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 0.8266776315789472,
+      "durationTotalSec": 3.108069078947368
+     },
+     {
+      "type": "heal",
+      "t": 12.8,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 13.55,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e1_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 13.55,
+      "hitIndex": 2,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 9
+     },
+     {
+      "type": "chainHit",
+      "t": 13.55,
+      "hitIndex": 2,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e1_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.0746809210526316,
+      "durationTotalSec": 4.1827499999999995
+     },
+     {
+      "type": "attack",
+      "t": 13.65,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e1_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "heroDown",
+      "t": 13.65,
+      "side": "enemy",
+      "heroId": "e1_bruiser"
+     },
+     {
+      "type": "chainEnd",
+      "t": 13.65,
+      "chainLength": 2,
+      "heroId": "u0_tank",
+      "totalDamage": 0,
+      "totalStunSec": 1.9013585526315788,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "fightEnd",
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "resolve",
+      "t": 13.65,
+      "outcome": "win",
+      "reason": "wipe"
+     }
+    ]
+   },
+   "reward": {
+    "relicChoices": null,
+    "relicTaken": null,
+    "offersShown": [
+     {
+      "kind": "card",
+      "card": "momentum",
+      "connects": true,
+      "headline": "Momentum",
+      "title": "Momentum",
+      "detail": "When a chain ends, the next chain's hits are bigger."
+     },
+     {
+      "kind": "chainGain",
+      "role": "damage",
+      "effect": "scorch",
+      "headline": "New: ✺ scorch",
+      "title": "Damage chain — gains an ability",
+      "detail": "Also hits every enemy and sets them burning."
+     },
+     {
+      "kind": "card",
+      "card": "weakSpot",
+      "connects": true,
+      "headline": "Weak spot",
+      "title": "Weak spot",
+      "detail": "When your Damage unit hits an exposed enemy, it adds damage for every stack.",
+      "worksWith": "Your squad makes ✦ exposed"
+     }
+    ],
+    "offerTaken": {
+     "kind": "card",
+     "card": "weakSpot",
+     "connects": true,
+     "headline": "Weak spot",
+     "title": "Weak spot",
+     "detail": "When your Damage unit hits an exposed enemy, it adds damage for every stack.",
+     "worksWith": "Your squad makes ✦ exposed"
+    },
+    "droppedCard": null
+   }
+  },
+  {
+   "roundIndex": 6,
+   "kind": "miniboss",
+   "encounter": {
+    "index": 4,
+    "name": "Champion"
+   },
+   "squad": [
+    {
+     "id": "u0_tank",
+     "name": "Tank 1",
+     "role": "tank",
+     "hp": 190,
+     "maxHp": 190,
+     "fatigue": 38.78947368421053,
+     "chainEffects": [
+      "guard",
+      "stun"
+     ],
+     "chainLevel": 1
+    },
+    {
+     "id": "u1_damage",
+     "name": "Damage 1",
+     "role": "damage",
+     "hp": 59.79999999999999,
+     "maxHp": 80,
+     "fatigue": 78.8125,
+     "chainEffects": [
+      "expose"
+     ],
+     "chainLevel": 1
+    },
+    {
+     "id": "u2_support",
+     "name": "Healer 1",
+     "role": "support",
+     "hp": 100,
+     "maxHp": 100,
+     "fatigue": 48,
+     "chainEffects": [
+      "mend"
+     ],
+     "chainLevel": 1
+    }
+   ],
+   "fieldedIds": [
+    "u0_tank",
+    "u1_damage",
+    "u2_support"
+   ],
+   "defaultFieldedIds": [
+    "u0_tank",
+    "u1_damage",
+    "u2_support"
+   ],
+   "goingIn": {
+    "relic": "huntersEye",
+    "cards": [
+     "spikedShield",
+     "brittle",
+     "weakSpot"
+    ],
+    "chain": {
+     "tank": {
+      "effects": [
+       "guard",
+       "stun"
+      ],
+      "level": 1
+     },
+     "damage": {
+      "effects": [
+       "expose"
+      ],
+      "level": 1
+     },
+     "support": {
+      "effects": [
+       "mend"
+      ],
+      "level": 1
+     }
+    },
+    "bonus": {
+     "tank": {
+      "maxHp": 0,
+      "damage": 0
+     },
+     "damage": {
+      "maxHp": 0,
+      "damage": 0
+     },
+     "support": {
+      "maxHp": 0,
+      "damage": 0
+     }
+    },
+    "slots": 3
+   },
+   "projection": {
+    "playerDps": 12.657342657342657,
+    "enemyDps": 23.91527514170041,
+    "healPerSec": 4.363636363636363,
+    "killSec": 56.66531588950278,
+    "surviveSec": 17.89108340076628,
+    "spareSec": -38.7742324887365,
+    "margin": 0.3157325273833088,
+    "band": "losing",
+    "tankName": "Tank 1",
+    "tankHoldsSec": 18.456709218143246,
+    "lines": [
+     "Tank 1 holds the line for about 18s.",
+     "Tank 1 + Damage 1 drop the Champion around 37s.",
+     "Healer 1 restores 4.4/s."
+    ],
+    "verdict": "Rough floor. You'll need a break — or a fast chain — to pull this out.",
+    "chainsExpected": 61.90425701586728,
+    "chainLine": "Chain: expect ~62 this fight. Tank 1's chain takes the next slam and exposes the slammer and freezes one enemy, cancelling its slam."
+   },
+   "fight": {
+    "outcome": "loss",
+    "endReason": "wipe",
+    "durationSec": 12.950000000000001,
+    "ignited": true,
+    "chainLength": 4,
+    "dipOccurred": true,
+    "chains": [
+     {
+      "t": 4,
+      "heroId": "u1_damage",
+      "effects": [
+       "expose"
+      ],
+      "backfire": true,
+      "length": 1,
+      "totalDamage": 23,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 5.2,
+      "heroId": "u0_tank",
+      "effects": [
+       "guard",
+       "stun"
+      ],
+      "backfire": true,
+      "length": 0,
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 5.5,
+      "heroId": "u2_support",
+      "effects": [
+       "mend"
+      ],
+      "backfire": true,
+      "length": 0,
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 7.75,
+      "heroId": "u1_damage",
+      "effects": [
+       "expose"
+      ],
+      "backfire": true,
+      "length": 4,
+      "totalDamage": 138.56,
+      "totalStunSec": 0,
+      "killedIds": [
+       "u1_damage"
+      ],
+      "reason": "sourceDied"
+     },
+     {
+      "t": 10.450000000000001,
+      "heroId": "u0_tank",
+      "effects": [
+       "guard",
+       "stun"
+      ],
+      "backfire": false,
+      "length": 3,
+      "totalDamage": 0,
+      "totalStunSec": 3.322107236842106,
+      "killedIds": [],
+      "reason": "sourceDied"
+     },
+     {
+      "t": 11.25,
+      "heroId": "u2_support",
+      "effects": [
+       "mend"
+      ],
+      "backfire": false,
+      "length": 1,
+      "totalDamage": 5,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "miss"
+     },
+     {
+      "t": 12.950000000000001,
+      "heroId": "u2_support",
+      "effects": [
+       "mend"
+      ],
+      "backfire": false,
+      "length": 0,
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "reason": "fightEnd"
+     }
+    ],
+    "cardTriggers": {
+     "huntersEye": {
+      "count": 3,
+      "amount": 6,
+      "maxDepth": 1
+     },
+     "weakSpot": {
+      "count": 9,
+      "amount": 36,
+      "maxDepth": 1
+     }
+    },
+    "units": [
+     {
+      "id": "u0_tank",
+      "name": "Tank 1",
+      "role": "tank",
+      "hp": 0,
+      "maxHp": 190,
+      "alive": false,
+      "dealt": 85.56000000000002,
+      "soaked": 237.99999999999997,
+      "restored": 0,
+      "hitsTaken": 19,
+      "backfires": 1,
+      "fatigue": 38.78947368421053
+     },
+     {
+      "id": "u1_damage",
+      "name": "Damage 1",
+      "role": "damage",
+      "hp": 0,
+      "maxHp": 80,
+      "alive": false,
+      "dealt": 296.72,
+      "soaked": 64.6,
+      "restored": 0,
+      "hitsTaken": 6,
+      "backfires": 2,
+      "fatigue": 78.8125
+     },
+     {
+      "id": "u2_support",
+      "name": "Healer 1",
+      "role": "support",
+      "hp": 0,
+      "maxHp": 100,
+      "alive": false,
+      "dealt": 0,
+      "soaked": 122.99999999999996,
+      "restored": 75.8,
+      "hitsTaken": 15,
+      "backfires": 1,
+      "fatigue": 48
+     }
+    ],
+    "burnDamage": {
+     "onEnemy": 0,
+     "onPlayer": 0
+    },
+    "shieldAbsorbed": {
+     "onEnemy": 0,
+     "onPlayer": 0
+    },
+    "slams": {
+     "total": 1,
+     "byRedirect": {
+      "none": 1
+     }
+    },
+    "events": [
+     {
+      "type": "cardTriggered",
+      "t": 0,
+      "card": "huntersEye",
+      "side": "enemy",
+      "targetId": "e0_bruiser",
+      "amount": 2,
+      "depth": 1
+     },
+     {
+      "type": "cardTriggered",
+      "t": 0,
+      "card": "huntersEye",
+      "side": "enemy",
+      "targetId": "e1_grunt",
+      "amount": 2,
+      "depth": 1
+     },
+     {
+      "type": "cardTriggered",
+      "t": 0,
+      "card": "huntersEye",
+      "side": "enemy",
+      "targetId": "e2_grunt",
+      "amount": 2,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 0.6000000000000001,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 0.9500000000000001,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u2_support",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 1,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u0_tank",
+      "damage": 11
+     },
+     {
+      "type": "cardTriggered",
+      "t": 1.1,
+      "card": "weakSpot",
+      "side": "enemy",
+      "targetId": "e0_bruiser",
+      "amount": 4,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 1.1,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 11
+     },
+     {
+      "type": "heal",
+      "t": 1.1,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u1_damage",
+      "amount": 4.8
+     },
+     {
+      "type": "attack",
+      "t": 1.3,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "attack",
+      "t": 1.55,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u1_damage",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 1.9000000000000001,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 5
+     },
+     {
+      "type": "attack",
+      "t": 2,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u0_tank",
+      "damage": 10
+     },
+     {
+      "type": "cardTriggered",
+      "t": 2.2,
+      "card": "weakSpot",
+      "side": "enemy",
+      "targetId": "e0_bruiser",
+      "amount": 4,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 2.2,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 12
+     },
+     {
+      "type": "heal",
+      "t": 2.2,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainStart",
+      "t": 2.2,
+      "heroId": "u1_damage",
+      "backfire": true,
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 2.5,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u1_damage",
+      "damage": 5
+     },
+     {
+      "type": "attack",
+      "t": 2.6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "attack",
+      "t": 2.85,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u1_damage",
+      "damage": 5
+     },
+     {
+      "type": "attack",
+      "t": 3,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u0_tank",
+      "damage": 12
+     },
+     {
+      "type": "cardTriggered",
+      "t": 3.3000000000000003,
+      "card": "weakSpot",
+      "side": "enemy",
+      "targetId": "e0_bruiser",
+      "amount": 4,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 3.3000000000000003,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 13
+     },
+     {
+      "type": "chainHit",
+      "t": 3.3000000000000003,
+      "hitIndex": 1,
+      "damage": 23,
+      "intended": 23,
+      "targetId": "u0_tank",
+      "kind": "damage",
+      "backfire": true,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "heal",
+      "t": 3.3000000000000003,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 3.45,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u2_support",
+      "damage": 5
+     },
+     {
+      "type": "attack",
+      "t": 3.8000000000000003,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u2_support",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 3.9000000000000004,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "cardTriggered",
+      "t": 4,
+      "card": "weakSpot",
+      "side": "enemy",
+      "targetId": "e0_bruiser",
+      "amount": 4,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 4,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 13
+     },
+     {
+      "type": "chainEnd",
+      "t": 4,
+      "chainLength": 1,
+      "heroId": "u1_damage",
+      "totalDamage": 23,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": true,
+      "reason": "miss",
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 4,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u0_tank",
+      "damage": 12
+     },
+     {
+      "type": "chainStart",
+      "t": 4,
+      "heroId": "u0_tank",
+      "backfire": true,
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "heal",
+      "t": 4.4,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 4.4,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 4
+     },
+     {
+      "type": "cardTriggered",
+      "t": 4.65,
+      "card": "weakSpot",
+      "side": "enemy",
+      "targetId": "e0_bruiser",
+      "amount": 4,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 4.65,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 12
+     },
+     {
+      "type": "attack",
+      "t": 4.75,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 5
+     },
+     {
+      "type": "windupStart",
+      "t": 5,
+      "sourceId": "e0_bruiser",
+      "targetId": "u0_tank",
+      "fireT": 6.5
+     },
+     {
+      "type": "attack",
+      "t": 5.2,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "chainEnd",
+      "t": 5.2,
+      "chainLength": 0,
+      "heroId": "u0_tank",
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": true,
+      "reason": "miss",
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 5.2,
+      "heroId": "u2_support",
+      "backfire": true,
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 5.3500000000000005,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 5
+     },
+     {
+      "type": "heal",
+      "t": 5.5,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "chainEnd",
+      "t": 5.5,
+      "chainLength": 0,
+      "heroId": "u2_support",
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": true,
+      "reason": "miss",
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 5.5,
+      "heroId": "u1_damage",
+      "backfire": true,
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 5.7,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u1_damage",
+      "damage": 5
+     },
+     {
+      "type": "cardTriggered",
+      "t": 5.75,
+      "card": "weakSpot",
+      "side": "enemy",
+      "targetId": "e0_bruiser",
+      "amount": 4,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 5.75,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 13
+     },
+     {
+      "type": "chainHit",
+      "t": 5.75,
+      "hitIndex": 1,
+      "damage": 25.76,
+      "intended": 23,
+      "targetId": "u0_tank",
+      "kind": "damage",
+      "backfire": true,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "attack",
+      "t": 6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 9
+     },
+     {
+      "type": "heal",
+      "t": 6.2,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 6.300000000000001,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u2_support",
+      "damage": 5
+     },
+     {
+      "type": "cardTriggered",
+      "t": 6.4,
+      "card": "weakSpot",
+      "side": "enemy",
+      "targetId": "e0_bruiser",
+      "amount": 4,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 6.4,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 11
+     },
+     {
+      "type": "chainHit",
+      "t": 6.4,
+      "hitIndex": 2,
+      "damage": 37.2,
+      "intended": 30,
+      "targetId": "u0_tank",
+      "kind": "damage",
+      "backfire": true,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "windupHit",
+      "t": 6.5,
+      "sourceId": "e0_bruiser",
+      "targetId": "u0_tank",
+      "damage": 24,
+      "originalTargetId": "u0_tank",
+      "redirect": null
+     },
+     {
+      "type": "attack",
+      "t": 6.65,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 5
+     },
+     {
+      "type": "cardTriggered",
+      "t": 7.050000000000001,
+      "card": "weakSpot",
+      "side": "enemy",
+      "targetId": "e0_bruiser",
+      "amount": 4,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 7.050000000000001,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 11
+     },
+     {
+      "type": "chainHit",
+      "t": 7.050000000000001,
+      "hitIndex": 3,
+      "damage": 37,
+      "intended": 37,
+      "targetId": "u2_support",
+      "kind": "damage",
+      "backfire": true,
+      "sourceId": "u1_damage",
+      "mark": "exposed",
+      "markStacks": 1
+     },
+     {
+      "type": "attack",
+      "t": 7.25,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u1_damage",
+      "damage": 4
+     },
+     {
+      "type": "attack",
+      "t": 7.300000000000001,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "heal",
+      "t": 7.300000000000001,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 7.5,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u2_support",
+      "damage": 13
+     },
+     {
+      "type": "attack",
+      "t": 7.6000000000000005,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 4
+     },
+     {
+      "type": "cardTriggered",
+      "t": 7.75,
+      "card": "weakSpot",
+      "side": "enemy",
+      "targetId": "e0_bruiser",
+      "amount": 4,
+      "depth": 1
+     },
+     {
+      "type": "attack",
+      "t": 7.75,
+      "side": "player",
+      "attackerId": "u1_damage",
+      "targetId": "e0_bruiser",
+      "damage": 13
+     },
+     {
+      "type": "chainHit",
+      "t": 7.75,
+      "hitIndex": 4,
+      "damage": 38.599999999999994,
+      "intended": 44,
+      "targetId": "u1_damage",
+      "kind": "damage",
+      "backfire": true,
+      "sourceId": "u1_damage"
+     },
+     {
+      "type": "heroDown",
+      "t": 7.75,
+      "side": "player",
+      "heroId": "u1_damage"
+     },
+     {
+      "type": "chainEnd",
+      "t": 7.75,
+      "chainLength": 4,
+      "heroId": "u1_damage",
+      "totalDamage": 138.56,
+      "totalStunSec": 0,
+      "killedIds": [
+       "u1_damage"
+      ],
+      "backfire": true,
+      "reason": "sourceDied",
+      "effects": [
+       "expose"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 7.75,
+      "heroId": "u0_tank",
+      "backfire": false,
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 8.200000000000001,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 6
+     },
+     {
+      "type": "heal",
+      "t": 8.4,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 8.5,
+      "side": "enemy",
+      "attackerId": "e0_bruiser",
+      "targetId": "u0_tank",
+      "damage": 14
+     },
+     {
+      "type": "tankBreak",
+      "t": 8.5,
+      "side": "player",
+      "heroId": "u0_tank"
+     },
+     {
+      "type": "attack",
+      "t": 8.55,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u2_support",
+      "damage": 5
+     },
+     {
+      "type": "attack",
+      "t": 8.6,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 8.6,
+      "hitIndex": 1,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 1
+     },
+     {
+      "type": "chainHit",
+      "t": 8.6,
+      "hitIndex": 1,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 0.8518223684210526,
+      "durationTotalSec": 0.8518223684210526
+     },
+     {
+      "type": "attack",
+      "t": 9.15,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u2_support",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 9.4,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 7
+     },
+     {
+      "type": "chainHit",
+      "t": 9.4,
+      "hitIndex": 2,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 2
+     },
+     {
+      "type": "chainHit",
+      "t": 9.4,
+      "hitIndex": 2,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.1073690789473687,
+      "durationTotalSec": 1.9591914473684213
+     },
+     {
+      "type": "heal",
+      "t": 9.5,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u0_tank",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 9.5,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u2_support",
+      "damage": 5
+     },
+     {
+      "type": "attack",
+      "t": 10.100000000000001,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u0_tank",
+      "damage": 6
+     },
+     {
+      "type": "attack",
+      "t": 10.15,
+      "side": "player",
+      "attackerId": "u0_tank",
+      "targetId": "e0_bruiser",
+      "damage": 8
+     },
+     {
+      "type": "chainHit",
+      "t": 10.15,
+      "hitIndex": 3,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "u0_tank",
+      "kind": "guard",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "charges": 1,
+      "chargesTotal": 3
+     },
+     {
+      "type": "chainHit",
+      "t": 10.15,
+      "hitIndex": 3,
+      "damage": 0,
+      "intended": 0,
+      "targetId": "e0_bruiser",
+      "kind": "stun",
+      "backfire": false,
+      "sourceId": "u0_tank",
+      "durationSec": 1.3629157894736845,
+      "durationTotalSec": 3.322107236842106
+     },
+     {
+      "type": "attack",
+      "t": 10.450000000000001,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u0_tank",
+      "damage": 4
+     },
+     {
+      "type": "heroDown",
+      "t": 10.450000000000001,
+      "side": "player",
+      "heroId": "u0_tank"
+     },
+     {
+      "type": "chainEnd",
+      "t": 10.450000000000001,
+      "chainLength": 3,
+      "heroId": "u0_tank",
+      "totalDamage": 0,
+      "totalStunSec": 3.322107236842106,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "sourceDied",
+      "effects": [
+       "guard",
+       "stun"
+      ]
+     },
+     {
+      "type": "chainStart",
+      "t": 10.450000000000001,
+      "heroId": "u2_support",
+      "backfire": false,
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "heal",
+      "t": 10.600000000000001,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u2_support",
+      "amount": 6
+     },
+     {
+      "type": "chainHit",
+      "t": 10.600000000000001,
+      "hitIndex": 1,
+      "damage": 5,
+      "intended": 5,
+      "targetId": "u2_support",
+      "kind": "heal",
+      "backfire": false,
+      "sourceId": "u2_support"
+     },
+     {
+      "type": "attack",
+      "t": 11.05,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u2_support",
+      "damage": 5
+     },
+     {
+      "type": "heal",
+      "t": 11.25,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u2_support",
+      "amount": 6
+     },
+     {
+      "type": "chainEnd",
+      "t": 11.25,
+      "chainLength": 1,
+      "heroId": "u2_support",
+      "totalDamage": 5,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "miss",
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 11.4,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u2_support",
+      "damage": 4
+     },
+     {
+      "type": "heal",
+      "t": 11.9,
+      "side": "player",
+      "healerId": "u2_support",
+      "targetId": "u2_support",
+      "amount": 6
+     },
+     {
+      "type": "attack",
+      "t": 12,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u2_support",
+      "damage": 5
+     },
+     {
+      "type": "attack",
+      "t": 12.350000000000001,
+      "side": "enemy",
+      "attackerId": "e1_grunt",
+      "targetId": "u2_support",
+      "damage": 5
+     },
+     {
+      "type": "chainStart",
+      "t": 12.450000000000001,
+      "heroId": "u2_support",
+      "backfire": false,
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "attack",
+      "t": 12.950000000000001,
+      "side": "enemy",
+      "attackerId": "e2_grunt",
+      "targetId": "u2_support",
+      "damage": 6
+     },
+     {
+      "type": "heroDown",
+      "t": 12.950000000000001,
+      "side": "player",
+      "heroId": "u2_support"
+     },
+     {
+      "type": "chainEnd",
+      "t": 12.950000000000001,
+      "chainLength": 0,
+      "heroId": "u2_support",
+      "totalDamage": 0,
+      "totalStunSec": 0,
+      "killedIds": [],
+      "backfire": false,
+      "reason": "fightEnd",
+      "effects": [
+       "mend"
+      ]
+     },
+     {
+      "type": "resolve",
+      "t": 12.950000000000001,
+      "outcome": "loss",
+      "reason": "wipe"
+     }
+    ]
+   },
+   "reward": {
+    "relicChoices": null,
+    "relicTaken": null,
+    "offersShown": [],
+    "offerTaken": null,
+    "droppedCard": null
+   }
+  }
+ ]
+}

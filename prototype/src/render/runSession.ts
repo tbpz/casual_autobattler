@@ -22,6 +22,44 @@ import { applyOffer, drawOffers, noteIntroduced, type Offer } from "../sim/offer
 import type { CardId } from "../sim/cards/index.js";
 import { summarizeLoss, summarizeWin, type RoundSummary } from "../sim/run.js";
 
+/** A fielded unit as it stood going into a round — the readings an export log
+ * needs, not the fight's full HeroState (windup targeting and the like are
+ * per-fight transient state). */
+export interface UnitReading {
+  id: string;
+  name: string;
+  role: string;
+  hp: number;
+  maxHp: number;
+  fatigue: number;
+  chainEffects: string[];
+  chainLevel: number;
+}
+
+/** Everything the export log (log/runLog.ts) needs to know about one round,
+ * written as the round happens: the state going in, the fight, and the reward
+ * taken after it. The reward fields stay empty for a lost round (no offer is
+ * ever shown after a loss). */
+export interface RoundLog {
+  roundIndex: number;
+  kind: string;
+  encounterIndex: number;
+  encounterName: string;
+  fieldedIds: string[];
+  defaultFieldedIds: string[];
+  squad: UnitReading[];
+  /** A copy, taken before the fight: the relic, held cards, per-role abilities
+   * and levels, stat bonus and slots the run carried into this round. */
+  progressBefore: RunProgress;
+  projection: Projection;
+  fightResult: FightResult;
+  relicChoices: CardId[] | null;
+  relicTaken: CardId | null;
+  offersShown: Offer[];
+  offerTaken: Offer | null;
+  droppedCard: CardId | null;
+}
+
 /**
  * Drives a run one round at a time, waiting for real player taps on both
  * decision points — which units fill this round's squad, and which of the 3
@@ -51,6 +89,8 @@ export class RunSession {
   rounds: RoundSummary[] = [];
   /** Every round played this run, in order. */
   fightResults: FightResult[] = [];
+  /** One entry per round played, in order — what the export log is built from. */
+  roundLogs: RoundLog[] = [];
   lastFightResult: FightResult | null = null;
   /** The projection computed just before the round just resolved was
    * played — stashed here so the post-round recap can compare projected vs.
@@ -93,6 +133,11 @@ export class RunSession {
     this.progressValue = applied.progress;
     this.roster = applied.roster;
     this.awaitingRelic = false;
+    const log = this.roundLogs[this.roundLogs.length - 1];
+    if (log) {
+      log.relicChoices = [...this.relicChoices];
+      log.relicTaken = id;
+    }
     this.finishRound(null, id);
   }
 
@@ -170,10 +215,39 @@ export class RunSession {
     // actually shown on the round screen, not a value derived after the
     // fact from the outcome.
     this.lastProjection = project(player, enemy, this.cfg.fight);
+    // Read before runFight, in case the fight touches the squad it was handed.
+    const squad: UnitReading[] = player.heroes.map((h) => ({
+      id: h.id,
+      name: h.name,
+      role: h.role,
+      hp: h.hp,
+      maxHp: h.maxHp,
+      fatigue: h.fatigue,
+      chainEffects: [...(h.chainEffects ?? [])],
+      chainLevel: h.chainLevel ?? 1,
+    }));
+    const progressBefore = structuredClone(this.progressValue);
     const setup: FightSetup = { player, enemy, cards: heldCards(this.progressValue) };
     const result = runFight(setup, this.cfg.fight, this.rng, this.seedValue);
     this.lastFightResult = result;
     this.fightResults.push(result);
+    this.roundLogs.push({
+      roundIndex: this.roundIndex,
+      kind: this.currentRoundKind,
+      encounterIndex: this.currentEncounterIndex,
+      encounterName: this.currentEncounterName,
+      fieldedIds: [...ids],
+      defaultFieldedIds: this.defaultFielding,
+      squad,
+      progressBefore,
+      projection: this.lastProjection,
+      fightResult: result,
+      relicChoices: null,
+      relicTaken: null,
+      offersShown: [],
+      offerTaken: null,
+      droppedCard: null,
+    });
 
     if (result.outcome === "loss") {
       this.rounds.push(summarizeLoss(this.roundIndex, result, sideMaxHp(this.roster), ids));
@@ -191,6 +265,7 @@ export class RunSession {
     }
     this.pendingOffers = drawOffers(this.offerRng, this.progressValue, this.roster, this.cfg, this.roundIndex);
     this.progressValue = noteIntroduced(this.progressValue, this.pendingOffers);
+    this.roundLogs[this.roundLogs.length - 1]!.offersShown = [...this.pendingOffers];
     return result;
   }
 
@@ -205,6 +280,11 @@ export class RunSession {
       const applied = applyOffer(this.progressValue, this.roster, offer, this.cfg, dropCardId);
       this.progressValue = applied.progress;
       this.roster = applied.roster;
+      const log = this.roundLogs[this.roundLogs.length - 1];
+      if (log) {
+        log.offerTaken = offer;
+        log.droppedCard = dropCardId ?? null;
+      }
     }
     this.pendingOffers = [];
     return this.finishRound(offer);

@@ -2,7 +2,7 @@
 
 > **What this file is:** where the project stands right now, and what to do next. Present tense only.
 > **Read this first** in every session. Layer 1 ends at the rule — that's the 60-second read. Layer 2 is the working index.
-> **Last synced:** 2026-10-01
+> **Last synced:** 2026-10-02
 
 ## What this is
 
@@ -22,13 +22,13 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 ## Where it stands
 
-A run grows over 20 rounds through a relic, reward cards, role upgrades and duo cards; cards are "when X, do Y" rules that can set each other off. The sim is batch-verified, but no full run has been played by hand since the card rework. The work now is a friendlier opening: a run starts straight on round 1, and the relic pick becomes round 1's reward — designed, not built. The shield segment on the HP bar is built but not yet seen in a browser.
+A run grows over 20 rounds through a relic (round 1's reward), reward cards, role upgrades and duo cards; cards are "when X, do Y" rules that can set each other off. One run has been played by hand from the new opening, and every screen has an `export` link that writes the run to a file. The sim is batch-verified; the work now is making every mark card fire in an ordinary run and finding why the Exposed build wins less than Burn or Frozen. The shield segment on the HP bar is built but not yet seen in a browser.
 
 ## Next up
 
-1. **Build the new opening** as the three newest `DECISIONS.md` entries specify: round 1 first, relic pick as its reward, no pre-selection, Collection after the first run.
-2. **Play a run** (`npm run dev`): do the opening, relic, offer, cascade, recap and shield screens work, and do you want to try a combo next run?
-3. **Rebalance outliers** from the batch synergy block (`npm run batch -- --offers build`): Punish is the weakest card, Restless the weakest relic.
+1. **Fix the cards that rarely fire:** Glass fires only when a freeze ends; Deep freeze, Overflow, Spread, Bulwark, Crack and Ember heart fire in under half their held fights (the "rarely fires" line of `npm run batch -- --offers build`).
+2. **Rebalance outliers** from the synergy block: Mercenary is the weakest relic, Punish and Iron hide the weakest cards, and Exposed's cards average 0.0 against Burn's +4.7.
+3. **Play more runs** (`npm run dev`), a different build each time, and send the `export` file — a build verdict is checked against it.
 4. **Pick a target for chains' share of damage** — it is about 38% of player damage now.
 5. Fix the healer-only stalemate and the two recap wording bugs ("for 0" on a guard/stun save; the guard's repeated "against" line).
 
@@ -49,17 +49,19 @@ A run grows over 20 rounds through a relic, reward cards, role upgrades and duo 
 | Marks — each chain ability leaves one | batch-verified | `sim/fight.ts`, `checks/marks.ts` |
 | Card engine — hooks, cascades, depth cap | batch-verified | `sim/cards/engine.ts`, `checks/cards.ts` |
 | Card pool — 34 cards incl. 6 duos | batch-verified | `sim/cards/defs/`, `checks/cardpool.ts` |
-| Card intro gate — a card waits for its marks; a duo waits for its parts | batch-verified | `sim/offers.ts`, `checks/offers.ts` |
+| Card intro gate — a card waits for its marks; a duo waits for its parts | batch-verified | `sim/offers.ts`, `sim/cards/index.ts`, `checks/offers.ts` |
+| Card fire rate — "rarely fires" line in the synergy block | batch-verified | `batch/synergy.ts` |
 | Offer pool — 3 per win, card weight capped | batch-verified | `sim/offers.ts`, `render/offerScreen.ts` |
 | Relics — 6, pick 1 of 3, held all run | batch-verified | `sim/relics.ts`, `sim/cards/defs/relic.ts` |
-| New opening — round 1 first, relic as round 1 reward, Collection after first run | not started | `render/app.ts`, `render/relicScreen.ts`, `render/runSession.ts`, `sim/run.ts` |
-| Collection — cross-run, duo silhouettes | built | `sim/collection.ts`, `render/collectionScreen.ts` |
+| New opening — round 1 first, relic as round 1 reward | played-verified | `render/app.ts`, `render/relicScreen.ts`, `render/runSession.ts`, `sim/run.ts` |
+| Collection — cross-run, duo silhouettes, reached from the run-end screens | built | `sim/collection.ts`, `render/collectionScreen.ts` |
+| Run export — `export` link on every screen writes the run as JSON | played-verified | `render/app.ts`, `log/runLog.ts`, `checks/runLog.ts` |
 | Synergy report — best cards and pairs, per-relic rounds | batch-verified | `batch/synergy.ts` |
 | Rest card — cuts one unit's fatigue | batch-verified | `sim/offers.ts`, `checks/fatigue.ts` |
 | Offer safety net — a revive/recruit/Rest when the roster has no cushion | batch-verified | `sim/offers.ts` |
 | 20-round plan — mini-bosses at 7/14, boss at 20 | batch-verified | `sim/rounds.ts`, `checks/runShape.ts` |
 | Enemy shapes — the encounter pool | batch-verified | `sim/encounters.ts` |
-| Difficulty — ~8% run completion, n=3000 greedy, 2026-10-01 | batch-verified | `checks/runShape.ts`, `batch/cli.ts` |
+| Difficulty — ~6% run completion, n=3000 greedy, 2026-10-02 | batch-verified | `checks/runShape.ts`, `batch/cli.ts` |
 | Multi-answer counterplay — needs re-reading against roles | not started | `archive/DESIGN_MULTIPLE_ANSWERS.md` |
 | Real game build | not started | — |
 
@@ -73,10 +75,10 @@ A run grows over 20 rounds through a relic, reward cards, role upgrades and duo 
 
 ## Open questions
 
-- What does each relic's text say to a player who has seen only one fight? Gates Next up #1.
-- Do today's relics set a run's identity, or do some need to be bigger rule changes? Answered by Next up #2.
+- Is Exposed weak because its cards are, or because a multiplier on a flat damage number is? Gates Next up #2.
+- What fire rate is healthy for a card that fires only on a moment (Lay bare, Second wind)? Gates Next up #1.
+- Do today's relics set a run's identity, or do some need to be bigger rule changes? Answered by Next up #3.
 - What share of a fight's outcome should chains decide? Gates Next up #4.
-- Are Smoke, Bulwark and Kindling fairly strong, or is the pool uneven? Gates Next up #3.
 
 ## How to work here
 
@@ -85,6 +87,6 @@ A run grows over 20 rounds through a relic, reward cards, role upgrades and duo 
 - `DECISIONS.md` has an archive rule; entries below it predate the 2026-07-18 pivot.
 - Decisions are proposed, never silently logged — on a confirmed yes, append via the `decision-log` skill.
 - This file is regenerated only when asked, via the `state-sync` skill; `REFERENCE.md` is not.
-- Commands: `npm run dev` to play (`?test=1&seed=N` runs the `archive/ATTRIBUTION_TEST.md` protocol),
+- Commands: `npm run dev` to play (the corner `export` link saves the run as JSON; `?test=1&seed=N` runs the `archive/ATTRIBUTION_TEST.md` protocol),
   `npm run check` for regressions, `npm run batch -- --n 1000 --offers build` (add `--set key=number,...` to sweep a value, `--cards a,b` to restrict the pool) — full list in `prototype/COMMANDS.md`.
-- Code: `prototype/src/sim/` (`config.ts` holds every tunable, `rounds.ts` the round plan, `cards/` the card engine and definitions), `src/render/`, `src/batch/`, `src/checks/`.
+- Code: `prototype/src/sim/` (`config.ts` holds every tunable, `rounds.ts` the round plan, `cards/` the card engine and definitions), `src/render/`, `src/batch/`, `src/checks/`, `src/log/` (the export).

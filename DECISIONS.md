@@ -10,6 +10,42 @@
 
 ---
 
+## [2026-10-02] Mend is not a Shield source, so Shield cards wait for a real one
+
+- **Decision:**
+  - A chain ability counts as a source of a mark only if it leaves that mark reliably.
+  - Mend no longer counts as a Shield source.
+  - Ward, Brace, Siphon and the Bastion relic still do.
+  - A Shield card waits until the squad has been shown one of those.
+  - "Shown counts as met" is unchanged.
+- **Why:**
+  - Mend shields only what it heals past full HP, which a squad rarely does.
+  - Mend is a base ability, so every run met Shield on round 1 and was offered Shield cards from round 2 with no shield in the squad.
+  - In a played run (seed 121068723, 2026-10-02) Spiked shield was held for three fights and no shield absorbed a hit in any fight.
+  - Measured 2026-10-02, `--offers build`: Spiked shield fired in 50% of held fights before the change (n=1500) and 86% after (n=2000).
+  - The same batch (n=1500) moved runs that end as a Shield build from 23% to 15%, and as an Exposed build from 19% to 29%, because Exposed is the only set open from round 1.
+- **Replaces:**
+  - Which abilities count as a mark source in the 2026-09-30 entry "A payoff card is offered only after the player has met every mark it reads".
+  - Not covered: a Shield ability that was shown but declined still opens the Shield cards.
+
+## [2026-10-02] Brittle pays out as a freeze lands, not when it ends
+
+- **Decision:**
+  - Brittle exposes an enemy each time a freeze lands, by the seconds of that freeze.
+  - It no longer waits for the freeze to end.
+  - The per-second rate is a tunable in `sim/config.ts`.
+  - Glass keeps its freeze-ends trigger for now, with the same flaw.
+- **Why:**
+  - A chain's Freeze stacks for about ten seconds, and the frozen enemy usually dies first, so the old trigger rarely fired.
+  - In the same played run Brittle fired zero times over two fights with a Tank Freeze, in a build chosen around it.
+  - Measured 2026-10-02, `--offers build`: the old Brittle fired in 72% of held fights (n=1500), and in 96% when the run had Frost crown's short freeze (n=3000).
+  - After the change it fired in 85% of held fights and ranked fifth of 34 cards by win over expected (n=2000).
+  - It copies Frostbite, which already pays burn per second of freeze, so a longer Freeze buys more.
+  - A sweep of the rate moved the card's score little once past the lowest value, because Exposed caps at ten stacks.
+- **Replaces:**
+  - The "when a freeze ends" Brittle in the card pool of the 2026-10-01 entry "Build depth comes from cards on a "when X, do Y" engine, built all at once".
+  - Not covered: Glass, Deep freeze, and the other cards that fire in under half their held fights.
+
 ## [2026-10-01] A stranded round 1 win ends the run, and Collection sits on the run-end screens
 
 - **Decision:**

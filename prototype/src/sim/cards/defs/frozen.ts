@@ -69,18 +69,24 @@ export const COLD_SNAP: CardDef = {
 export const BRITTLE: CardDef = {
   id: "brittle",
   title: "Brittle",
-  detail: "When a freeze ends, the enemy becomes exposed.",
+  detail: "When you freeze an enemy, it becomes exposed for every second.",
   icon: "❋",
   kind: "mark",
   reads: ["frozen"],
   makes: ["exposed"],
   hooks: [
     {
-      on: "thawed",
-      when: (e) => e.onEnemySide,
+      // 2026-10-02: was "when a freeze ends" (the `thawed` hook). A chain's
+      // Freeze stacks to ~10 s and the enemy usually dies first, so a thaw
+      // trigger almost never fired for the squad that most wanted it. Now
+      // paid out as each freeze rung lands, Frostbite's way, so a longer
+      // freeze buys more exposure.
+      on: "frozen",
+      when: (e) => e.onEnemySide && !e.backfire,
       do: (e, api) => {
-        api.addExposed(e.target, api.cfg.brittleExposeStacks);
-        api.fire("brittle", "enemy", e.target.id, api.cfg.brittleExposeStacks);
+        const stacks = Math.max(1, Math.round(e.sec * api.cfg.brittleExposePerSec));
+        api.addExposed(e.target, stacks);
+        api.fire("brittle", "enemy", e.target.id, stacks);
       },
     },
   ],

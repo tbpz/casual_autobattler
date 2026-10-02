@@ -78,13 +78,18 @@ export const DUO_IDS: CardId[] = CARD_IDS.filter((id) => CARD_DEFS[id].kind === 
 export const RELIC_IDS: CardId[] = CARD_IDS.filter((id) => CARD_DEFS[id].kind === "relic");
 
 /** The marks each chain ability leaves. Exposed/Burn/Shield are stacks;
- * Frozen is the stun fields. Guard leaves Exposed on the slammer it blocks. */
+ * Frozen is the stun fields. Guard leaves Exposed on the slammer it blocks.
+ * Only a mark an ability leaves RELIABLY is listed (2026-10-02): Mend shields
+ * only what it heals past full HP, which a squad rarely does, so it is not a
+ * Shield source — it was how Spiked shield and the rest of the Shield set were
+ * offered to every run from round 2 with no shield anywhere in the squad. A
+ * Shield card now waits for Ward, Brace, Siphon or a card/relic that makes it. */
 export const ABILITY_MARKS: Record<ChainEffect, MarkId[]> = {
   guard: ["exposed"],
   stun: ["frozen"],
   expose: ["exposed"],
   scorch: ["burn"],
-  mend: ["shield"],
+  mend: [],
   ward: ["shield"],
   brace: ["shield"],
   quake: ["exposed"],

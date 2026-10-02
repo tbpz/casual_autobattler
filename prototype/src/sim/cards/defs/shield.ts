@@ -112,6 +112,7 @@ export const AEGIS: CardDef = {
   title: "Aegis",
   detail: "Shields can grow to your units' full max HP.",
   icon: "⬡",
+  passive: true,
   kind: "mark",
   reads: ["shield"],
   makes: [],
