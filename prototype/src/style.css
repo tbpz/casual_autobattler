@@ -1187,7 +1187,6 @@ body {
 }
 
 .body.down {
-  transform: rotate(90deg) translateY(6px);
   opacity: 0.35 !important;
 }
 
