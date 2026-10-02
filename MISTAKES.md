@@ -16,6 +16,14 @@
 
 ---
 
+### [2026-10-02 #1] Quoted a chain count from memory instead of the count I had just run
+
+- **Said:** In the Frozen-playtest analysis (and its plan file): "Of 12 chains, 9 ended at 0–1 hits."
+- **Actually:** 10 of 12 did. The chain lengths in the round-3 fight are 1,4,1,0,1,0,0,0,4,0,0,0.
+- **Caught by:** Myself, recounting the lengths from the export before acting on the plan.
+- **Why:** I had the full list on screen and wrote a tally by eye instead of running a count.
+- **Tag:** eyeballed a number I could have computed
+
 ### [2026-10-01 #1] Logged a decision bullet Tu never confirmed, and broke the entry format
 
 - **Said:** Appended the relic-timing entry to `DECISIONS.md` as the confirmed decision, including

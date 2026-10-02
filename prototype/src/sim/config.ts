@@ -787,6 +787,14 @@ export interface RunConfig {
    * card's weight shrinks together. */
   cardGroupWeightCap: number;
   borrowWeightFraction: number;
+  /** The fatigue way-out offers (2026-10-02 sweep). `recruitWeightFloor` > 0
+   * stops a Recruit offer's draw weight shrinking late in the run: its weight is
+   * never below this (0 = the old fade from 1 to 0.4). `restForceAnyAt` is an
+   * experiment, shipped off (0): > 0 forces a Rest offer whenever ANY unit the
+   * default pick would field is at or past that fatigue, instead of only when
+   * every fielded unit is past the sweet spot. */
+  restForceAnyAt: number;
+  recruitWeightFloor: number;
   /** Restricts the offer pool to these cards, in this order (undefined = every
    * card). For experiments and checks — `--cards a,b,c` on the batch CLI — never
    * set by a real run. */
@@ -888,9 +896,13 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // shortened fights (17.0s to 15.5s), dropped heroes-who-chained to 84% and
   // lifted greedy completion to 12%. Swept again: 1.8 puts completion at 9.4%
   // and heroes-who-chained at 86% (n=1000, greedy), 2.0 at 5.2% / 87%.
+  // 2026-10-02 (softer fatigue + common Recruit, see below): the squad got
+  // sturdier again, so 2.4 puts greedy completion back at 6.3% (n=3000; 2.35
+  // read 7.4%, 2.45 read 4.8%). Fights run ~20s and chains are ~42% of player
+  // damage at this scale.
   chargeThreshold: 45,
   chargeTricklePerSec: 6,
-  enemyHpScale: 1.8,
+  enemyHpScale: 2.4,
 
   // Fatigue (2026-09-30, DECISIONS.md "Fatigue replaces per-role backfire
   // odds") — first-pass strawmen, see the FightConfig docstring for the shape.
@@ -898,12 +910,17 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // ~9% for a tank to ~16% for a damage unit). With ~6 chains a fight, a flat
   // 12% would put a backfire in about half of all fights, so the fresh anchor
   // sits well under it and only a worn unit gets near it.
+  // 2026-10-02: the breaking anchor fell 0.55 -> 0.30. At 0.55 a frayed unit
+  // backfired 24% of the time for LESS damage per chain than a worn one, so
+  // pushing never paid and ~90% of lost fights held a backfire. At 0.30 a
+  // frayed chain backfires ~16% and hits slightly harder than a worn one (38
+  // vs 37), so pushing a worn unit is a real gamble again.
   fatigueMax: 100,
   fatigueTierFloors: [25, 50, 80],
   fatigueSweetSpot: 45,
   backfireAtFresh: 0.03,
   backfireAtSweetSpot: 0.1,
-  backfireAtBreaking: 0.55,
+  backfireAtBreaking: 0.30,
   fatigueContinuationBonus: 0.1,
   fatigueMagnitudeBonus: 0.35,
 
@@ -1085,6 +1102,13 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   duoBoost: 6,
   cardGroupWeightCap: 12,
   borrowWeightFraction: 0.25,
+  // 2026-10-02: a Recruit offer used to fade from weight 1 to 0.4 over the run,
+  // so a bench (the only free way to shed fatigue) existed on ~40% of offer
+  // screens. A floor of 2 keeps Recruit common: ~1 taken a run (was 0.6).
+  // restForceAnyAt stays off; at 45 it nearly tripled Rest offers but ate the
+  // slots Recruit and power picks needed, leaving completion flat.
+  restForceAnyAt: 0,
+  recruitWeightFloor: 2,
   maxUpgradesPerRole: 2,
   upgradeOptionsPerRole: 2,
   buildOffersGuaranteed: 1,
@@ -1106,11 +1130,15 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   // First-pass strawmen — see the RunConfig docstring. Tuned so a unit that is
   // fielded every round drifts toward the sweet spot by mid-run rather than
   // maxing out in a handful of fights.
+  // 2026-10-02: retuned after a sweep found the fielded squad sat near 50
+  // (frayed) from round 8 on, the Damage unit (80 HP) gaining ~24 a fight.
+  // HP-loss fatigue 25 -> 13, a benched unit sheds 12 -> 20, a Rest card cuts
+  // 30 -> 45. Fielded fatigue now peaks near 30 around round 9.
   fatiguePerFight: 3,
-  fatiguePerHpLost: 25,
+  fatiguePerHpLost: 13,
   fatiguePerBackfire: 4,
-  fatigueBenchRest: 12,
-  restFatigueCut: 30,
+  fatigueBenchRest: 20,
+  restFatigueCut: 45,
 };
 
 /** Look up a PRD-style table: index by count, clamp to the last (capped) entry. */

@@ -7,6 +7,7 @@ import type { SideState } from "./types.js";
 import type { PlayerRole } from "./roles.js";
 import { PLAYER_ROLES, ROLE_LABEL, ROLE_POOL, ROLE_UPGRADE_POOL, makeUnitState } from "./roles.js";
 import { heldCards, type RunProgress } from "./progress.js";
+import { defaultFieldPick } from "./roster.js";
 
 /**
  * 2026-09-23 (roles/rounds rebuild — see DECISIONS.md and STATE.md).
@@ -444,7 +445,7 @@ export function drawOffers(rng: Rng, progress: RunProgress, roster: SideState, c
             // same flat weight instead of the late-run ramp of a "big" offer; a
             // borrow is the rare one.
             cfg.cardWeight * (t.rare ? cfg.borrowWeightFraction : 1) * (unlocksHeld(t.gainEffect) ? 1 + cfg.cardConnectBoost : 1)
-          : Math.max(0.01, weightFor(t.size, roundsIntoRun)),
+          : Math.max(0.01, t.key.startsWith("recruit:") ? Math.max(cfg.recruitWeightFloor, weightFor(t.size, roundsIntoRun)) : weightFor(t.size, roundsIntoRun)),
   }));
   // The card group as a whole never outweighs cfg.cardGroupWeightCap
   // (2026-10-01): each card draws at its own flat weight, so a pool four times
@@ -473,7 +474,11 @@ export function drawOffers(rng: Rng, progress: RunProgress, roster: SideState, c
     .map((h) => h.fatigue)
     .sort((a, b) => a - b)
     .slice(0, progress.slots);
-  const needsRest = !needsSafetyNet && freshest.length > 0 && freshest.every((f) => f >= cfg.fight.fatigueSweetSpot);
+  const wornEnough =
+    cfg.restForceAnyAt > 0
+      ? defaultFieldPick(roster, progress.slots).some((id) => (roster.heroes.find((h) => h.id === id)?.fatigue ?? 0) >= cfg.restForceAnyAt)
+      : freshest.length > 0 && freshest.every((f) => f >= cfg.fight.fatigueSweetSpot);
+  const needsRest = !needsSafetyNet && wornEnough;
   if (needsRest) {
     const restIdx = pool.findIndex((p) => p.t.key === "rest");
     if (restIdx >= 0) {

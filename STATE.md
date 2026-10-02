@@ -22,14 +22,14 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 ## Where it stands
 
-A run grows over 20 rounds through a relic (round 1's reward), reward cards, role upgrades and duo cards; cards are "when X, do Y" rules that can set each other off. One run has been played by hand from the new opening, and every screen has an `export` link that writes the run to a file. The sim is batch-verified; the work now is making every mark card fire in an ordinary run and finding why the Exposed build wins less than Burn or Frozen. The shield segment on the HP bar is built but not yet seen in a browser.
+A run grows over 20 rounds through a relic (round 1's reward), reward cards, role upgrades and duo cards; cards are "when X, do Y" rules that can set each other off. Fatigue and Recruit are tuned to give a worn unit ways out (bench, Rest, Recruit), batch-verified and not yet played. Two runs have been played by hand from the new opening, and every screen has an `export` link that writes the run to a file. The work now is making every mark card fire in an ordinary run and rechecking why the Exposed build wins less than Burn or Frozen; the shield segment on the HP bar is built but not yet seen in a browser.
 
 ## Next up
 
-1. **Fix the cards that rarely fire:** Glass fires only when a freeze ends; Deep freeze, Overflow, Spread, Bulwark, Crack and Ember heart fire in under half their held fights (the "rarely fires" line of `npm run batch -- --offers build`).
-2. **Rebalance outliers** from the synergy block: Mercenary is the weakest relic, Punish and Iron hide the weakest cards, and Exposed's cards average 0.0 against Burn's +4.7.
-3. **Play more runs** (`npm run dev`), a different build each time, and send the `export` file — a build verdict is checked against it.
-4. **Pick a target for chains' share of damage** — it is about 38% of player damage now.
+1. **Fix the cards that rarely fire:** Glass fires only when a freeze ends; Overflow, Ember heart, Cold snap, Bulwark and Deep freeze fire in under half their held fights (the "rarely fires" line of `npm run batch -- --offers build`).
+2. **Rebalance outliers** from the synergy block: Punish is the weakest card by a wide margin, and recheck whether Exposed's cards still trail Burn's.
+3. **Play more runs** (`npm run dev`), a different build each time, and send the `export` file — a build verdict is checked against it, and so is whether fatigue and Recruit now feel survivable and the coloured mark words read clearly.
+4. **Pick a target for chains' share of damage** — it is about 44% of player damage now.
 5. Fix the healer-only stalemate and the two recap wording bugs ("for 0" on a guard/stun save; the guard's repeated "against" line).
 
 ---
@@ -51,10 +51,10 @@ A run grows over 20 rounds through a relic (round 1's reward), reward cards, rol
 | Card pool — 34 cards incl. 6 duos | batch-verified | `sim/cards/defs/`, `checks/cardpool.ts` |
 | Card intro gate — a card waits for its marks; a duo waits for its parts | batch-verified | `sim/offers.ts`, `sim/cards/index.ts`, `checks/offers.ts` |
 | Card fire rate — "rarely fires" line in the synergy block | batch-verified | `batch/synergy.ts` |
-| Offer pool — 3 per win, card weight capped | batch-verified | `sim/offers.ts`, `render/offerScreen.ts` |
+| Offer pool — 3 per win, card weight capped, Recruit kept common | batch-verified | `sim/offers.ts`, `render/offerScreen.ts` |
+| Card text — mark words coloured, offer names where a needed mark comes from | built | `render/heroPickShared.ts`, `sim/offers.ts`, `design/HANDOFF.md` |
 | Relics — 6, pick 1 of 3, held all run | batch-verified | `sim/relics.ts`, `sim/cards/defs/relic.ts` |
 | New opening — round 1 first, relic as round 1 reward | played-verified | `render/app.ts`, `render/relicScreen.ts`, `render/runSession.ts`, `sim/run.ts` |
-| Collection — cross-run, duo silhouettes, reached from the run-end screens | built | `sim/collection.ts`, `render/collectionScreen.ts` |
 | Run export — `export` link on every screen writes the run as JSON | played-verified | `render/app.ts`, `log/runLog.ts`, `checks/runLog.ts` |
 | Synergy report — best cards and pairs, per-relic rounds | batch-verified | `batch/synergy.ts` |
 | Rest card — cuts one unit's fatigue | batch-verified | `sim/offers.ts`, `checks/fatigue.ts` |
@@ -68,16 +68,17 @@ A run grows over 20 rounds through a relic (round 1's reward), reward cards, rol
 ## Unverified bets
 
 - Chains every fight still feel unpredictable, rather than averaging out into a steady trade.
-- Fatigue's mid-level peak makes "push or rest" a real choice, not always-rest or always-push.
+- Push or rest stays a real choice: batch shows a frayed chain out-hitting a worn one only slightly, and fielded fatigue falls to ~13 by round 20.
 - Cards and duos give a combo worth chasing next run — the bet this whole pass exists for.
 - A relic picked after one fight gives the run an identity, not just one more upgrade.
 - A cascade stays readable on a phone screen.
 
 ## Open questions
 
-- Is Exposed weak because its cards are, or because a multiplier on a flat damage number is? Gates Next up #2.
+- Does the Exposed build still win less than Burn or Frozen, and is that its cards or a multiplier on a flat damage number? Gates Next up #2.
 - What fire rate is healthy for a card that fires only on a moment (Lay bare, Second wind)? Gates Next up #1.
 - Do today's relics set a run's identity, or do some need to be bigger rule changes? Answered by Next up #3.
+- Do eased fatigue and common Recruit feel survivable by hand? Answered by Next up #3.
 - What share of a fight's outcome should chains decide? Gates Next up #4.
 
 ## How to work here

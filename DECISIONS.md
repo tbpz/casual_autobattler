@@ -10,6 +10,28 @@
 
 ---
 
+## [2026-10-02] Ease fatigue and backfire, keep Recruit common, make enemies pay for it
+
+- **Decision:**
+  - Fatigue and backfire stay the run's main risk, but the player gets real ways out.
+  - Fatigue builds more slowly, a benched unit and a Rest card shed more, and the top of the backfire curve is lower.
+  - A Recruit offer no longer fades late in the run, so a bench stays likely.
+  - Enemies are tougher, so greedy completion stays near 6%.
+  - Forcing a Rest offer when any fielded unit is worn was tested and not adopted; its knob ships off.
+  - The values live in `sim/config.ts`; the change is in git.
+- **Why:**
+  - Measured 2026-10-02, `--offers build`, n=2000: 90% of lost fights held a backfire, against 31% of won fights.
+  - Same batch: run completion was 2.2% as shipped, 43.5% with fatigue never rising, 55.1% with no backfire.
+  - A fielded squad sat frayed from round 8 on, and a frayed chain backfired 24% of the time for less damage than a worn one (27 against 31), so pushing never paid.
+  - Recruit showed on about one offer screen in eight, so a bench, the only free way to shed fatigue, was often missing.
+  - After the change, greedy, n=3000: completion 6.3% (was 5.9%), chains backfiring 5.5% (was 11.3%), and a frayed chain hits slightly harder than a worn one (38 against 37).
+  - Backfire was in 59% of lost fights, down from about 90% (n=2000, one step before the final enemy strength).
+  - Forced Rest offered Rest on 55% of screens but left completion flat, because it spent slots Recruit and power picks needed.
+  - Fight length rose to about 20s and chains are about 42% of player damage; both are measured, neither is checked by hand.
+- **Replaces:**
+  - The fatigue and backfire numbers from the 2026-09-30 entry "Fatigue replaces per-role backfire odds"; its mechanism stands.
+  - Not covered: the greedy bot takes Recruit readily, so how a person feels this is unchecked until played.
+
 ## [2026-10-02] The cross-run Collection is dropped
 
 - **Decision:**
