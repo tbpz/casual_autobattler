@@ -1381,8 +1381,13 @@ body {
 .chain-hud {
   position: absolute;
   top: -54px;
-  left: 50%;
-  transform: translateX(-50%);
+  /* Stretched across the arena and centred by align-items, NOT left:50% +
+     translateX(-50%): iPhone Safari resolves that -50% against the box's
+     width from BEFORE the title text changed (e.g. last chain's "CHAIN
+     BROKEN" while the new one says "IGNITES"), so the title sat ~40px left
+     for the length of the pop animation, then snapped to centre. */
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1407,13 +1412,13 @@ body {
 
 @keyframes chainHudEmphasize {
   0% {
-    transform: translateX(-50%) scale(1);
+    transform: scale(1);
   }
   30% {
-    transform: translateX(-50%) scale(1.15);
+    transform: scale(1.15);
   }
   100% {
-    transform: translateX(-50%) scale(1);
+    transform: scale(1);
   }
 }
 
@@ -1569,8 +1574,10 @@ body {
 .callout {
   position: absolute;
   top: 0;
-  left: 50%;
-  transform: translate(-50%, -8px);
+  left: 0;
+  right: 0;
+  text-align: center;
+  transform: translateY(-8px);
   font-weight: 700;
   font-size: 1.1em;
   color: var(--chain);
@@ -1597,18 +1604,18 @@ body {
 @keyframes calloutPop {
   0% {
     opacity: 0;
-    transform: translate(-50%, 6px) scale(0.9);
+    transform: translateY(6px) scale(0.9);
   }
   15% {
     opacity: 1;
-    transform: translate(-50%, -8px) scale(1.05);
+    transform: translateY(-8px) scale(1.05);
   }
   75% {
     opacity: 1;
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -16px) scale(1);
+    transform: translateY(-16px) scale(1);
   }
 }
 
@@ -1621,8 +1628,9 @@ body {
 .chain-end-card {
   position: absolute;
   top: -54px;
-  left: 50%;
-  transform: translate(-50%, -6px);
+  left: 0;
+  right: 0;
+  transform: translateY(-6px);
   text-align: center;
   white-space: nowrap;
   opacity: 0;
@@ -1657,18 +1665,18 @@ body {
 @keyframes chainEndPop {
   0% {
     opacity: 0;
-    transform: translate(-50%, 4px) scale(0.92);
+    transform: translateY(4px) scale(0.92);
   }
   12% {
     opacity: 1;
-    transform: translate(-50%, -6px) scale(1.05);
+    transform: translateY(-6px) scale(1.05);
   }
   80% {
     opacity: 1;
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -14px) scale(1);
+    transform: translateY(-14px) scale(1);
   }
 }
 

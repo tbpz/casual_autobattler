@@ -16,6 +16,19 @@
 
 ---
 
+### [2026-10-02 #2] Wrote a fix plan for the off-centre chain text before checking it happens
+
+- **Said:** The first plan for "chain text starts off to the left on mobile" named two causes: the
+  box gets squeezed to half the arena width, and the browser measures the sideways shift too early.
+  It then listed a CSS change to fix them.
+- **Actually:** Neither happens. In Chrome at 390px wide and in a WebKit (Safari engine) test
+  browser at iPhone size, the title stays within 3px of the middle on every frame, and the 3px is the
+  screen shake. The box is not squeezed, and the new text is set before the pop-in starts.
+- **Caught by:** Tu rejected the plan: "Check first to confirm."
+- **Why:** I read the CSS, found two ways a centred box can go wrong, and wrote them up as the cause
+  without running the page to see whether either one actually happens.
+- **Tag:** named a cause from reading code, without reproducing the bug
+
 ### [2026-10-02 #1] Quoted a chain count from memory instead of the count I had just run
 
 - **Said:** In the Frozen-playtest analysis (and its plan file): "Of 12 chains, 9 ended at 0–1 hits."
