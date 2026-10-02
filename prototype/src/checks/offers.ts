@@ -80,8 +80,9 @@ for (let i = 0; i < cfg.roundsPerRun && !invariantBroken; i++) {
   // 2026-09-30 (introduce a mark before its payoff): a drawn payoff card may
   // only read marks the player has already met, via progress.introduced as it
   // stood BEFORE this draw's own ability offers are noted.
-  // A mark a held card lays counts as met too (2026-10-01): the card said so
-  // on its own offer, e.g. "Makes ♨ burn".
+  // A mark a held card lays counts as met too (2026-10-01): the card's own
+  // text names it (coloured since 2026-10-02), e.g. "the front enemy becomes
+  // exposed".
   const met = marksMadeBy(progress.introduced, progress.cards);
   for (const offer of offers) {
     if (offer.kind !== "card") continue;

@@ -14,7 +14,7 @@
     { "id": "label-roundpress", "x": 1100, "y": -60, "w": 390, "text": "3. Round screen — TANK band held down, full text revealed" },
     { "id": "label-midfill", "x": 1650, "y": -60, "w": 390, "text": "4. Fight screen — chain ring at 50%, fatigue pips" },
     { "id": "label-fatiguepips", "x": 0, "y": 840, "w": 860, "text": "5. Fatigue display — tier pips, all four states (chosen design, built)" },
-    { "id": "label-offerafter", "x": 0, "y": 1340, "w": 390, "text": "6. Offer screen — built: full-width rows, category rail, named role pill" },
+    { "id": "label-offerafter", "x": 0, "y": 1340, "w": 390, "text": "6. Offer screen — proposal: mark words coloured, reads/makes lines removed" },
     { "id": "label-shieldbar", "x": 550, "y": 1340, "w": 860, "text": "7. Shield on the HP bar — proposal, decided 2026-10-01, not built" }
   ],
   "launch": { "view": "canvas" }

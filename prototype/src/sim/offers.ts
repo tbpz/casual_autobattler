@@ -2,7 +2,7 @@ import type { Rng } from "./rng.js";
 import type { ChainEffect, RunConfig } from "./config.js";
 import { chainEffectChip, chainEffectVerb } from "./config.js";
 import type { CardId } from "./cards/index.js";
-import { MARK_CHIP, CARD_DEFS, CARD_IDS, cardConnects, duoUnlocked, marksMadeBy, pickCardToDrop } from "./cards/index.js";
+import { ABILITY_MARKS, MARK_CHIP, CARD_DEFS, CARD_IDS, cardConnects, duoUnlocked, marksMadeBy, pickCardToDrop } from "./cards/index.js";
 import type { SideState } from "./types.js";
 import type { PlayerRole } from "./roles.js";
 import { PLAYER_ROLES, ROLE_LABEL, ROLE_POOL, ROLE_UPGRADE_POOL, makeUnitState } from "./roles.js";
@@ -57,7 +57,7 @@ export interface Offer {
    * "New: ❄ freeze"). Display only — applyOffer never reads it. */
   headline: string;
   /** A neutral link to what the run already holds ("Feeds your Shatter",
-   * "Your squad makes ✦ exposed"). Any kind can carry one; absent when there
+   * "From your Damage's ◎ expose"). Any kind can carry one; absent when there
    * is nothing to say. Display only. */
   worksWith?: string;
 }
@@ -245,7 +245,7 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
           headline: def.title,
           title: def.title,
           detail: def.detail,
-          worksWith: cardWorksWith(id, squad, heldCards(progress)),
+          worksWith: cardWorksWith(id, squadEffectSources(progress, roster), heldCards(progress)),
         };
       },
     });
@@ -316,11 +316,14 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
 }
 
 /** The neutral "why this card is here" line on a card offer (2026-10-01): a duo
- * names the parts the player holds, a card fed by a held card names it, a card
- * the squad's own abilities feed names the marks, and a card that makes a mark
- * says so. Undefined when there is nothing honest to say. Display only. */
-function cardWorksWith(id: CardId, squad: readonly ChainEffect[], held: readonly CardId[]): string | undefined {
+ * names the parts the player holds, and a card that needs a mark names where
+ * each one comes from — a squad ability ("Damage's ◎ expose") or a held card
+ * ("Brittle"). A card that only makes a mark has nothing to say (2026-10-02:
+ * the coloured mark word in its text is enough). Undefined when there is
+ * nothing honest to say. Display only. */
+function cardWorksWith(id: CardId, sources: readonly EffectSource[], held: readonly CardId[]): string | undefined {
   const def = CARD_DEFS[id];
+  const squad = sources.map((s) => s.effect);
   const chip = (m: keyof typeof MARK_CHIP): string => `${MARK_CHIP[m].icon} ${MARK_CHIP[m].word}`;
   if (def.needs) {
     const parts = [
@@ -330,17 +333,23 @@ function cardWorksWith(id: CardId, squad: readonly ChainEffect[], held: readonly
     ];
     return `Duo: you hold ${parts.join(" + ")}`;
   }
-  if (def.reads.length === 0) return def.makes.length > 0 ? `Makes ${def.makes.map(chip).join(" + ")}` : undefined;
+  if (def.reads.length === 0) return undefined;
   if (!cardConnects(id, squad, held)) return undefined;
   if (def.needsEffects) return `Your squad has ${def.needsEffects.filter((e) => squad.includes(e)).map((e) => chainEffectChip(e).word).join(" + ")}`;
-  // Marks the abilities alone do not make but a held card does: name the card.
+  // One source per mark it reads: the squad ability that leaves it, or — for a
+  // mark the abilities alone do not make — the held card that does.
   const byAbility = marksMadeBy(squad);
-  const fedBy = def.reads
-    .filter((m) => !byAbility.has(m))
-    .map((m) => held.find((h) => CARD_DEFS[h].makes.includes(m)))
-    .filter((h): h is CardId => h !== undefined);
-  if (fedBy.length > 0) return `Fed by your ${[...new Set(fedBy)].map((h) => CARD_DEFS[h].title).join(" + ")}`;
-  return `Your squad makes ${def.reads.map(chip).join(" + ")}`;
+  const from = new Set<string>();
+  for (const mark of def.reads) {
+    if (byAbility.has(mark)) {
+      const src = sources.find((s) => ABILITY_MARKS[s.effect].includes(mark));
+      if (src) from.add(`${ROLE_LABEL[src.role]}'s ${chainEffectChip(src.effect).icon} ${chainEffectChip(src.effect).word}`);
+    } else {
+      const card = held.find((h) => CARD_DEFS[h].makes.includes(mark));
+      if (card) from.add(CARD_DEFS[card].title);
+    }
+  }
+  return from.size > 0 ? `From your ${[...from].join(" + ")}` : undefined;
 }
 
 /** Small early, big late — a linear ramp over how far into the run this win
@@ -350,15 +359,29 @@ function weightFor(size: "small" | "big", roundsIntoRun: number): number {
   return size === "small" ? 1 - 0.6 * roundsIntoRun : 0.2 + 0.9 * roundsIntoRun;
 }
 
-/** Every chain ability the roster's roles carry right now — what the squad
- * can make marks with, for the payoff connection test. A role with no unit
- * on the roster contributes nothing. */
-export function squadChainEffects(progress: RunProgress, roster: SideState): ChainEffect[] {
-  const effects: ChainEffect[] = [];
+/** A chain ability and the role that carries it. */
+export interface EffectSource {
+  role: PlayerRole;
+  effect: ChainEffect;
+}
+
+/** Every chain ability the roster's roles carry right now, with the role that
+ * carries it — so an offer can name where a mark comes from. A role with no
+ * unit on the roster contributes nothing. */
+export function squadEffectSources(progress: RunProgress, roster: SideState): EffectSource[] {
+  const sources: EffectSource[] = [];
   for (const role of PLAYER_ROLES) {
-    if (roster.heroes.some((h) => h.role === role)) effects.push(...progress.chain[role].effects);
+    if (roster.heroes.some((h) => h.role === role)) {
+      for (const effect of progress.chain[role].effects) sources.push({ role, effect });
+    }
   }
-  return effects;
+  return sources;
+}
+
+/** Every chain ability the roster's roles carry right now — what the squad
+ * can make marks with, for the payoff connection test. */
+export function squadChainEffects(progress: RunProgress, roster: SideState): ChainEffect[] {
+  return squadEffectSources(progress, roster).map((s) => s.effect);
 }
 
 /** Records every ability a drawn "chainGain" offer puts on screen as

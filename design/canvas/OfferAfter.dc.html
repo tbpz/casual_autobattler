@@ -13,19 +13,19 @@
 </style>
 </helmet>
 
-<!-- Offer screen (2026-09-30, built: render/offerScreen.ts). Scenario: the run holds Shatter; the tank chain gain feeds it. Three full-width rows
-     instead of three columns, so text gets ~250px instead of ~90px. Left rail = category icon + word, stacked
-     and centred, so even "REACTION" stays on one line. Role is a named pill ("Tank", "Damage", "Healer",
-     "All") top right. Headline = the change. Every row has the same frame; nothing is gold. The synergy line
-     is plain muted text and can sit on any row. Category colours are placeholders. -->
+<!-- Offer screen. PROPOSAL 2026-10-02 (not built): the "reads" / "makes" chip lines are gone. A mark word is coloured where it
+     already sits in the card's own text (exposed pink, frozen blue, burn orange, shield teal; the same --mark-* tokens the unit badges use).
+     The quiet "↳" line stays only when the card NEEDS a mark from somewhere else, and it names that source ("From your Damage's expose").
+     A card that only makes a mark (Hunter's mark) has no "↳" line at all. Layout, rail and pills are unchanged from the built screen
+     (render/offerScreen.ts). Scenario: the run holds Shatter; the tank chain gain feeds it; the squad's Damage unit has expose. -->
 <div style="background:#14161c;width:390px;height:780px;padding:16px;">
-  <div style="background:#1d2029;border-radius:12px;padding:24px 14px 20px;color:#e8e8ee;">
-    <div style="text-align:center;font-size:24px;font-weight:800;margin-bottom:10px;">Victory — pick one</div>
-    <div style="text-align:center;font-size:13px;color:#8a8fa3;margin-bottom:16px;">Your cards (1/6): Shatter</div>
+  <div style="background:#1d2029;border-radius:12px;padding:20px 14px 16px;color:#e8e8ee;">
+    <div style="text-align:center;font-size:24px;font-weight:800;margin-bottom:8px;">Victory — pick one</div>
+    <div style="text-align:center;font-size:13px;color:#8a8fa3;margin-bottom:14px;">Your cards (1/6): Shatter</div>
 
     <div style="display:flex;flex-direction:column;gap:10px;">
 
-      <!-- CHAIN -->
+      <!-- CHAIN: a mark word inside the description, plus a source line for the card it feeds -->
       <div style="display:flex;background:#2a2e3a;border:1px solid #3a3f4e;border-radius:10px;overflow:hidden;">
         <div style="width:74px;flex:none;background:rgba(123,147,214,.16);border-right:2px solid #7b93d6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:8px 4px;">
           <div style="font-size:22px;line-height:1;color:#7b93d6;">⛓</div>
@@ -33,19 +33,19 @@
         </div>
         <div style="flex:1;padding:10px 12px 12px;text-align:left;min-width:0;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-            <div style="font-size:19px;font-weight:800;line-height:1.15;">New: ❄ freeze</div>
+            <div style="font-size:19px;font-weight:800;line-height:1.15;">New: <span style="color:#7ec8ff;">❄ freeze</span></div>
             <span style="flex:none;height:20px;padding:0 8px;border-radius:10px;background:rgba(255,180,84,.16);border:1px solid #ffb454;color:#ffb454;font-size:10px;font-weight:800;display:flex;align-items:center;">Tank</span>
           </div>
           <div style="font-size:12px;font-weight:700;margin-top:6px;">Tank chain — gains an ability</div>
-          <div style="font-size:11.5px;color:#8a8fa3;margin-top:2px;">Also freezes one enemy, cancelling its slam.</div>
+          <div style="font-size:11.5px;color:#8a8fa3;margin-top:2px;">Also <span style="color:#7ec8ff;font-weight:700;">freezes</span> one enemy, cancelling its slam.</div>
           <div style="font-size:11.5px;color:#c7cad6;margin-top:7px;">↳ Feeds your Shatter</div>
         </div>
       </div>
 
-      <!-- REACTION -->
+      <!-- REACTION that needs a mark: coloured word in the text, ↳ names where the mark comes from -->
       <div style="display:flex;background:#2a2e3a;border:1px solid #3a3f4e;border-radius:10px;overflow:hidden;">
         <div style="width:74px;flex:none;background:rgba(184,138,166,.16);border-right:2px solid #b88aa6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:8px 4px;">
-          <div style="font-size:22px;line-height:1;color:#b88aa6;">⚡</div>
+          <div style="font-size:22px;line-height:1;color:#b88aa6;">☠</div>
           <div style="font-size:9px;font-weight:800;letter-spacing:.05em;color:#b88aa6;">REACTION</div>
         </div>
         <div style="flex:1;padding:10px 12px 12px;text-align:left;min-width:0;">
@@ -53,13 +53,27 @@
             <div style="font-size:19px;font-weight:800;line-height:1.15;">Execute</div>
             <span style="flex:none;height:20px;padding:0 8px;border-radius:10px;background:#3a3f4e;border:1px solid #5a6074;color:#c7cad6;font-size:10px;font-weight:800;display:flex;align-items:center;">All</span>
           </div>
-          <div style="font-size:11.5px;color:#8a8fa3;margin-top:6px;">An exposed enemy at low HP dies outright.</div>
-          <div style="font-size:11.5px;color:#8a8fa3;margin-top:6px;">reads <span style="display:inline-block;padding:0 6px;border-radius:8px;background:#20232c;color:#c7cad6;">✦ exposed</span></div>
-          <div style="font-size:11.5px;color:#c7cad6;margin-top:7px;">↳ Your squad makes ✦ exposed</div>
+          <div style="font-size:11.5px;color:#8a8fa3;margin-top:6px;">When an <span style="color:#ff7ab6;font-weight:700;">exposed</span> enemy is at low HP, it dies outright.</div>
+          <div style="font-size:11.5px;color:#c7cad6;margin-top:7px;">↳ From your Damage's ◎ expose</div>
         </div>
       </div>
 
-      <!-- STATS -->
+      <!-- REACTION that only makes a mark: coloured word, no ↳ line -->
+      <div style="display:flex;background:#2a2e3a;border:1px solid #3a3f4e;border-radius:10px;overflow:hidden;">
+        <div style="width:74px;flex:none;background:rgba(184,138,166,.16);border-right:2px solid #b88aa6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:8px 4px;">
+          <div style="font-size:22px;line-height:1;color:#b88aa6;">⌖</div>
+          <div style="font-size:9px;font-weight:800;letter-spacing:.05em;color:#b88aa6;">REACTION</div>
+        </div>
+        <div style="flex:1;padding:10px 12px 12px;text-align:left;min-width:0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div style="font-size:19px;font-weight:800;line-height:1.15;">Hunter's mark</div>
+            <span style="flex:none;height:20px;padding:0 8px;border-radius:10px;background:#3a3f4e;border:1px solid #5a6074;color:#c7cad6;font-size:10px;font-weight:800;display:flex;align-items:center;">All</span>
+          </div>
+          <div style="font-size:11.5px;color:#8a8fa3;margin-top:6px;">When a chain starts, the front enemy becomes <span style="color:#ff7ab6;font-weight:700;">exposed</span>.</div>
+        </div>
+      </div>
+
+      <!-- STATS: no marks, so nothing changes -->
       <div style="display:flex;background:#2a2e3a;border:1px solid #3a3f4e;border-radius:10px;overflow:hidden;">
         <div style="width:74px;flex:none;background:rgba(208,138,106,.16);border-right:2px solid #d08a6a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:8px 4px;">
           <div style="font-size:22px;line-height:1;color:#d08a6a;">▲</div>
@@ -77,11 +91,13 @@
 
     </div>
   </div>
-  <div style="font-size:11px;line-height:1.5;color:#c7cad6;margin-top:14px;">
-    Full-width rows: the text gets most of the width and nothing wraps awkwardly. The left rail is the
-    category (icon + word, always one line); the pill is who it affects, spelled out; the big line is how
-    much. Same frame and weight on every row, and the synergy hint is a quiet line that any row can carry.
-    Rows are 110–125px tall, so three fit with room to spare; a fourth offer would still fit.
+  <div style="font-size:11px;line-height:1.5;color:#c7cad6;margin-top:12px;">
+    <b>Proposal.</b> The "reads / makes" lines are removed. A mark is coloured where it already appears in the card's own text:
+    <span style="color:#ff7ab6;font-weight:700;">exposed</span>,
+    <span style="color:#7ec8ff;font-weight:700;">frozen</span>,
+    <span style="color:#ff8a3d;font-weight:700;">burn</span>,
+    <span style="color:#5ee0d0;font-weight:700;">shield</span>.
+    The ↳ line stays only when the card needs a mark from elsewhere, and it names the source. Hunter's mark only makes a mark, so it has no ↳ line.
   </div>
 </div>
 </x-dc>

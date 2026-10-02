@@ -172,3 +172,13 @@ export const MARK_CHIP: Record<MarkId, { icon: string; word: string }> = {
   burn: { icon: "♨", word: "burn" },
   shield: { icon: "⛊", word: "shield" },
 };
+
+/** The word forms card text uses for each mark (2026-10-02), as regex source —
+ * render/heroPickShared.ts's markWordsHtml colours them where they sit in a
+ * card's own description. A new form is one edit here. */
+export const MARK_WORDS: Record<MarkId, string> = {
+  exposed: "expos(?:ed|ure)",
+  frozen: "frozen|freezes?|freezing",
+  burn: "burn(?:s|ing)?",
+  shield: "shields?",
+};

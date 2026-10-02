@@ -16,9 +16,13 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
    "made stronger" in words, and each unit's own fatigue tier and backfire chance.
 4. **MidFill** — fight screen: chain shown as a ring around each player body, role-coloured bodies, fatigue pips beside each body.
 5. **FatiguePips** — the chosen fatigue display, all four tiers on both screens, plus a legend of the tier ranges.
-6. **OfferAfter** — the reward-pick screen, built 2026-09-30 (`render/offerScreen.ts`, `style.css` `.offer-row`): three full-width rows, each with a
+6. **OfferAfter** — the reward-pick screen. The layout is built (2026-09-30, `render/offerScreen.ts`, `style.css` `.offer-row`): full-width rows, each with a
    category rail (Chain, Stats, Squad, Recovery, Reaction), a named role pill, the change as a big headline, and a quiet "↳" line linking an
-   offer to what the run holds (any kind can carry one). Every row has the same frame; nothing is gold, so no kind looks like the answer.
+   offer to what the run holds. Every row has the same frame; nothing is gold, so no kind looks like the answer.
+   **Redrawn 2026-10-02 as a proposal, not built:** four rows (Chain, Execute, Hunter's mark, Stats). The "reads / makes" chip lines are gone. A mark word is
+   coloured where it sits in the card's own text (exposed pink, frozen blue, burn orange, shield teal, from `style.css` `--mark-*`). The "↳" line stays only
+   when the card needs a mark from elsewhere, and it names the source ("From your Damage's expose"). A card that only makes a mark has no "↳" line.
+   Plan: `~/.claude/plans/flickering-waddling-storm.md`. The code still shows the old reads/makes lines until Tu approves this frame.
 7. **ShieldBar** — built 2026-10-01 (`render/fightView.ts`, `render/hpBar.ts`, `style.css` `.hp-shield-fill`; `DECISIONS.md` "Shield shows as a segment on the HP bar"), with number placement A. The frame's own label on the published canvas still says "proposal, not built". Nine states of the HP bar with a
    teal shield segment (today's badge, under max, over max with rescale, a hit eating shield, draining while over max, a break flash, a 4-point
    sliver, the Aegis cap, an enemy), plus the number-placement choice. Bars are drawn wider than on a phone.
@@ -55,6 +59,8 @@ Built 2026-09-30, matching the canvas: `render/heroPickShared.ts` (`fatiguePipsH
 5. **Shield number placement** (frame 7). A: the HP label gains a teal `⛊40`. B: a small teal tag sits at the bar's right end. Cards 2–9 use A.
 6. **Shield rescale side effects** (frame 7, cards 3, 5, 8). The rescale shrinks the blue HP fill while shielded (Aegis: half the bar), and it
    grows back as the shield drains with no HP change. Acceptable, or would an overlay read better?
+7. **Coloured mark words on cards** (frame 6, 2026-10-02). Approve the new look, or change it? Open point: a mark introduced by a maker card is now
+   introduced only by its coloured word in the description, since the "Makes ✦ exposed" line is gone.
 
 ## What the canvas does not cover
 

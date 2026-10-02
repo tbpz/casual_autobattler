@@ -1505,7 +1505,8 @@ export class FightView {
       target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
       pulseClass(target.core, "flinch", 300);
       this.showImpactFlash(target.body, frac);
-      const label = bypass ? `↷-${damage}` : `-${damage}`;
+      const shown = Math.round(damage);
+      const label = bypass ? `↷-${shown}` : `-${shown}`;
       this.showPopup(target.body, label, "normal", 1, 0, attacker.accent, offsetX);
       if (bypass) {
         // The loud half of the tell: the hero the back row keeps dim and
@@ -1535,7 +1536,8 @@ export class FightView {
 
     const land = () => {
       pulseClass(target.body, "healed", 500);
-      this.showPopup(target.body, `+${amount}`, "heal", 1, 0, HEAL_ACCENT);
+      // A heal under half a point has nothing to show, same as a chain heal's "+0".
+      if (Math.round(amount) > 0) this.showPopup(target.body, `+${Math.round(amount)}`, "heal", 1, 0, HEAL_ACCENT);
     };
     if (healer) setTimeout(land, TRACER_MS);
     else land();
@@ -1682,7 +1684,7 @@ export class FightView {
       target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
       pulseClass(target.core, "flinch", 300);
       this.showImpactFlash(target.body, frac);
-      this.showPopup(target.body, `-${damage}`, "windup", 1 + frac, 0, WINDUP_ACCENT);
+      this.showPopup(target.body, `-${Math.round(damage)}`, "windup", 1 + frac, 0, WINDUP_ACCENT);
       this.arena.classList.remove("shake");
       void this.arena.offsetWidth;
       this.arena.classList.add("shake");

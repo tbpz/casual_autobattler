@@ -1,9 +1,9 @@
 import type { Offer, OfferKind } from "../sim/offers.js";
 import type { CardId } from "../sim/cards/index.js";
-import type { MarkId } from "../sim/config.js";
-import { MARK_CHIP, CARD_DEFS } from "../sim/cards/index.js";
+import { CARD_DEFS } from "../sim/cards/index.js";
 import type { PlayerRole } from "../sim/roles.js";
 import { ROLE_LABEL } from "../sim/roles.js";
+import { markWordsHtml } from "./heroPickShared.js";
 import { ROLE_CSS_VAR } from "./roundScreen.js";
 
 /**
@@ -14,9 +14,10 @@ import { ROLE_CSS_VAR } from "./roundScreen.js";
  * actually useful right now (sim/offers.ts's drawOffers), so there's always
  * a real pick.
  *
- * 2026-09-30 (marks and payoffs): a payoff card shows the marks it reads.
- * At the payoff cap, taking one opens a second step that asks which held card
- * to drop.
+ * 2026-09-30 (marks and payoffs): at the payoff cap, taking a card opens a
+ * second step that asks which held card to drop. A mark word in a card's text
+ * is coloured where it sits (2026-10-02; the old "reads / makes" chip lines
+ * are gone).
  *
  * 2026-09-30 (offer screen redesign — design/canvas/OfferAfter.dc.html): every
  * offer is a full-width row with the SAME frame, so no kind looks like the
@@ -58,15 +59,10 @@ interface RowParts {
   title?: string;
   detail: string;
   role?: PlayerRole;
-  /** A card offer only — the card, so the row can show its own icon and the
-   * marks it reads and makes. */
+  /** A card offer only — the card, so the row can show its own icon. */
   card?: CardId;
   worksWith?: string;
   replaces?: boolean;
-}
-
-function markChips(marks: readonly MarkId[]): string {
-  return marks.map((m) => `<span class="mark-chip">${MARK_CHIP[m].icon} ${MARK_CHIP[m].word}</span>`).join("");
 }
 
 function rowHtml(p: RowParts): string {
@@ -79,17 +75,15 @@ function rowHtml(p: RowParts): string {
   // next one at a glance, and recalled next run), and a duo says so.
   const railIcon = def ? def.icon : cat.icon;
   const railWord = def ? (def.kind === "duo" ? "DUO" : "CARD") : cat.word;
-  const reads = def
-    ? (def.reads.length > 0 ? `<span class="offer-reads">reads ${markChips(def.reads)}</span>` : "") +
-      (def.makes.length > 0 ? `<span class="offer-reads">makes ${markChips(def.makes)}</span>` : "")
-    : "";
+  // A card's headline is its name, left plain; a chain offer's headline is the
+  // ability it adds ("New: ❄ freeze"), so a mark word in it is coloured too.
+  const headline = p.card ? p.headline : markWordsHtml(p.headline);
   return (
     `<span class="offer-rail"><span class="offer-rail-icon">${railIcon}</span><span class="offer-rail-word">${railWord}</span></span>` +
     `<span class="offer-body">` +
-    `<span class="offer-head"><span class="offer-headline">${p.headline}</span>${pill}</span>` +
+    `<span class="offer-head"><span class="offer-headline">${headline}</span>${pill}</span>` +
     (p.title ? `<span class="offer-title">${p.title}</span>` : "") +
-    `<span class="offer-detail">${p.detail}</span>` +
-    reads +
+    `<span class="offer-detail">${markWordsHtml(p.detail)}</span>` +
     (p.worksWith ? `<span class="offer-with">↳ ${p.worksWith}</span>` : "") +
     (p.replaces ? `<span class="offer-replaces">replaces one of your cards</span>` : "") +
     `</span>`

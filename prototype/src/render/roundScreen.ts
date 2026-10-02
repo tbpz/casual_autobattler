@@ -1,8 +1,8 @@
-import { backfireChanceFor, fatigueTier, type MarkId, type RunConfig } from "../sim/config.js";
+import { backfireChanceFor, fatigueTier, type RunConfig } from "../sim/config.js";
 import type { HeroState } from "../sim/types.js";
 import { PLAYER_ROLES, ROLE_LABEL, type PlayerRole } from "../sim/roles.js";
 import type { RunProgress } from "../sim/progress.js";
-import { MARK_CHIP, CARD_DEFS, DUO_IDS, cardConnects, duoUnlocked } from "../sim/cards/index.js";
+import { CARD_DEFS, DUO_IDS, cardConnects, duoUnlocked } from "../sim/cards/index.js";
 import { squadChainEffects } from "../sim/offers.js";
 import { chainStrongerCount, heldCards } from "../sim/progress.js";
 import { defaultFieldPick, type RosterState } from "../sim/roster.js";
@@ -14,6 +14,7 @@ import {
   chainEffectLines,
   chainVsEncounterLine,
   fatiguePipsHtml,
+  markWordsHtml,
 } from "./heroPickShared.js";
 
 /** HP fractions where a round token's bar changes how loudly it reads —
@@ -384,12 +385,6 @@ export function renderRoundScreen(
     payoffRow.appendChild(payoffLabel);
     const squadEffects = squadChainEffects(progress, roster);
     const held = heldCards(progress);
-    const markLine = (label: string, marks: readonly MarkId[]): HTMLElement => {
-      const el = document.createElement("div");
-      el.className = "round-popover-reads";
-      el.innerHTML = `${label} ` + marks.map((m) => `<span class="mark-chip mark-${m}">${MARK_CHIP[m].icon} ${MARK_CHIP[m].word}</span>`).join("");
-      return el;
-    };
     // The relic first, then the cards in the order they were taken.
     for (const id of progress.relic ? [progress.relic, ...progress.cards] : progress.cards) {
       const def = CARD_DEFS[id];
@@ -400,10 +395,8 @@ export function renderRoundScreen(
       chip.textContent = `${def.icon} ${def.title}`;
       chip.addEventListener("click", () => {
         const title = document.createElement("div");
-        title.innerHTML = `<strong>${def.title}${isRelic ? " (relic)" : ""}.</strong> ${def.detail}`;
+        title.innerHTML = `<strong>${def.title}${isRelic ? " (relic)" : ""}.</strong> ${markWordsHtml(def.detail)}`;
         const parts: HTMLElement[] = [title];
-        if (def.reads.length > 0) parts.push(markLine("reads", def.reads));
-        if (def.makes.length > 0) parts.push(markLine("makes", def.makes));
         if (!isRelic) {
           parts.push(
             cardConnects(id, squadEffects, held)

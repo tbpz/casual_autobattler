@@ -24,7 +24,7 @@
   --heal: #6ee7a0;
   --freeze: #7ec8ff;
   /* Marks (2026-09-30, marks and payoffs) — one colour per mark, used by the
-     unit badges, the mark popups, and the offer screen's "reads" chips. */
+     unit badges, the mark popups, and the mark words in card text. */
   --mark-exposed: #ff7ab6;
   --mark-frozen: #7ec8ff;
   --mark-burn: #ff8a3d;
@@ -2125,14 +2125,6 @@ button:disabled {
   margin-top: 2px;
 }
 
-.round-popover-reads {
-  margin-top: 4px;
-}
-
-.round-popover-reads .mark-chip:first-child {
-  margin-left: 0;
-}
-
 .round-token-row {
   display: flex;
   gap: 19px;
@@ -2748,30 +2740,26 @@ button:disabled {
 }
 
 .mark-badge.mark-exposed,
-.mark-chip.mark-exposed {
+.mark-word.mark-exposed {
   color: var(--mark-exposed);
 }
 
 .mark-badge.mark-burn,
-.mark-chip.mark-burn {
+.mark-word.mark-burn {
   color: var(--mark-burn);
 }
 
-.mark-chip.mark-shield {
+.mark-word.mark-shield {
   color: var(--mark-shield);
 }
 
-.mark-chip.mark-frozen {
+.mark-word.mark-frozen {
   color: var(--mark-frozen);
 }
 
-.mark-chip {
-  display: inline-block;
-  margin-left: 4px;
-  padding: 0 6px;
-  border-radius: 8px;
-  border: 1px solid currentColor;
-  font-size: 0.95em;
+/* A mark word inside a card's own text (2026-10-02, render/heroPickShared.ts
+   markWordsHtml) — replaces the old "reads / makes" chips. */
+.mark-word {
   font-weight: 700;
 }
 
@@ -2899,20 +2887,6 @@ button:disabled {
   color: var(--muted);
 }
 
-.offer-row .offer-reads {
-  display: block;
-  margin-top: 6px;
-  font-size: 11.5px;
-  color: var(--muted);
-}
-
-/* Neutral in an offer row: no mark colour, so a payoff row carries no extra tint. */
-.offer-row .mark-chip {
-  color: var(--text);
-  border: 0;
-  background: var(--surface);
-}
-
 .offer-row .offer-with {
   display: block;
   margin-top: 7px;
@@ -2974,56 +2948,4 @@ button:disabled {
 
 .damage-popup.card-caused {
   font-size: 0.9em;
-}
-
-/* 2026-10-01: the collection screen (render/collectionScreen.ts). A card never
-   met is a dim silhouette; a duo not yet found still names the parts it needs. */
-.collection-heading {
-  font-size: 0.85em;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin: 14px 0 6px;
-}
-
-.collection-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 8px;
-}
-
-.collection-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 8px;
-  border-radius: 8px;
-  background: var(--track-bg);
-  font-size: 0.78em;
-}
-
-.collection-cell.collection-unknown {
-  opacity: 0.55;
-}
-
-.collection-cell.collection-taken {
-  border: 1px solid var(--muted);
-}
-
-.collection-cell.collection-duo.collection-unknown {
-  border: 1px dashed var(--muted);
-  opacity: 0.8;
-}
-
-.collection-icon {
-  font-size: 1.3em;
-}
-
-.collection-name {
-  font-weight: 800;
-}
-
-.collection-needs,
-.collection-text {
-  color: #c7cad6;
 }

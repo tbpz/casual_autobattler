@@ -10,6 +10,21 @@
 
 ---
 
+## [2026-10-02] The cross-run Collection is dropped
+
+- **Decision:**
+  - The Collection screen, its saved record of met cards, and its buttons are removed from the prototype.
+  - Nothing is kept hidden behind a flag.
+  - Duo cards still appear only once both parts are held; that rule never depended on the Collection.
+- **Why:**
+  - Tu: "No use at the moment."
+  - It records what the player has met across runs, and nothing in the current bets (the fight pay-off, build identity inside one run) reads it.
+  - It sat on the relic and run-end screens, adding a button to screens that are meant to be accept-default.
+- **Replaces:**
+  - The Collection placement in "A stranded round 1 win ends the run, and Collection sits on the run-end screens" and "No relic is pre-selected, and Collection appears after the first run".
+  - The "collection screen shows unfound duos as silhouettes" line in the build-depth entry.
+  - Players' old `autobattler.collection.v1` browser entry is left in place, unread.
+
 ## [2026-10-02] Mend is not a Shield source, so Shield cards wait for a real one
 
 - **Decision:**

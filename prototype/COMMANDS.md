@@ -58,8 +58,7 @@ Read it off `--offers build`; `greedy` rarely takes cards. "card triggers" repla
 New checks, all part of `npm run check`: `check:cards` (the event engine: order,
 cascade cap, cause tags, determinism), `check:abilities` (the six new chain abilities,
 the upgrade pools and the per-run draw), `check:cardpool` (every card fires in a forced
-scenario; relics; duo unlock rules), `check:collection` (the cross-run collection's
-storage rules).
+scenario; relics; duo unlock rules).
 
 **Export log (2026-10-02).** Every screen's bottom-right corner reads `seed N · export`;
 clicking `export` downloads `run-<seed>-r<rounds>-<HHMM>.json` with the run so far — relic,
@@ -68,5 +67,3 @@ fight the chains, card triggers, per-unit damage/soak/heal and the full event li
 export from the same run is a superset of an earlier one. Built by `src/log/runLog.ts`,
 pinned by `check:runlog`.
 
-The collection lives in `localStorage` under `autobattler.collection.v1` and is opened
-from the relic screen that starts every run.

@@ -8,18 +8,7 @@ import { renderRunCompleteScreen, renderRunOverScreen, renderRoundRecap } from "
 import { renderRoundScreen } from "./roundScreen.js";
 import { renderOfferScreen } from "./offerScreen.js";
 import { renderRelicScreen } from "./relicScreen.js";
-import { renderCollectionScreen } from "./collectionScreen.js";
 import { downloadRunLog } from "../log/download.js";
-import {
-  loadCollection,
-  recordRelic,
-  recordRunEnded,
-  recordSeen,
-  recordTaken,
-  saveCollection,
-  type Collection,
-  type StorageLike,
-} from "../sim/collection.js";
 
 const cfg = DEFAULT_RUN_CONFIG;
 
@@ -63,43 +52,12 @@ export function mountApp(root: HTMLElement): void {
   // The player's squad-mix pick for the round about to be played.
   let pendingFieldedIds: string[] = [];
 
-  // What the player has met across runs (2026-10-01; sim/collection.ts), kept in
-  // localStorage. Storage can be missing or refuse (a private window), so it is
-  // reached through a function that may return undefined, and a run plays the
-  // same either way.
-  const storage = (): StorageLike | undefined => {
-    try {
-      return window.localStorage;
-    } catch {
-      return undefined;
-    }
-  };
-  let collection: Collection = loadCollection(storage());
-  function remember(next: Collection): void {
-    collection = next;
-    saveCollection(next, storage());
-  }
-
-  // The Collection screen, with the same seed/export badge as every other
-  // screen. `back` is the screen it was opened from.
-  function showCollection(back: () => void): void {
-    renderCollectionScreen(root, collection, back);
-    appendSeedBadge(root, session);
-  }
-
-  // The round 1 reward (2026-10-01): pick a relic. No row is pre-selected, and the
-  // Collection button only shows once a run has ended — before that it is empty.
+  // The round 1 reward (2026-10-01): pick a relic. No row is pre-selected.
   function showRelicScreen(): void {
-    renderRelicScreen(
-      root,
-      session.relicChoices,
-      (id) => {
-        remember(recordRelic(collection, id));
-        session.pickRelic(id);
-        afterRoundResolved();
-      },
-      collection.runsEnded > 0 ? () => showCollection(showRelicScreen) : undefined,
-    );
+    renderRelicScreen(root, session.relicChoices, (id) => {
+      session.pickRelic(id);
+      afterRoundResolved();
+    });
     appendSeedBadge(root, session);
   }
 
@@ -111,14 +69,6 @@ export function mountApp(root: HTMLElement): void {
     showRoundScreen();
   }
 
-  // The two ways a run ends. Each records the ended run once, then shows its
-  // screen; the screen's Collection button comes back to the same screen.
-  function endRun(how: "over" | "complete"): void {
-    remember(recordRunEnded(collection));
-    if (how === "over") showRunOver();
-    else showRunComplete();
-  }
-
   function showRunOver(): void {
     renderRunOverScreen(
       root,
@@ -128,13 +78,12 @@ export function mountApp(root: HTMLElement): void {
       session.lastProjection,
       startNewRun,
       testMode,
-      () => showCollection(showRunOver),
     );
     appendSeedBadge(root, session);
   }
 
   function showRunComplete(): void {
-    renderRunCompleteScreen(root, session.rounds.length, startNewRun, () => showCollection(showRunComplete));
+    renderRunCompleteScreen(root, session.rounds.length, startNewRun);
     appendSeedBadge(root, session);
   }
 
@@ -205,7 +154,7 @@ export function mountApp(root: HTMLElement): void {
     // before the screen changes underneath it.
     setTimeout(() => {
       if (session.status === "over") {
-        endRun("over");
+        showRunOver();
         return;
       }
       renderRoundRecap(root, session.currentRoundIndex, result, session.lastProjection, showReward, testMode);
@@ -226,14 +175,11 @@ export function mountApp(root: HTMLElement): void {
       onOfferChosen(null);
       return;
     }
-    // Every card put on screen counts as met, taken or not.
-    remember(recordSeen(collection, session.pendingOffers.flatMap((o) => (o.kind === "card" && o.card ? [o.card] : []))));
     renderOfferScreen(root, session.pendingOffers, session.progress.cards, cfg.cardCap, onOfferChosen);
     appendSeedBadge(root, session);
   }
 
   function onOfferChosen(offer: Offer | null, dropCardId?: CardId): void {
-    if (offer?.kind === "card" && offer.card) remember(recordTaken(collection, offer.card));
     session.resolveOffer(offer, dropCardId);
     afterRoundResolved();
   }
@@ -241,7 +187,7 @@ export function mountApp(root: HTMLElement): void {
   // The step after a win's reward (an offer or the relic) has been applied.
   function afterRoundResolved(): void {
     if (session.status === "complete") {
-      endRun("complete");
+      showRunComplete();
       return;
     }
     // A WIN can still end the run here — the roster falling below
@@ -249,7 +195,7 @@ export function mountApp(root: HTMLElement): void {
     // fielded. Distinct from a round LOSS, which onFightEnd already caught
     // before the offer screen was ever shown.
     if (session.status === "over") {
-      endRun("over");
+      showRunOver();
       return;
     }
     showRoundScreen();
