@@ -4,9 +4,9 @@
 **Source files:** `design/canvas/*.dc.html`, `design/canvas/canvas.json` — edit these, then republish (see
 "Publishing" below). Don't hand-edit `fight-field-layout.html`; it's a build output, regenerated on publish.
 
-## What's on the canvas (2026-09-30 cleanup; frame 7 added 2026-10-01; frame 8 added 2026-10-02)
+## What's on the canvas (2026-09-30 cleanup; frame 7 added 2026-10-01; frame 8 added 2026-10-02; frames 9–12 added 2026-10-09)
 
-Eight frames, as still pictures: no motion, no interaction. Colours and sizes are copied from the real code
+Twelve frames, as still pictures: no motion, no interaction. Colours and sizes are copied from the real code
 (`prototype/src/style.css`, `render/roundScreen.ts`, `render/fightView.ts`), so a change here is a real proposal.
 Units, HP and fatigue values are made up for the picture, not read from a run.
 
@@ -35,7 +35,31 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
    Five pips (`GUARD_PIP_CAP`) just fit a 52px tank body. Cost: the badges cover a slice of the chain ring at 6 o'clock and the lower edge of small bodies.
    The frame is generated from a scratch script, so edit the `.dc.html` by hand from here on.
 
-Round-screen idea, in one paragraph: units are grouped by role. One band per role holds its icon, one chip per ability
+9. **RoundFaceOff** — **proposal, drawn 2026-10-09, not built, awaiting Tu's approval.** Round 1 of the face-off round screen that would replace frames 1–3.
+   Why: playtest friends couldn't tell what the screen was. Root cause: the pick screen draws a *menu* (role bands, a small red strip on top) while the fight screen draws a
+   *face-off*, so nothing says "two squads, about to fight"; neither side is named; numbers and chips are bare ("605/605", "guard") with the sentence behind a tap that
+   nothing says is a tap; the encounter blurb was built but thrown away (`_encounterBlurb` in `roundScreen.ts`); and enemy damage/slam/heal were never shown.
+   Frame: a one-line goal sentence (first rounds only), a tinted ENEMY zone (body, `HP 605`, `Hits for 8`, the encounter blurb), a VS line, a tinted YOUR SQUAD zone
+   (role icon in each body, `HP / Hits` numbers to compare, a plain one-liner per role), then one tappable row per role holding the special as a sentence first and
+   the old name muted after it, with an `i` mark. Mark words are coloured as on the offer cards. No fatigue pips while every unit is fresh. Button reads "Fight!".
+   Numbers are real: Anvil at round 1 comes from `roundEnemySide`, units from `ROLE_POOL`.
+   **2026-10-09 review round (Tu):** "Hits for" was dropped as a term nobody uses, so every stat reads `HP 605` / `Damage 8` (a unit's damage per regular attack; attack
+   speed is deliberately not shown). A slam shows its number: `💥 Slam: charges up, then hits for 24` (2x the regular damage, `windupDamageMultiplier`).
+10. **RoundFaceOffGrown** — same proposal at round 12 vs Executioner + 2 Guards: the slam gets its own plain line, units show a number only where a role has two, a worn unit
+   shows pips and its tier word, relic/cards row kept, and the Tank's `i` details are open. The bench is **not** drawn here any more: a one-line strip,
+   `BENCH 2 units · 1 worn, 1 fallen · Change squad ›`, is the only way to the squad screen (frame 12). The popover no longer repeats the sentences (they sit on the row);
+   it holds how the moves fare against this enemy, plain meanings for the coloured words (Exposed, Frozen), "made stronger", and each same-role unit's backfire odds,
+   and sits between the Tank row and the strip so it hides nothing important. Player HP/damage and fatigue are made up; enemy numbers and backfire odds are real.
+11. **RoundFaceOffFull** — the squad cap: round 17, **5 fielded** (`maxSlots`) of 8 units, vs Warden + 2 Acolytes. Bodies shrink to 38px with name and `HP / Damage` stacked so five fit; the
+   special-moves rows stay one per **role** (3 rows, not 5). The Warden heals on its beat instead of attacking, so it gets no `Damage` chip, only `✚ Heals its most hurt ally for 6
+   instead of attacking` and its slam (28). Enemy numbers are real (571 HP; Acolyte 150 HP, damage 7); player numbers are made up.
+12. **SquadScreen** — the bench on its own screen, two phones: **resting** (FIGHTING 5 of 5, BENCH 3 with a fallen unit dimmed and untappable; rows show HP, fatigue pips and the tier word
+   always) and **mid-swap** (a bench unit chosen, the five fielding units dashed-glow, banner "Tap who Tank 3 replaces", Done greyed until the swap is made). Decided with Tu: swapping
+   happens here only (the round screen's squad is a read-only preview), and a swap is two taps (bench unit, then who it replaces; any unit for any unit, no role lock).
+   The bench rule is stated in one line with real numbers: "Each round, a unit on the bench heals 60% of its HP and loses 20 fatigue. A fighting unit heals 40%"
+   (`benchedRecoverFraction`, `fatigueBenchRest`, `autoRecoverFraction`). This also answers old open call 4 (the bench-heals-faster hint). Generated from a scratch script; edit the file by hand from here on.
+
+Round-screen idea, in one paragraph (frames 1–3, the version currently built): units are grouped by role. One band per role holds its icon, one chip per ability
 the chain has picked up ("guard", "freeze"), a `+N` badge once the chain has been made stronger (never the word "level"), and a ✓
 against the enemy's threat when it matters. Under that, the units are round tokens: HP is the bar under the circle, fatigue is
 the pips beside it, and the number is the unit. Tapping a token picks or drops it. The FIGHTING strip replaces a "Pick N to fight"
@@ -69,6 +93,12 @@ Built 2026-09-30, matching the canvas: `render/heroPickShared.ts` (`fatiguePipsH
    grows back as the shield drains with no HP change. Acceptable, or would an overlay read better?
 7. **Coloured mark words on cards** (frame 6, 2026-10-02). Approve the new look, or change it? Open point: a mark introduced by a maker card is now
    introduced only by its coloured word in the description, since the "Makes ✦ exposed" line is gone.
+
+8. **Face-off round screen and squad screen** (frames 9–12). Approve the look? Open points: (a) "Fight!" vs "Play"; (b) the per-unit `Damage` number returns on the round
+   screen (it was dropped from the old one, see call 3), is that fine; (c) "Special moves" is a new label for what the code calls a chain ability, and nothing yet says *when*
+   a special fires (the ring filling in the fight); (d) role one-liners ("Soaks up hits") and the slam line ("charges up, then hits for 24") are new wording; (e) the squad screen
+   is a new screen and a new route, and today a tap just toggles a pick, so the swap rule changes when this is built; (f) a roster with no one on the bench (round 1) hides the strip.
+   Settled 2026-10-09: "Hits" wording, attack speed not shown, bench on its own screen, two-tap swap.
 
 ## What the canvas does not cover
 

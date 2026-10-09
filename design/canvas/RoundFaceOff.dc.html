@@ -1,0 +1,142 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+</style>
+</helmet>
+
+<div style="background: #14161c; width: 390px; min-height: 780px; display: flex; justify-content: center; padding-top: 24px;">
+  <div style="width: 100%; max-width: 640px; padding: 0 16px 24px; box-sizing: border-box;">
+
+    <!-- Face-off round screen, round 1 (proposal, 2026-10-09).
+         Fixes from playtest feedback: the two sides sit in one picture the way the fight
+         screen draws them, each side is named (ENEMY / YOUR SQUAD), every number has a word
+         on it (HP, Damage), and each special is a sentence, with the old name in muted text
+         after it. Numbers: Anvil at round 1 is 605 HP / damage 8 from sim/rounds.ts
+         roundEnemySide; units are sim/roles.ts ROLE_POOL. Sentences are chainEffectLines().does
+         and the encounter blurb, unchanged. Fatigue pips are hidden while every unit is fresh. -->
+    <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 16px; box-sizing: border-box;">
+
+      <!-- progress strip (unchanged) -->
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+        <div style="font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #e8e8ee; white-space: nowrap;">ROUND 1/20</div>
+        <div style="position: relative; flex: 1; height: 6px; border-radius: 3px; background: #2a2e3a;">
+          <div style="position: absolute; inset: 0; width: 5%; border-radius: 3px; background: #4da6ff;"></div>
+          <div style="position: absolute; top: 50%; left: 35%; width: 6px; height: 6px; transform: translate(-50%, -50%) rotate(45deg); background: #3a3f4e;"></div>
+          <div style="position: absolute; top: 50%; left: 70%; width: 6px; height: 6px; transform: translate(-50%, -50%) rotate(45deg); background: #3a3f4e;"></div>
+          <div style="position: absolute; top: 50%; left: 100%; width: 7px; height: 7px; transform: translate(-50%, -50%) rotate(45deg); background: #ff5d5d;"></div>
+        </div>
+      </div>
+
+      <!-- goal line: the verbal pitch, in the screen. Shown in the first rounds only. -->
+      <div style="font-size: 12px; line-height: 1.4; color: #c7cad6; text-align: center; margin-bottom: 12px;">Your squad fights theirs on its own. Wipe out the enemy squad to win the round.</div>
+
+      <!-- ENEMY zone -->
+      <div style="background: rgba(255,93,93,0.07); border: 1px solid rgba(255,93,93,0.28); border-radius: 12px; padding: 10px 12px 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #ff5d5d; color: #14161c; border-radius: 6px; padding: 2px 7px;">ENEMY</span>
+          <span style="font-size: 13px; font-weight: 700; color: #e8e8ee;">Anvil</span>
+        </div>
+
+        <!-- body, drawn like the fight screen: red, sized by its share of the side's HP -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="position: relative; width: 64px; height: 64px;">
+            <div style="position: absolute; top: 55px; left: 50%; width: 52px; height: 7px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+            <div style="position: relative; width: 64px; height: 64px; border-radius: 50%; background: #ff5d5d;"></div>
+          </div>
+          <div style="width: 64px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #ff5d5d;"></div></div>
+          <div style="display: flex; gap: 6px; margin-top: 2px;">
+            <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px;">HP 605</span>
+            <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px;">Damage 8</span>
+          </div>
+        </div>
+        <div style="font-size: 11.5px; line-height: 1.45; color: #c7cad6; text-align: center; margin-top: 8px;">One huge body, barely hits back. No slam to fear — how fast can you kill it?</div>
+      </div>
+
+      <!-- VS line: the fight screen's centre line, with a badge -->
+      <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+        <div style="flex: 1; height: 1px; background: linear-gradient(90deg, transparent, #5a5f70);"></div>
+        <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.08em; color: #e8e8ee; background: #2a2e3a; border: 1px solid #3a3f4e; border-radius: 10px; padding: 2px 10px;">VS</div>
+        <div style="flex: 1; height: 1px; background: linear-gradient(270deg, transparent, #5a5f70);"></div>
+      </div>
+
+      <!-- YOUR SQUAD zone -->
+      <div style="background: rgba(77,166,255,0.07); border: 1px solid rgba(77,166,255,0.28); border-radius: 12px; padding: 10px 12px 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+          <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #4da6ff; color: #0c1420; border-radius: 6px; padding: 2px 7px;">YOUR SQUAD</span>
+          <span style="margin-left: auto; font-size: 10px; color: #8a8fa3;">3 fighters</span>
+        </div>
+
+        <!-- the field: three units, role icon in the body (no unit numbers while there is one per role) -->
+        <div style="display: flex; justify-content: center; gap: 22px;">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px;">
+            <div style="width: 46px; height: 46px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 21px;">🛡</div>
+            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Tank</div>
+            <div style="font-size: 10px; color: #8a8fa3;">Soaks up hits</div>
+            <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 190 · Damage 7</div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px;">
+            <div style="width: 46px; height: 46px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 21px;">⚔</div>
+            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Damage</div>
+            <div style="font-size: 10px; color: #8a8fa3;">Deals the damage</div>
+            <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 80 · Damage 8</div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px;">
+            <div style="width: 46px; height: 46px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 21px;">✚</div>
+            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Healer</div>
+            <div style="font-size: 10px; color: #8a8fa3;">Heals the squad</div>
+            <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 100 · Damage 2</div>
+          </div>
+        </div>
+
+        <div style="height: 1px; background: rgba(77,166,255,0.2); margin: 12px 0 8px;"></div>
+        <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.05em; color: #8a8fa3; margin-bottom: 6px;">SPECIAL MOVES · TAP FOR DETAILS</div>
+
+        <!-- one tappable row per role: the sentence first, the old name after it, ⓘ on the right -->
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
+            <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #ffb454; display: flex; align-items: center; justify-content: center; font-size: 12px;">🛡</div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Takes the next slam and <span style="color: #ff7ab6; font-weight: 700;">exposes</span> the slammer.</div>
+              <div style="font-size: 10px; color: #8a8fa3; margin-top: 1px;">Guard</div>
+            </div>
+            <div style="flex: none; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #8a8fa3; color: #8a8fa3; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-style: italic;">i</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
+            <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #b98cff; display: flex; align-items: center; justify-content: center; font-size: 12px;">⚔</div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Hits the biggest enemy and <span style="color: #ff7ab6; font-weight: 700;">exposes</span> it.</div>
+              <div style="font-size: 10px; color: #8a8fa3; margin-top: 1px;">Expose</div>
+            </div>
+            <div style="flex: none; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #8a8fa3; color: #8a8fa3; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-style: italic;">i</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
+            <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #6ee7a0; display: flex; align-items: center; justify-content: center; font-size: 12px;">✚</div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Heals your worst-hurt hero; extra becomes <span style="color: #5ee0d0; font-weight: 700;">shield</span>.</div>
+              <div style="font-size: 10px; color: #8a8fa3; margin-top: 1px;">Mend</div>
+            </div>
+            <div style="flex: none; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #8a8fa3; color: #8a8fa3; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-style: italic;">i</div>
+          </div>
+        </div>
+      </div>
+
+      <button style="margin-top: 14px; width: 100%; font: inherit; font-weight: 700; background: #4da6ff; color: #0c1420; border: none; border-radius: 8px; padding: 13px; font-size: 15px;">Fight!</button>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

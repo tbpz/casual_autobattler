@@ -1,0 +1,204 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+</style>
+</helmet>
+
+<div style="background: #14161c; width: 390px; min-height: 780px; display: flex; justify-content: center; padding-top: 24px;">
+  <div style="width: 100%; max-width: 640px; padding: 0 16px 24px; box-sizing: border-box;">
+
+    <!-- Face-off round screen at the squad cap (proposal, 2026-10-09): round 17, FIVE fielded (cfg.maxSlots = 5),
+         eight units in the roster, so three sit on the bench. Enemy numbers are real (sim/rounds.ts roundEnemySide,
+         round 17, Warden + 2 Acolytes): Warden 571 HP, damage 14 (slam 2x = 28), heals 6 on its normal beat instead
+         of attacking; Acolyte 150 HP, damage 7. Player HP/damage and fatigue are made up for the picture.
+         The Warden heals on its beat, so its regular attack never lands: it gets no "Damage" chip, only its slam and its heal. -->
+    <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 16px; box-sizing: border-box;">
+
+      <!-- progress strip -->
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+        <div style="font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #e8e8ee; white-space: nowrap;">ROUND 17/20</div>
+        <div style="position: relative; flex: 1; height: 6px; border-radius: 3px; background: #2a2e3a;">
+          <div style="position: absolute; inset: 0; width: 85%; border-radius: 3px; background: #4da6ff;"></div>
+          <div style="position: absolute; top: 50%; left: 35%; width: 6px; height: 6px; transform: translate(-50%, -50%) rotate(45deg); background: #4da6ff;"></div>
+          <div style="position: absolute; top: 50%; left: 70%; width: 6px; height: 6px; transform: translate(-50%, -50%) rotate(45deg); background: #4da6ff;"></div>
+          <div style="position: absolute; top: 50%; left: 100%; width: 7px; height: 7px; transform: translate(-50%, -50%) rotate(45deg); background: #ff5d5d;"></div>
+        </div>
+      </div>
+
+      <!-- ENEMY zone -->
+      <div style="background: rgba(255,93,93,0.07); border: 1px solid rgba(255,93,93,0.28); border-radius: 12px; padding: 10px 12px 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #ff5d5d; color: #14161c; border-radius: 6px; padding: 2px 7px;">ENEMY</span>
+          <span style="font-size: 13px; font-weight: 700; color: #e8e8ee;">Warden</span>
+          <span style="margin-left: auto; font-size: 10px; color: #8a8fa3;">3 fighters</span>
+        </div>
+
+        <div style="display: flex; align-items: flex-end; justify-content: center; gap: 16px;">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; margin-bottom: 12px; width: 60px; filter: brightness(0.84) saturate(0.88);">
+            <div style="width: 26px; height: 26px; border-radius: 50%; background: #ff5d5d;"></div>
+            <div style="font-size: 10px; color: #e8e8ee;">Acolyte 1</div>
+            <div style="width: 38px; height: 5px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #ff5d5d;"></div></div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 80px;">
+            <div style="position: relative; width: 58px; height: 58px;">
+              <div style="position: absolute; inset: 0; border-radius: 50%; background: #b23b3b; box-shadow: 0 0 10px 2px rgba(178,59,59,0.5);"></div>
+              <div style="position: absolute; top: -6px; right: -8px; font-size: 15px;">💥</div>
+            </div>
+            <div style="font-size: 11px; font-weight: 700; color: #e8e8ee;">Warden</div>
+            <div style="width: 58px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #ff5d5d;"></div></div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; margin-bottom: 12px; width: 60px; filter: brightness(0.84) saturate(0.88);">
+            <div style="width: 26px; height: 26px; border-radius: 50%; background: #ff5d5d;"></div>
+            <div style="font-size: 10px; color: #e8e8ee;">Acolyte 2</div>
+            <div style="width: 38px; height: 5px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #ff5d5d;"></div></div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; min-width: 78px;">Warden</span>
+            <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px;">HP 571</span>
+          </div>
+          <div style="font-size: 11px; line-height: 1.4; color: #6ee7a0;">✚ Heals its most hurt ally for 6 instead of attacking.</div>
+          <div style="font-size: 11px; line-height: 1.4; color: #ff9a9a;">💥 Slam: charges up, then hits for 28.</div>
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; min-width: 78px;">Acolyte ×2</span>
+            <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px;">HP 150 each</span>
+            <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px;">Damage 7</span>
+          </div>
+        </div>
+        <div style="font-size: 11.5px; line-height: 1.45; color: #c7cad6; margin-top: 8px;">It heals as fast as you can hurt it. Can you burst through faster than it mends?</div>
+      </div>
+
+      <!-- VS line -->
+      <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+        <div style="flex: 1; height: 1px; background: linear-gradient(90deg, transparent, #5a5f70);"></div>
+        <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.08em; color: #e8e8ee; background: #2a2e3a; border: 1px solid #3a3f4e; border-radius: 10px; padding: 2px 10px;">VS</div>
+        <div style="flex: 1; height: 1px; background: linear-gradient(270deg, transparent, #5a5f70);"></div>
+      </div>
+
+      <!-- YOUR SQUAD zone: five units. Bodies shrink to 38px and the two stats stack on two lines so five fit in ~300px. -->
+      <div style="background: rgba(77,166,255,0.07); border: 1px solid rgba(77,166,255,0.28); border-radius: 12px; padding: 10px 10px 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px; padding: 0 2px;">
+          <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #4da6ff; color: #0c1420; border-radius: 6px; padding: 2px 7px;">YOUR SQUAD</span>
+          <span style="margin-left: auto; font-size: 10px; color: #8a8fa3;">5 fighters</span>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; gap: 2px;">
+          <!-- Tank 1 -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 56px;">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 17px;">🛡</div>
+            <div style="font-size: 11px; font-weight: 700; color: #e8e8ee; white-space: nowrap;">Tank 1</div>
+            <div style="font-size: 9px; color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em; height: 11px;">&nbsp;</div>
+            <div style="width: 44px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; line-height: 1.3; text-align: center;">HP 236<br>Damage 10</div>
+          </div>
+          <!-- Tank 2: worn, hurt -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 56px;">
+            <div style="position: relative; width: 38px; height: 38px;">
+              <div style="width: 38px; height: 38px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 17px;">🛡</div>
+              <div title="fatigue: worn" style="position: absolute; left: 41px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 3px;"><div style="width: 4px; height: 4px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 4px; height: 4px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 4px; height: 4px; border-radius: 50%; background: #ffcf4d;"></div><div style="width: 4px; height: 4px; border-radius: 50%; background: #ffcf4d;"></div></div>
+            </div>
+            <div style="font-size: 11px; font-weight: 700; color: #e8e8ee; white-space: nowrap;">Tank 2</div>
+            <div style="font-size: 9px; color: #ffcf4d; text-transform: uppercase; letter-spacing: 0.04em; height: 11px;">worn</div>
+            <div style="width: 44px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 62%; height: 100%; background: #e8913c;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; line-height: 1.3; text-align: center;">HP 146/236<br>Damage 10</div>
+          </div>
+          <!-- Damage 1 -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 56px;">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 17px;">⚔</div>
+            <div style="font-size: 11px; font-weight: 700; color: #e8e8ee; white-space: nowrap;">Damage 1</div>
+            <div style="font-size: 9px; height: 11px;">&nbsp;</div>
+            <div style="width: 44px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; line-height: 1.3; text-align: center;">HP 104<br>Damage 12</div>
+          </div>
+          <!-- Damage 2 -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 56px;">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 17px;">⚔</div>
+            <div style="font-size: 11px; font-weight: 700; color: #e8e8ee; white-space: nowrap;">Damage 2</div>
+            <div style="font-size: 9px; height: 11px;">&nbsp;</div>
+            <div style="width: 44px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; line-height: 1.3; text-align: center;">HP 104<br>Damage 12</div>
+          </div>
+          <!-- Healer (one, so no number) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 56px;">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 17px;">✚</div>
+            <div style="font-size: 11px; font-weight: 700; color: #e8e8ee; white-space: nowrap;">Healer</div>
+            <div style="font-size: 9px; height: 11px;">&nbsp;</div>
+            <div style="width: 44px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; line-height: 1.3; text-align: center;">HP 128<br>Damage 3</div>
+          </div>
+        </div>
+
+        <div style="height: 1px; background: rgba(77,166,255,0.2); margin: 12px 0 8px;"></div>
+        <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.05em; color: #8a8fa3; margin-bottom: 6px; padding: 0 2px;">SPECIAL MOVES · TAP FOR DETAILS</div>
+
+        <!-- still one row per ROLE, so five units is not five rows -->
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; align-items: flex-start; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
+            <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #ffb454; display: flex; align-items: center; justify-content: center; font-size: 12px;">🛡</div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Takes the next slam and <span style="color: #ff7ab6; font-weight: 700;">exposes</span> the slammer.</div>
+              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee; margin-top: 4px;">Freezes one enemy, cancelling its slam.</div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 3px;">
+                <span style="font-size: 10px; color: #8a8fa3;">Guard · Freeze</span>
+                <span style="font-size: 10px; font-weight: 800; color: #ffcf4d;">+1</span>
+                <span style="font-size: 10px; font-weight: 700; color: #6ee7a0;">✓ answers the slam</span>
+              </div>
+            </div>
+            <div style="flex: none; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #8a8fa3; color: #8a8fa3; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-style: italic;">i</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
+            <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #b98cff; display: flex; align-items: center; justify-content: center; font-size: 12px;">⚔</div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Hits the biggest enemy and <span style="color: #ff7ab6; font-weight: 700;">exposes</span> it.</div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 1px;"><span style="font-size: 10px; color: #8a8fa3;">Expose</span><span style="font-size: 10px; font-weight: 800; color: #ffcf4d;">+2</span></div>
+            </div>
+            <div style="flex: none; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #8a8fa3; color: #8a8fa3; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-style: italic;">i</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
+            <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #6ee7a0; display: flex; align-items: center; justify-content: center; font-size: 12px;">✚</div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Heals your worst-hurt hero; extra becomes <span style="color: #5ee0d0; font-weight: 700;">shield</span>.</div>
+              <div style="font-size: 10px; color: #8a8fa3; margin-top: 1px;">Mend</div>
+            </div>
+            <div style="flex: none; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #8a8fa3; color: #8a8fa3; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-style: italic;">i</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BENCH strip: three units wait on their own screen (frame 12) -->
+      <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px; background: #20232c; border: 1px dashed #3a3f4e; border-radius: 12px; padding: 10px 12px;">
+        <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: #e8e8ee;">BENCH</span>
+        <span style="font-size: 11px; color: #c7cad6;">3 units</span>
+        <span style="font-size: 11px; color: #8a8fa3;">·</span>
+        <span style="font-size: 11px; color: #ffcf4d;">1 worn</span>
+        <span style="font-size: 11px; color: #8a8fa3;">,</span>
+        <span style="font-size: 11px; color: #8a8fa3;">1 fallen</span>
+        <span style="margin-left: auto; font-size: 11px; font-weight: 700; color: #4da6ff;">Change squad ›</span>
+      </div>
+
+      <!-- relic and cards, as today -->
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 0 0;">
+        <span style="font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #e8e8ee;">CARDS 2/8</span>
+        <span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #2a2e3a; color: #e8e8ee; border: 1px solid #ffcf4d;">❤ Ember heart</span>
+        <span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #2a2e3a; color: #c7cad6; border: 1px solid transparent;">☠ Execute</span>
+      </div>
+
+      <button style="margin-top: 14px; width: 100%; font: inherit; font-weight: 700; background: #4da6ff; color: #0c1420; border: none; border-radius: 8px; padding: 13px; font-size: 15px;">Fight!</button>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
