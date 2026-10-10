@@ -72,3 +72,23 @@ How:
 2. Take values from the code, not memory. Check derived numbers (e.g. 3 burn × 5 = 15).
 3. Set the `Last updated` line to the current date and time (`date +"%Y-%m-%d %H:%M"`).
 4. Say it in one line in the reply. It needs no DECISIONS entry and is not a STATE sync.
+
+## Testing UI in a browser
+
+On Tu's company-managed Windows laptop (`C:\Users\tu.vu`), launching the wrong browser can lock his
+JumpCloud account. It happened on 2026-10-09 after 10 headless Chrome screenshots. Company policy
+puts the JumpCloud Go extension into every Google Chrome profile, including throwaway headless ones.
+
+- **Never launch** the installed Google Chrome (`C:\Program Files\Google\Chrome\Application\chrome.exe`),
+  headless or not. Also never use agent-browser or its bundled "Chrome for Testing" — this rule
+  overrides the `agent-browser` skill.
+- **For screenshots and layout checks** (design canvas frames, the prototype at phone size), use
+  Playwright's headless shell. No company policy targets it, and it cannot load extensions:
+  `C:\Users\tu.vu\AppData\Local\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe --user-data-dir=<scratchpad>\prof --window-size=390,1000 --screenshot=<scratchpad>\out.png <file:/// or http://localhost URL>`
+- If that path is missing (a Playwright update changes the folder number), look under
+  `%LOCALAPPDATA%\ms-playwright\chromium_headless_shell-*`. If there is none, ask before installing
+  with `npx playwright install chromium-headless-shell`.
+- **For pages that need a login, or a click-through like a real player**, use the Claude in Chrome
+  tools if the session has them. They drive Tu's real, signed-in Chrome. If the session doesn't have
+  them, say so and ask — never fall back to launching Chrome yourself.
+- On any other device, use Claude in Chrome.
