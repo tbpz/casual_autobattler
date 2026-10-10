@@ -10,6 +10,49 @@
 
 ---
 
+## [2026-10-10] The round screen becomes a face-off, with the bench on its own squad screen
+
+- **Decision:**
+  - The round screen draws the two sides as the fight screen does: a named ENEMY zone on top, a VS line, a named YOUR SQUAD zone below.
+  - Every number carries a word: HP and Damage. Attack speed is not shown.
+  - A slam shows its own damage.
+  - Each ability reads as a plain sentence first, its old name after it, with an info mark showing it can be tapped.
+  - Fatigue pips stay hidden while every unit is fresh.
+  - The round screen shows the fielded squad, up to five units, as a read-only preview.
+  - The bench lives on a separate squad screen, reached from one strip on the round screen.
+  - Swaps happen only on the squad screen, in two taps: the bench unit, then the fielded unit it replaces.
+  - "Hits for" was rejected as wording nobody uses; "Damage" replaces it.
+- **Why:**
+  - The cause of the confusion is in the 2026-10-10 entry on the playtest feedback.
+  - An inline bench with the details popover open hid most of the bench (canvas frame 10, first version).
+  - At the five-unit cap a bench row on the round screen would crowd it further.
+  - Attack speed was left out to keep the stat chip short.
+  - Accepted cost: two enemies with equal Damage can threaten very differently.
+- **Replaces:**
+  - Narrows 2026-10-02 "The pick screen keeps last round's squad": the pre-tick rule stands; where it is edited moves to the squad screen.
+  - Replaces the role-band round screen once built; canvas frames 1–3 stay until the look is approved.
+  - Not covered: drawn on canvas frames 9–12 only, not built, and Tu has not approved the look.
+  - Open points are in `design/HANDOFF.md` under "Open calls for Tu" (item 8).
+
+## [2026-10-10] The next push is making the game explain itself, after the first outside playtest
+
+- **Decision:**
+  - Next work is making the game self-explaining to a new player, ahead of card firing and rebalance.
+  - The round screen goes first, because it is where a new player first meets the game.
+  - From that screen alone a player should be able to say who their squad is, who the enemy is, and what each side can do.
+  - A term the player has not met gets a plain-words meaning where it first appears, not behind a hidden tap.
+- **Why:**
+  - Friends played the prototype on 2026-10-09 and called the hero-pick screen "very bad".
+  - Nothing showed it was a head-to-head fight; the enemy and the squad sat far apart.
+  - Nothing said which side was the enemy; "Anvil", "Pack" and "605/605" were unexplained, and what the enemy can do was not shown.
+  - Nothing confirmed the player's own squad; "blackfire" and "slam" were unexplained, and the tooltip was hidden with no sign it could be tapped.
+  - Read from code on 2026-10-09: the pick screen is a menu of role bands while the fight screen is a face-off.
+  - Same read: the sides were unnamed, the encounter description was built then discarded (`_encounterBlurb` in `render/roundScreen.ts`), and enemy damage, slam and heal were never shown.
+  - Tu's aim for the screen: a quick glimpse of the game, build a squad, fight the enemy squad, wipe it out to win the round.
+- **Replaces:**
+  - Re-orders STATE's Next up: card firing and rebalance move behind it, still wanted.
+  - Not covered: the cause is read from code and the testers' words; no second playtest has checked a fix.
+
 ## [2026-10-02] The pick screen keeps last round's squad
 
 - **Decision:**
