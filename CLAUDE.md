@@ -13,7 +13,7 @@ Placement rules:
 - If a line explains *how a mechanism works*, it belongs in the code — `prototype/src/sim/config.ts` holds every tunable in one place. STATE names where a piece stands and points; it never paraphrases behaviour.
 - A line earns a place in STATE only if it would change what the reader does next session. Everything else is reference.
 
-The `decision-log` and `state-sync` skills referenced below live in `.claude/skills/` and are tracked with this repo.
+The `decision-log`, `state-sync`, `cheatsheet-update` and `browser-check` skills referenced below live in `.claude/skills/` and are tracked with this repo.
 
 ## On session start — the READ protocol
 
@@ -66,12 +66,7 @@ Update `CHEATSHEET.md` in the same change, **without asking**, whenever a change
 - The relic, upgrade or offer-gate rules in `sim/relics.ts`, `sim/roles.ts`, `sim/cards/index.ts`.
 - A card, relic, mark or ability added, removed or renamed.
 
-How:
-
-1. Edit only the affected lines. Keep the shape: bullets, one rule per line, no explanation, no context, no history.
-2. Take values from the code, not memory. Check derived numbers (e.g. 3 burn × 5 = 15).
-3. Set the `Last updated` line to the current date and time (`date +"%Y-%m-%d %H:%M"`).
-4. Say it in one line in the reply. It needs no DECISIONS entry and is not a STATE sync.
+**Invoke the `cheatsheet-update` skill**, which carries the editing steps. It needs no DECISIONS entry and is not a STATE sync.
 
 ## Testing UI in a browser
 
@@ -82,13 +77,6 @@ puts the JumpCloud Go extension into every Google Chrome profile, including thro
 - **Never launch** the installed Google Chrome (`C:\Program Files\Google\Chrome\Application\chrome.exe`),
   headless or not. Also never use agent-browser or its bundled "Chrome for Testing" — this rule
   overrides the `agent-browser` skill.
-- **For screenshots and layout checks** (design canvas frames, the prototype at phone size), use
-  Playwright's headless shell. No company policy targets it, and it cannot load extensions:
-  `C:\Users\tu.vu\AppData\Local\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe --user-data-dir=<scratchpad>\prof --window-size=390,1000 --screenshot=<scratchpad>\out.png <file:/// or http://localhost URL>`
-- If that path is missing (a Playwright update changes the folder number), look under
-  `%LOCALAPPDATA%\ms-playwright\chromium_headless_shell-*`. If there is none, ask before installing
-  with `npx playwright install chromium-headless-shell`.
-- **For pages that need a login, or a click-through like a real player**, use the Claude in Chrome
-  tools if the session has them. They drive Tu's real, signed-in Chrome. If the session doesn't have
-  them, say so and ask — never fall back to launching Chrome yourself.
-- On any other device, use Claude in Chrome.
+- **For how to take screenshots or click through a page, invoke the `browser-check` skill.** It
+  carries the safe headless command and the Claude in Chrome route. If neither works, ask — never
+  fall back to launching Chrome yourself.
