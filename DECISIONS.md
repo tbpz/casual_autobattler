@@ -10,6 +10,26 @@
 
 ---
 
+## [2026-10-10] Units get names of their own; the round screen draws the squad as fighters, not a role list
+
+- **Decision:**
+  - Each unit has a name of its own; its role shows as a small coloured tag, not as the name.
+  - The YOUR SQUAD zone drops the one-line role descriptions ("Soaks up hits" and the rest).
+  - Squad bodies are drawn as the fight screen draws them: plain role-coloured circles with ground shadows, no emoji.
+  - The squad stands in the fight screen's ranks: tank in front nearest the VS line, the rest in the back row to each side.
+  - The "3 fighters" count is removed.
+- **Why:**
+  - Tu found the squad zone on canvas frame 9 read as a list of roles to learn, not a line-up.
+  - The name, the icon and the one-liner each said the role again, so a card read like a key on a map.
+  - "Damage" as a name sat above the "Damage 8" stat, one word meaning two things.
+  - The enemy was drawn as a body on the ground while the squad was drawn as emoji buttons.
+  - The Special moves rows already explain each role, so the one-liners repeated them.
+- **Replaces:**
+  - Narrows the 2026-10-10 face-off entry: its YOUR SQUAD zone changes as above; the rest stands.
+  - Replaces the `Tank 1`-style names built from the role label (`sim/roles.ts`) once built.
+  - Not covered: drawn on frame 9 only, with made-up names (Bram, Ivy, Sol); frames 10–12 still show role names.
+  - Not covered: where names come from in the game (a fixed pool, random, or chosen) is not decided.
+
 ## [2026-10-10] The round screen becomes a face-off, with the bench on its own squad screen
 
 - **Decision:**

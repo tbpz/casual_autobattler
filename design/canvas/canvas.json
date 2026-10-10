@@ -8,7 +8,7 @@
     { "file": "OfferAfter.dc.html", "x": 0, "y": 1400, "w": 390, "h": 780 },
     { "file": "ShieldBar.dc.html", "x": 550, "y": 1400, "w": 860, "h": 1160 },
     { "file": "MarkSlots.dc.html", "x": 1460, "y": 1400, "w": 860, "h": 1885 },
-    { "file": "RoundFaceOff.dc.html", "x": 0, "y": 3460, "w": 390, "h": 850 },
+    { "file": "RoundFaceOff.dc.html", "x": 0, "y": 3460, "w": 390, "h": 900 },
     { "file": "RoundFaceOffGrown.dc.html", "x": 550, "y": 3460, "w": 390, "h": 960 },
     { "file": "RoundFaceOffFull.dc.html", "x": 1100, "y": 3460, "w": 390, "h": 990 },
     { "file": "SquadScreen.dc.html", "x": 0, "y": 4560, "w": 860, "h": 860 }

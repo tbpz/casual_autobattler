@@ -22,7 +22,9 @@
          on it (HP, Damage), and each special is a sentence, with the old name in muted text
          after it. Numbers: Anvil at round 1 is 605 HP / damage 8 from sim/rounds.ts
          roundEnemySide; units are sim/roles.ts ROLE_POOL. Sentences are chainEffectLines().does
-         and the encounter blurb, unchanged. Fatigue pips are hidden while every unit is fresh. -->
+         and the encounter blurb, unchanged. Fatigue pips are hidden while every unit is fresh.
+         Squad redraw (2026-10-10): named fighters (Bram, Ivy, Sol: made-up names) with the role as a small tag, no role
+         one-liners, no "3 fighters" count, bodies with shadows in two ranks as the fight screen draws them. -->
     <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 16px; box-sizing: border-box;">
 
       <!-- progress strip (unchanged) -->
@@ -72,29 +74,42 @@
       <div style="background: rgba(77,166,255,0.07); border: 1px solid rgba(77,166,255,0.28); border-radius: 12px; padding: 10px 12px 12px;">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
           <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #4da6ff; color: #0c1420; border-radius: 6px; padding: 2px 7px;">YOUR SQUAD</span>
-          <span style="margin-left: auto; font-size: 10px; color: #8a8fa3;">3 fighters</span>
         </div>
 
-        <!-- the field: three units, role icon in the body (no unit numbers while there is one per role) -->
-        <div style="display: flex; justify-content: center; gap: 22px;">
-          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px;">
-            <div style="width: 46px; height: 46px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 21px;">🛡</div>
-            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Tank</div>
-            <div style="font-size: 10px; color: #8a8fa3;">Soaks up hits</div>
-            <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
-            <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 190 · Damage 7</div>
-          </div>
-          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px;">
-            <div style="width: 46px; height: 46px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 21px;">⚔</div>
-            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Damage</div>
-            <div style="font-size: 10px; color: #8a8fa3;">Deals the damage</div>
+        <!-- the field, drawn as the fight screen draws it (buildSide): Bram (Tank) in the front rank, centred, nearest the VS line.
+             Ivy and Sol are the back rank: 48px further from the VS line (BACK_RANK_OFFSET_PX), 0.72 size (--back-rank-scale),
+             shadow at 0.24 (--depth-shadow-opacity), first back unit left, second right. Plain role-coloured bodies, no emoji. -->
+        <div style="display: flex; justify-content: center; align-items: flex-start; gap: 22px;">
+          <!-- back rank, left: Ivy (Damage) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px; margin-top: 48px;">
+            <div style="position: relative; width: 33px; height: 33px;">
+              <div style="position: absolute; top: 28px; left: 50%; width: 27px; height: 5px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
+              <div style="position: relative; width: 33px; height: 33px; border-radius: 50%; background: #b98cff; opacity: 0.85;"></div>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Ivy</div>
+            <div style="font-size: 9px; font-weight: 700; color: #b98cff;">Damage</div>
             <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
             <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 80 · Damage 8</div>
           </div>
+          <!-- front rank, centre: Bram (Tank) -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px;">
-            <div style="width: 46px; height: 46px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 21px;">✚</div>
-            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Healer</div>
-            <div style="font-size: 10px; color: #8a8fa3;">Heals the squad</div>
+            <div style="position: relative; width: 46px; height: 46px;">
+              <div style="position: absolute; top: 39px; left: 50%; width: 38px; height: 6px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+              <div style="position: relative; width: 46px; height: 46px; border-radius: 50%; background: #ffb454;"></div>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Bram</div>
+            <div style="font-size: 9px; font-weight: 700; color: #ffb454;">Tank</div>
+            <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 190 · Damage 7</div>
+          </div>
+          <!-- back rank, right: Sol (Healer) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px; margin-top: 48px;">
+            <div style="position: relative; width: 33px; height: 33px;">
+              <div style="position: absolute; top: 28px; left: 50%; width: 27px; height: 5px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
+              <div style="position: relative; width: 33px; height: 33px; border-radius: 50%; background: #6ee7a0; opacity: 0.85;"></div>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Sol</div>
+            <div style="font-size: 9px; font-weight: 700; color: #6ee7a0;">Healer</div>
             <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
             <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 100 · Damage 2</div>
           </div>

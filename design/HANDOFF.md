@@ -40,7 +40,8 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
    *face-off*, so nothing says "two squads, about to fight"; neither side is named; numbers and chips are bare ("605/605", "guard") with the sentence behind a tap that
    nothing says is a tap; the encounter blurb was built but thrown away (`_encounterBlurb` in `roundScreen.ts`); and enemy damage/slam/heal were never shown.
    Frame: a one-line goal sentence (first rounds only), a tinted ENEMY zone (body, `HP 605`, `Hits for 8`, the encounter blurb), a VS line, a tinted YOUR SQUAD zone
-   (role icon in each body, `HP / Hits` numbers to compare, a plain one-liner per role), then one tappable row per role holding the special as a sentence first and
+   (**redrawn 2026-10-10:** named fighters, made-up names Bram / Ivy / Sol, with the role as a small coloured tag; plain role-coloured bodies with ground shadows in two
+   ranks as the fight screen draws them, Tank in front and the other two behind to each side; `HP / Damage` numbers; no role one-liners, no "3 fighters" count), then one tappable row per role holding the special as a sentence first and
    the old name muted after it, with an `i` mark. Mark words are coloured as on the offer cards. No fatigue pips while every unit is fresh. Button reads "Fight!".
    Numbers are real: Anvil at round 1 comes from `roundEnemySide`, units from `ROLE_POOL`.
    **2026-10-09 review round (Tu):** "Hits for" was dropped as a term nobody uses, so every stat reads `HP 605` / `Damage 8` (a unit's damage per regular attack; attack
@@ -96,9 +97,10 @@ Built 2026-09-30, matching the canvas: `render/heroPickShared.ts` (`fatiguePipsH
 
 8. **Face-off round screen and squad screen** (frames 9–12). Approve the look? Open points: (a) "Fight!" vs "Play"; (b) the per-unit `Damage` number returns on the round
    screen (it was dropped from the old one, see call 3), is that fine; (c) "Special moves" is a new label for what the code calls a chain ability, and nothing yet says *when*
-   a special fires (the ring filling in the fight); (d) role one-liners ("Soaks up hits") and the slam line ("charges up, then hits for 24") are new wording; (e) the squad screen
+   a special fires (the ring filling in the fight); (d) the slam line ("charges up, then hits for 24") is new wording (the role one-liners are gone from frame 9); (d2) where unit names come from in the game (a fixed pool, random, or chosen): frame 9 uses made-up names (Bram, Ivy, Sol), the code still builds `Tank 1` etc. from the role label (`sim/roles.ts:101`), and frames 10–12 still show role names; (e) the squad screen
    is a new screen and a new route, and today a tap just toggles a pick, so the swap rule changes when this is built; (f) a roster with no one on the bench (round 1) hides the strip.
    Settled 2026-10-09: "Hits" wording, attack speed not shown, bench on its own screen, two-tap swap.
+   Settled 2026-10-10: frame 9's squad zone (units with names of their own, role as a small tag, no role one-liners, bodies in ranks with shadows); see `DECISIONS.md`.
 
 ## What the canvas does not cover
 
