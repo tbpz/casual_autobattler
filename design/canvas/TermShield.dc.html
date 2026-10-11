@@ -1,0 +1,254 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  /* A tappable game term (2026-10-11): bold, coloured, a small circled i after it.
+     Mark words keep their mark colour; slam, Guard and Chain share the term colour #c5e86c. */
+  .term { font-weight: 800; white-space: nowrap; color: #c5e86c; }
+  .term.exposed { color: #ff7ab6; }
+  .term.shield { color: #5ee0d0; }
+  .term-i { display: inline-block; width: 11px; height: 11px; margin-left: 2px; border: 1.3px solid currentColor; border-radius: 50%;
+            font-size: 8px; line-height: 8.5px; text-align: center; font-style: italic; font-weight: 800; vertical-align: 1.5px; }
+
+  /* ---- Term card: Shield (2026-10-11). Loop 4.0s. Sol's heal tops Bram up past full, so the extra becomes 20 shield (Mend: extra becomes shield). Two Executioner hits of 12: the first takes shield only (20 to 8); the second breaks it and 4 comes off HP. The bar rescales while shielded (HANDOFF frame 7), cap shieldCapFractionOfMaxHp 0.5. ---- */
+  .scene { --T: 4.0s; }
+  .term.frozen { color: #7ec8ff; }
+  .term.burn { color: #ff8a3d; }
+  @property --frac { syntax: '<number>'; inherits: false; initial-value: 0; }
+  .ring { position: absolute; border-radius: 50%; inset: -4px; background: conic-gradient(var(--rc, #e8e8ee) calc(var(--frac) * 360deg), #2a2e3a 0deg);
+          -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), white calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 4px), white calc(100% - 3px)); }
+  @keyframes heal { 0% { opacity: 0; transform: rotate(-155.1deg) scaleX(0); } 3.0% { opacity: 0; transform: rotate(-155.1deg) scaleX(0); } 3.1% { opacity: 0.9; transform: rotate(-155.1deg) scaleX(0.1); } 8% { opacity: 0.9; transform: rotate(-155.1deg) scaleX(1); } 11% { opacity: 0; transform: rotate(-155.1deg) scaleX(1); } 100% { opacity: 0; transform: rotate(-155.1deg) scaleX(1); } }
+  @keyframes solPulse { 0% { box-shadow: none; filter: none; } 2.9% { box-shadow: none; filter: none; } 3% { box-shadow: 0 0 0 3px #6ee7a0, 0 0 14px 3px #6ee7a0; filter: brightness(1.7); } 11% { box-shadow: none; filter: none; } 100% { box-shadow: none; filter: none; } }
+  @keyframes hitTr { 0% { opacity: 0; transform: rotate(90.0deg) scaleX(0); } 36.0% { opacity: 0; transform: rotate(90.0deg) scaleX(0); } 36.1% { opacity: 0.9; transform: rotate(90.0deg) scaleX(0.1); } 40% { opacity: 0.9; transform: rotate(90.0deg) scaleX(1); } 43% { opacity: 0; transform: rotate(90.0deg) scaleX(1); } 66.0% { opacity: 0; transform: rotate(90.0deg) scaleX(0); } 66.1% { opacity: 0.9; transform: rotate(90.0deg) scaleX(0.1); } 70% { opacity: 0.9; transform: rotate(90.0deg) scaleX(1); } 73% { opacity: 0; transform: rotate(90.0deg) scaleX(1); } 100% { opacity: 0; transform: rotate(90.0deg) scaleX(1); } }
+  @keyframes exLunge { 0% { transform: translate(0, 0); } 35.0% { transform: translate(0, 0); } 40% { transform: translate(0px, 6px); } 45% { transform: translate(0, 0); } 65.0% { transform: translate(0, 0); } 70% { transform: translate(0px, 6px); } 75% { transform: translate(0, 0); } 100% { transform: translate(0, 0); } }
+  @keyframes brHit { 0% { box-shadow: none; filter: none; } 39.9% { box-shadow: none; filter: none; } 40% { box-shadow: 0 0 0 3px #e8e8ee, 0 0 14px 3px #e8e8ee; filter: brightness(1.7); } 46% { box-shadow: none; filter: none; } 69.9% { box-shadow: none; filter: none; } 70% { box-shadow: 0 0 0 3px #e8e8ee, 0 0 14px 3px #e8e8ee; filter: brightness(1.7); } 76% { box-shadow: none; filter: none; } 100% { box-shadow: none; filter: none; } }
+  @keyframes blue { 0%, 7.9% { width: 100%; } 12%, 39.9% { width: 90.5%; } 41%, 69.9% { width: 96%; } 71%, 100% { width: 97.9%; } }
+  @keyframes teal { 0%, 7.9% { left: 100%; width: 0; } 12%, 39.9% { left: 90.5%; width: 9.5%; } 41%, 69.9% { left: 96%; width: 4%; } 71%, 100% { left: 97.9%; width: 0; } }
+  @keyframes brk { 0%, 69.9% { box-shadow: none; } 70% { box-shadow: 0 0 0 2px #5ee0d0, 0 0 12px 4px #5ee0d0; } 78%, 100% { box-shadow: none; } }
+  @keyframes l20 { 0%, 11.9% { opacity: 0; } 12%, 39.9% { opacity: 1; } 40%, 100% { opacity: 0; } }
+  @keyframes l8 { 0%, 39.9% { opacity: 0; } 40%, 69.9% { opacity: 1; } 70%, 100% { opacity: 0; } }
+  @keyframes a1 { 0%, 39.9% { opacity: 0; transform: translate(-50%, 0) scale(0.8); } 41% { opacity: 1; transform: translate(-50%, -4px) scale(1.25); } 56.5% { opacity: 1; transform: translate(-50%, -14px) scale(1); } 62.0%, 100% { opacity: 0; transform: translate(-50%, -18px) scale(1); } }
+  @keyframes a2 { 0%, 69.9% { opacity: 0; transform: translate(-50%, 0) scale(0.8); } 71% { opacity: 1; transform: translate(-50%, -4px) scale(1.25); } 86.5% { opacity: 1; transform: translate(-50%, -14px) scale(1); } 92.0%, 100% { opacity: 0; transform: translate(-50%, -18px) scale(1); } }
+  @keyframes a2b { 0%, 69.9% { opacity: 0; transform: translate(-50%, 0) scale(0.8); } 71% { opacity: 1; transform: translate(-50%, -4px) scale(1.25); } 86.5% { opacity: 1; transform: translate(-50%, -14px) scale(1); } 92.0%, 100% { opacity: 0; transform: translate(-50%, -18px) scale(1); } }
+  @keyframes pulse { from { filter: brightness(1); } to { filter: brightness(1.5); } }
+</style>
+</helmet>
+
+<div style="position: relative; background: #14161c; width: 390px; min-height: 900px; display: flex; justify-content: center; padding-top: 24px; overflow: hidden;">
+  <div style="width: 100%; max-width: 640px; padding: 0 16px 24px; box-sizing: border-box;">
+
+    <!-- Behind the card: frame 9 (RoundFaceOff.dc.html) unchanged, as if the player just tapped "shield".
+         Copied rather than linked; if frame 9 changes, recopy it. -->
+    <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 16px; box-sizing: border-box;">
+
+      <!-- progress strip (unchanged) -->
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+        <div style="font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #e8e8ee; white-space: nowrap;">ROUND 1/20</div>
+        <div style="position: relative; flex: 1; height: 6px; border-radius: 3px; background: #2a2e3a;">
+          <div style="position: absolute; inset: 0; width: 5%; border-radius: 3px; background: #4da6ff;"></div>
+          <div style="position: absolute; top: 50%; left: 35%; width: 6px; height: 6px; transform: translate(-50%, -50%) rotate(45deg); background: #3a3f4e;"></div>
+          <div style="position: absolute; top: 50%; left: 70%; width: 6px; height: 6px; transform: translate(-50%, -50%) rotate(45deg); background: #3a3f4e;"></div>
+          <div style="position: absolute; top: 50%; left: 100%; width: 7px; height: 7px; transform: translate(-50%, -50%) rotate(45deg); background: #ff5d5d;"></div>
+        </div>
+      </div>
+
+      <!-- goal line: the verbal pitch, in the screen. Shown in the first rounds only. -->
+      <div style="font-size: 12px; line-height: 1.4; color: #c7cad6; text-align: center; margin-bottom: 12px;">Your squad fights theirs on its own. Wipe out the enemy squad to win the round.</div>
+
+      <!-- ENEMY zone -->
+      <div style="background: rgba(255,93,93,0.07); border: 1px solid rgba(255,93,93,0.28); border-radius: 12px; padding: 10px 12px 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #ff5d5d; color: #14161c; border-radius: 6px; padding: 2px 7px;">ENEMY</span>
+          <span style="font-size: 13px; font-weight: 700; color: #e8e8ee;">Anvil</span>
+        </div>
+
+        <!-- body, drawn like the fight screen: red, sized by its share of the side's HP -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="position: relative; width: 64px; height: 64px;">
+            <div style="position: absolute; top: 55px; left: 50%; width: 52px; height: 7px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+            <div style="position: relative; width: 64px; height: 64px; border-radius: 50%; background: #ff5d5d;"></div>
+          </div>
+          <div style="width: 64px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #ff5d5d;"></div></div>
+          <div style="display: flex; gap: 6px; margin-top: 2px;">
+            <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px;">HP 605</span>
+            <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px;">Damage 8</span>
+          </div>
+        </div>
+        <div style="font-size: 11.5px; line-height: 1.45; color: #c7cad6; text-align: center; margin-top: 8px;">One huge body, barely hits back. No <span class="term">slam<span class="term-i">i</span></span> to fear — how fast can you kill it?</div>
+      </div>
+
+      <!-- VS line: the fight screen's centre line, with a badge -->
+      <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+        <div style="flex: 1; height: 1px; background: linear-gradient(90deg, transparent, #5a5f70);"></div>
+        <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.08em; color: #e8e8ee; background: #2a2e3a; border: 1px solid #3a3f4e; border-radius: 10px; padding: 2px 10px;">VS</div>
+        <div style="flex: 1; height: 1px; background: linear-gradient(270deg, transparent, #5a5f70);"></div>
+      </div>
+
+      <!-- YOUR SQUAD zone -->
+      <div style="background: rgba(77,166,255,0.07); border: 1px solid rgba(77,166,255,0.28); border-radius: 12px; padding: 10px 12px 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+          <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #4da6ff; color: #0c1420; border-radius: 6px; padding: 2px 7px;">YOUR SQUAD</span>
+        </div>
+
+        <!-- the field, drawn as the fight screen draws it (buildSide): Bram (Tank) in the front rank, centred, nearest the VS line.
+             Ivy and Sol are the back rank: 48px further from the VS line (BACK_RANK_OFFSET_PX), 0.72 size (--back-rank-scale),
+             shadow at 0.24 (--depth-shadow-opacity), first back unit left, second right. Plain role-coloured bodies, no emoji. -->
+        <div style="display: flex; justify-content: center; align-items: flex-start; gap: 22px;">
+          <!-- back rank, left: Ivy (Damage) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px; margin-top: 48px;">
+            <div style="position: relative; width: 33px; height: 33px;">
+              <div style="position: absolute; top: 28px; left: 50%; width: 27px; height: 5px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
+              <div style="position: relative; width: 33px; height: 33px; border-radius: 50%; background: #b98cff; opacity: 0.85;"></div>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Ivy</div>
+            <div style="font-size: 9px; font-weight: 700; color: #b98cff;">Damage</div>
+            <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 80 · Damage 8</div>
+          </div>
+          <!-- front rank, centre: Bram (Tank) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px;">
+            <div style="position: relative; width: 46px; height: 46px;">
+              <div style="position: absolute; top: 39px; left: 50%; width: 38px; height: 6px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+              <div style="position: relative; width: 46px; height: 46px; border-radius: 50%; background: #ffb454;"></div>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Bram</div>
+            <div style="font-size: 9px; font-weight: 700; color: #ffb454;">Tank</div>
+            <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 190 · Damage 7</div>
+          </div>
+          <!-- back rank, right: Sol (Healer) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px; margin-top: 48px;">
+            <div style="position: relative; width: 33px; height: 33px;">
+              <div style="position: absolute; top: 28px; left: 50%; width: 27px; height: 5px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
+              <div style="position: relative; width: 33px; height: 33px; border-radius: 50%; background: #6ee7a0; opacity: 0.85;"></div>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Sol</div>
+            <div style="font-size: 9px; font-weight: 700; color: #6ee7a0;">Healer</div>
+            <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 100 · Damage 2</div>
+          </div>
+        </div>
+
+        <div style="height: 1px; background: rgba(77,166,255,0.2); margin: 12px 0 8px;"></div>
+        <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.05em; color: #8a8fa3; margin-bottom: 6px;"><span class="term">CHAINS<span class="term-i">i</span></span></div>
+
+        <!-- one row per role: the sentence first, the chain's name after it. Terms inside carry their own circled i. -->
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
+            <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #ffb454; display: flex; align-items: center; justify-content: center; font-size: 12px;">🛡</div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Takes the next <span class="term">slam<span class="term-i">i</span></span> and <span class="term exposed">exposes<span class="term-i">i</span></span> the slammer.</div>
+              <div style="font-size: 10px; margin-top: 1px;"><span class="term">Guard<span class="term-i">i</span></span></div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
+            <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #b98cff; display: flex; align-items: center; justify-content: center; font-size: 12px;">⚔</div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Hits the biggest enemy and <span class="term exposed">exposes<span class="term-i">i</span></span> it.</div>
+              <div style="font-size: 10px; color: #8a8fa3; margin-top: 1px;">Expose</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
+            <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #6ee7a0; display: flex; align-items: center; justify-content: center; font-size: 12px;">✚</div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Heals your worst-hurt hero; extra becomes <span class="term shield">shield<span class="term-i">i</span></span>.</div>
+              <div style="font-size: 10px; color: #8a8fa3; margin-top: 1px;">Mend</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button style="margin-top: 14px; width: 100%; font: inherit; font-weight: 700; background: #4da6ff; color: #0c1420; border: none; border-radius: 8px; padding: 13px; font-size: 15px;">Fight!</button>
+    </div>
+
+  </div>
+
+  <!-- dimmed backdrop: tapping it closes the card -->
+  <div style="position: absolute; inset: 0; background: rgba(8,9,12,0.74);"></div>
+
+  <!-- the term card -->
+  <div style="position: absolute; top: 118px; left: 20px; width: 350px; background: #1d2029; border: 1px solid #3a3f4e; border-radius: 14px; padding: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.55);">
+
+    <!-- close -->
+    <div style="position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; background: #2a2e3a; color: #c7cad6; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; z-index: 2;">✕</div>
+
+    <!-- the scene: enemy on top, the squad below, ranks as the fight screen draws them -->
+    <div class="scene" style="position: relative; width: 322px; height: 210px; margin-top: 26px; background: #14161c; border: 1px solid #2a2e3a; border-radius: 10px; overflow: hidden;">
+
+      <div style="position: absolute; top: 104px; left: 16px; right: 16px; height: 1px; background: linear-gradient(90deg, transparent, #3a3f4e, transparent);"></div>
+      <div style="position: absolute; left: 230.0px; top: 165.0px; width: 76px; height: 2px; background: #6ee7a0; box-shadow: 0 0 4px 1px #6ee7a0; transform-origin: 0 50%; transform: rotate(-155.1deg); opacity: 0; animation: heal var(--T) linear infinite;"></div>
+      <div style="position: absolute; left: 161.0px; top: 37.0px; width: 96px; height: 2px; background: #e8e8ee; box-shadow: 0 0 4px 1px #e8e8ee; transform-origin: 0 50%; transform: rotate(90.0deg); opacity: 0; animation: hitTr var(--T) linear infinite;"></div>
+      <!-- Executioner -->
+      <div style="position: absolute; left: 137px; top: 14px; width: 48px; height: 48px;">
+        <div style="position: absolute; border-radius: 50%; top: 42px; left: 6.0px; width: 36px; height: 6px; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+        <div style="position: absolute; inset: 0; animation: exLunge var(--T) linear infinite;">
+          <div style="position: absolute; inset: 0; border-radius: 50%; background: #ff5d5d;"></div>
+        </div>
+      </div>
+      <div style="position: absolute; left: 111.0px; top: 65px; width: 100px; text-align: center; font-size: 8.5px; font-weight: 700; color: #e8e8ee;">Executioner</div>
+      <div style="position: absolute; left: 137px; top: 77px; width: 48px; height: 4px; border-radius: 2px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #ff5d5d;"></div></div>
+      <!-- Bram -->
+      <div style="position: absolute; left: 141px; top: 114px; width: 40px; height: 40px;">
+        <div style="position: absolute; border-radius: 50%; top: 34px; left: 5.0px; width: 30px; height: 6px; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+        <div style="position: absolute; inset: 0;">
+          <div style="position: absolute; inset: 0; border-radius: 50%; background: #ffb454; animation: brHit var(--T) linear infinite;"></div>
+        </div>
+      </div>
+      <div style="position: absolute; left: 111.0px; top: 156px; width: 100px; text-align: center; font-size: 8.5px; font-weight: 700; color: #e8e8ee;">Bram</div>
+      <div style="position: absolute; left: 129px; top: 167px; width: 64px; height: 5px; border-radius: 2px; background: #2a2e3a; overflow: hidden; animation: brk var(--T) linear infinite;"><div style="position: absolute; left: 0; top: 0; height: 100%; background: #4da6ff; animation: blue var(--T) linear infinite;"></div><div style="position: absolute; top: 0; height: 100%; background: #5ee0d0; animation: teal var(--T) linear infinite;"></div></div>
+      <div style="position: absolute; left: 129px; top: 174px; width: 64px; text-align: center; font-size: 8.5px; font-weight: 800; color: #5ee0d0; animation: l20 var(--T) linear infinite;">⛊20</div>
+      <div style="position: absolute; left: 129px; top: 174px; width: 64px; text-align: center; font-size: 8.5px; font-weight: 800; color: #5ee0d0; animation: l8 var(--T) linear infinite;">⛊8</div>
+      <!-- Ivy -->
+      <div style="position: absolute; left: 77px; top: 151px; width: 30px; height: 30px;">
+        <div style="position: absolute; border-radius: 50%; top: 24px; left: 3.5px; width: 23px; height: 5px; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
+        <div style="position: absolute; inset: 0;">
+          <div style="position: absolute; inset: 0; border-radius: 50%; background: #b98cff;"></div>
+        </div>
+      </div>
+      <div style="position: absolute; left: 42.0px; top: 183px; width: 100px; text-align: center; font-size: 8.5px; font-weight: 700; color: #e8e8ee;">Ivy</div>
+      <div style="position: absolute; left: 74px; top: 195px; width: 36px; height: 4px; border-radius: 2px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+      <!-- Sol -->
+      <div style="position: absolute; left: 215px; top: 151px; width: 30px; height: 30px;">
+        <div style="position: absolute; border-radius: 50%; top: 24px; left: 3.5px; width: 23px; height: 5px; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
+        <div style="position: absolute; inset: 0;">
+          <div style="position: absolute; inset: 0; border-radius: 50%; background: #6ee7a0; animation: solPulse var(--T) linear infinite;"></div>
+        </div>
+      </div>
+      <div style="position: absolute; left: 180.0px; top: 183px; width: 100px; text-align: center; font-size: 8.5px; font-weight: 700; color: #e8e8ee;">Sol</div>
+      <div style="position: absolute; left: 212px; top: 195px; width: 36px; height: 4px; border-radius: 2px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+      <div style="position: absolute; left: 131.0px; top: 108px; font-size: 13px; font-weight: 800; color: #5ee0d0; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.6); opacity: 0; animation: a1 var(--T) linear infinite;">⛊−12</div>
+      <div style="position: absolute; left: 127.0px; top: 106px; font-size: 12px; font-weight: 800; color: #5ee0d0; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.6); opacity: 0; animation: a2 var(--T) linear infinite;">⛊−8</div>
+      <div style="position: absolute; left: 191.0px; top: 106px; font-size: 13px; font-weight: 800; color: #e8e8ee; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.6); opacity: 0; animation: a2b var(--T) linear infinite;">−4</div>
+
+      <!-- replay -->
+      <div style="position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: rgba(42,46,58,0.9); color: #c7cad6; display: flex; align-items: center; justify-content: center; font-size: 13px;">↻</div>
+    </div>
+
+    <!-- name and meaning -->
+    <div style="display: flex; align-items: center; gap: 7px; margin-top: 12px;">
+      <span style="font-size: 18px;">⛊</span>
+      <span style="font-size: 18px; font-weight: 800; color: #5ee0d0;">Shield</span>
+    </div>
+    <div style="font-size: 13px; line-height: 1.5; color: #e8e8ee; margin-top: 6px;">
+      Shield soaks up damage before HP does. It holds up to half the unit's max HP.
+    </div>
+
+    <button style="margin-top: 14px; width: 100%; font: inherit; font-weight: 700; background: #4da6ff; color: #0c1420; border: none; border-radius: 8px; padding: 12px; font-size: 15px;">Got it</button>
+  </div>
+
+  <!-- design note, not part of the screen -->
+  <div style="position: absolute; left: 20px; right: 20px; bottom: 18px; font-size: 10.5px; line-height: 1.45; color: #8a8fa3; text-align: center;">
+    Closes on ✕, Got it, or a tap outside the card.
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

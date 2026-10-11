@@ -4,9 +4,9 @@
 **Source files:** `design/canvas/*.dc.html`, `design/canvas/canvas.json` — edit these, then republish (see
 "Publishing" below). Don't hand-edit `fight-field-layout.html`; it's a build output, regenerated on publish.
 
-## What's on the canvas (2026-09-30 cleanup; frame 7 added 2026-10-01; frame 8 added 2026-10-02; frames 9–12 added 2026-10-09; frame 13 added 2026-10-11)
+## What's on the canvas (2026-09-30 cleanup; frame 7 added 2026-10-01; frame 8 added 2026-10-02; frames 9–12 added 2026-10-09; frames 13–21 added 2026-10-11)
 
-Thirteen frames, as still pictures except frame 13, which loops a CSS animation. No interaction. Colours and sizes are copied from the real code
+Twenty-one frames, as still pictures except the term cards (frames 13–21), which loop CSS animations. No interaction. Colours and sizes are copied from the real code
 (`prototype/src/style.css`, `render/roundScreen.ts`, `render/fightView.ts`), so a change here is a real proposal.
 Units, HP and fatigue values are made up for the picture, not read from a run.
 
@@ -47,7 +47,7 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
    **2026-10-11 term pass:** every game term the round really shows is bold, coloured and followed by a small circled `i`, meaning
    "tap for its explainer card": slam (twice), exposes (twice), Guard (the row name, no longer muted), shield, and the section label, now
    **CHAINS** (was "SPECIAL MOVES · TAP FOR DETAILS"). Mark words keep their mark colours; slam, Guard and Chain share the term colour `#c5e86c`.
-   The per-row `i` buttons are gone. A first-round hint line under the goal sentence reads "Tap a word with ⓘ to see what it does."
+   The per-row `i` buttons are gone. A first-round hint line ("Tap a word with ⓘ to see what it does") was tried and removed the same day (Tu).
    Expose and Mend stay muted and unmarked (not on the term list). Styles are the `.term` / `.term-i` classes in the frame's helmet.
    **2026-10-09 review round (Tu):** "Hits for" was dropped as a term nobody uses, so every stat reads `HP 605` / `Damage 8` (a unit's damage per regular attack; attack
    speed is deliberately not shown). A slam shows its number: `💥 Slam: charges up, then hits for 24` (2x the regular damage, `windupDamageMultiplier`).
@@ -73,6 +73,18 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
    with `--virtual-time-budget` does not advance opacity/transform animations, so pause `document.getAnimations()` at set times in a Playwright page instead.
    The 9 terms that get cards (Tu, 2026-10-11): Slam, Guard, Exposed, Frozen, Burn, Shield, Chain (charge explained inside it), Backfire, Fatigue.
    No tapping during a fight. Only frame 9 is marked so far.
+14–21. **Term cards: Guard, Exposed, Frozen, Burn, Shield, Chain, Backfire, Fatigue** — **proposal, drawn 2026-10-11, not built, awaiting Tu's approval.** Same card
+   shell as frame 13, each over the same dimmed frame 9; Frozen, Burn, Backfire and Fatigue don't appear on frame 9, so it is only a stand-in there (Tu's call), said in
+   each frame's note. Generated from a scratch script from TermSlam's shell; edit the files by hand from here on. Each file's CSS header lists its numbers and sources.
+   - **Guard:** the slam commits on Ivy, the aim line swings green (`.aim-line.swing-save`) to Bram, "TAKES THE SLAM", −24, one of Bram's yellow guard pips empties, ✦1 on the slammer.
+   - **Exposed:** the same Ivy hit (damage 8) lands three times: −8, then −13 at ✦5, then −18 at the ✦10 cap (`exposedDamagePerStack` 0.12).
+   - **Frozen:** the slam commits, Bram's Freeze lands, the bar cancels with the shatter flare, the body takes the `.body.frozen` tint and a draining freeze ring, then thaws.
+   - **Burn:** ♨4 ticks for 12, 9, 6, 3 a second apart (`burnDamagePerStack` 3, `burnDecayPerTick` 1).
+   - **Shield:** Sol's overheal leaves ⛊20 on Bram (bar rescales); a 12 hit takes shield only (⛊8), the next breaks it with a flash and 4 comes off HP.
+   - **Chain:** rings fill at different speeds (charge, explained here); Ivy's closes and glows, then hits 18, 23, 29, 34 (`chainEscalationStepMultiplier` 0.3), orange from the 3rd; "IVY'S CHAIN ×4".
+   - **Backfire:** Ivy's ring fires under the red vignette (`.arena.chain-backfire`); 18 and 23 land on Bram, with exposed on Bram too (a backfire picks from your own side, weighted toward a holding Tank: `pickWeightedTargetId`).
+   - **Fatigue:** one unit at fatigue 0, 25, 50, 80, then a bench round (−20): tier word and pips change, CHAIN HITS +0/+9/+18/+28/+21% (`fatigueMagnitudeMult`) and
+     BACKFIRE CHANCE 3/7/12/23/15% (`backfireChanceFor`).
 
 Round-screen idea, in one paragraph (frames 1–3, the version currently built): units are grouped by role. One band per role holds its icon, one chip per ability
 the chain has picked up ("guard", "freeze"), a `+N` badge once the chain has been made stronger (never the word "level"), and a ✓
@@ -116,11 +128,12 @@ Built 2026-09-30, matching the canvas: `render/heroPickShared.ts` (`fatiguePipsH
    Settled 2026-10-09: "Hits" wording, attack speed not shown, bench on its own screen, two-tap swap.
    Settled 2026-10-10: frame 9's squad zone (units with names of their own, role as a small tag, no role one-liners, bodies in ranks with shadows); see `DECISIONS.md`.
 
-9. **Tappable terms and the Slam card** (frames 9 and 13, 2026-10-11). Approve the look? Open points: (a) the term colour `#c5e86c` for slam, Guard and Chain;
+9. **Tappable terms and the term cards** (frames 9 and 13–21, 2026-10-11). Approve the look? Open points: (a) the term colour `#c5e86c` for slam, Guard and Chain;
    (b) the per-row `i` is replaced by term `i` marks; frame 10's popover holds the matchup and backfire lines, so where those live is settled when frame 10 is marked;
    (c) frame 10's enemy unit is named "Guard", which clashes with the term Guard: rename it?; (d) "Special moves" is now "Chains"; the code's wording is untouched;
    (e) frame 9 says "No slam to fear" with slam marked, so the first card a player may open is for a move this enemy lacks; (f) the meaning says "When their SLAM bar
-   turns red", which is the real tell but new wording.
+   turns red", which is the real tell but new wording; (g) Exposed shows stacks arriving without their source, to keep the scene on what exposed does;
+   (h) the card icons ⛨ ✦ ❄ ♨ ⛊ ⛓ ⚠ are text glyphs and render differently per OS (see call 1).
 
 ## What the canvas does not cover
 

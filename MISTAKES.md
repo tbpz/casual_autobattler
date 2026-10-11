@@ -16,6 +16,19 @@
 
 ---
 
+### [2026-10-11 #1] Said a backfire lands on the front unit
+
+- **Said:** The approved plan for the Backfire term card: the hits "land on Bram instead (the front
+  unit)".
+- **Actually:** A backfire picks its target from your own side with `pickWeightedTargetId` in
+  `sim/fight.ts`, the same weighted pick an enemy attack uses, which favours a holding Tank. So Bram
+  is the likely target, not a fixed one. The word "front" came from a `config.ts` comment that
+  calls this the "front" rule.
+- **Caught by:** Myself, checking the card's claims against `sim/fight.ts` before publishing.
+- **Why:** I took the rule's name in a comment as a description of what it does, without reading
+  the function.
+- **Tag:** described code behaviour without checking the shipped setting
+
 ### [2026-10-02 #3] Said a forced Rest offer catches a squad that is never benched
 
 - **Said:** After the keep-last-squad change: "the forced Rest offer still steps in once they're
