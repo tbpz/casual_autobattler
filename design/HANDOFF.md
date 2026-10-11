@@ -4,9 +4,9 @@
 **Source files:** `design/canvas/*.dc.html`, `design/canvas/canvas.json` — edit these, then republish (see
 "Publishing" below). Don't hand-edit `fight-field-layout.html`; it's a build output, regenerated on publish.
 
-## What's on the canvas (2026-09-30 cleanup; frame 7 added 2026-10-01; frame 8 added 2026-10-02; frames 9–12 added 2026-10-09)
+## What's on the canvas (2026-09-30 cleanup; frame 7 added 2026-10-01; frame 8 added 2026-10-02; frames 9–12 added 2026-10-09; frame 13 added 2026-10-11)
 
-Twelve frames, as still pictures: no motion, no interaction. Colours and sizes are copied from the real code
+Thirteen frames, as still pictures except frame 13, which loops a CSS animation. No interaction. Colours and sizes are copied from the real code
 (`prototype/src/style.css`, `render/roundScreen.ts`, `render/fightView.ts`), so a change here is a real proposal.
 Units, HP and fatigue values are made up for the picture, not read from a run.
 
@@ -44,6 +44,11 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
    ranks as the fight screen draws them, Tank in front and the other two behind to each side; `HP / Damage` numbers; no role one-liners, no "3 fighters" count), then one tappable row per role holding the special as a sentence first and
    the old name muted after it, with an `i` mark. Mark words are coloured as on the offer cards. No fatigue pips while every unit is fresh. Button reads "Fight!".
    Numbers are real: Anvil at round 1 comes from `roundEnemySide`, units from `ROLE_POOL`.
+   **2026-10-11 term pass:** every game term the round really shows is bold, coloured and followed by a small circled `i`, meaning
+   "tap for its explainer card": slam (twice), exposes (twice), Guard (the row name, no longer muted), shield, and the section label, now
+   **CHAINS** (was "SPECIAL MOVES · TAP FOR DETAILS"). Mark words keep their mark colours; slam, Guard and Chain share the term colour `#c5e86c`.
+   The per-row `i` buttons are gone. A first-round hint line under the goal sentence reads "Tap a word with ⓘ to see what it does."
+   Expose and Mend stay muted and unmarked (not on the term list). Styles are the `.term` / `.term-i` classes in the frame's helmet.
    **2026-10-09 review round (Tu):** "Hits for" was dropped as a term nobody uses, so every stat reads `HP 605` / `Damage 8` (a unit's damage per regular attack; attack
    speed is deliberately not shown). A slam shows its number: `💥 Slam: charges up, then hits for 24` (2x the regular damage, `windupDamageMultiplier`).
 10. **RoundFaceOffGrown** — same proposal at round 12 vs Executioner + 2 Guards: the slam gets its own plain line, units show a number only where a role has two, a worn unit
@@ -59,6 +64,15 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
    happens here only (the round screen's squad is a read-only preview), and a swap is two taps (bench unit, then who it replaces; any unit for any unit, no role lock).
    The bench rule is stated in one line with real numbers: "Each round, a unit on the bench heals 60% of its HP and loses 20 fatigue. A fighting unit heals 40%"
    (`benchedRecoverFraction`, `fatigueBenchRest`, `autoRecoverFraction`). This also answers old open call 4 (the bench-heals-faster hint). Generated from a scratch script; edit the file by hand from here on.
+13. **TermSlam** — **proposal, drawn 2026-10-11, not built, awaiting Tu's approval.** The explainer card a tap on "slam" opens, over a dimmed copy of frame 9
+   (copied, not linked: recopy if frame 9 changes). Card parts: an animated scene, the term name, a short meaning, and close (✕, "Got it", or a tap outside).
+   The scene is a 3.5s CSS loop in the fight screen's look, following the real slam tells in `style.css` / `render/fightView.ts`: the dark SLAM bar creeps up;
+   at 0.6s it commits (turns `--windup` red and drains over `windupTelegraphSec` 1.5s, the Executioner pulses `.body.charging`, Ivy gets the dashed `.body.targeted`
+   ring, the aim line grows, "SLAM INCOMING"); at 2.1s the hit lands for **24** (Executioner damage 12 × `windupDamageMultiplier` 2) and Ivy's HP bar drops 30%.
+   The meaning names Guard with its own `i`: tapping a term inside a card swaps to that term's card, never stacks. Checking the motion: headless `--screenshot`
+   with `--virtual-time-budget` does not advance opacity/transform animations, so pause `document.getAnimations()` at set times in a Playwright page instead.
+   The 9 terms that get cards (Tu, 2026-10-11): Slam, Guard, Exposed, Frozen, Burn, Shield, Chain (charge explained inside it), Backfire, Fatigue.
+   No tapping during a fight. Only frame 9 is marked so far.
 
 Round-screen idea, in one paragraph (frames 1–3, the version currently built): units are grouped by role. One band per role holds its icon, one chip per ability
 the chain has picked up ("guard", "freeze"), a `+N` badge once the chain has been made stronger (never the word "level"), and a ✓
@@ -101,6 +115,12 @@ Built 2026-09-30, matching the canvas: `render/heroPickShared.ts` (`fatiguePipsH
    is a new screen and a new route, and today a tap just toggles a pick, so the swap rule changes when this is built; (f) a roster with no one on the bench (round 1) hides the strip.
    Settled 2026-10-09: "Hits" wording, attack speed not shown, bench on its own screen, two-tap swap.
    Settled 2026-10-10: frame 9's squad zone (units with names of their own, role as a small tag, no role one-liners, bodies in ranks with shadows); see `DECISIONS.md`.
+
+9. **Tappable terms and the Slam card** (frames 9 and 13, 2026-10-11). Approve the look? Open points: (a) the term colour `#c5e86c` for slam, Guard and Chain;
+   (b) the per-row `i` is replaced by term `i` marks; frame 10's popover holds the matchup and backfire lines, so where those live is settled when frame 10 is marked;
+   (c) frame 10's enemy unit is named "Guard", which clashes with the term Guard: rename it?; (d) "Special moves" is now "Chains"; the code's wording is untouched;
+   (e) frame 9 says "No slam to fear" with slam marked, so the first card a player may open is for a move this enemy lacks; (f) the meaning says "When their SLAM bar
+   turns red", which is the real tell but new wording.
 
 ## What the canvas does not cover
 
