@@ -2,7 +2,7 @@
 
 > **What this file is:** where the project stands right now, and what to do next. Present tense only.
 > **Read this first** in every session. Layer 1 ends at the rule — that's the 60-second read. Layer 2 is the working index.
-> **Last synced:** 2026-10-10
+> **Last synced:** 2026-10-11
 
 ## What this is
 
@@ -22,15 +22,15 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 ## Where it stands
 
-A run grows over 20 rounds through a relic, reward cards, role upgrades and duo cards, and the squad pick starts as last round's squad; fatigue and Recruit tuning is batch-verified and not yet played. Outside playtesters report that a new player cannot tell what the round screen is: the sides are unnamed, numbers and terms are unexplained, and the details are hidden. The work now is making the game explain itself: a face-off round screen and a squad screen are drawn on canvas frames 9–12, and frame 9's squad zone is approved, with fighters that have names of their own, while the rest of the look awaits approval. Card firing and the Exposed rebalance wait behind it, not dropped.
+A run grows over 20 rounds through a relic, reward cards, role upgrades and duo cards, and the squad pick starts as last round's squad. The work now is making the game explain itself to a new player. On the canvas, a face-off round screen and a squad screen are drawn (frames 9–12), frame 9 marks its game terms as tappable, and an animated explainer card is drawn for each of the 9 terms (frames 13–21). Frame 9's squad zone is approved; the term marks, the cards and the rest of the look await Tu's approval, and card firing and the Exposed rebalance wait behind them.
 
 ## Next up
 
-1. **Make the round screen self-explaining:** carry frame 9's named fighters onto frames 10–12 and get the rest of the look approved (open calls in `design/HANDOFF.md`), then build the face-off screen in `render/roundScreen.ts`, a squad screen route in `render/app.ts`, and unit names in `sim/roles.ts`.
-2. **Fix the cards that rarely fire:** Glass fires only when a freeze ends; Overflow, Ember heart, Cold snap, Bulwark and Deep freeze fire in under half their held fights (the "rarely fires" line of `npm run batch -- --offers build`).
-3. **Rebalance outliers** from the synergy block (Punish is the weakest card by a wide margin; recheck whether Exposed's cards still trail Burn's) and **pick a target for chains' share of damage** (about 44% of player damage now).
-4. **Play more runs** (`npm run dev`), a different build each time, and send the `export` file — a build verdict is checked against it, and so is whether fatigue and Recruit now feel survivable, whether you bench tired heroes by hand now the squad stays put, and the coloured mark words read clearly; then run a second outside playtest on the new round screen.
-5. Fix the healer-only stalemate and the two recap wording bugs ("for 0" on a guard/stun save; the guard's repeated "against" line).
+1. **Finish the self-explaining round screen on canvas:** get frame 9's look and the 9 term cards approved (open calls 8 and 9 in `design/HANDOFF.md`), then carry the term marks and named fighters onto frames 6 and 10–12.
+2. **Build it:** the face-off screen in `render/roundScreen.ts`, a squad screen route in `render/app.ts`, unit names in `sim/roles.ts`, and the term marks and cards.
+3. **Fix the cards that rarely fire:** Glass fires only when a freeze ends; Overflow, Ember heart, Cold snap, Bulwark and Deep freeze fire in under half their held fights (the "rarely fires" line of `npm run batch -- --offers build`).
+4. **Rebalance outliers** from the synergy block (Punish is the weakest card by a wide margin; recheck whether Exposed's cards still trail Burn's) and **pick a target for chains' share of damage** (about 44% of player damage now).
+5. **Play more runs** (`npm run dev`) with a different build each time and send the `export` file, then run a second outside playtest on the new round screen; the healer-only stalemate and the two recap wording bugs ("for 0" on a guard/stun save; the guard's repeated "against" line) wait behind this.
 
 ---
 
@@ -45,8 +45,9 @@ A run grows over 20 rounds through a relic, reward cards, role upgrades and duo 
 | Chain legibility — pacing, HUD, pips, end card, cascade popups | built | `render/playback.ts`, `render/fightView.ts` |
 | Shield on the HP bar — segment, ghosts, break flash | built | `render/hpBar.ts`, `render/fightView.ts`, `checks/hpBar.ts` |
 | Round screen — squad pick starts as last round's squad, fatigue, relic and card chips, duo hints | built | `render/roundScreen.ts`, `sim/roster.ts`, `design/HANDOFF.md` |
-| Face-off round screen and squad screen — drawn on canvas; frame 9's squad zone approved, rest of the look not | not started | `design/canvas/RoundFaceOff*.dc.html`, `design/canvas/SquadScreen.dc.html`, `design/HANDOFF.md` |
-| Unit names — units are named from the role label today; names of their own are decided, not built | not started | `sim/roles.ts` |
+| Face-off round screen and squad screen — drawn on canvas; frame 9's squad zone approved, rest not | not started | `design/canvas/RoundFaceOff*.dc.html`, `design/canvas/SquadScreen.dc.html`, `design/HANDOFF.md` |
+| Term marks and explainer cards — 9 terms; marks on frame 9 only, cards drawn, not approved | not started | `design/canvas/Term*.dc.html`, `design/canvas/RoundFaceOff.dc.html`, `design/HANDOFF.md` |
+| Unit names — names of their own are decided; units are named from the role label today | not started | `sim/roles.ts` |
 | Marks — each chain ability leaves one | batch-verified | `sim/fight.ts`, `checks/marks.ts` |
 | Card engine — hooks, cascades, depth cap | batch-verified | `sim/cards/engine.ts`, `checks/cards.ts` |
 | Card pool — 34 cards incl. 6 duos | batch-verified | `sim/cards/defs/`, `checks/cardpool.ts` |
@@ -55,7 +56,7 @@ A run grows over 20 rounds through a relic, reward cards, role upgrades and duo 
 | Offer pool — 3 per win, card weight capped, Recruit kept common | batch-verified | `sim/offers.ts`, `render/offerScreen.ts` |
 | Card text — mark words coloured, offer names where a needed mark comes from | built | `render/heroPickShared.ts`, `sim/offers.ts`, `design/HANDOFF.md` |
 | Relics — 6, pick 1 of 3, held all run | batch-verified | `sim/relics.ts`, `sim/cards/defs/relic.ts` |
-| New opening — round 1 first, relic as round 1 reward | played-verified | `render/app.ts`, `render/relicScreen.ts`, `render/runSession.ts`, `sim/run.ts` |
+| Opening — round 1 first, relic as round 1 reward | played-verified | `render/app.ts`, `render/relicScreen.ts`, `render/runSession.ts`, `sim/run.ts` |
 | Run export — `export` link on every screen writes the run as JSON | played-verified | `render/app.ts`, `log/runLog.ts`, `checks/runLog.ts` |
 | Synergy report — best cards and pairs, per-relic rounds | batch-verified | `batch/synergy.ts` |
 | Rest card — cuts one unit's fatigue | batch-verified | `sim/offers.ts`, `checks/fatigue.ts` |
@@ -63,7 +64,6 @@ A run grows over 20 rounds through a relic, reward cards, role upgrades and duo 
 | 20-round plan — mini-bosses at 7/14, boss at 20 | batch-verified | `sim/rounds.ts`, `checks/runShape.ts` |
 | Enemy shapes — the encounter pool | batch-verified | `sim/encounters.ts` |
 | Difficulty — ~6% run completion, n=3000 greedy, 2026-10-02 | batch-verified | `checks/runShape.ts`, `batch/cli.ts` |
-| Multi-answer counterplay — needs re-reading against roles | not started | `archive/DESIGN_MULTIPLE_ANSWERS.md` |
 | Real game build | not started | — |
 
 ## Unverified bets
@@ -72,15 +72,15 @@ A run grows over 20 rounds through a relic, reward cards, role upgrades and duo 
 - Push or rest stays a real choice, and players bench a tired hero by hand (the batch bot rotates; the pick screen keeps last round's squad).
 - Cards, duos and relics give a run an identity and a combo worth chasing.
 - A cascade stays readable on a phone screen.
-- A first-time player understands the round screen without being told.
+- A first-time player finds the circled-i term marks and taps them without being told.
 
 ## Open questions
 
-- Does the Exposed build still win less than Burn or Frozen, and is that its cards or a multiplier on a flat damage number? Gates Next up #3.
-- What fire rate is healthy for a card that fires only on a moment (Lay bare, Second wind)? Gates Next up #2.
-- Do today's relics set a run's identity, and do eased fatigue and common Recruit feel survivable by hand? Answered by Next up #4.
-- Does the face-off round screen let a first-time player say who fights whom and what each side can do? Answered by Next up #1 and #4.
-- Where do unit names come from: a fixed pool, random, or picked by the player? Gates the build in Next up #1.
+- Does the face-off round screen, with its term cards, let a first-time player say who fights whom and what each side can do? Answered by Next up #1 and #5.
+- Where do unit names come from: a fixed pool, random, or picked by the player? Gates the build in Next up #2.
+- Does the Exposed build still win less than Burn or Frozen, and is that its cards or a multiplier on a flat damage number? Gates Next up #4.
+- What fire rate is healthy for a card that fires only on a moment (Lay bare, Second wind)? Gates Next up #3.
+- Do today's relics set a run's identity, and do eased fatigue and common Recruit feel survivable by hand? Answered by Next up #5.
 
 ## How to work here
 

@@ -10,6 +10,30 @@
 
 ---
 
+## [2026-10-11] Game terms are tappable, and each opens an animated explainer card
+
+- **Decision:**
+  - Nine terms get an explainer: Slam, Guard, Exposed, Frozen, Burn, Shield, Chain, Backfire, Fatigue.
+  - Charge is explained inside the Chain card.
+  - Wherever a term appears, it is a bold coloured word followed by a small circled i.
+  - A tap opens a card: a short looping scene of the term in a fight, a one- or two-line meaning, and close (✕, "Got it", or a tap outside).
+  - A term inside a card swaps to that term's card; cards never stack.
+  - The move is named "Chain" on screen; frame 9's "Special moves" label becomes "Chains".
+  - Terms are not tappable during a fight.
+  - No hint line explains the circled i.
+- **Why:**
+  - The 2026-10-09 playtester could not act: slam, backfire and exposed meant nothing to him.
+  - The face-off redraw of frame 9 fixed which side is which but still used slam and exposes unexplained.
+  - The meanings that existed sat behind a tap nothing pointed to.
+  - Tu wants each term shown happening, like a short cut scene, not only defined.
+  - Tu kept the fight screen pure watching.
+- **Replaces:**
+  - Narrows the 2026-10-10 "explain itself" rule: a term's meaning sits behind a visible tap mark, not inline.
+  - Replaces the per-row info mark of the 2026-10-10 face-off entry, on frame 9.
+  - Not covered: drawn on canvas frames 9 and 13–21 only, not built; frames 6 and 10–12 are not marked.
+  - Not covered: the term colour, the enemy unit named "Guard" and other points are open in `design/HANDOFF.md` call 9.
+  - Not covered: no playtest has checked that players find and tap the marks.
+
 ## [2026-10-10] Units get names of their own; the round screen draws the squad as fighters, not a role list
 
 - **Decision:**
