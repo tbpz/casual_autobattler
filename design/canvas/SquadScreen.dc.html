@@ -13,86 +13,86 @@
 </style>
 </helmet>
 
-<!-- Squad screen (proposal, 2026-10-09): where the bench lives. Reached only from the round screen's "Change squad" strip
-     (frames 10-11); "Done" goes back there. Same eight units in both phones: round 17, five fighting, three on the bench.
-     Left: resting. Right: a bench unit chosen, fighting units glow, Done greyed until the swap is made.
+<!-- Squad screen (proposal, 2026-10-09; redrawn 2026-10-11 to match the bench decision, see DECISIONS.md "The bench is a small preview shelf"): where the bench lives.
+     Reached only from the round screen's bench shelf (the blue "Change squad ›", or a tap on the shelf; see frame 1.2), with nothing pre-chosen; "Done" goes back there.
+     Same eight units in both phones and the same as frame 1.2's squad-cap phone: round 17, five fighting (Bram, Ivy, Sol, Rex, Moss), three on the bench (Olo, Mira, fallen Dax).
+     Units have names of their own and plain role-coloured circles (no emoji), as on frames 1.1 and 1.2; the role word sits under the name in its role colour.
+     Left: resting. Right: a bench unit chosen (Olo), fighting units glow, Done greyed until the swap is made.
      A swap is any bench unit for any fighting unit (no role lock, same as today's pick rule); a fallen unit cannot be tapped.
      Recovery numbers are real (config.ts benchedRecoverFraction 0.6, autoRecoverFraction 0.4, fatigueBenchRest 20).
-     Rows show fatigue here always (pips + tier word); the round screen hides them while a unit is fresh.
-     HP, fatigue and unit lists are made up for the picture, consistent with frame 11. Generated from a scratch script; edit by hand from here on. -->
+     Rows show fatigue here always (pips + tier word): this is the deeper layer where the details live; the round screen's bench shelf shows none.
+     HP, fatigue and names are made up for the picture. Generated from a scratch script; edit by hand from here on. -->
 <div style="background: #14161c; width: 860px; min-height: 900px; padding: 24px 20px; display: flex; gap: 40px; align-items: flex-start;">
   <div style="width: 390px; flex: none;">
     <div style="font-size: 11px; font-weight: 700; color: #8a8fa3; margin: 0 0 8px 16px; letter-spacing: 0.04em;">RESTING</div>
     <div style="background: #14161c; padding: 0 16px 16px;">
     <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 16px;">
-      <!-- header: back to the round screen -->
       <div style="display: flex; align-items: center; margin-bottom: 12px;">
         <span style="font-size: 12px; font-weight: 700; color: #4da6ff;">‹ Round 17</span>
         <span style="margin: 0 auto; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; color: #e8e8ee;">YOUR SQUAD</span>
         <span style="font-size: 11px; color: #8a8fa3;">8 units</span>
       </div>
-      
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
         <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #4da6ff; color: #0c1420; border-radius: 6px; padding: 2px 7px;">FIGHTING</span>
         <span style="font-size: 11px; color: #8a8fa3;">5 of 5</span>
       </div>
       <div style="display: flex; flex-direction: column; gap: 6px;">
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 1; ">
-        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 15px;">🛡</div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Tank 1</div><div style="font-size: 10px; color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em;">fresh</div></div>
-        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 236</div></div>
+        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029;"></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Bram</div><div style="font-size: 10px; color: #ffb454; font-weight: 700;">Tank <span style="color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· fresh</span></div></div>
+        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 190</div></div>
         <div title="fatigue: fresh" style="flex: none; display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #8a8fa3;"></div></div>
       </div>
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 1; ">
-        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 15px;">🛡</div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Tank 2</div><div style="font-size: 10px; color: #ffcf4d; text-transform: uppercase; letter-spacing: 0.04em;">worn</div></div>
-        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 62%; height: 100%; background: #e8913c;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 146/236</div></div>
+        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029;"></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Ivy</div><div style="font-size: 10px; color: #b98cff; font-weight: 700;">Damage <span style="color: #ffcf4d; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· worn</span></div></div>
+        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 80%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 64/80</div></div>
         <div title="fatigue: worn" style="flex: none; display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ffcf4d;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ffcf4d;"></div></div>
       </div>
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 1; ">
-        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 15px;">⚔</div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Damage 1</div><div style="font-size: 10px; color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em;">fresh</div></div>
-        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 104</div></div>
+        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029;"></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Sol</div><div style="font-size: 10px; color: #6ee7a0; font-weight: 700;">Healer <span style="color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· fresh</span></div></div>
+        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 100</div></div>
         <div title="fatigue: fresh" style="flex: none; display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #8a8fa3;"></div></div>
       </div>
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 1; ">
-        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 15px;">⚔</div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Damage 2</div><div style="font-size: 10px; color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em;">fresh</div></div>
-        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 104</div></div>
+        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029;"></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Rex</div><div style="font-size: 10px; color: #b98cff; font-weight: 700;">Damage <span style="color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· fresh</span></div></div>
+        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 80</div></div>
         <div title="fatigue: fresh" style="flex: none; display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #8a8fa3;"></div></div>
       </div>
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 1; ">
-        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 15px;">✚</div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Healer 1</div><div style="font-size: 10px; color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em;">fresh</div></div>
-        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 128</div></div>
+        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029;"></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Moss</div><div style="font-size: 10px; color: #b98cff; font-weight: 700;">Damage <span style="color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· fresh</span></div></div>
+        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 80</div></div>
         <div title="fatigue: fresh" style="flex: none; display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #8a8fa3;"></div></div>
       </div>
       </div>
 
       <div style="display: flex; align-items: center; gap: 8px; margin: 16px 0 4px;">
         <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #3a3f4e; color: #e8e8ee; border-radius: 6px; padding: 2px 7px;">BENCH</span>
-        <span style="font-size: 11px; color: #8a8fa3;">3 units · tap one to swap it in</span>
+        <span style="font-size: 11px; color: #8a8fa3;">3 units</span>
       </div>
       <div style="font-size: 10.5px; line-height: 1.4; color: #8a8fa3; margin-bottom: 8px;">Each round, a unit on the bench heals 60% of its HP and loses 20 fatigue. A fighting unit heals 40%.</div>
       <div style="display: flex; flex-direction: column; gap: 6px;">
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 1; ">
-        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 15px;">🛡</div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Tank 3</div><div style="font-size: 10px; color: #ffcf4d; text-transform: uppercase; letter-spacing: 0.04em;">worn</div></div>
-        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 76%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 180/236</div></div>
+        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029;"></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Olo</div><div style="font-size: 10px; color: #ffb454; font-weight: 700;">Tank <span style="color: #ffcf4d; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· worn</span></div></div>
+        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 62%; height: 100%; background: #e8913c;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 118/190</div></div>
         <div title="fatigue: worn" style="flex: none; display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ffcf4d;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ffcf4d;"></div></div>
       </div>
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 1; ">
-        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 15px;">✚</div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Healer 2</div><div style="font-size: 10px; color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em;">fresh</div></div>
-        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 128</div></div>
+        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029;"></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Mira</div><div style="font-size: 10px; color: #6ee7a0; font-weight: 700;">Healer <span style="color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· fresh</span></div></div>
+        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 100</div></div>
         <div title="fatigue: fresh" style="flex: none; display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #8a8fa3;"></div></div>
       </div>
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 0.45;">
         <div style="position: relative; flex: none; width: 34px; height: 34px;">
-          <div style="width: 34px; height: 34px; border-radius: 50%; background: #5c5f6b; display: flex; align-items: center; justify-content: center; font-size: 15px;">⚔</div>
+          <div style="width: 34px; height: 34px; border-radius: 50%; background: #5c5f6b;"></div>
           <div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #e2564b; border: 2px solid #20232c; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #14161c; font-weight: 800;">✕</div>
         </div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Damage 3</div><div style="font-size: 10px; color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em;">fallen</div></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Dax</div><div style="font-size: 10px; color: #b98cff; font-weight: 700;">Damage <span style="color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· fallen</span></div></div>
       </div>
       </div>
 
@@ -101,18 +101,16 @@
     </div>
   </div>
   <div style="width: 390px; flex: none;">
-    <div style="font-size: 11px; font-weight: 700; color: #8a8fa3; margin: 0 0 8px 16px; letter-spacing: 0.04em;">MID-SWAP: Tank 3 CHOSEN</div>
+    <div style="font-size: 11px; font-weight: 700; color: #8a8fa3; margin: 0 0 8px 16px; letter-spacing: 0.04em;">MID-SWAP: OLO CHOSEN</div>
     <div style="background: #14161c; padding: 0 16px 16px;">
     <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 16px;">
-      <!-- header: back to the round screen -->
       <div style="display: flex; align-items: center; margin-bottom: 12px;">
         <span style="font-size: 12px; font-weight: 700; color: #4da6ff;">‹ Round 17</span>
         <span style="margin: 0 auto; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; color: #e8e8ee;">YOUR SQUAD</span>
         <span style="font-size: 11px; color: #8a8fa3;">8 units</span>
       </div>
-      <!-- swap banner -->
       <div style="display: flex; align-items: center; gap: 8px; background: rgba(77,166,255,0.12); border: 1px solid rgba(77,166,255,0.4); border-radius: 8px; padding: 8px 10px; margin-bottom: 12px;">
-        <span style="font-size: 12px; color: #e8e8ee;">Tap who <b>Tank 3</b> replaces</span>
+        <span style="font-size: 12px; color: #e8e8ee;">Tap who <b>Olo</b> replaces</span>
         <span style="margin-left: auto; font-size: 11px; font-weight: 700; color: #4da6ff;">Cancel</span>
       </div>
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
@@ -121,33 +119,33 @@
       </div>
       <div style="display: flex; flex-direction: column; gap: 6px;">
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 1; border: 1.5px dashed #4da6ff; box-shadow: 0 0 10px rgba(77,166,255,0.35);">
-        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 15px;">🛡</div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Tank 1</div><div style="font-size: 10px; color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em;">fresh</div></div>
-        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 236</div></div>
+        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029;"></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Bram</div><div style="font-size: 10px; color: #ffb454; font-weight: 700;">Tank <span style="color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· fresh</span></div></div>
+        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 190</div></div>
         <div title="fatigue: fresh" style="flex: none; display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #8a8fa3;"></div></div>
       </div>
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 1; border: 1.5px dashed #4da6ff; box-shadow: 0 0 10px rgba(77,166,255,0.35);">
-        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 15px;">🛡</div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Tank 2</div><div style="font-size: 10px; color: #ffcf4d; text-transform: uppercase; letter-spacing: 0.04em;">worn</div></div>
-        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 62%; height: 100%; background: #e8913c;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 146/236</div></div>
+        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029;"></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Ivy</div><div style="font-size: 10px; color: #b98cff; font-weight: 700;">Damage <span style="color: #ffcf4d; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· worn</span></div></div>
+        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 80%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 64/80</div></div>
         <div title="fatigue: worn" style="flex: none; display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ffcf4d;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ffcf4d;"></div></div>
       </div>
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 1; border: 1.5px dashed #4da6ff; box-shadow: 0 0 10px rgba(77,166,255,0.35);">
-        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 15px;">⚔</div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Damage 1</div><div style="font-size: 10px; color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em;">fresh</div></div>
-        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 104</div></div>
+        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029;"></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Sol</div><div style="font-size: 10px; color: #6ee7a0; font-weight: 700;">Healer <span style="color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· fresh</span></div></div>
+        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 100</div></div>
         <div title="fatigue: fresh" style="flex: none; display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #8a8fa3;"></div></div>
       </div>
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 1; border: 1.5px dashed #4da6ff; box-shadow: 0 0 10px rgba(77,166,255,0.35);">
-        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 15px;">⚔</div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Damage 2</div><div style="font-size: 10px; color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em;">fresh</div></div>
-        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 104</div></div>
+        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029;"></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Rex</div><div style="font-size: 10px; color: #b98cff; font-weight: 700;">Damage <span style="color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· fresh</span></div></div>
+        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 80</div></div>
         <div title="fatigue: fresh" style="flex: none; display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #8a8fa3;"></div></div>
       </div>
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 1; border: 1.5px dashed #4da6ff; box-shadow: 0 0 10px rgba(77,166,255,0.35);">
-        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 15px;">✚</div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Healer 1</div><div style="font-size: 10px; color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em;">fresh</div></div>
-        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 128</div></div>
+        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #b98cff; box-shadow: 0 0 0 1px #1d2029;"></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Moss</div><div style="font-size: 10px; color: #b98cff; font-weight: 700;">Damage <span style="color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· fresh</span></div></div>
+        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 80</div></div>
         <div title="fatigue: fresh" style="flex: none; display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #8a8fa3;"></div></div>
       </div>
       </div>
@@ -159,23 +157,23 @@
       <div style="font-size: 10.5px; line-height: 1.4; color: #8a8fa3; margin-bottom: 8px;">Each round, a unit on the bench heals 60% of its HP and loses 20 fatigue. A fighting unit heals 40%.</div>
       <div style="display: flex; flex-direction: column; gap: 6px;">
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 1; border-color: #4da6ff; background: #1c2a3a; box-shadow: 0 0 0 1px #4da6ff;">
-        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 15px;">🛡</div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Tank 3</div><div style="font-size: 10px; color: #ffcf4d; text-transform: uppercase; letter-spacing: 0.04em;">worn</div></div>
-        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 76%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 180/236</div></div>
+        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 1px #1d2029;"></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Olo</div><div style="font-size: 10px; color: #ffb454; font-weight: 700;">Tank <span style="color: #ffcf4d; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· worn</span></div></div>
+        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 62%; height: 100%; background: #e8913c;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 118/190</div></div>
         <div title="fatigue: worn" style="flex: none; display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ffcf4d;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #ffcf4d;"></div></div>
       </div>
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 0.45; ">
-        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029; display: flex; align-items: center; justify-content: center; font-size: 15px;">✚</div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Healer 2</div><div style="font-size: 10px; color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em;">fresh</div></div>
-        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 128</div></div>
+        <div style="flex: none; width: 34px; height: 34px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 1px #1d2029;"></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Mira</div><div style="font-size: 10px; color: #6ee7a0; font-weight: 700;">Healer <span style="color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· fresh</span></div></div>
+        <div style="flex: none; width: 112px;"><div style="width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div style="font-size: 10px; color: #c7cad6; margin-top: 3px;">HP 100</div></div>
         <div title="fatigue: fresh" style="flex: none; display: flex; flex-direction: column; gap: 3px;"><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e;"></div><div style="width: 5px; height: 5px; border-radius: 50%; background: #8a8fa3;"></div></div>
       </div>
       <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; opacity: 0.45;">
         <div style="position: relative; flex: none; width: 34px; height: 34px;">
-          <div style="width: 34px; height: 34px; border-radius: 50%; background: #5c5f6b; display: flex; align-items: center; justify-content: center; font-size: 15px;">⚔</div>
+          <div style="width: 34px; height: 34px; border-radius: 50%; background: #5c5f6b;"></div>
           <div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #e2564b; border: 2px solid #20232c; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #14161c; font-weight: 800;">✕</div>
         </div>
-        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Damage 3</div><div style="font-size: 10px; color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em;">fallen</div></div>
+        <div style="flex: 1; min-width: 0;"><div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Dax</div><div style="font-size: 10px; color: #b98cff; font-weight: 700;">Damage <span style="color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400;">· fallen</span></div></div>
       </div>
       </div>
 

@@ -18,7 +18,7 @@
   /* Tappable terms get a dotted underline in their own colour (2026-10-11, Tu). Terms without .tap are not tappable here. */
   .term.tap { text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
 
-  /* ---- Term card: Shield (2026-10-11). Loop 4.0s. Sol's heal tops Bram up past full, so the extra becomes 20 shield (Mend: extra becomes shield). Two Executioner hits of 12: the first takes shield only (20 to 8); the second breaks it and 4 comes off HP. The bar rescales while shielded (HANDOFF frame 7), cap shieldCapFractionOfMaxHp 0.5. ---- */
+  /* ---- Term card: Shield (2026-10-11). Loop 4.0s. Sol's heal tops Bram up past full, so the extra becomes 20 shield (Mend: extra becomes shield). Two Executioner hits of 12: the first takes shield only (20 to 8); the second breaks it and 4 comes off HP. The bar rescales while shielded (HANDOFF frame 5.2), cap shieldCapFractionOfMaxHp 0.5. ---- */
   .scene { --T: 4.0s; }
   .term.frozen { color: #7ec8ff; }
   .term.burn { color: #ff8a3d; }
@@ -45,8 +45,8 @@
 <div style="position: relative; background: #14161c; width: 390px; min-height: 900px; display: flex; justify-content: center; padding-top: 24px; overflow: hidden;">
   <div style="width: 100%; max-width: 640px; padding: 0 16px 24px; box-sizing: border-box;">
 
-    <!-- Behind the card: frame 9 (RoundFaceOff.dc.html) unchanged, as if the player just tapped "shield".
-         Copied rather than linked; if frame 9 changes, recopy it. -->
+    <!-- Behind the card: frame 1.1 (RoundFaceOff.dc.html) unchanged, as if the player just tapped "shield".
+         Copied rather than linked; if frame 1.1 changes, recopy it. -->
     <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 16px; box-sizing: border-box;">
 
       <!-- progress strip (unchanged) -->

@@ -10,6 +10,62 @@
 
 ---
 
+## [2026-10-11] Tapping a fighter opens a popup; the chain rows leave the round screen
+
+- **Decision:**
+  - The CHAINS rows are gone from the round screen.
+  - One muted line, "Tap any fighter to see what it does", sits above both sides, not inside the squad box.
+  - The enemy is tappable too.
+  - A tap opens a popup (canvas frames 9a–9d).
+  - The popup holds: chips to jump between fighters, name, role tag and one-line job, HP now and max, Damage (the Healer shows Heal), a fatigue line, the chain, and upgrades.
+  - The chain part gives the sentence, how it fires, the keep-going odds and the backfire odds.
+  - Fatigue and backfire use a warning orange, kept apart from enemy red and term green.
+  - A popup can open a term card: screen, popup, card, two levels deep.
+  - There is no back button; the faded popup behind the card is the way back.
+- **Why:**
+  - The chain rows were too much for a new player to read at once.
+  - The enemy needed to be tappable, so the hint line moved above both sides.
+  - One place per fighter keeps the detail out of the main picture.
+- **Replaces:**
+  - The CHAINS rows on the round screen, added in the 2026-10-11 term pass.
+  - Cards still do not link to each other; only a popup opens a card.
+  - Not covered: whether the fight pauses while a popup is open.
+  - Not covered: drawn on canvas only, not built, not playtested.
+
+## [2026-10-11] Tappable terms carry a dotted underline instead of the circled i
+
+- **Decision:**
+  - A tappable term is bold, in its own colour, with a dotted underline in that colour.
+  - A term inside a card, or one that cannot be tapped, stays bold and coloured with no underline.
+- **Why:**
+  - The circled i after every term was too busy.
+  - Tu picked the underline over a tinted tag label in a side-by-side.
+- **Replaces:**
+  - The line "a bold coloured word followed by a small circled i" in the tappable-terms entry below; that entry stays as written.
+  - Not covered: no playtest has checked that a first-time player reads an underline as tappable.
+
+## [2026-10-11] The bench is a small preview shelf inside the squad box
+
+- **Decision:**
+  - On the round screen the bench is a shelf inside the YOUR SQUAD box, under the fighters.
+  - Each benched unit is a small dimmed circle in its role colour, a muted name, and a thin HP bar.
+  - A benched unit shows no role word and no fatigue.
+  - A fallen unit is a grey circle with a red ✕ and no bar.
+  - The shelf header has `Change squad ›` in bold blue.
+  - Tapping the shelf opens the squad screen with nothing chosen yet.
+  - Swapping happens only on the squad screen.
+  - Round 1 shows one empty dashed spot, since nobody is benched.
+  - The squad screen (canvas frame 12) uses the same names and role-coloured circles, and keeps the HP numbers and fatigue.
+- **Why:**
+  - The old one-line strip sat outside the squad box, so players skipped changing squad.
+  - The bench must still look less important than the fighters.
+  - The bench is only a preview; the details are needed on the squad screen anyway.
+  - A swap suggestion banner was drawn and dropped: a weak suggestion is a bother, so the player decides.
+- **Replaces:**
+  - The strip "BENCH 2 units · Change squad ›" from the 2026-10-09 face-off redraw.
+  - Not covered: frames 10 and 11 still show the old strip.
+  - Not covered: no playtest has checked whether players now notice the bench.
+
 ## [2026-10-11] Term cards do not link to each other
 
 - **Decision:**

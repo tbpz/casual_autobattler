@@ -10,7 +10,7 @@
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-  .col { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 76px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 3px; }
   .nm { font-size: 12px; font-weight: 700; color: #e8e8ee; }
   .tag { font-size: 9px; font-weight: 700; }
   .hpbar { width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden; }
@@ -20,132 +20,126 @@
   .pip { width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e; }
   .lab { font-size: 11px; font-weight: 700; color: #8a8fa3; margin: 0 0 8px 16px; letter-spacing: 0.04em; }
   .zone { background: rgba(77,166,255,0.07); border: 1px solid rgba(77,166,255,0.28); border-radius: 12px; padding: 10px 12px 12px; }
-  .benchunit { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 70px; }
+  /* bench preview: a coloured circle and a thin HP bar, nothing else. The colour is the role. */
+  .bu { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .bc { width: 22px; height: 22px; border-radius: 50%; opacity: 0.6; }
+  .bn { font-size: 9.5px; font-weight: 600; color: #8a8fa3; max-width: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; }
+  .bb { width: 22px; height: 3px; border-radius: 2px; background: #2a2e3a; overflow: hidden; }
+  .bb > div { height: 100%; background: #4da6ff; opacity: 0.6; }
+  .shelf { margin-top: 12px; padding-top: 8px; border-top: 1px dashed #3a3f4e; }
+  .shelfhead { display: flex; align-items: center; margin-bottom: 6px; }
+  .shelfname { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: #8a8fa3; }
+  .change { margin-left: auto; font-size: 11px; font-weight: 700; color: #4da6ff; }
+  .fallen { opacity: 0.45; }
+  .fx { position: absolute; top: -3px; right: -3px; width: 11px; height: 11px; border-radius: 50%; background: #e2564b; border: 2px solid #1d2029; display: flex; align-items: center; justify-content: center; font-size: 6px; color: #14161c; font-weight: 800; }
 </style>
 </helmet>
 
-<!-- Frame 9e: the bench on the round screen (proposal, 2026-10-11, Tu: the old strip goes unnoticed, so players skip changing squad).
-     Same round, same squad in both phones: 4 fielded of 6 (Bram Tank, Ivy Damage, Sol Healer, Rex Damage), bench Kit (Damage, fresh) and Wren (Tank, fallen).
-     Only the YOUR SQUAD zone is drawn; the goal line, hint and ENEMY zone above it are frame 9's and are not repeated.
-     Names, HP and fatigue are made up. Fixed numbers from the code: Damage 80 HP, Tank 190, Healer 100 (ROLE_POOL); frayed = fatigue 50-79 (fatigueTierFloors [25,50,80]);
-     backfire 12% at fatigue 50 (backfireChanceFor); bench heals 60% and loses 20 fatigue a round (benchedRecoverFraction, fatigueBenchRest).
-     Left: today (frames 10-11): a strip below the squad box. Right: proposal: a bench shelf inside the box, smaller and duller than the fighters,
-     and a swap nudge in the warning orange #ff9f43 that shows only when a fighter is frayed or worse and a bench unit is fresher. -->
+<!-- Frame 1.2: the bench on the round screen (proposal, 2026-10-11, Tu: the old one-line strip goes unnoticed, so players skip changing squad).
+     Revision 2 (Tu): swapping stays one layer deeper, on the squad screen (frame 4.1); the swap nudge is gone (a suggestion that is not smart enough is a bother, the player decides);
+     "Change squad ›" is the bold blue it had on the old strip; bench fighters are a preview only: a small role-coloured circle and a thin HP bar, a small muted name under the circle (revision 3), no role word, no fatigue. Tapping the shelf opens the squad screen with nothing pre-chosen.
+     Only the YOUR SQUAD zone is drawn; the goal line, hint and ENEMY zone above it are frame 1.1's and are not repeated.
+     Left: round 6-ish, 4 fielded of 6 (Bram Tank, Ivy Damage worn, Sol Healer, Rex Damage), bench Kit (Damage, fresh) and Wren (Tank, fallen).
+     Right: the squad cap, 5 fielded (maxSlots 5) of 8, bench of three (a hurt Tank, a fresh Healer, a fallen Damage), to show the preview stays small when the bench is full.
+     Names, HP and fatigue are made up (bench names: Kit, Wren; Olo, Mira, Dax). Fixed numbers from the code: Damage 80 HP, Tank 190, Healer 100 (ROLE_POOL); worn = fatigue 25-49 (fatigueTierFloors [25,50,80]).
+     Role colours as on frame 1.1: Tank #ffb454, Damage #b98cff, Healer #6ee7a0. -->
 <div style="background: #14161c; width: 860px; padding: 24px 0 24px; display: flex; gap: 32px; justify-content: center;">
 
-  <!-- TODAY -->
+  <!-- 4 fielded, 2 benched -->
   <div style="width: 390px; flex: none;">
-    <div class="lab">TODAY: STRIP BELOW THE SQUAD</div>
+    <div class="lab">MID-RUN: 4 FIGHTING, 2 ON THE BENCH</div>
     <div style="background: #14161c; padding: 0 16px 16px;">
       <div style="background: #1d2029; border-radius: 12px; padding: 16px;">
         <div class="zone">
           <div style="margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #4da6ff; color: #0c1420; border-radius: 6px; padding: 2px 7px;">YOUR SQUAD</span></div>
           <div style="display: flex; justify-content: center; align-items: flex-start; gap: 8px;">
-            <div class="col" style="margin-top: 40px;">
+            <div class="col" style="width: 76px; margin-top: 40px;">
               <div style="width: 30px; height: 30px; border-radius: 50%; background: #b98cff; opacity: 0.85;"></div>
               <div class="nm">Ivy</div><div class="tag" style="color: #b98cff;">Damage</div>
               <div class="hpbar"><div style="width: 80%;"></div></div>
-              <div class="pips"><div class="pip"></div><div class="pip" style="background:#e8913c"></div><div class="pip" style="background:#e8913c"></div><div class="pip" style="background:#e8913c"></div></div>
+              <div class="pips"><div class="pip"></div><div class="pip"></div><div class="pip" style="background:#ffcf4d"></div><div class="pip" style="background:#ffcf4d"></div></div>
               <div class="stat">HP 64<br>Damage 8</div>
             </div>
-            <div class="col">
+            <div class="col" style="width: 76px;">
               <div style="width: 46px; height: 46px; border-radius: 50%; background: #ffb454;"></div>
               <div class="nm">Bram</div><div class="tag" style="color: #ffb454;">Tank</div>
               <div class="hpbar"><div style="width: 100%;"></div></div>
               <div class="stat">HP 190<br>Damage 7</div>
             </div>
-            <div class="col" style="margin-top: 40px;">
+            <div class="col" style="width: 76px; margin-top: 40px;">
               <div style="width: 30px; height: 30px; border-radius: 50%; background: #6ee7a0; opacity: 0.85;"></div>
               <div class="nm">Sol</div><div class="tag" style="color: #6ee7a0;">Healer</div>
               <div class="hpbar"><div style="width: 100%;"></div></div>
               <div class="stat">HP 100<br>Damage 2</div>
             </div>
-            <div class="col" style="margin-top: 40px;">
+            <div class="col" style="width: 76px; margin-top: 40px;">
               <div style="width: 30px; height: 30px; border-radius: 50%; background: #b98cff; opacity: 0.85;"></div>
               <div class="nm">Rex</div><div class="tag" style="color: #b98cff;">Damage</div>
               <div class="hpbar"><div style="width: 100%;"></div></div>
               <div class="stat">HP 80<br>Damage 8</div>
             </div>
           </div>
-        </div>
-        <!-- today's strip: outside the box, text only, the same every round -->
-        <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px; background: #20232c; border: 1px dashed #3a3f4e; border-radius: 12px; padding: 10px 12px;">
-          <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: #e8e8ee;">BENCH</span>
-          <span style="font-size: 11px; color: #c7cad6;">2 units</span>
-          <span style="font-size: 11px; color: #8a8fa3;">·</span>
-          <span style="font-size: 11px; color: #8a8fa3;">1 fallen</span>
-          <span style="margin-left: auto; font-size: 11px; font-weight: 700; color: #4da6ff;">Change squad ›</span>
+
+          <!-- bench shelf: a preview only -->
+          <div class="shelf">
+            <div class="shelfhead"><span class="shelfname">BENCH</span><span class="change">Change squad ›</span></div>
+            <div style="display: flex; gap: 14px; padding-left: 2px;">
+              <div class="bu"><div class="bc" style="background: #b98cff;"></div><div class="bn">Kit</div><div class="bb"><div style="width: 100%;"></div></div></div>
+              <div class="bu fallen"><div style="position: relative;"><div class="bc" style="background: #5c5f6b; opacity: 1;"></div><div class="fx">✕</div></div><div class="bn">Wren</div><div class="bb" style="background: transparent;"></div></div>
+            </div>
+          </div>
         </div>
         <button style="margin-top: 14px; width: 100%; font: inherit; font-weight: 700; background: #4da6ff; color: #0c1420; border: none; border-radius: 8px; padding: 13px; font-size: 15px;">Fight!</button>
       </div>
     </div>
   </div>
 
-  <!-- PROPOSAL -->
+  <!-- 5 fielded (the cap), 3 benched -->
   <div style="width: 390px; flex: none;">
-    <div class="lab">PROPOSAL: SHELF INSIDE THE SQUAD BOX + SWAP NUDGE</div>
+    <div class="lab">SQUAD CAP: 5 FIGHTING, 3 ON THE BENCH</div>
     <div style="background: #14161c; padding: 0 16px 16px;">
       <div style="background: #1d2029; border-radius: 12px; padding: 16px;">
         <div class="zone">
           <div style="margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #4da6ff; color: #0c1420; border-radius: 6px; padding: 2px 7px;">YOUR SQUAD</span></div>
-          <div style="display: flex; justify-content: center; align-items: flex-start; gap: 8px;">
-            <div class="col" style="margin-top: 40px;">
-              <!-- Ivy: frayed, so her tier word and pips are orange and the body has an orange ring -->
-              <div style="width: 30px; height: 30px; border-radius: 50%; background: #b98cff; opacity: 0.85; box-shadow: 0 0 0 2px #14161c, 0 0 0 3.5px #ff9f43;"></div>
-              <div class="nm">Ivy</div><div class="tag" style="color: #ff9f43;">Damage · Frayed</div>
-              <div class="hpbar"><div style="width: 80%;"></div></div>
-              <div class="pips"><div class="pip"></div><div class="pip" style="background:#e8913c"></div><div class="pip" style="background:#e8913c"></div><div class="pip" style="background:#e8913c"></div></div>
-              <div class="stat">HP 64<br>Damage 8</div>
+          <div style="display: flex; justify-content: center; align-items: flex-start; gap: 4px;">
+            <div class="col" style="width: 58px; margin-top: 40px;">
+              <div style="width: 28px; height: 28px; border-radius: 50%; background: #b98cff; opacity: 0.85;"></div>
+              <div class="nm" style="font-size: 11px;">Ivy</div>
+              <div class="hpbar" style="width: 44px;"><div style="width: 80%;"></div></div>
+              <div class="stat" style="font-size: 9.5px;">HP 64<br>Dmg 8</div>
             </div>
-            <div class="col">
-              <div style="width: 46px; height: 46px; border-radius: 50%; background: #ffb454;"></div>
-              <div class="nm">Bram</div><div class="tag" style="color: #ffb454;">Tank</div>
-              <div class="hpbar"><div style="width: 100%;"></div></div>
-              <div class="stat">HP 190<br>Damage 7</div>
+            <div class="col" style="width: 58px; margin-top: 40px;">
+              <div style="width: 28px; height: 28px; border-radius: 50%; background: #6ee7a0; opacity: 0.85;"></div>
+              <div class="nm" style="font-size: 11px;">Sol</div>
+              <div class="hpbar" style="width: 44px;"><div style="width: 100%;"></div></div>
+              <div class="stat" style="font-size: 9.5px;">HP 100<br>Dmg 2</div>
             </div>
-            <div class="col" style="margin-top: 40px;">
-              <div style="width: 30px; height: 30px; border-radius: 50%; background: #6ee7a0; opacity: 0.85;"></div>
-              <div class="nm">Sol</div><div class="tag" style="color: #6ee7a0;">Healer</div>
-              <div class="hpbar"><div style="width: 100%;"></div></div>
-              <div class="stat">HP 100<br>Damage 2</div>
+            <div class="col" style="width: 62px;">
+              <div style="width: 42px; height: 42px; border-radius: 50%; background: #ffb454;"></div>
+              <div class="nm" style="font-size: 11px;">Bram</div>
+              <div class="hpbar" style="width: 48px;"><div style="width: 100%;"></div></div>
+              <div class="stat" style="font-size: 9.5px;">HP 190<br>Dmg 7</div>
             </div>
-            <div class="col" style="margin-top: 40px;">
-              <div style="width: 30px; height: 30px; border-radius: 50%; background: #b98cff; opacity: 0.85;"></div>
-              <div class="nm">Rex</div><div class="tag" style="color: #b98cff;">Damage</div>
-              <div class="hpbar"><div style="width: 100%;"></div></div>
-              <div class="stat">HP 80<br>Damage 8</div>
+            <div class="col" style="width: 58px; margin-top: 40px;">
+              <div style="width: 28px; height: 28px; border-radius: 50%; background: #b98cff; opacity: 0.85;"></div>
+              <div class="nm" style="font-size: 11px;">Rex</div>
+              <div class="hpbar" style="width: 44px;"><div style="width: 100%;"></div></div>
+              <div class="stat" style="font-size: 9.5px;">HP 80<br>Dmg 8</div>
+            </div>
+            <div class="col" style="width: 58px; margin-top: 40px;">
+              <div style="width: 28px; height: 28px; border-radius: 50%; background: #b98cff; opacity: 0.85;"></div>
+              <div class="nm" style="font-size: 11px;">Moss</div>
+              <div class="hpbar" style="width: 44px;"><div style="width: 100%;"></div></div>
+              <div class="stat" style="font-size: 9.5px;">HP 80<br>Dmg 8</div>
             </div>
           </div>
 
-          <!-- swap nudge: shows only when a fighter is frayed or worse and a bench unit is fresher -->
-          <div style="margin-top: 12px; display: flex; align-items: center; gap: 8px; background: rgba(255,159,67,0.12); border: 1px solid rgba(255,159,67,0.45); border-radius: 8px; padding: 7px 10px;">
-            <span style="font-size: 11px; line-height: 1.35; color: #e8e8ee;"><b style="color: #ff9f43;">Ivy is frayed</b>: 12% chance her chain backfires. Kit is fresh.</span>
-            <span style="margin-left: auto; flex: none; font-size: 11px; font-weight: 800; color: #ff9f43;">Swap ›</span>
-          </div>
-
-          <!-- bench shelf: smaller (24px) and duller than the fighters, no shadow, no ranks -->
-          <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #3a3f4e;">
-            <div style="display: flex; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: #8a8fa3;">BENCH · RESTING</span>
-              <span style="margin-left: auto; font-size: 10.5px; color: #8a8fa3;">Change squad ›</span>
-            </div>
-            <div style="display: flex; gap: 10px;">
-              <!-- Kit: fresh, soft glow because the nudge points at it -->
-              <div class="benchunit" style="background: rgba(255,159,67,0.08); border-radius: 8px; padding: 4px 6px; width: auto; flex-direction: row; gap: 8px; box-shadow: 0 0 0 1px rgba(255,159,67,0.4);">
-                <div style="width: 24px; height: 24px; border-radius: 50%; background: #b98cff; opacity: 0.6;"></div>
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                  <div style="font-size: 11px; font-weight: 700; color: #c7cad6;">Kit <span style="font-size: 9px; font-weight: 700; color: #b98cff; opacity: 0.8;">Damage</span></div>
-                  <div style="display: flex; align-items: center; gap: 5px;"><div class="hpbar" style="width: 34px; height: 4px;"><div style="width: 100%; opacity: 0.6;"></div></div><div class="pips"><div class="pip" style="background:#8a8fa3"></div></div></div>
-                </div>
-              </div>
-              <!-- Wren: fallen, greyed, can't be picked -->
-              <div class="benchunit" style="width: auto; flex-direction: row; gap: 8px; padding: 4px 6px; opacity: 0.45;">
-                <div style="position: relative; width: 24px; height: 24px; border-radius: 50%; background: #5c5f6b;"><div style="position: absolute; top: -4px; right: -4px; width: 12px; height: 12px; border-radius: 50%; background: #e2564b; border: 2px solid #1d2029; display: flex; align-items: center; justify-content: center; font-size: 7px; color: #14161c; font-weight: 800;">✕</div></div>
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                  <div style="font-size: 11px; font-weight: 700; color: #c7cad6;">Wren <span style="font-size: 9px; font-weight: 700; color: #ffb454;">Tank</span></div>
-                  <div style="font-size: 9px; color: #8a8fa3;">fallen</div>
-                </div>
-              </div>
+          <div class="shelf">
+            <div class="shelfhead"><span class="shelfname">BENCH</span><span class="change">Change squad ›</span></div>
+            <div style="display: flex; gap: 14px; padding-left: 2px;">
+              <div class="bu"><div class="bc" style="background: #ffb454;"></div><div class="bn">Olo</div><div class="bb"><div style="width: 62%;"></div></div></div>
+              <div class="bu"><div class="bc" style="background: #6ee7a0;"></div><div class="bn">Mira</div><div class="bb"><div style="width: 100%;"></div></div></div>
+              <div class="bu fallen"><div style="position: relative;"><div class="bc" style="background: #5c5f6b; opacity: 1;"></div><div class="fx">✕</div></div><div class="bn">Dax</div><div class="bb" style="background: transparent;"></div></div>
             </div>
           </div>
         </div>
