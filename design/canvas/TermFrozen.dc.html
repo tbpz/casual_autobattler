@@ -10,13 +10,13 @@
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-  /* A tappable game term (2026-10-11): bold, coloured, a small circled i after it.
+  /* A tappable game term (2026-10-11): bold, coloured, dotted underline when tappable.
      Mark words keep their mark colour; slam, Guard and Chain share the term colour #c5e86c. */
   .term { font-weight: 800; white-space: nowrap; color: #c5e86c; }
   .term.exposed { color: #ff7ab6; }
   .term.shield { color: #5ee0d0; }
-  .term-i { display: inline-block; width: 11px; height: 11px; margin-left: 2px; border: 1.3px solid currentColor; border-radius: 50%;
-            font-size: 8px; line-height: 8.5px; text-align: center; font-style: italic; font-weight: 800; vertical-align: 1.5px; }
+  /* Tappable terms get a dotted underline in their own colour (2026-10-11, Tu). Terms without .tap are not tappable here. */
+  .term.tap { text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
 
   /* ---- Term card: Frozen (2026-10-11). Loop 3.8s. Bram's Freeze chain freezes the front enemy 0.75s per hit and cancels its slam (CHEATSHEET Tank — Freeze); the scene holds about 1.5s, two hits' worth. The cancel flare is .body.windup-shatter, the tint .body.frozen, the countdown the freeze ring. ---- */
   .scene { --T: 3.8s; }
@@ -81,7 +81,7 @@
             <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px;">Damage 8</span>
           </div>
         </div>
-        <div style="font-size: 11.5px; line-height: 1.45; color: #c7cad6; text-align: center; margin-top: 8px;">One huge body, barely hits back. No <span class="term">slam<span class="term-i">i</span></span> to fear — how fast can you kill it?</div>
+        <div style="font-size: 11.5px; line-height: 1.45; color: #c7cad6; text-align: center; margin-top: 8px;">One huge body, barely hits back. No <span class="term tap">slam</span> to fear — how fast can you kill it?</div>
       </div>
 
       <!-- VS line: the fight screen's centre line, with a badge -->
@@ -137,28 +137,28 @@
         </div>
 
         <div style="height: 1px; background: rgba(77,166,255,0.2); margin: 12px 0 8px;"></div>
-        <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.05em; color: #8a8fa3; margin-bottom: 6px;"><span class="term">CHAINS<span class="term-i">i</span></span></div>
+        <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.05em; color: #8a8fa3; margin-bottom: 6px;"><span class="term tap">CHAINS</span></div>
 
-        <!-- one row per role: the sentence first, the chain's name after it. Terms inside carry their own circled i. -->
+        <!-- one row per role: the sentence first, the chain's name after it. Terms inside carry their own dotted underline. -->
         <div style="display: flex; flex-direction: column; gap: 6px;">
           <div style="display: flex; align-items: center; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
             <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #ffb454; display: flex; align-items: center; justify-content: center; font-size: 12px;">🛡</div>
             <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Takes the next <span class="term">slam<span class="term-i">i</span></span> and <span class="term exposed">exposes<span class="term-i">i</span></span> the slammer.</div>
-              <div style="font-size: 10px; margin-top: 1px;"><span class="term">Guard<span class="term-i">i</span></span></div>
+              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Takes the next <span class="term tap">slam</span> and <span class="term exposed tap">exposes</span> the slammer.</div>
+              <div style="font-size: 10px; margin-top: 1px;"><span class="term tap">Guard</span></div>
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
             <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #b98cff; display: flex; align-items: center; justify-content: center; font-size: 12px;">⚔</div>
             <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Hits the biggest enemy and <span class="term exposed">exposes<span class="term-i">i</span></span> it.</div>
+              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Hits the biggest enemy and <span class="term exposed tap">exposes</span> it.</div>
               <div style="font-size: 10px; color: #8a8fa3; margin-top: 1px;">Expose</div>
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
             <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #6ee7a0; display: flex; align-items: center; justify-content: center; font-size: 12px;">✚</div>
             <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Heals your worst-hurt hero; extra becomes <span class="term shield">shield<span class="term-i">i</span></span>.</div>
+              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Heals your worst-hurt hero; extra becomes <span class="term shield tap">shield</span>.</div>
               <div style="font-size: 10px; color: #8a8fa3; margin-top: 1px;">Mend</div>
             </div>
           </div>
@@ -241,11 +241,11 @@
 
     <!-- name and meaning -->
     <div style="display: flex; align-items: center; gap: 7px; margin-top: 12px;">
-      <span style="font-size: 18px;">❄</span>
+      <svg width="18" height="18" viewBox="0 0 18 18" style="flex: none; vertical-align: middle;"><g stroke="#7ec8ff" stroke-width="1.6" stroke-linecap="round" fill="none"><path d="M9 1.5 V16.5 M2.5 5.25 L15.5 12.75 M2.5 12.75 L15.5 5.25"/><path d="M7 3 L9 5 L11 3 M7 15 L9 13 L11 15"/></g></svg>
       <span style="font-size: 18px; font-weight: 800; color: #7ec8ff;">Frozen</span>
     </div>
     <div style="font-size: 13px; line-height: 1.5; color: #e8e8ee; margin-top: 6px;">
-      A frozen enemy can't attack or <span class="term">slam<span class="term-i">i</span></span> until the ice melts. Freezing an enemy mid-charge cancels its slam.
+      A frozen enemy can't attack or <span class="term">slam</span> until the ice melts. Freezing an enemy mid-charge cancels its slam.
     </div>
 
     <button style="margin-top: 14px; width: 100%; font: inherit; font-weight: 700; background: #4da6ff; color: #0c1420; border: none; border-radius: 8px; padding: 12px; font-size: 15px;">Got it</button>
@@ -253,7 +253,7 @@
 
   <!-- design note, not part of the screen -->
   <div style="position: absolute; left: 20px; right: 20px; bottom: 18px; font-size: 10.5px; line-height: 1.45; color: #8a8fa3; text-align: center;">
-    Closes on ✕, Got it, or a tap outside the card. Tapping a word with ⓘ swaps this card for that term's; cards never stack. Frame 9 is only a stand-in behind it: frozen does not appear on that screen.
+    Closes on ✕, Got it, or a tap outside the card. Words inside a card are coloured but not tappable; closing always returns to the screen. Frame 9 is only a stand-in behind it: frozen does not appear on that screen.
   </div>
 </div>
 </x-dc>

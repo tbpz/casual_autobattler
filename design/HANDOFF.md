@@ -4,9 +4,9 @@
 **Source files:** `design/canvas/*.dc.html`, `design/canvas/canvas.json` — edit these, then republish (see
 "Publishing" below). Don't hand-edit `fight-field-layout.html`; it's a build output, regenerated on publish.
 
-## What's on the canvas (2026-09-30 cleanup; frame 7 added 2026-10-01; frame 8 added 2026-10-02; frames 9–12 added 2026-10-09; frames 13–21 added 2026-10-11)
+## What's on the canvas (2026-09-30 cleanup; frame 7 added 2026-10-01; frame 8 added 2026-10-02; frames 9–12 added 2026-10-09; frames 13–21 added 2026-10-11; fighter popups 9a–9d added 2026-10-11)
 
-Twenty-one frames, as still pictures except the term cards (frames 13–21), which loop CSS animations. No interaction. Colours and sizes are copied from the real code
+Twenty-five frames, as still pictures except the term cards (frames 13–21), which loop CSS animations. No interaction. Colours and sizes are copied from the real code
 (`prototype/src/style.css`, `render/roundScreen.ts`, `render/fightView.ts`), so a change here is a real proposal.
 Units, HP and fatigue values are made up for the picture, not read from a run.
 
@@ -48,7 +48,12 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
    "tap for its explainer card": slam (twice), exposes (twice), Guard (the row name, no longer muted), shield, and the section label, now
    **CHAINS** (was "SPECIAL MOVES · TAP FOR DETAILS"). Mark words keep their mark colours; slam, Guard and Chain share the term colour `#c5e86c`.
    The per-row `i` buttons are gone. A first-round hint line ("Tap a word with ⓘ to see what it does") was tried and removed the same day (Tu).
-   Expose and Mend stay muted and unmarked (not on the term list). Styles are the `.term` / `.term-i` classes in the frame's helmet.
+   Expose and Mend stay muted and unmarked (not on the term list). Styles are the `.term` / `.term.tap` classes in the frame's helmet.
+   **2026-10-11 fighter-popup pass (Tu):** the CHAINS rows are gone (too much for a new player); one muted line under the goal line, above both the enemy and your squad, reads "Tap any fighter to see what it does" (it first sat inside the squad box, which read as "your fighters only", but the enemy is tappable too).
+   Tapping a fighter, or the enemy, opens a popup: frames **9a–9d** (below). The CHAINS term mark is gone from this screen with the rows.
+   **2026-10-11 marker change (Tu):** the circled `i` after a tappable term was too busy. Tappable terms now carry a dotted underline in their own colour
+   (`.term.tap` on frames 9, 9a–9d and 13–21), chosen over a tinted tag label in a side-by-side. Terms without `.tap` (for example inside their own
+   term card) stay coloured and bold, with no underline. The older paragraphs above still say "circled `i`"; read that as the dotted underline.
    **2026-10-09 review round (Tu):** "Hits for" was dropped as a term nobody uses, so every stat reads `HP 605` / `Damage 8` (a unit's damage per regular attack; attack
    speed is deliberately not shown). A slam shows its number: `💥 Slam: charges up, then hits for 24` (2x the regular damage, `windupDamageMultiplier`).
 10. **RoundFaceOffGrown** — same proposal at round 12 vs Executioner + 2 Guards: the slam gets its own plain line, units show a number only where a role has two, a worn unit
@@ -69,7 +74,7 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
    The scene is a 3.5s CSS loop in the fight screen's look, following the real slam tells in `style.css` / `render/fightView.ts`: the dark SLAM bar creeps up;
    at 0.6s it commits (turns `--windup` red and drains over `windupTelegraphSec` 1.5s, the Executioner pulses `.body.charging`, Ivy gets the dashed `.body.targeted`
    ring, the aim line grows, "SLAM INCOMING"); at 2.1s the hit lands for **24** (Executioner damage 12 × `windupDamageMultiplier` 2) and Ivy's HP bar drops 30%.
-   The meaning names Guard with its own `i`: tapping a term inside a card swaps to that term's card, never stacks. Checking the motion: headless `--screenshot`
+   Words inside a card keep their colour but have no `i` and can't be tapped (2026-10-11, to stop card-to-card loops); a card that leans on another term says the plain meaning itself. Closing always returns to the screen. Checking the motion: headless `--screenshot`
    with `--virtual-time-budget` does not advance opacity/transform animations, so pause `document.getAnimations()` at set times in a Playwright page instead.
    The 9 terms that get cards (Tu, 2026-10-11): Slam, Guard, Exposed, Frozen, Burn, Shield, Chain (charge explained inside it), Backfire, Fatigue.
    No tapping during a fight. Only frame 9 is marked so far.
@@ -85,6 +90,26 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
    - **Backfire:** Ivy's ring fires under the red vignette (`.arena.chain-backfire`); 18 and 23 land on Bram, with exposed on Bram too (a backfire picks from your own side, weighted toward a holding Tank: `pickWeightedTargetId`).
    - **Fatigue:** one unit at fatigue 0, 25, 50, 80, then a bench round (−20): tier word and pips change, CHAIN HITS +0/+9/+18/+28/+21% (`fatigueMagnitudeMult`) and
      BACKFIRE CHANCE 3/7/12/23/15% (`backfireChanceFor`).
+
+9a–9d. **Fighter popup** — **proposal, drawn 2026-10-11, not built, awaiting Tu's approval.** Files `FighterPopupBram / Sol / Anvil / Term.dc.html`, each over a dimmed copy of the
+   new frame 9 (copied, not linked). Meant to open from the round screen and, later, mid-fight. Parts, top to bottom: a switcher row of four chips (Bram, Ivy, Sol, then the enemy
+   set apart; the open one ringed; tap to jump), the body with name, role tag and a one-line job between ‹ › arrows (step to the previous/next, wraps round; swipe does the same),
+   an `HP now/max` chip (always both numbers, e.g. `140/190`) with a thin HP bar, a `Damage` chip (the Healer shows `Heal 6` instead, it heals on its beat rather than attacking: `performHeroAction`),
+   a fatigue line (tier word, a tappable term), a CHAIN part (name, the sentence, how it fires: the ring fills, up to 7 hits, each stronger; then, with the chain, the odds: "Keeps going: 70% after the first hit,
+   up to 90% later. Max 7 hits." from `chainChanceByHitsSoFar` / `chainMaxHits`, and "Backfire 3%: the whole chain hits your own squad instead"), and UPGRADES ("No upgrades yet" at round 1).
+   Fatigue and Backfire (words and numbers) use a warning orange `#ff9f43` (`.term.danger`, `.dng`), kept apart from the enemy red, the Breaking pip red and the term green.
+   - **9a** Bram (Tank), shown mid-fight and hurt (140/190), the full example. **9b** Sol (Healer), hurt (64/100). **9c** Anvil (enemy): no chain, fatigue or upgrades.
+   - **9d** the second level: the Guard card on top of Bram's popup. There is no back button (Tu, 2026-10-11): the faded popup behind is the way back, and the card's ✕, "Got it" or a tap outside returns to it.
+     Words inside a card stay untappable, so the depth is screen → popup → card, 2 levels. The card's animated scene is a labelled placeholder (it is frame 14's).
+   - Numbers: Tank 190/7, Damage 80/8, Healer 100/heal 6 from `ROLE_POOL`; Expose 18 per hit, Mend 4.5 per hit from CHEATSHEET; fresh backfire 3%. Generated from a scratch script; edit by hand from here on.
+
+9e. **RoundFaceOffBench** — **proposal, drawn 2026-10-11, not built, awaiting Tu's approval.** Why (Tu): the one-line bench strip goes unnoticed, so players skip changing squad; the bench
+   must still look less important than the fighting squad. Two phones, same round and squad (4 fielded of 6; Ivy frayed; bench Kit fresh and Wren fallen; names and HP made up).
+   Left, today: the strip below the squad box. Right, proposal: (1) a **bench shelf inside the YOUR SQUAD box**, 24px bodies, dimmed, no shadow, no ranks, with a small `Change squad ›`;
+   (2) a **swap nudge** in warning orange `#ff9f43` that shows only when a fighter is frayed or worse and a bench unit is fresher ("Ivy is frayed: 12% chance her chain backfires. Kit is fresh. Swap ›"),
+   with an orange ring on the tired fighter and on the fresh bench unit; (3) "Swap ›" or a tap on a bench unit opens the squad screen (frame 12) with that unit already chosen, one tap saved.
+   **Frame 9** now carries the empty shelf at round 1 ("Empty. New recruits wait here."). Open points: (a) the nudge rule (which tiers or HP level, and what "fresher" means);
+   (b) frames 10–11 still show the old strip; (c) frames 9a–9d and 13–21 still copy the old frame 9 behind them; (d) the nudge's orange sits near burn's orange (see call 10i); (e) the shelf's bodies are small, check tap size on a phone.
 
 Round-screen idea, in one paragraph (frames 1–3, the version currently built): units are grouped by role. One band per role holds its icon, one chip per ability
 the chain has picked up ("guard", "freeze"), a `+N` badge once the chain has been made stronger (never the word "level"), and a ✓
@@ -133,7 +158,14 @@ Built 2026-09-30, matching the canvas: `render/heroPickShared.ts` (`fatiguePipsH
    (c) frame 10's enemy unit is named "Guard", which clashes with the term Guard: rename it?; (d) "Special moves" is now "Chains"; the code's wording is untouched;
    (e) frame 9 says "No slam to fear" with slam marked, so the first card a player may open is for a move this enemy lacks; (f) the meaning says "When their SLAM bar
    turns red", which is the real tell but new wording; (g) Exposed shows stacks arriving without their source, to keep the scene on what exposed does;
-   (h) the card icons ⛨ ✦ ❄ ♨ ⛊ ⛓ ⚠ are text glyphs and render differently per OS (see call 1).
+   (g2) terms inside a card are not tappable, so a player can never hop between cards; Guard, Fatigue and Backfire now spell out the other term in a few words; (h) the card icons ⛨ ✦ ❄ ♨ ⛊ ⛓ ⚠ are text glyphs and render differently per OS (see call 1).
+
+10. **Fighter popup** (frames 9, 9a–9d, 2026-10-11). Approve the shape? Open points: (a) tapping in a fight goes against "No tapping during a fight": does the fight pause
+   while the popup is open?; (b) frames 13–21 still show the old frame 9 behind them (Tu said frame 9 only), recopy later; (c) frames 10 and 11 still show chain rows and
+   the CHAINS wording, and frame 10's detail popover overlaps the new popup; (d) the Healer's `Damage 2` is still on frame 9 but the popup shows `Heal 6`;
+   (e) a first-time player may not read the hint line, and you removed a hint before: is a line enough?; (f) "Upgrades" is empty on round 1 and has no "what it could learn" hint;
+   (g) the popup opens a term card (2 levels), which reverses the 2026-10-11 rule that cards never link on; (h) the keep-going number moves with fatigue (up to +10%, `fatigueContinuationBonus`),
+   like backfire does, so the popup must redraw both when fatigue changes; (i) the danger orange `#ff9f43` is close to burn's orange `#ff8a3d`: check they can't be confused.
 
 ## What the canvas does not cover
 

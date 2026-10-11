@@ -10,6 +10,24 @@
 
 ---
 
+## [2026-10-11] Term cards do not link to each other
+
+- **Decision:**
+  - Words inside a term card keep their colour but have no circled i and cannot be tapped.
+  - Only terms on the round screen open a card.
+  - Closing a card (✕, "Got it", or a tap outside) always returns to the screen the player came from.
+  - A card that leans on another term says its plain meaning in a few words instead of linking.
+  - Guard, Fatigue and Backfire were reworded to do this.
+- **Why:**
+  - Swapping card for card let a player loop (Slam to Guard and back, Backfire to Fatigue and back) with no way back to where they started.
+  - Tu flagged that this makes the cards hard to navigate.
+  - One tap in and one tap out needs no back button and no history to track.
+  - A casual phone player needs one card at a time, not a trail of them.
+- **Replaces:**
+  - The line "a term inside a card swaps to that term's card; cards never stack" in the entry below.
+  - Not covered: drawn on canvas frames 13–21 only, not built.
+  - Not covered: no playtest has checked that a card reads well without its linked terms.
+
 ## [2026-10-11] Game terms are tappable, and each opens an animated explainer card
 
 - **Decision:**

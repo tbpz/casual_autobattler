@@ -1,0 +1,186 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  /* Tappable game term (2026-10-11): bold, coloured, dotted underline = tap for its explainer card. Slam, Guard and Chain share #c5e86c. */
+  .term { font-weight: 800; white-space: nowrap; color: #c5e86c; }
+  .term.exposed { color: #ff7ab6; }
+  .term.shield { color: #5ee0d0; }
+  /* Danger words (Fatigue, Backfire) and their numbers: warning orange #ff9f43, apart from enemy red, Breaking-tier red and the term green. */
+  .term.danger { color: #ff9f43; }
+  .dng { color: #ff9f43; font-weight: 800; }
+  /* Tappable terms get a dotted underline in their own colour (2026-10-11, Tu). Terms without .tap are not tappable here. */
+  .term.tap { text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
+  /* Fighter popup (2026-10-11, Tu): opened by tapping a fighter on frame 9 (or in a fight). Static here. */
+  .chip { font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px; }
+  .sec { background: #20232c; border: 1px solid #3a3f4e; border-radius: 10px; padding: 9px 11px; margin-top: 8px; }
+  .lab { font-size: 9.5px; font-weight: 800; letter-spacing: 0.06em; color: #8a8fa3; margin-bottom: 4px; }
+  .txt { font-size: 12.5px; line-height: 1.45; color: #e8e8ee; }
+  .arrow { flex: none; width: 30px; height: 30px; border-radius: 50%; background: #2a2e3a; color: #e8e8ee; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; }
+</style>
+</helmet>
+
+<div style="position: relative; background: #14161c; width: 390px; min-height: 900px; display: flex; justify-content: center; padding-top: 24px; overflow: hidden;">
+  <div style="width: 100%; max-width: 640px; padding: 0 16px 24px; box-sizing: border-box;">
+
+    <!-- Fighter popup, Bram (2026-10-11). Behind the popup: frame 9 (RoundFaceOff.dc.html) as it is now, copied, not linked; recopy if frame 9 changes. -->
+    <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 16px; box-sizing: border-box;">
+
+      <!-- progress strip (unchanged) -->
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+        <div style="font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #e8e8ee; white-space: nowrap;">ROUND 1/20</div>
+        <div style="position: relative; flex: 1; height: 6px; border-radius: 3px; background: #2a2e3a;">
+          <div style="position: absolute; inset: 0; width: 5%; border-radius: 3px; background: #4da6ff;"></div>
+          <div style="position: absolute; top: 50%; left: 35%; width: 6px; height: 6px; transform: translate(-50%, -50%) rotate(45deg); background: #3a3f4e;"></div>
+          <div style="position: absolute; top: 50%; left: 70%; width: 6px; height: 6px; transform: translate(-50%, -50%) rotate(45deg); background: #3a3f4e;"></div>
+          <div style="position: absolute; top: 50%; left: 100%; width: 7px; height: 7px; transform: translate(-50%, -50%) rotate(45deg); background: #ff5d5d;"></div>
+        </div>
+      </div>
+
+      <!-- goal line: the verbal pitch, in the screen. Shown in the first rounds only. -->
+      <div style="font-size: 12px; line-height: 1.4; color: #c7cad6; text-align: center; margin-bottom: 4px;">Your squad fights theirs on its own. Wipe out the enemy squad to win the round.</div>
+
+      <!-- hint: covers both sides, so it sits above the ENEMY and YOUR SQUAD boxes (2026-10-11, Tu) -->
+      <div style="font-size: 11px; color: #8a8fa3; text-align: center; margin-bottom: 12px;">Tap any fighter to see what it does</div>
+
+      <!-- ENEMY zone -->
+      <div style="background: rgba(255,93,93,0.07); border: 1px solid rgba(255,93,93,0.28); border-radius: 12px; padding: 10px 12px 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #ff5d5d; color: #14161c; border-radius: 6px; padding: 2px 7px;">ENEMY</span>
+          <span style="font-size: 13px; font-weight: 700; color: #e8e8ee;">Anvil</span>
+        </div>
+
+        <!-- body, drawn like the fight screen: red, sized by its share of the side's HP -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="position: relative; width: 64px; height: 64px;">
+            <div style="position: absolute; top: 55px; left: 50%; width: 52px; height: 7px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+            <div style="position: relative; width: 64px; height: 64px; border-radius: 50%; background: #ff5d5d;"></div>
+          </div>
+          <div style="width: 64px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #ff5d5d;"></div></div>
+          <div style="display: flex; gap: 6px; margin-top: 2px;">
+            <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px;">HP 605</span>
+            <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px;">Damage 8</span>
+          </div>
+        </div>
+        <div style="font-size: 11.5px; line-height: 1.45; color: #c7cad6; text-align: center; margin-top: 8px;">One huge body, barely hits back. No <span class="term tap">slam</span> to fear — how fast can you kill it?</div>
+      </div>
+
+      <!-- VS line: the fight screen's centre line, with a badge -->
+      <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+        <div style="flex: 1; height: 1px; background: linear-gradient(90deg, transparent, #5a5f70);"></div>
+        <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.08em; color: #e8e8ee; background: #2a2e3a; border: 1px solid #3a3f4e; border-radius: 10px; padding: 2px 10px;">VS</div>
+        <div style="flex: 1; height: 1px; background: linear-gradient(270deg, transparent, #5a5f70);"></div>
+      </div>
+
+      <!-- YOUR SQUAD zone -->
+      <div style="background: rgba(77,166,255,0.07); border: 1px solid rgba(77,166,255,0.28); border-radius: 12px; padding: 10px 12px 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+          <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #4da6ff; color: #0c1420; border-radius: 6px; padding: 2px 7px;">YOUR SQUAD</span>
+        </div>
+
+        <!-- the field, drawn as the fight screen draws it (buildSide): Bram (Tank) in the front rank, centred, nearest the VS line.
+             Ivy and Sol are the back rank: 48px further from the VS line (BACK_RANK_OFFSET_PX), 0.72 size (--back-rank-scale),
+             shadow at 0.24 (--depth-shadow-opacity), first back unit left, second right. Plain role-coloured bodies, no emoji. -->
+        <div style="display: flex; justify-content: center; align-items: flex-start; gap: 22px;">
+          <!-- back rank, left: Ivy (Damage) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px; margin-top: 48px;">
+            <div style="position: relative; width: 33px; height: 33px;">
+              <div style="position: absolute; top: 28px; left: 50%; width: 27px; height: 5px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
+              <div style="position: relative; width: 33px; height: 33px; border-radius: 50%; background: #b98cff; opacity: 0.85;"></div>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Ivy</div>
+            <div style="font-size: 9px; font-weight: 700; color: #b98cff;">Damage</div>
+            <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 80 · Damage 8</div>
+          </div>
+          <!-- front rank, centre: Bram (Tank) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px;">
+            <div style="position: relative; width: 46px; height: 46px;">
+              <div style="position: absolute; top: 39px; left: 50%; width: 38px; height: 6px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+              <div style="position: relative; width: 46px; height: 46px; border-radius: 50%; background: #ffb454;"></div>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Bram</div>
+            <div style="font-size: 9px; font-weight: 700; color: #ffb454;">Tank</div>
+            <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 190 · Damage 7</div>
+          </div>
+          <!-- back rank, right: Sol (Healer) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px; margin-top: 48px;">
+            <div style="position: relative; width: 33px; height: 33px;">
+              <div style="position: absolute; top: 28px; left: 50%; width: 27px; height: 5px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
+              <div style="position: relative; width: 33px; height: 33px; border-radius: 50%; background: #6ee7a0; opacity: 0.85;"></div>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Sol</div>
+            <div style="font-size: 9px; font-weight: 700; color: #6ee7a0;">Healer</div>
+            <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
+            <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 100 · Damage 2</div>
+          </div>
+        </div>
+      </div>
+
+      <button style="margin-top: 14px; width: 100%; font: inherit; font-weight: 700; background: #4da6ff; color: #0c1420; border: none; border-radius: 8px; padding: 13px; font-size: 15px;">Fight!</button>
+    </div>
+
+  </div>
+
+  <!-- dimmed backdrop: a tap outside the popup closes it -->
+  <div style="position: absolute; inset: 0; background: rgba(8,9,12,0.74);"></div>
+
+<div style="position: absolute; top: 40px; left: 20px; width: 350px; background: #1d2029; border: 1px solid #3a3f4e; border-radius: 14px; padding: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.55); ">
+    <div style="position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; background: #2a2e3a; color: #c7cad6; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;">✕</div>
+    <!-- switcher: tap a chip to jump; the open one is ringed; the enemy sits apart -->
+    <div style="display: flex; align-items: flex-start; gap: 2px; margin-right: 30px;"><div style="display: flex; flex-direction: column; align-items: center; gap: 2px; width: 44px;">
+        <div style="width: 28px; height: 28px; border-radius: 50%; background: #ffb454; box-shadow: 0 0 0 2px #14161c, 0 0 0 4px #e8e8ee;"></div>
+        <div style="font-size: 9px; font-weight: 800; color: #e8e8ee;">Bram</div></div><div style="display: flex; flex-direction: column; align-items: center; gap: 2px; width: 44px;">
+        <div style="width: 28px; height: 28px; border-radius: 50%; background: #b98cff; opacity: 0.55;"></div>
+        <div style="font-size: 9px; font-weight: 600; color: #8a8fa3;">Ivy</div></div><div style="display: flex; flex-direction: column; align-items: center; gap: 2px; width: 44px;">
+        <div style="width: 28px; height: 28px; border-radius: 50%; background: #6ee7a0; opacity: 0.55;"></div>
+        <div style="font-size: 9px; font-weight: 600; color: #8a8fa3;">Sol</div></div><div style="width: 1px; height: 30px; background: #3a3f4e; margin: 0 4px;"></div><div style="display: flex; flex-direction: column; align-items: center; gap: 2px; width: 44px;">
+        <div style="width: 28px; height: 28px; border-radius: 50%; background: #ff5d5d; opacity: 0.55;"></div>
+        <div style="font-size: 9px; font-weight: 600; color: #8a8fa3;">Anvil</div></div></div>
+    <!-- who: arrows step to the previous / next fighter (wraps round), swiping does the same -->
+    <div style="display: flex; align-items: center; gap: 6px; margin-top: 12px;">
+      <div class="arrow">‹</div>
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;">
+        <div style="position: relative; width: 40px; height: 40px;">
+          <div style="position: absolute; top: 34px; left: 50%; width: 32px; height: 6px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+          <div style="position: relative; width: 40px; height: 40px; border-radius: 50%; background: #ffb454;"></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+          <span style="font-size: 16px; font-weight: 800; color: #e8e8ee;">Bram</span>
+          <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.05em; color: #ffb454; ">TANK</span>
+        </div>
+        <div style="font-size: 12px; line-height: 1.4; color: #c7cad6; text-align: center; max-width: 210px;">Stands in front and takes the hits for the squad.</div>
+      </div>
+      <div class="arrow">›</div>
+    </div>
+    <!-- stats -->
+    <div style="display: flex; gap: 6px; justify-content: center; margin-top: 10px;"><span class="chip">HP 140/190</span><span class="chip">Damage 7</span></div>
+    <div style="width: 150px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden; margin: 6px auto 0;"><div style="width: 74%; height: 100%; background: #4da6ff;"></div></div>
+    <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 8px; font-size: 11.5px; color: #c7cad6;">
+      <span style="width: 7px; height: 7px; border-radius: 2px; background: #8a8fa3; display: inline-block;"></span><span><span class="term danger tap">Fatigue</span>: Fresh</span></div>
+    <div class="sec"><div class="lab">CHAIN</div><div style="font-size: 13px; margin-bottom: 3px;"><span class="term tap">Guard</span> <span style="font-size: 10px; color: #8a8fa3;">Bram's chain</span></div>
+      <div class="txt">Takes the next <span class="term tap">slam</span> and <span class="term exposed tap">exposes</span> the slammer.</div>
+      <div style="font-size: 11.5px; line-height: 1.45; color: #c7cad6; margin-top: 5px;">The ring around Bram fills as the fight runs. When it closes, his <span class="term tap">chain</span> fires: up to 7 hits in a row, each one stronger. Every hit adds one slam he will take.</div>
+      <div style="margin-top: 7px; padding-top: 7px; border-top: 1px solid #3a3f4e; font-size: 11.5px; line-height: 1.5; color: #c7cad6;">
+        <div>Keeps going: <span style="color: #e8e8ee; font-weight: 800;">70%</span> after the first hit, up to <span style="color: #e8e8ee; font-weight: 800;">90%</span> later. Max 7 hits.</div>
+        <div style="margin-top: 2px;"><span class="dng">⚠ <span class="term danger tap">Backfire</span> 3%</span>: the whole chain hits your own squad instead.</div>
+      </div></div><div class="sec"><div class="lab">UPGRADES</div><div class="txt" style="color: #8a8fa3;">No upgrades yet.</div></div>
+  </div>
+
+  <!-- design note, not part of the screen -->
+  <div style="position: absolute; left: 20px; right: 20px; bottom: 18px; font-size: 10.5px; line-height: 1.45; color: #8a8fa3; text-align: center;">
+    Shown as opened mid-fight, Bram hurt. Tap a chip to jump to anyone, or step with ‹ ›. Underlined words open their card on top. ✕ or a tap outside returns to the screen.
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -80,3 +80,12 @@ puts the JumpCloud Go extension into every Google Chrome profile, including thro
 - **For how to take screenshots or click through a page, invoke the `browser-check` skill.** It
   carries the safe headless command and the Claude in Chrome route. If neither works, ask — never
   fall back to launching Chrome yourself.
+
+## Changing the design canvas
+
+Tu sees canvas changes only through the canvas link, never in the local files. So a change to
+`design/canvas/` is not finished until it is published there and the live page has been read back
+— the steps are in `design/HANDOFF.md` under "Publishing".
+
+- Any plan that touches `design/canvas/` lists "publish to the canvas link" as a step.
+- If I stop before publishing, I say plainly that the canvas still shows the old version.

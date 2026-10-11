@@ -8,7 +8,7 @@
     { "file": "OfferAfter.dc.html", "x": 0, "y": 1400, "w": 390, "h": 780 },
     { "file": "ShieldBar.dc.html", "x": 550, "y": 1400, "w": 860, "h": 1160 },
     { "file": "MarkSlots.dc.html", "x": 1460, "y": 1400, "w": 860, "h": 1885 },
-    { "file": "RoundFaceOff.dc.html", "x": 0, "y": 3460, "w": 390, "h": 842 },
+    { "file": "RoundFaceOff.dc.html", "x": 0, "y": 3460, "w": 390, "h": 710 },
     { "file": "RoundFaceOffGrown.dc.html", "x": 550, "y": 3460, "w": 390, "h": 960 },
     { "file": "RoundFaceOffFull.dc.html", "x": 1100, "y": 3460, "w": 390, "h": 990 },
     { "file": "SquadScreen.dc.html", "x": 0, "y": 4560, "w": 860, "h": 860 },
@@ -20,7 +20,12 @@
     { "file": "TermShield.dc.html", "x": 0, "y": 6620, "w": 390, "h": 900 },
     { "file": "TermChain.dc.html", "x": 550, "y": 6620, "w": 390, "h": 900 },
     { "file": "TermBackfire.dc.html", "x": 1100, "y": 6620, "w": 390, "h": 900 },
-    { "file": "TermFatigue.dc.html", "x": 1650, "y": 6620, "w": 390, "h": 900 }
+    { "file": "TermFatigue.dc.html", "x": 1650, "y": 6620, "w": 390, "h": 900 },
+    { "file": "FighterPopupBram.dc.html", "x": 0, "y": 7660, "w": 390, "h": 900 },
+    { "file": "FighterPopupSol.dc.html", "x": 550, "y": 7660, "w": 390, "h": 900 },
+    { "file": "FighterPopupAnvil.dc.html", "x": 1100, "y": 7660, "w": 390, "h": 900 },
+    { "file": "FighterPopupTerm.dc.html", "x": 1650, "y": 7660, "w": 390, "h": 900 },
+    { "file": "RoundFaceOffBench.dc.html", "x": 0, "y": 8700, "w": 860, "h": 520 }
   ],
   "annotations": [
     { "id": "label-roundstart", "x": 0, "y": -60, "w": 390, "text": "1. Round screen — round 1, one unit per role" },
@@ -31,7 +36,7 @@
     { "id": "label-offerafter", "x": 0, "y": 1340, "w": 390, "text": "6. Offer screen — proposal: mark words coloured, reads/makes lines removed" },
     { "id": "label-shieldbar", "x": 550, "y": 1340, "w": 860, "text": "7. Shield on the HP bar — decided 2026-10-01, built" },
     { "id": "label-markslots", "x": 1460, "y": 1340, "w": 860, "text": "8. Marks and guard pips sit on the body — chosen 2026-10-02, built" },
-    { "id": "label-faceoff", "x": 0, "y": 3400, "w": 390, "text": "9. Round screen — face-off, round 1, terms marked with ⓘ (proposal, replaces 1)" },
+    { "id": "label-faceoff", "x": 0, "y": 3400, "w": 390, "text": "9. Round screen — face-off, round 1, terms dotted-underlined, tap a fighter for details (proposal, replaces 1)" },
     { "id": "label-faceoffgrown", "x": 550, "y": 3400, "w": 390, "text": "10. Round screen — face-off, round 12: slam, details open, bench strip (proposal, replaces 2–3)" },
     { "id": "label-faceofffull", "x": 1100, "y": 3400, "w": 390, "text": "11. Round screen — face-off, round 17, five fielded, the squad cap (proposal)" },
     { "id": "label-squadscreen", "x": 0, "y": 4500, "w": 860, "text": "12. Squad screen — the bench, resting and mid-swap (proposal; opened from the bench strip)" },
@@ -43,7 +48,12 @@
     { "id": "label-termshield", "x": 0, "y": 6560, "w": 390, "text": "18. Term card — Shield, animated (proposal)" },
     { "id": "label-termchain", "x": 550, "y": 6560, "w": 390, "text": "19. Term card — Chain, animated (proposal)" },
     { "id": "label-termbackfire", "x": 1100, "y": 6560, "w": 390, "text": "20. Term card — Backfire, animated (proposal; frame 9 is a stand-in behind it)" },
-    { "id": "label-termfatigue", "x": 1650, "y": 6560, "w": 390, "text": "21. Term card — Fatigue, animated (proposal; frame 9 is a stand-in behind it)" }
+    { "id": "label-termfatigue", "x": 1650, "y": 6560, "w": 390, "text": "21. Term card — Fatigue, animated (proposal; frame 9 is a stand-in behind it)" },
+    { "id": "label-popupbram", "x": 0, "y": 7600, "w": 390, "text": "9a. Fighter popup — Bram: stats, chain, upgrades, switcher (proposal; opens from frame 9)" },
+    { "id": "label-popupsol", "x": 550, "y": 7600, "w": 390, "text": "9b. Fighter popup — Sol, the Healer (proposal)" },
+    { "id": "label-popupanvil", "x": 1100, "y": 7600, "w": 390, "text": "9c. Fighter popup — Anvil, the enemy (proposal)" },
+    { "id": "label-popupterm", "x": 1650, "y": 7600, "w": 390, "text": "9d. Fighter popup → term card, second level (proposal)" },
+    { "id": "label-faceoffbench", "x": 0, "y": 8640, "w": 860, "text": "9e. Round screen — the bench: today's strip vs a shelf in the squad box with a swap nudge (proposal)" }
   ],
   "launch": { "view": "canvas" }
 }

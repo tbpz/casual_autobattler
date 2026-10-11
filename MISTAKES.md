@@ -16,6 +16,19 @@
 
 ---
 
+### [2026-10-11 #2] Said the canvas was updated when it was only edited locally
+
+- **Said:** After moving the "Tap any fighter" hint, I listed the changed files and offered to
+  check them in a browser next. Tu had asked me to "update the canvas".
+- **Actually:** Only the local `design/canvas/*.dc.html` files and `HANDOFF.md` had changed. The
+  canvas link, the only place Tu looks, still showed the old screen until Tu asked "have you
+  published it?" and I then published (version 39). Tu said this was the second time that day.
+- **Caught by:** Tu asking whether it was published.
+- **Why:** My plan listed only file edits and a browser check, with no publish step. I never opened
+  the "Publishing" section of `design/HANDOFF.md`, whose line 4 says to republish after editing. I
+  treated "update the canvas" as "edit the source files".
+- **Tag:** treated local edit as done without doing the step the reader depends on
+
 ### [2026-10-11 #1] Said a backfire lands on the front unit
 
 - **Said:** The approved plan for the Backfire term card: the hits "land on Bram instead (the front

@@ -10,13 +10,13 @@
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-  /* A tappable game term (2026-10-11): bold, coloured, a small circled i after it.
+  /* A tappable game term (2026-10-11): bold, coloured, dotted underline when tappable.
      Mark words keep their mark colour; slam, Guard and Chain share the term colour #c5e86c. */
   .term { font-weight: 800; white-space: nowrap; color: #c5e86c; }
   .term.exposed { color: #ff7ab6; }
   .term.shield { color: #5ee0d0; }
-  .term-i { display: inline-block; width: 11px; height: 11px; margin-left: 2px; border: 1.3px solid currentColor; border-radius: 50%;
-            font-size: 8px; line-height: 8.5px; text-align: center; font-style: italic; font-weight: 800; vertical-align: 1.5px; }
+  /* Tappable terms get a dotted underline in their own colour (2026-10-11, Tu). Terms without .tap are not tappable here. */
+  .term.tap { text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
 </style>
 </helmet>
 
@@ -32,9 +32,11 @@
          and the encounter blurb, unchanged. Fatigue pips are hidden while every unit is fresh.
          Squad redraw (2026-10-10): named fighters (Bram, Ivy, Sol: made-up names) with the role as a small tag, no role
          one-liners, no "3 fighters" count, bodies with shadows in two ranks as the fight screen draws them.
-         Term pass (2026-10-11): every game term on the screen is bold, coloured and carries a small circled i, meaning
+         Term pass (2026-10-11): every game term on the screen is bold, coloured and has a dotted underline, meaning
          "tap for its explainer card" (frame 13 shows the Slam card). The per-row i buttons are gone, and the chain
-         section is labelled CHAINS. Only terms this round really shows are marked: slam, exposed, Guard, shield, Chain. -->
+         section is labelled CHAINS. Only terms this round really shows are marked: slam, exposed, Guard, shield, Chain.
+         Fighter popup pass (2026-10-11, Tu): the CHAINS rows were too much for a new player, so they are gone from this screen.
+         A hint line under the goal line, above both sides (moved there because the enemy is tappable too), says each fighter (enemy included) can be tapped; the popup is frames 9a-9d. -->
     <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 16px; box-sizing: border-box;">
 
       <!-- progress strip (unchanged) -->
@@ -49,7 +51,10 @@
       </div>
 
       <!-- goal line: the verbal pitch, in the screen. Shown in the first rounds only. -->
-      <div style="font-size: 12px; line-height: 1.4; color: #c7cad6; text-align: center; margin-bottom: 12px;">Your squad fights theirs on its own. Wipe out the enemy squad to win the round.</div>
+      <div style="font-size: 12px; line-height: 1.4; color: #c7cad6; text-align: center; margin-bottom: 4px;">Your squad fights theirs on its own. Wipe out the enemy squad to win the round.</div>
+
+      <!-- hint: covers both sides, so it sits above the ENEMY and YOUR SQUAD boxes (2026-10-11, Tu) -->
+      <div style="font-size: 11px; color: #8a8fa3; text-align: center; margin-bottom: 12px;">Tap any fighter to see what it does</div>
 
       <!-- ENEMY zone -->
       <div style="background: rgba(255,93,93,0.07); border: 1px solid rgba(255,93,93,0.28); border-radius: 12px; padding: 10px 12px 12px;">
@@ -70,7 +75,7 @@
             <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px;">Damage 8</span>
           </div>
         </div>
-        <div style="font-size: 11.5px; line-height: 1.45; color: #c7cad6; text-align: center; margin-top: 8px;">One huge body, barely hits back. No <span class="term">slam<span class="term-i">i</span></span> to fear — how fast can you kill it?</div>
+        <div style="font-size: 11.5px; line-height: 1.45; color: #c7cad6; text-align: center; margin-top: 8px;">One huge body, barely hits back. No <span class="term tap">slam</span> to fear — how fast can you kill it?</div>
       </div>
 
       <!-- VS line: the fight screen's centre line, with a badge -->
@@ -125,31 +130,12 @@
           </div>
         </div>
 
-        <div style="height: 1px; background: rgba(77,166,255,0.2); margin: 12px 0 8px;"></div>
-        <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.05em; color: #8a8fa3; margin-bottom: 6px;"><span class="term">CHAINS<span class="term-i">i</span></span></div>
-
-        <!-- one row per role: the sentence first, the chain's name after it. Terms inside carry their own circled i. -->
-        <div style="display: flex; flex-direction: column; gap: 6px;">
-          <div style="display: flex; align-items: center; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
-            <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #ffb454; display: flex; align-items: center; justify-content: center; font-size: 12px;">🛡</div>
-            <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Takes the next <span class="term">slam<span class="term-i">i</span></span> and <span class="term exposed">exposes<span class="term-i">i</span></span> the slammer.</div>
-              <div style="font-size: 10px; margin-top: 1px;"><span class="term">Guard<span class="term-i">i</span></span></div>
-            </div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
-            <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #b98cff; display: flex; align-items: center; justify-content: center; font-size: 12px;">⚔</div>
-            <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Hits the biggest enemy and <span class="term exposed">exposes<span class="term-i">i</span></span> it.</div>
-              <div style="font-size: 10px; color: #8a8fa3; margin-top: 1px;">Expose</div>
-            </div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 9px; background: #20232c; border: 1px solid #3a3f4e; border-radius: 8px; padding: 8px 10px;">
-            <div style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #6ee7a0; display: flex; align-items: center; justify-content: center; font-size: 12px;">✚</div>
-            <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 11.5px; line-height: 1.35; color: #e8e8ee;">Heals your worst-hurt hero; extra becomes <span class="term shield">shield<span class="term-i">i</span></span>.</div>
-              <div style="font-size: 10px; color: #8a8fa3; margin-top: 1px;">Mend</div>
-            </div>
+        <!-- bench shelf (2026-10-11): inside the squad box so it reads as part of your team, but smaller and duller than the fighters.
+             Round 1 has no one on the bench, so it is one empty dashed spot that teaches the bench exists. Later rounds: frame 9e. -->
+        <div style="margin-top: 12px; padding-top: 8px; border-top: 1px dashed #3a3f4e;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: #8a8fa3;">BENCH</span>
+            <div style="flex: 1; border: 1px dashed #3a3f4e; border-radius: 8px; padding: 5px 10px; font-size: 10.5px; color: #8a8fa3;">Empty. New recruits wait here.</div>
           </div>
         </div>
       </div>
