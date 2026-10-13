@@ -1,0 +1,178 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .term { font-weight: 800; white-space: nowrap; color: #c5e86c; }
+  .term.tap { text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .nm { font-size: 12px; font-weight: 700; color: #e8e8ee; }
+  .tag { font-size: 9px; font-weight: 700; }
+  .hpbar { width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden; }
+  .hpbar > div { height: 100%; background: #4da6ff; }
+  .ehp { height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden; }
+  .ehp > div { width: 100%; height: 100%; background: #ff5d5d; }
+  .stat { display: flex; justify-content: center; align-items: center; gap: 6px; font-size: 10px; color: #c7cad6; white-space: nowrap; line-height: 1.3; }
+  .st { display: inline-flex; align-items: center; gap: 2px; }
+  .st svg { width: 10px; height: 10px; flex: none; }
+  .st.heal { color: #6ee7a0; }
+  .pips { display: flex; gap: 2px; }
+  .pip { width: 5px; height: 5px; border-radius: 50%; background: #3a3f4e; }
+  .chip { font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px; white-space: nowrap; }
+  .kind { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .kname { font-size: 11px; font-weight: 700; color: #e8e8ee; min-width: 78px; }
+  .eb { position: relative; }
+  .eb .sh { position: absolute; left: 50%; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px); }
+  .eb .body { position: relative; border-radius: 50%; background: #ff5d5d; }
+  .en { font-size: 10px; font-weight: 700; color: #e8e8ee; white-space: nowrap; }
+  .bu { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .bc { width: 22px; height: 22px; border-radius: 50%; opacity: 0.6; }
+  .bn { font-size: 9.5px; font-weight: 600; color: #8a8fa3; max-width: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; }
+  .bb { width: 22px; height: 3px; border-radius: 2px; background: #2a2e3a; overflow: hidden; }
+  .bb > div { height: 100%; background: #4da6ff; opacity: 0.6; }
+  .shelf { margin-top: 12px; padding-top: 8px; border-top: 1px dashed #3a3f4e; }
+  .shelfhead { display: flex; align-items: center; margin-bottom: 6px; }
+  .shelfname { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: #8a8fa3; }
+  .change { margin-left: auto; font-size: 11px; font-weight: 700; color: #4da6ff; }
+  .fallen { opacity: 0.45; }
+  .fx { position: absolute; top: -3px; right: -3px; width: 11px; height: 11px; border-radius: 50%; background: #e2564b; border: 2px solid #1d2029; display: flex; align-items: center; justify-content: center; font-size: 6px; color: #14161c; font-weight: 800; }
+</style>
+</helmet>
+
+<!-- Frame 1.3: the face-off with the MOST enemy bodies (proposal, 2026-10-13, revised the same day). Round 15 (a filler round), Pack: five Skirmishers, no slam.
+     Numbers from sim/encounters.ts Pack x sim/rounds.ts roundEnemySide: hpScale 1+14*0.012 = 1.168, filler x0.6, enemyHpScale 2.4 -> HP 48 -> 81;
+     damage 5.8 x (1+14*0.008) x 0.6 -> 4. Revision (Tu): tapping a fighter already opens its popup, so the round screen carries only name, HP bar, HP and Damage as icons (heart, sword; Tu, 2026-10-13: more compact)
+     (numbers kept for quick comparison) and a small badge on a body with a special move. Pack has none, so no badges. Five 40px bodies at 60px wide each.
+     Your side is frame 1.2's mid-run phone (4 fielded, 2 benched; Sol the Healer shows Heal 6, the plus icon, not Damage 2: it heals instead of attacking). No goal line: it shows in the first rounds only. -->
+<div style="background: #14161c; width: 390px; min-height: 780px; display: flex; justify-content: center; padding-top: 24px;">
+  <div style="width: 100%; max-width: 640px; padding: 0 16px 24px; box-sizing: border-box;">
+    <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 16px; box-sizing: border-box;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+        <div style="font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #e8e8ee; white-space: nowrap;">ROUND 15/20</div>
+        <div style="position: relative; flex: 1; height: 6px; border-radius: 3px; background: #2a2e3a;">
+          <div style="position: absolute; inset: 0; width: 75%; border-radius: 3px; background: #4da6ff;"></div>
+          <div style="position: absolute; top: 50%; left: 35%; width: 6px; height: 6px; transform: translate(-50%, -50%) rotate(45deg); background: #4da6ff;"></div>
+          <div style="position: absolute; top: 50%; left: 70%; width: 6px; height: 6px; transform: translate(-50%, -50%) rotate(45deg); background: #4da6ff;"></div>
+          <div style="position: absolute; top: 50%; left: 100%; width: 7px; height: 7px; transform: translate(-50%, -50%) rotate(45deg); background: #ff5d5d;"></div>
+        </div>
+      </div>
+      <div style="font-size: 11px; color: #8a8fa3; text-align: center; margin-bottom: 12px;">Tap any fighter to see what it does</div>
+      <div style="background: rgba(255,93,93,0.07); border: 1px solid rgba(255,93,93,0.28); border-radius: 12px; padding: 10px 12px 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+          <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #ff5d5d; color: #14161c; border-radius: 6px; padding: 2px 7px;">ENEMY</span>
+          <span style="font-size: 13px; font-weight: 700; color: #e8e8ee;">Pack</span>
+          
+        </div>
+        <div style="display: flex; align-items: flex-end; justify-content: center; gap: 2px;">
+          <div class="col" style="width: 60px;">
+            <div class="eb" style="width: 40px; height: 40px;">
+              <div class="sh" style="top: 34px; width: 32px; height: 4px;"></div>
+              <div class="body" style="width: 40px; height: 40px;"></div>
+              
+            </div>
+            <div class="en" style="text-align: center; line-height: 1.15;">Skirmisher<br>1</div>
+            <div class="ehp" style="width: 36px;"><div></div></div>
+            <div class="stat" style="font-size: 9.5px;"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>81</span><span class="st dmg"><svg viewBox="0 0 12 12" aria-label="Damage"><path d="M4.4 7.6 10.6 1.4M2.8 6.2l3 3M3.6 8.4 1.6 10.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>4</span></div>
+          </div>
+          <div class="col" style="width: 60px;">
+            <div class="eb" style="width: 40px; height: 40px;">
+              <div class="sh" style="top: 34px; width: 32px; height: 4px;"></div>
+              <div class="body" style="width: 40px; height: 40px;"></div>
+              
+            </div>
+            <div class="en" style="text-align: center; line-height: 1.15;">Skirmisher<br>2</div>
+            <div class="ehp" style="width: 36px;"><div></div></div>
+            <div class="stat" style="font-size: 9.5px;"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>81</span><span class="st dmg"><svg viewBox="0 0 12 12" aria-label="Damage"><path d="M4.4 7.6 10.6 1.4M2.8 6.2l3 3M3.6 8.4 1.6 10.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>4</span></div>
+          </div>
+          <div class="col" style="width: 60px;">
+            <div class="eb" style="width: 40px; height: 40px;">
+              <div class="sh" style="top: 34px; width: 32px; height: 4px;"></div>
+              <div class="body" style="width: 40px; height: 40px;"></div>
+              
+            </div>
+            <div class="en" style="text-align: center; line-height: 1.15;">Skirmisher<br>3</div>
+            <div class="ehp" style="width: 36px;"><div></div></div>
+            <div class="stat" style="font-size: 9.5px;"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>81</span><span class="st dmg"><svg viewBox="0 0 12 12" aria-label="Damage"><path d="M4.4 7.6 10.6 1.4M2.8 6.2l3 3M3.6 8.4 1.6 10.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>4</span></div>
+          </div>
+          <div class="col" style="width: 60px;">
+            <div class="eb" style="width: 40px; height: 40px;">
+              <div class="sh" style="top: 34px; width: 32px; height: 4px;"></div>
+              <div class="body" style="width: 40px; height: 40px;"></div>
+              
+            </div>
+            <div class="en" style="text-align: center; line-height: 1.15;">Skirmisher<br>4</div>
+            <div class="ehp" style="width: 36px;"><div></div></div>
+            <div class="stat" style="font-size: 9.5px;"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>81</span><span class="st dmg"><svg viewBox="0 0 12 12" aria-label="Damage"><path d="M4.4 7.6 10.6 1.4M2.8 6.2l3 3M3.6 8.4 1.6 10.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>4</span></div>
+          </div>
+          <div class="col" style="width: 60px;">
+            <div class="eb" style="width: 40px; height: 40px;">
+              <div class="sh" style="top: 34px; width: 32px; height: 4px;"></div>
+              <div class="body" style="width: 40px; height: 40px;"></div>
+              
+            </div>
+            <div class="en" style="text-align: center; line-height: 1.15;">Skirmisher<br>5</div>
+            <div class="ehp" style="width: 36px;"><div></div></div>
+            <div class="stat" style="font-size: 9.5px;"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>81</span><span class="st dmg"><svg viewBox="0 0 12 12" aria-label="Damage"><path d="M4.4 7.6 10.6 1.4M2.8 6.2l3 3M3.6 8.4 1.6 10.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>4</span></div>
+          </div>
+        </div>
+        <div style="font-size: 11.5px; line-height: 1.45; color: #c7cad6; text-align: center; margin-top: 10px;">Five bodies, no line to break. Can you outlast the weight of numbers?</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+        <div style="flex: 1; height: 1px; background: linear-gradient(90deg, transparent, #5a5f70);"></div>
+        <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.08em; color: #e8e8ee; background: #2a2e3a; border: 1px solid #3a3f4e; border-radius: 10px; padding: 2px 10px;">VS</div>
+        <div style="flex: 1; height: 1px; background: linear-gradient(270deg, transparent, #5a5f70);"></div>
+      </div>
+      <div style="background: rgba(77,166,255,0.07); border: 1px solid rgba(77,166,255,0.28); border-radius: 12px; padding: 10px 12px 12px;">
+        <div style="margin-bottom: 10px;"><span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #4da6ff; color: #0c1420; border-radius: 6px; padding: 2px 7px;">YOUR SQUAD</span></div>
+        <div style="display: flex; justify-content: center; align-items: flex-start; gap: 8px;">
+            <div class="col" style="width: 76px; margin-top: 40px;">
+              <div style="width: 30px; height: 30px; border-radius: 50%; background: #b98cff; opacity: 0.85;"></div>
+              <div class="nm">Ivy</div><div class="tag" style="color: #b98cff;">Damage</div>
+              <div class="hpbar"><div style="width: 80%;"></div></div>
+              <div class="pips"><div class="pip"></div><div class="pip"></div><div class="pip" style="background:#ffcf4d"></div><div class="pip" style="background:#ffcf4d"></div></div>
+              <div class="stat"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>64</span><span class="st dmg"><svg viewBox="0 0 12 12" aria-label="Damage"><path d="M4.4 7.6 10.6 1.4M2.8 6.2l3 3M3.6 8.4 1.6 10.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>8</span></div>
+            </div>
+            <div class="col" style="width: 76px;">
+              <div style="width: 46px; height: 46px; border-radius: 50%; background: #ffb454;"></div>
+              <div class="nm">Bram</div><div class="tag" style="color: #ffb454;">Tank</div>
+              <div class="hpbar"><div style="width: 100%;"></div></div>
+              
+              <div class="stat"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>190</span><span class="st dmg"><svg viewBox="0 0 12 12" aria-label="Damage"><path d="M4.4 7.6 10.6 1.4M2.8 6.2l3 3M3.6 8.4 1.6 10.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>7</span></div>
+            </div>
+            <div class="col" style="width: 76px; margin-top: 40px;">
+              <div style="width: 30px; height: 30px; border-radius: 50%; background: #6ee7a0; opacity: 0.85;"></div>
+              <div class="nm">Sol</div><div class="tag" style="color: #6ee7a0;">Healer</div>
+              <div class="hpbar"><div style="width: 100%;"></div></div>
+              
+              <div class="stat"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>100</span><span class="st heal"><svg viewBox="0 0 12 12" aria-label="Heal"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>6</span></div>
+            </div>
+            <div class="col" style="width: 76px; margin-top: 40px;">
+              <div style="width: 30px; height: 30px; border-radius: 50%; background: #b98cff; opacity: 0.85;"></div>
+              <div class="nm">Rex</div><div class="tag" style="color: #b98cff;">Damage</div>
+              <div class="hpbar"><div style="width: 100%;"></div></div>
+              
+              <div class="stat"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>80</span><span class="st dmg"><svg viewBox="0 0 12 12" aria-label="Damage"><path d="M4.4 7.6 10.6 1.4M2.8 6.2l3 3M3.6 8.4 1.6 10.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>8</span></div>
+            </div>
+        </div>
+        <div class="shelf">
+          <div class="shelfhead"><span class="shelfname">BENCH</span><span class="change">Change squad ›</span></div>
+          <div style="display: flex; gap: 14px; padding-left: 2px;">
+            <div class="bu"><div class="bc" style="background: #b98cff;"></div><div class="bn">Kit</div><div class="bb"><div style="width: 100%;"></div></div></div>
+            <div class="bu fallen"><div style="position: relative;"><div class="bc" style="background: #5c5f6b; opacity: 1;"></div><div class="fx">✕</div></div><div class="bn">Wren</div><div class="bb" style="background: transparent;"></div></div>
+          </div>
+        </div>
+      </div>
+      <button style="margin-top: 14px; width: 100%; font: inherit; font-weight: 700; background: #4da6ff; color: #0c1420; border: none; border-radius: 8px; padding: 13px; font-size: 15px;">Fight!</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

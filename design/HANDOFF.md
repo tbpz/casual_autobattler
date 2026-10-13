@@ -6,7 +6,7 @@
 
 ## What's on the canvas (reorganised 2026-10-11)
 
-Nineteen frames in six rows, numbered `section.item` in the order a player meets them. Still pictures, except the term cards (3.1–3.9), which loop CSS animations. No interaction.
+Twenty-two frames in six rows, numbered `section.item` in the order a player meets them. Still pictures, except the term cards (3.1–3.9), which loop CSS animations. No interaction.
 Colours and sizes are copied from the real code (`prototype/src/style.css`, `render/roundScreen.ts`, `render/fightView.ts`), so a change here is a real proposal.
 Units, HP and fatigue values are made up for the picture, not read from a run.
 
@@ -51,6 +51,22 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
    No fatigue on bench units. The shelf is one tap target to the squad screen with nothing pre-chosen. Two phones: mid-run (4 fielded of 6, 2 benched) and the squad cap (5 fielded of 8, 3 benched), to show the preview stays small when the bench is full.
    Names, HP and fatigue are made up. **Frame 1.1** carries the empty shelf at round 1 ("Empty. New recruits wait here.", no `Change squad ›` since there is nothing to change).
    The squad cap is `maxSlots` (5 fielded). Open points: (a) should a bench circle show fatigue (default: no, it is a preview); (b) check the 22px circles are readable and tappable on a phone.
+
+**1.3–1.5 Enemy lineups** — **proposal, drawn 2026-10-13 and revised the same day, not built, awaiting Tu's approval.** Frame 1.1 shows only round 1 (one enemy), so these three show the screen at the hardest lineups
+   (Tu: "variance screens, the most complicated lineups"). Files `RoundFaceOffPack / Vanguard / Warden.dc.html`, copies of 1.1's shell with the goal line left off (first rounds only).
+   **Revision (Tu):** tapping a fighter or enemy already opens its popup (2.1–2.4), so the round screen does not explain. Each enemy body shows its name, HP bar and two numbers under it, as icons on one line (a heart for HP, a sword for Damage; see "Stat icons" below)
+   (kept so the two sides can be compared at a glance; the Warden's second number is a green plus and 6, Heal, as the Healer's is on 2.2). A **badge** on the body's top-right edge says "this one has something special": 💥 = it slams, ✚ (green) = it heals. No badge, nothing special. Two badges stack **vertically** (Tu, 2026-10-13): side by side, the right one drifted toward Acolyte 2 and the slam read as the Acolyte's.
+   The sentences ("charges up, then hits your weakest unit for 15", "heals its most hurt ally") and the per-kind rows are gone from the round screen; the popup holds them. The encounter blurb stays as the one sentence. Numbers are real: `ENCOUNTERS` × `roundEnemySide` at that round.
+   - **1.3 Pack, round 15:** the most bodies (5 Skirmishers, no badges). Your side is 1.2's mid-run phone.
+   - **1.4 Vanguard, round 14:** a mini-boss (new `MINI-BOSS` tag) plus 3 Outriders; a 💥 badge marks the Vanguard.
+   - **1.5 Warden, round 17:** the Warden carries two badges, ✚ and 💥, plus Acolytes ×2. Your side is 1.2's squad-cap phone (5 fielded, 3 benched), the tallest the screen gets (about 700px).
+   Open points: (a) does a new player notice the badges and tap for the popup (the hint line says to tap, but nothing says what a badge means until they do); (b) the badges are emoji and render differently per phone (call 1), and 20px is small on a phone; (c) the badge sits on the body's edge and can touch a neighbour in a tight row (the Outriders' stat lines were too close on 1.4, fixed 2026-10-13 by giving small bodies a 56px column); (d) closed 2026-10-13: Anvil on 1.1 now uses the same icon line as the others; (e) The Reckoning (boss, round 20) is not drawn: it adds nothing the Vanguard doesn't; (f) the popup for an enemy with a slam or a heal is not drawn yet (2.3 shows Anvil, which has neither).
+
+**Stat icons (2026-10-13, Tu: more compact).** On the round-screen frames (1.1, 1.2, 1.3–1.5) HP and Damage are a drawn heart and sword followed by the number, on one line, instead of the words `HP` / `Damage`
+   (light grey, so the heart can't be mistaken for the pink exposed mark or the ❤ Ember heart chip). Drawn as small SVGs, not emoji, so they look the same on every phone. **The Healer shows a green plus and its heal number (6) instead of a Damage number**:
+   it heals instead of attacking (`healPerBeat` 6 in `sim/roles.ts`), as popup 2.2 already showed; the Warden does the same on 1.5. The popups (2.1–2.4) and term cards keep the words, so the popup is where a player learns what each icon means.
+   The squad screen (4.1) shows HP only, unchanged. Stale dimmed copies of 1.1 behind the popups and cards still show the old words until they are recopied (call 10b).
+   Open point: a first-time player may not know what the heart and sword mean before the first tap; is a one-time word or legend needed on round 1?
 
 ### 2 · Fighter popup — tap a fighter on 1.1 (later, mid-fight too)
 
@@ -154,7 +170,7 @@ Built 2026-09-30: `render/heroPickShared.ts` (`fatiguePipsHtml`, `FATIGUE_TIER_P
 
 ## Open calls for Tu
 
-1. **Icons.** 🛡 ⚔ ✚ 💥 ⚡ are emoji: fast to mock up, but they render differently per phone/OS. Plain drawn shapes cost more.
+1. **Icons.** 🛡 ⚔ ✚ 💥 ⚡ are emoji: fast to mock up, but they render differently per phone/OS. Plain drawn shapes cost more. The stat icons below (heart, sword, plus) are already drawn shapes; the 💥 and ✚ enemy badges on 1.4 and 1.5 are still emoji.
 2. ~~Full sentences behind a press~~ — closed 2026-10-11: it was about the held-down TANK band on the old round screen (dropped). The popup (2.1–2.4) replaces it.
 3. **Per-unit damage/speed numbers** were dropped from the old round screen (every unit of a role shares them). `Damage` returned on 1.1 (call 8b); attack speed stays out.
 4. **The bench-heals-faster hint** — answered on 4.1, which states the rule in one line with real numbers. Does the round screen also need it?
@@ -180,7 +196,7 @@ Built 2026-09-30: `render/heroPickShared.ts` (`fatiguePipsHtml`, `FATIGUE_TIER_P
 
 10. **Fighter popup** (frames 1.1, 2.1–2.4, 2026-10-11). Approve the shape? Open points: (a) tapping in a fight goes against "No tapping during a fight": does the fight pause
    while the popup is open?; (b) frames 3.1–3.9 still show the old frame 1.1 behind them (Tu said frame 1.1 only), recopy later; (c) closed 2026-10-11: old frames 10 and 11, which showed chain rows, are dropped;
-   (d) the Healer's `Damage 2` is still on 1.1 but the popup shows `Heal 6`;
+   (d) closed 2026-10-13: the Healer shows a plus and 6 (Heal) on 1.1, 1.2 and 1.3–1.5, matching the popup;
    (e) a first-time player may not read the hint line, and you removed a hint before: is a line enough?; (f) "Upgrades" is empty on round 1 and has no "what it could learn" hint;
    (g) the popup opens a term card (2 levels), which reverses the 2026-10-11 rule that cards never link on; (h) the keep-going number moves with fatigue (up to +10%, `fatigueContinuationBonus`),
    like backfire does, so the popup must redraw both when fatigue changes; (i) the danger orange `#ff9f43` is close to burn's orange `#ff8a3d`: check they can't be confused.

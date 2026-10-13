@@ -17,6 +17,10 @@
   .term.shield { color: #5ee0d0; }
   /* Tappable terms get a dotted underline in their own colour (2026-10-11, Tu). Terms without .tap are not tappable here. */
   .term.tap { text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
+  .stat { display: flex; justify-content: center; align-items: center; gap: 6px; font-size: 10px; color: #c7cad6; white-space: nowrap; line-height: 1.3; }
+  .st { display: inline-flex; align-items: center; gap: 2px; }
+  .st svg { width: 10px; height: 10px; flex: none; }
+  .st.heal { color: #6ee7a0; }
 </style>
 </helmet>
 
@@ -36,7 +40,9 @@
          "tap for its explainer card" (frame 3.1 shows the Slam card). The per-row i buttons are gone, and the chain
          section is labelled CHAINS. Only terms this round really shows are marked: slam, exposed, Guard, shield, Chain.
          Fighter popup pass (2026-10-11, Tu): the CHAINS rows were too much for a new player, so they are gone from this screen.
-         A hint line under the goal line, above both sides (moved there because the enemy is tappable too), says each fighter (enemy included) can be tapped; the popup is frames 2.1–2.4. -->
+         A hint line under the goal line, above both sides (moved there because the enemy is tappable too), says each fighter (enemy included) can be tapped; the popup is frames 2.1–2.4.
+         Stat icons pass (2026-10-13, Tu): HP and Damage are a drawn heart and sword with the number, on one line, instead of the words (more compact; the popup keeps the words).
+         Sol the Healer shows a green plus and 6 (Heal) instead of Damage 2: it heals instead of attacking (healPerBeat 6 in sim/roles.ts), as popup 2.2 already shows. -->
     <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 16px; box-sizing: border-box;">
 
       <!-- progress strip (unchanged) -->
@@ -70,10 +76,7 @@
             <div style="position: relative; width: 64px; height: 64px; border-radius: 50%; background: #ff5d5d;"></div>
           </div>
           <div style="width: 64px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #ff5d5d;"></div></div>
-          <div style="display: flex; gap: 6px; margin-top: 2px;">
-            <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px;">HP 605</span>
-            <span style="font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 2px 8px;">Damage 8</span>
-          </div>
+          <div class="stat" style="margin-top: 2px;"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>605</span><span class="st dmg"><svg viewBox="0 0 12 12" aria-label="Damage"><path d="M4.4 7.6 10.6 1.4M2.8 6.2l3 3M3.6 8.4 1.6 10.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>8</span></div>
         </div>
         <div style="font-size: 11.5px; line-height: 1.45; color: #c7cad6; text-align: center; margin-top: 8px;">One huge body, barely hits back. No <span class="term tap">slam</span> to fear — how fast can you kill it?</div>
       </div>
@@ -104,7 +107,7 @@
             <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Ivy</div>
             <div style="font-size: 9px; font-weight: 700; color: #b98cff;">Damage</div>
             <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
-            <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 80 · Damage 8</div>
+            <div class="stat"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>80</span><span class="st dmg"><svg viewBox="0 0 12 12" aria-label="Damage"><path d="M4.4 7.6 10.6 1.4M2.8 6.2l3 3M3.6 8.4 1.6 10.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>8</span></div>
           </div>
           <!-- front rank, centre: Bram (Tank) -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px;">
@@ -115,7 +118,7 @@
             <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Bram</div>
             <div style="font-size: 9px; font-weight: 700; color: #ffb454;">Tank</div>
             <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
-            <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 190 · Damage 7</div>
+            <div class="stat"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>190</span><span class="st dmg"><svg viewBox="0 0 12 12" aria-label="Damage"><path d="M4.4 7.6 10.6 1.4M2.8 6.2l3 3M3.6 8.4 1.6 10.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>7</span></div>
           </div>
           <!-- back rank, right: Sol (Healer) -->
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px; margin-top: 48px;">
@@ -126,7 +129,7 @@
             <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Sol</div>
             <div style="font-size: 9px; font-weight: 700; color: #6ee7a0;">Healer</div>
             <div style="width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
-            <div style="font-size: 10px; color: #c7cad6; white-space: nowrap;">HP 100 · Damage 2</div>
+            <div class="stat"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>100</span><span class="st heal"><svg viewBox="0 0 12 12" aria-label="Heal"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>6</span></div>
           </div>
         </div>
 

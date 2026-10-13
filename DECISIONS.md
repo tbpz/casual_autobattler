@@ -10,6 +10,42 @@
 
 ---
 
+## [2026-10-13] Round-screen stats are icons, and the Healer shows Heal, not Damage
+
+- **Decision:**
+  - HP is a small drawn heart and Damage a small drawn sword, each followed by its number, on one line.
+  - The icons are light grey, so the heart is not mistaken for the pink exposed mark or the Ember heart chip.
+  - The icons are drawn shapes, not emoji, so they look the same on every phone.
+  - The Healer shows a green plus and its heal number where other fighters show Damage.
+  - Popups and term cards keep the words "HP" and "Damage".
+  - Applies to canvas frames 1.1, 1.2 and 1.3–1.5.
+- **Why:**
+  - Tu wanted a more compact stat line; five bodies in a row now fit on one line each.
+  - The Healer heals instead of attacking, so "Damage 2" was a number that never lands (`healPerBeat` in `prototype/src/sim/roles.ts`).
+  - Popup 2.2 already showed Heal; the round screen now agrees with it.
+  - The popup is where a player learns what each icon means.
+- **Replaces:**
+  - The words "HP" and "Damage" on the round-screen frames, set on 2026-10-09.
+  - The Healer's Damage chip on frame 1.1.
+  - Not covered: a first-time player may not know the heart and sword before the first tap; no playtest has checked it.
+
+## [2026-10-13] A badge says an enemy has something special; the popup says what
+
+- **Decision:**
+  - An enemy with a special move wears a small badge on its body: a burst for a slam, a green plus for a heal.
+  - An enemy with two special moves stacks its badges vertically on its own edge.
+  - The sentence that explains a move is not on the round screen; the popup holds it.
+  - HP and Damage stay under every enemy body, so the two sides can be compared at a glance.
+  - Three frames show the busiest lineups: 1.3 (five Skirmishers), 1.4 (Vanguard mini-boss plus three Outriders), 1.5 (Warden plus two Acolytes against a full squad of five).
+- **Why:**
+  - Tapping any fighter or enemy already opens a popup, so the main screen should not carry the explanation (Tu).
+  - Side by side, the right badge drifted toward Acolyte 2 and the slam read as the Acolyte's.
+- **Replaces:**
+  - A first version drawn the same day, with one line per enemy kind plus a slam and a heal sentence; it was replaced before it was logged.
+  - Not covered: whether a badge is noticed without a legend.
+  - Not covered: the badges are emoji and render differently per phone.
+  - Not covered: the popup for an enemy with a slam or a heal is not drawn yet.
+
 ## [2026-10-11] Tapping a fighter opens a popup; the chain rows leave the round screen
 
 - **Decision:**
