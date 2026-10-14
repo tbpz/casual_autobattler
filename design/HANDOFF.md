@@ -68,6 +68,11 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
    The squad screen (4.1) shows HP only, unchanged. Stale dimmed copies of 1.1 behind the popups and cards still show the old words until they are recopied (call 10b).
    Open point: a first-time player may not know what the heart and sword mean before the first tap; is a one-time word or legend needed on round 1?
 
+**Boss markers (2026-10-14, Tu: the diamonds looked plain).** The round strip at the top of every round-screen frame (1.1, 1.3–1.5, and the copies behind 2.1–2.4 and 3.1–3.9) marks the two mini-bosses (rounds 7, 14) and the boss (round 20) with small skull badges instead of rotated squares.
+   **Boss:** a 22px dark badge with a red ring, a bone-white skull with two red horns and glowing red eyes; its glow pulses on a 2s loop (`bossPulse`). **Mini-boss:** a 14px badge, a smaller plain skull, no horns. A mini-boss still ahead has a dim red ring; the one being fought (the Vanguard on 1.4) has a bright ring and a still glow;
+   a beaten one has a blue ring (the progress fill's colour) and a grey skull with ✕ eyes. 1.4's `MINI-BOSS` text tag also carries the small skull. Drawn as SVG, not emoji, so they look the same on every phone; CSS is in each frame's helmet (`.bm`).
+   **Canvas only:** `render/roundScreen.ts` still draws the old strip, so the canvas is a proposal, not what the game shows. Open point: at 14px a skull is small; check it is readable on a real phone.
+
 ### 2 · Fighter popup — tap a fighter on 1.1 (later, mid-fight too)
 
 **2.1–2.4 FighterPopup** — **proposal, drawn 2026-10-11, not built, awaiting Tu's approval.** Files `FighterPopupBram / Sol / Anvil / Term.dc.html`, each over a dimmed copy of frame 1.1 (copied, not linked). Meant to open from the round screen and, later, mid-fight. Parts, top to bottom: a switcher row of four chips (Bram, Ivy, Sol, then the enemy
@@ -170,7 +175,7 @@ Built 2026-09-30: `render/heroPickShared.ts` (`fatiguePipsHtml`, `FATIGUE_TIER_P
 
 ## Open calls for Tu
 
-1. **Icons.** 🛡 ⚔ ✚ 💥 ⚡ are emoji: fast to mock up, but they render differently per phone/OS. Plain drawn shapes cost more. The stat icons below (heart, sword, plus) are already drawn shapes; the 💥 and ✚ enemy badges on 1.4 and 1.5 are still emoji.
+1. **Icons.** 🛡 ⚔ ✚ 💥 ⚡ are emoji: fast to mock up, but they render differently per phone/OS. Plain drawn shapes cost more. The stat icons below (heart, sword, plus) are already drawn shapes; the 💥 and ✚ enemy badges on 1.4 and 1.5 are still emoji. The boss and mini-boss skulls on the round strip (2026-10-14) are drawn SVG.
 2. ~~Full sentences behind a press~~ — closed 2026-10-11: it was about the held-down TANK band on the old round screen (dropped). The popup (2.1–2.4) replaces it.
 3. **Per-unit damage/speed numbers** were dropped from the old round screen (every unit of a role shares them). `Damage` returned on 1.1 (call 8b); attack speed stays out.
 4. **The bench-heals-faster hint** — answered on 4.1, which states the rule in one line with real numbers. Does the round screen also need it?

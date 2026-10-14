@@ -39,6 +39,17 @@
   @keyframes a2 { 0%, 69.9% { opacity: 0; transform: translate(-50%, 0) scale(0.8); } 71% { opacity: 1; transform: translate(-50%, -4px) scale(1.25); } 86.5% { opacity: 1; transform: translate(-50%, -14px) scale(1); } 92.0%, 100% { opacity: 0; transform: translate(-50%, -18px) scale(1); } }
   @keyframes a2b { 0%, 69.9% { opacity: 0; transform: translate(-50%, 0) scale(0.8); } 71% { opacity: 1; transform: translate(-50%, -4px) scale(1.25); } 86.5% { opacity: 1; transform: translate(-50%, -14px) scale(1); } 92.0%, 100% { opacity: 0; transform: translate(-50%, -18px) scale(1); } }
   @keyframes pulse { from { filter: brightness(1); } to { filter: brightness(1.5); } }
+  /* Round-strip markers (2026-10-14, Tu): skulls instead of diamonds. Mini-bosses at rounds 7 and 14, boss at 20.
+     ahead = bone skull, red ring; now = same plus still red glow; beaten = grey skull with X eyes, blue ring.
+     The boss skull is horned with red eyes and its glow pulses on a 2s loop (bossPulse). Drawn as SVG, not emoji. */
+  .bm { position: absolute; top: 50%; border-radius: 50%; background: #14161c; display: flex; align-items: center; justify-content: center; transform: translate(-50%, -50%); }
+  .bm.mini { width: 14px; height: 14px; border: 1.5px solid rgba(255,93,93,0.55); }
+  .bm.mini svg { width: 10px; height: 10px; }
+  .bm.mini.now { border-color: #ff5d5d; box-shadow: 0 0 6px 1px rgba(255,93,93,0.65); }
+  .bm.mini.done { border-color: #4da6ff; }
+  .bm.boss { width: 22px; height: 22px; border: 1.5px solid #ff5d5d; animation: bossPulse 2s ease-in-out infinite; }
+  .bm.boss svg { width: 18px; height: 18px; }
+  @keyframes bossPulse { 0%, 100% { box-shadow: 0 0 3px 0 rgba(255,60,60,0.5); } 50% { box-shadow: 0 0 10px 3px rgba(255,60,60,0.9); } }
 </style>
 </helmet>
 
@@ -54,9 +65,9 @@
         <div style="font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #e8e8ee; white-space: nowrap;">ROUND 1/20</div>
         <div style="position: relative; flex: 1; height: 6px; border-radius: 3px; background: #2a2e3a;">
           <div style="position: absolute; inset: 0; width: 5%; border-radius: 3px; background: #4da6ff;"></div>
-          <div style="position: absolute; top: 50%; left: 35%; width: 6px; height: 6px; transform: translate(-50%, -50%) rotate(45deg); background: #3a3f4e;"></div>
-          <div style="position: absolute; top: 50%; left: 70%; width: 6px; height: 6px; transform: translate(-50%, -50%) rotate(45deg); background: #3a3f4e;"></div>
-          <div style="position: absolute; top: 50%; left: 100%; width: 7px; height: 7px; transform: translate(-50%, -50%) rotate(45deg); background: #ff5d5d;"></div>
+          <div class="bm mini" style="left: 35%;"><svg viewBox="0 0 24 24" aria-label="Mini-boss"><path d="M12 4.5c-4.2 0-7 2.7-7 6.3 0 2.2 1 3.6 2.4 4.4V19.5h9.2v-4.3c1.4-.8 2.4-2.2 2.4-4.4 0-3.6-2.8-6.3-7-6.3z" fill="#f1ece0"/><circle cx="9" cy="11.2" r="2.1" fill="#14161c"/><circle cx="15" cy="11.2" r="2.1" fill="#14161c"/><path d="M12 13.6l-1.1 2h2.2z" fill="#14161c"/><path d="M10 19.5v-2.3M12 19.5v-2.3M14 19.5v-2.3" stroke="#14161c" stroke-width="0.9"/></svg></div>
+          <div class="bm mini" style="left: 70%;"><svg viewBox="0 0 24 24" aria-label="Mini-boss"><path d="M12 4.5c-4.2 0-7 2.7-7 6.3 0 2.2 1 3.6 2.4 4.4V19.5h9.2v-4.3c1.4-.8 2.4-2.2 2.4-4.4 0-3.6-2.8-6.3-7-6.3z" fill="#f1ece0"/><circle cx="9" cy="11.2" r="2.1" fill="#14161c"/><circle cx="15" cy="11.2" r="2.1" fill="#14161c"/><path d="M12 13.6l-1.1 2h2.2z" fill="#14161c"/><path d="M10 19.5v-2.3M12 19.5v-2.3M14 19.5v-2.3" stroke="#14161c" stroke-width="0.9"/></svg></div>
+          <div class="bm boss" style="left: calc(100% - 7px);"><svg viewBox="0 0 24 24" aria-label="Boss"><path d="M5.6 9C3 8.2 1.8 5.2 2.6 1.6 4.6 3.6 6.6 4.6 8.6 6.4z" fill="#ff5d5d"/><path d="M18.4 9c2.6-.8 3.8-3.8 3-7.4-2 2-4 3-6 4.8z" fill="#ff5d5d"/><path d="M12 4.5c-4.2 0-7 2.7-7 6.3 0 2.2 1 3.6 2.4 4.4V19.5h9.2v-4.3c1.4-.8 2.4-2.2 2.4-4.4 0-3.6-2.8-6.3-7-6.3z" fill="#f1ece0"/><circle cx="9" cy="11.6" r="2.1" fill="#ff2a2a"/><circle cx="15" cy="11.6" r="2.1" fill="#ff2a2a"/><circle cx="9" cy="11.6" r="0.8" fill="#ffd0d0"/><circle cx="15" cy="11.6" r="0.8" fill="#ffd0d0"/><path d="M12 13.6l-1.1 2.1h2.2z" fill="#14161c"/><path d="M10 19.5v-2.3M12 19.5v-2.3M14 19.5v-2.3" stroke="#14161c" stroke-width="0.9"/></svg></div>
         </div>
       </div>
 
