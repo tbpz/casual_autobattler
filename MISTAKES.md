@@ -16,6 +16,21 @@
 
 ---
 
+### [2026-10-14 #1] Said a frozen frame of the fatigue options shows the pose, but the steam was animation-only
+
+- **Said:** On frame 7.1 (canvas version 55) I wrote "the pictures loop; a still frame shows the
+  pose", and told Tu I had checked it in stills.
+- **Actually:** Tu saw no steam and no animation. The steam and the sweat drops had a base
+  `opacity:0` and appeared only inside the animation. The canvas editor turns every CSS animation
+  off while editing (`animation:none!important` for any tool except Interact), so in that view only
+  the squash or the eyes were visible. Only 10 of the 23 artboards are live at once, so far-away
+  frames are frozen too.
+- **Caught by:** Tu asking why he saw no steam or animation.
+- **Why:** I froze the frame at a phase (paused with a negative delay), which still shows steam,
+  instead of with `animation:none`, which is what the editor does. I did not read how the canvas
+  runs a design's animation before building a frame that depends on it.
+- **Tag:** verified a different condition from the one the reader sees
+
 ### [2026-10-11 #2] Said the canvas was updated when it was only edited locally
 
 - **Said:** After moving the "Tap any fighter" hint, I listed the changed files and offered to

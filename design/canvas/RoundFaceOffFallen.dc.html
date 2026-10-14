@@ -1,0 +1,187 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .nm { font-size: 12px; font-weight: 700; color: #e8e8ee; }
+  .tag { font-size: 9px; font-weight: 700; }
+  .hpbar { width: 54px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden; }
+  .hpbar > div { height: 100%; background: #4da6ff; }
+  .stat { display: flex; justify-content: center; align-items: center; gap: 6px; font-size: 10px; color: #c7cad6; white-space: nowrap; line-height: 1.3; }
+  .st { display: inline-flex; align-items: center; gap: 2px; }
+  .st svg { width: 10px; height: 10px; flex: none; }
+  .st.heal { color: #6ee7a0; }
+  .lab { font-size: 11px; font-weight: 700; color: #8a8fa3; margin: 0 0 8px 16px; letter-spacing: 0.04em; }
+  .zone { background: rgba(77,166,255,0.07); border: 1px solid rgba(77,166,255,0.28); border-radius: 12px; padding: 10px 12px 12px; }
+  .bu { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .bc { width: 22px; height: 22px; border-radius: 50%; opacity: 0.6; }
+  .bn { font-size: 9.5px; font-weight: 600; color: #8a8fa3; max-width: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; }
+  .bb { width: 22px; height: 3px; border-radius: 2px; background: #2a2e3a; overflow: hidden; }
+  .bb > div { height: 100%; background: #4da6ff; opacity: 0.6; }
+  .shelf { margin-top: 12px; padding-top: 8px; border-top: 1px dashed #3a3f4e; }
+  .shelfhead { display: flex; align-items: center; margin-bottom: 6px; }
+  .shelfname { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: #8a8fa3; }
+  .change { margin-left: auto; font-size: 11px; font-weight: 700; color: #4da6ff; }
+  .fallen { opacity: 0.45; }
+  .fx { position: absolute; top: -3px; right: -3px; width: 11px; height: 11px; border-radius: 50%; background: #e2564b; border: 2px solid #1d2029; display: flex; align-items: center; justify-content: center; font-size: 6px; color: #14161c; font-weight: 800; }
+  /* the empty slot: a dashed squad-blue ring and a plus, so it reads as "room on your side", not as a dead unit */
+  .slot-ring { width: 30px; height: 30px; border-radius: 50%; border: 1.5px dashed rgba(77,166,255,0.7); display: flex; align-items: center; justify-content: center; color: #4da6ff; font-size: 16px; font-weight: 600; line-height: 1; }
+  .slot-name { font-size: 12px; font-weight: 700; color: #8a8fa3; }
+  .slot-hint { font-size: 9px; font-weight: 600; color: #4da6ff; opacity: 0.85; }
+  /* squad screen rows */
+  .row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #20232c; border: 1px solid #3a3f4e; }
+  .row .av { flex: none; width: 34px; height: 34px; border-radius: 50%; box-shadow: 0 0 0 1px #1d2029; }
+  .row .nmx { font-size: 12px; font-weight: 700; color: #e8e8ee; }
+  .row .rl { font-size: 10px; font-weight: 700; }
+  .row .tier { color: #8a8fa3; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400; }
+  .row .hpw { flex: none; width: 112px; }
+  .row .hpb { width: 100%; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden; }
+  .row .hpt { font-size: 10px; color: #c7cad6; margin-top: 3px; }
+  .row.empty { border: 1.5px dashed #4da6ff; box-shadow: 0 0 10px rgba(77,166,255,0.35); background: rgba(77,166,255,0.06); }
+  .row.tap { border-color: #4da6ff; }
+</style>
+</helmet>
+
+<!-- Frame 1.5: a squad member died last round (proposal, 2026-10-14, Tu: the canvas had no screen for a fielded unit that is dead at the start of the next round).
+     Tu's rulings: (1) the slot stays EMPTY, a placeholder says it is fillable from the bench, and the Fight button is disabled with a line telling the player to pick from the bench.
+     This REVERSES DECISIONS 2026-10-02 "The pick screen keeps last round's squad" (an empty slot is filled automatically, carryOverFieldPick in sim/roster.ts) for this one case, and it is the first
+     place on the round screen where Fight is not accept-default. Not logged: waits for Tu's approval of this frame.
+     (2) Fill path: tap the empty slot (or the shelf, or the blue "Change squad ›") and land on the squad screen (frame 4.1). The round screen's squad stays a read-only preview.
+     Left: the round screen, only the YOUR SQUAD zone as on 1.2 (Pack) (goal line, hint and ENEMY zone are frame 1.1's). Right: the squad screen with the empty slot.
+     Scenario (made up): 4 slots. Last round Bram (Tank), Ivy (Damage), Sol (Healer) and Rex (Damage) fought and Rex fell. Bench: Kit (Damage, fresh, alive), Wren (fell earlier), Rex (fell last round).
+     On the squad screen, with an empty slot the fill is ONE tap on a bench unit (4.1's swap is two taps: bench unit, then who it replaces); there is no one to replace.
+     Done is greyed until the slot is filled, as on 4.1's mid-swap phone.
+     Numbers from the code: Tank 190, Damage 80, Healer 100 (ROLE_POOL); slots from progress.slots (maxSlots 5). Names, HP and fatigue are made up.
+     Role colours as on frame 1.1: Tank #ffb454, Damage #b98cff, Healer #6ee7a0. Squad blue #4da6ff. -->
+<div style="background: #14161c; width: 860px; padding: 24px 0 24px; display: flex; gap: 32px; justify-content: center; align-items: flex-start;">
+
+  <!-- LEFT: round screen -->
+  <div style="width: 390px; flex: none;">
+    <div class="lab">ROUND SCREEN: REX FELL LAST ROUND</div>
+    <div style="background: #14161c; padding: 0 16px 16px;">
+      <div style="background: #1d2029; border-radius: 12px; padding: 16px;">
+        <div class="zone">
+          <div style="margin-bottom: 10px; display: flex; align-items: center;"><span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #4da6ff; color: #0c1420; border-radius: 6px; padding: 2px 7px;">YOUR SQUAD</span><span style="margin-left: auto; font-size: 10px; color: #8a8fa3;">3 of 4</span></div>
+          <div style="display: flex; justify-content: center; align-items: flex-start; gap: 8px;">
+            <div class="col" style="width: 76px; margin-top: 40px;">
+              <div style="position: relative; width: 30px; height: 30px; border-radius: 50%; background: #b98cff; opacity: 0.85;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e29-1"><ellipse cx="30" cy="47" rx="16.5" ry="18"/></clipPath><ellipse cx="30" cy="47" rx="16.5" ry="18" fill="#fff1de" stroke="#14161c" stroke-width="2.67" stroke-opacity="0.5"/><g clip-path="url(#e29-1)"><circle cx="30" cy="49" r="6.2" fill="#14161c"/></g><g clip-path="url(#e29-1)"><polygon points="11.5,27 48.5,27 48.5,39.80 11.5,39.80" fill="#533f73"/><line x1="11.5" y1="39.80" x2="48.5" y2="39.80" stroke="#14161c" stroke-width="4.00"/></g><clipPath id="e291"><ellipse cx="70" cy="47" rx="16.5" ry="18"/></clipPath><ellipse cx="70" cy="47" rx="16.5" ry="18" fill="#fff1de" stroke="#14161c" stroke-width="2.67" stroke-opacity="0.5"/><g clip-path="url(#e291)"><circle cx="70" cy="49" r="6.2" fill="#14161c"/></g><g clip-path="url(#e291)"><polygon points="51.5,27 88.5,27 88.5,39.80 51.5,39.80" fill="#533f73"/><line x1="51.5" y1="39.80" x2="88.5" y2="39.80" stroke="#14161c" stroke-width="4.00"/></g></svg></div>
+              <div class="nm">Ivy</div><div class="tag" style="color: #b98cff;">Damage</div>
+              <div class="hpbar"><div style="width: 80%;"></div></div>
+              <div class="stat"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>64</span><span class="st dmg"><svg viewBox="0 0 12 12" aria-label="Damage"><path d="M4.4 7.6 10.6 1.4M2.8 6.2l3 3M3.6 8.4 1.6 10.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>8</span></div>
+            </div>
+            <div class="col" style="width: 76px;">
+              <div style="position: relative; width: 46px; height: 46px; border-radius: 50%; background: #ffb454;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e30-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e30-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e301"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e301)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
+              <div class="nm">Bram</div><div class="tag" style="color: #ffb454;">Tank</div>
+              <div class="hpbar"><div style="width: 100%;"></div></div>
+              <div class="stat"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>190</span><span class="st dmg"><svg viewBox="0 0 12 12" aria-label="Damage"><path d="M4.4 7.6 10.6 1.4M2.8 6.2l3 3M3.6 8.4 1.6 10.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>7</span></div>
+            </div>
+            <div class="col" style="width: 76px; margin-top: 40px;">
+              <div style="position: relative; width: 30px; height: 30px; border-radius: 50%; background: #6ee7a0; opacity: 0.85;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e31-1"><ellipse cx="30" cy="47" rx="16.5" ry="18"/></clipPath><ellipse cx="30" cy="47" rx="16.5" ry="18" fill="#ffffff" stroke="#14161c" stroke-width="2.67" stroke-opacity="0.5"/><g clip-path="url(#e31-1)"><circle cx="30" cy="49" r="6.6" fill="#14161c"/></g><clipPath id="e311"><ellipse cx="70" cy="47" rx="16.5" ry="18"/></clipPath><ellipse cx="70" cy="47" rx="16.5" ry="18" fill="#ffffff" stroke="#14161c" stroke-width="2.67" stroke-opacity="0.5"/><g clip-path="url(#e311)"><circle cx="70" cy="49" r="6.6" fill="#14161c"/></g></svg></div>
+              <div class="nm">Sol</div><div class="tag" style="color: #6ee7a0;">Healer</div>
+              <div class="hpbar"><div style="width: 100%;"></div></div>
+              <div class="stat"><span class="st"><svg viewBox="0 0 12 12" aria-label="HP"><path d="M6 10.6C6 10.6 1.2 7.6 1.2 4.3 1.2 2.7 2.4 1.6 3.8 1.6c.9 0 1.7.5 2.2 1.3.5-.8 1.3-1.3 2.2-1.3 1.4 0 2.6 1.1 2.6 2.7 0 3.3-4.8 6.3-4.8 6.3z" fill="currentColor"/></svg>100</span><span class="st heal"><svg viewBox="0 0 12 12" aria-label="Heal"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>6</span></div>
+            </div>
+            <!-- Rex's place: the empty slot -->
+            <div class="col" style="width: 76px; margin-top: 40px;">
+              <div class="slot-ring">+</div>
+              <div class="slot-name">Empty</div>
+              <div class="slot-hint">Tap to fill</div>
+            </div>
+          </div>
+
+          <div class="shelf">
+            <div class="shelfhead"><span class="shelfname">BENCH</span><span class="change">Change squad ›</span></div>
+            <div style="display: flex; gap: 14px; padding-left: 2px;">
+              <div class="bu"><div class="bc" style="background: #b98cff;"></div><div class="bn">Kit</div><div class="bb"><div style="width: 100%;"></div></div></div>
+              <div class="bu fallen"><div style="position: relative;"><div class="bc" style="background: #5c5f6b; opacity: 1;"></div><div class="fx">✕</div></div><div class="bn">Wren</div><div class="bb" style="background: transparent;"></div></div>
+              <div class="bu fallen"><div style="position: relative;"><div class="bc" style="background: #5c5f6b; opacity: 1;"></div><div class="fx">✕</div></div><div class="bn">Rex</div><div class="bb" style="background: transparent;"></div></div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top: 12px; font-size: 11px; line-height: 1.4; color: #8a8fa3; text-align: center;">Rex fell last round. Fill the empty slot to fight.</div>
+        <button disabled style="margin-top: 8px; width: 100%; font: inherit; font-weight: 700; background: #2a2e3a; color: #8a8fa3; border: none; border-radius: 8px; padding: 13px; font-size: 15px; cursor: not-allowed;">Pick 1 from the bench</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: squad screen -->
+  <div style="width: 390px; flex: none;">
+    <div class="lab">SQUAD SCREEN: ONE EMPTY SLOT</div>
+    <div style="background: #14161c; padding: 0 16px 16px;">
+      <div style="background: #1d2029; border-radius: 12px; padding: 16px;">
+        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+          <span style="font-size: 12px; font-weight: 700; color: #4da6ff;">‹ Round 8</span>
+          <span style="margin: 0 auto; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; color: #e8e8ee;">YOUR SQUAD</span>
+          <span style="font-size: 11px; color: #8a8fa3;">6 units</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #4da6ff; color: #0c1420; border-radius: 6px; padding: 2px 7px;">FIGHTING</span>
+          <span style="font-size: 11px; color: #8a8fa3;">3 of 4</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="row">
+            <div class="av" style="background: #ffb454; position: relative;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e32-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e32-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e321"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e321)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
+            <div style="flex: 1; min-width: 0;"><div class="nmx">Bram</div><div class="rl" style="color: #ffb454;">Tank <span class="tier">· fresh</span></div></div>
+            <div class="hpw"><div class="hpb"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div class="hpt">HP 190</div></div>
+          </div>
+          <div class="row">
+            <div class="av" style="background: #b98cff; position: relative;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e33-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="63.5" rx="11" ry="3.2" fill="#14161c" opacity="0.25"/><ellipse cx="33" cy="45" rx="13" ry="15" fill="#fff4e4" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e33-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><g clip-path="url(#e33-1)"><polygon points="18,28 48,28 48,39.00 18,39.00" fill="#6f5499"/><line x1="18" y1="39.00" x2="48" y2="39.00" stroke="#14161c" stroke-width="1.80"/></g><clipPath id="e331"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="63.5" rx="11" ry="3.2" fill="#14161c" opacity="0.25"/><ellipse cx="67" cy="45" rx="13" ry="15" fill="#fff4e4" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e331)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g><g clip-path="url(#e331)"><polygon points="52,28 82,28 82,39.00 52,39.00" fill="#6f5499"/><line x1="52" y1="39.00" x2="82" y2="39.00" stroke="#14161c" stroke-width="1.80"/></g></svg></div>
+            <div style="flex: 1; min-width: 0;"><div class="nmx">Ivy</div><div class="rl" style="color: #b98cff;">Damage <span class="tier" style="color:#ffcf4d;">· worn</span></div></div>
+            <div class="hpw"><div class="hpb"><div style="width: 80%; height: 100%; background: #4da6ff;"></div></div><div class="hpt">HP 64/80</div></div>
+          </div>
+          <div class="row">
+            <div class="av" style="background: #6ee7a0; position: relative;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e34-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e34-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e341"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e341)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
+            <div style="flex: 1; min-width: 0;"><div class="nmx">Sol</div><div class="rl" style="color: #6ee7a0;">Healer <span class="tier">· fresh</span></div></div>
+            <div class="hpw"><div class="hpb"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div class="hpt">HP 100</div></div>
+          </div>
+          <!-- the empty slot: glows so the eye lands here, as the fighting rows do on 4.1's mid-swap phone -->
+          <div class="row empty">
+            <div class="slot-ring" style="flex: none; width: 34px; height: 34px; font-size: 18px;">+</div>
+            <div style="flex: 1; min-width: 0;"><div class="nmx" style="color: #c7cad6;">Empty slot</div><div style="font-size: 10px; color: #4da6ff; font-weight: 700;">Tap a bench unit to put it here</div></div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; margin: 16px 0 4px;">
+          <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.06em; background: #3a3f4e; color: #e8e8ee; border-radius: 6px; padding: 2px 7px;">BENCH</span>
+          <span style="font-size: 11px; color: #8a8fa3;">3 units</span>
+        </div>
+        <div style="font-size: 10.5px; line-height: 1.4; color: #8a8fa3; margin-bottom: 8px;">Each round, a unit on the bench heals 60% of its HP and loses 20 fatigue. A fighting unit heals 40%.</div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="row tap">
+            <div class="av" style="background: #b98cff; position: relative;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e35-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e35-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e351"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e351)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
+            <div style="flex: 1; min-width: 0;"><div class="nmx">Kit</div><div class="rl" style="color: #b98cff;">Damage <span class="tier">· fresh</span></div></div>
+            <div class="hpw"><div class="hpb"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div><div class="hpt">HP 80</div></div>
+          </div>
+          <div class="row" style="opacity: 0.45;">
+            <div style="position: relative; flex: none; width: 34px; height: 34px;">
+              <div style="width: 34px; height: 34px; border-radius: 50%; background: #5c5f6b;"></div>
+              <div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #e2564b; border: 2px solid #20232c; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #14161c; font-weight: 800;">✕</div>
+            </div>
+            <div style="flex: 1; min-width: 0;"><div class="nmx">Rex</div><div class="rl" style="color: #b98cff;">Damage <span class="tier">· fallen</span></div></div>
+          </div>
+          <div class="row" style="opacity: 0.45;">
+            <div style="position: relative; flex: none; width: 34px; height: 34px;">
+              <div style="width: 34px; height: 34px; border-radius: 50%; background: #5c5f6b;"></div>
+              <div style="position: absolute; top: -4px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #e2564b; border: 2px solid #20232c; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #14161c; font-weight: 800;">✕</div>
+            </div>
+            <div style="flex: 1; min-width: 0;"><div class="nmx">Wren</div><div class="rl" style="color: #ffb454;">Tank <span class="tier">· fallen</span></div></div>
+          </div>
+        </div>
+
+        <button disabled style="margin-top: 16px; width: 100%; font: inherit; font-weight: 700; background: #2a2e3a; color: #8a8fa3; border: none; border-radius: 8px; padding: 13px; font-size: 15px; cursor: not-allowed;">Fill 1 empty slot</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

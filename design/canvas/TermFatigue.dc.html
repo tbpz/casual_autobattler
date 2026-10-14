@@ -18,27 +18,13 @@
   /* Tappable terms get a dotted underline in their own colour (2026-10-11, Tu). Terms without .tap are not tappable here. */
   .term.tap { text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
 
-  /* ---- Term card: Fatigue (2026-10-11). Loop 5.2s. Fatigue 0, 25, 50, 80 (tier floors fatigueTierFloors 25/50/80), then a bench round takes 20 off (fatigueBenchRest). Backfire odds are backfireChanceFor at each value: 3%, 7%, 12%, 23%, then 15% at 60; chain hits are fatigueMagnitudeMult: +0%, +9%, +18%, +28%, then +21% (fatigueMagnitudeBonus 0.35). Pip colours are the tier colours. ---- */
+  /* ---- Term card: Fatigue (rebuilt 2026-10-15). A still row of one unit at fatigue 0, 25, 50, 80 (fatigueTierFloors), faces from design/tools/faces.js: the lids droop and the whites redden. Backfire odds are backfireChanceFor at each value (3, 7, 12, 23%); chain hits are fatigueMagnitudeMult (+0, +9, +18, +28%, fatigueMagnitudeBonus 0.35). No loop: the canvas editor freezes animation and the old five-phase loop overlapped when frozen. ---- */
   .scene { --T: 5.2s; }
   .term.frozen { color: #7ec8ff; }
   .term.burn { color: #ff8a3d; }
   @property --frac { syntax: '<number>'; inherits: false; initial-value: 0; }
   .ring { position: absolute; border-radius: 50%; inset: -4px; background: conic-gradient(var(--rc, #e8e8ee) calc(var(--frac) * 360deg), #2a2e3a 0deg);
-          -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), white calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 4px), white calc(100% - 3px)); }
-  @keyframes ph0 { 0%, 17.9% { opacity: 1; } 18%, 100% { opacity: 0; } }
-  @keyframes ph1 { 0%, 17.9% { opacity: 0; } 18%, 35.9% { opacity: 1; } 36%, 100% { opacity: 0; } }
-  @keyframes ph2 { 0%, 35.9% { opacity: 0; } 36%, 53.9% { opacity: 1; } 54%, 100% { opacity: 0; } }
-  @keyframes ph3 { 0%, 53.9% { opacity: 0; } 54%, 71.9% { opacity: 1; } 72%, 100% { opacity: 0; } }
-  @keyframes ph4 { 0%, 71.9% { opacity: 0; } 72%, 100% { opacity: 1; } }
-  @keyframes pip1 { 0%, 17.9% { background: #8a8fa3; } 18%, 35.9% { background: #ffcf4d; } 36%, 53.9% { background: #e8913c; } 54%, 71.9% { background: #ff4d4d; } 72%, 100% { background: #e8913c; } }
-  @keyframes pip2 { 0%, 17.9% { background: #2a2e3a; } 18%, 35.9% { background: #ffcf4d; } 36%, 53.9% { background: #e8913c; } 54%, 71.9% { background: #ff4d4d; } 72%, 100% { background: #e8913c; } }
-  @keyframes pip3 { 0%, 17.9% { background: #2a2e3a; } 18%, 35.9% { background: #2a2e3a; } 36%, 53.9% { background: #e8913c; } 54%, 71.9% { background: #ff4d4d; } 72%, 100% { background: #e8913c; } }
-  @keyframes pip4 { 0%, 17.9% { background: #2a2e3a; } 18%, 35.9% { background: #2a2e3a; } 36%, 53.9% { background: #2a2e3a; } 54%, 71.9% { background: #ff4d4d; } 72%, 100% { background: #2a2e3a; } }
-  @keyframes bench { 0%, 71.9% { opacity: 0; } 72%, 100% { opacity: 1; } }
-  @keyframes rest { 0%, 72.9% { opacity: 0; transform: translate(-50%, 0) scale(0.8); } 74% { opacity: 1; transform: translate(-50%, -4px) scale(1.25); } 88.0% { opacity: 1; transform: translate(-50%, -14px) scale(1); } 93.0%, 100% { opacity: 0; transform: translate(-50%, -18px) scale(1); } }
-  @keyframes cap1 { 0%, 71.9% { opacity: 1; } 72%, 100% { opacity: 0; } }
-  @keyframes cap2 { 0%, 71.9% { opacity: 0; } 72%, 100% { opacity: 1; } }
-  @keyframes slide { 0%, 71.9% { transform: translateX(0); } 76%, 100% { transform: translateX(-18px); } }
+          -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), white calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 4px), white calc(100% - 3px)); }
   @keyframes pulse { from { filter: brightness(1); } to { filter: brightness(1.5); } }
   /* Round-strip markers (2026-10-14, Tu): skulls instead of diamonds. Mini-bosses at rounds 7 and 14, boss at 20.
      ahead = bone skull, red ring; now = same plus still red glow; beaten = grey skull with X eyes, blue ring.
@@ -86,7 +72,7 @@
         <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
           <div style="position: relative; width: 64px; height: 64px;">
             <div style="position: absolute; top: 55px; left: 50%; width: 52px; height: 7px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
-            <div style="position: relative; width: 64px; height: 64px; border-radius: 50%; background: #ff5d5d;"></div>
+            <div style="position: relative; width: 64px; height: 64px; border-radius: 50%; background: #ff5d5d;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="v641"><path d="M13.00,42.00 Q28.00,30.00 47.00,53.00 Q32.00,59.00 13.00,42.00Z"/></clipPath><path d="M13.00,42.00 Q28.00,30.00 47.00,53.00 Q32.00,59.00 13.00,42.00Z" fill="#14161c"/><g clip-path="url(#v641)"><ellipse cx="33.00" cy="48.50" rx="8.60" ry="11.50" fill="#ffe36a"/><ellipse cx="33.00" cy="47.00" rx="4.60" ry="6.50" fill="#fff6c8"/><ellipse cx="33.00" cy="48.50" rx="1.5" ry="7.00" fill="#14161c"/></g><clipPath id="v64-1"><path d="M87.00,42.00 Q72.00,30.00 53.00,53.00 Q68.00,59.00 87.00,42.00Z"/></clipPath><path d="M87.00,42.00 Q72.00,30.00 53.00,53.00 Q68.00,59.00 87.00,42.00Z" fill="#14161c"/><g clip-path="url(#v64-1)"><ellipse cx="67.00" cy="48.50" rx="8.60" ry="11.50" fill="#ffe36a"/><ellipse cx="67.00" cy="47.00" rx="4.60" ry="6.50" fill="#fff6c8"/><ellipse cx="67.00" cy="48.50" rx="1.5" ry="7.00" fill="#14161c"/></g></svg></div>
           </div>
           <div style="width: 64px; height: 6px; border-radius: 3px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #ff5d5d;"></div></div>
           <div style="display: flex; gap: 6px; margin-top: 2px;">
@@ -118,7 +104,7 @@
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px; margin-top: 48px;">
             <div style="position: relative; width: 33px; height: 33px;">
               <div style="position: absolute; top: 28px; left: 50%; width: 27px; height: 5px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
-              <div style="position: relative; width: 33px; height: 33px; border-radius: 50%; background: #b98cff; opacity: 0.85;"></div>
+              <div style="position: relative; width: 33px; height: 33px; border-radius: 50%; background: #b98cff; opacity: 0.85;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e65-1"><ellipse cx="30" cy="47" rx="16.5" ry="18"/></clipPath><ellipse cx="30" cy="47" rx="16.5" ry="18" fill="#ffffff" stroke="#14161c" stroke-width="2.42" stroke-opacity="0.5"/><g clip-path="url(#e65-1)"><circle cx="30" cy="49" r="6.6" fill="#14161c"/></g><clipPath id="e651"><ellipse cx="70" cy="47" rx="16.5" ry="18"/></clipPath><ellipse cx="70" cy="47" rx="16.5" ry="18" fill="#ffffff" stroke="#14161c" stroke-width="2.42" stroke-opacity="0.5"/><g clip-path="url(#e651)"><circle cx="70" cy="49" r="6.6" fill="#14161c"/></g></svg></div>
             </div>
             <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Ivy</div>
             <div style="font-size: 9px; font-weight: 700; color: #b98cff;">Damage</div>
@@ -129,7 +115,7 @@
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px;">
             <div style="position: relative; width: 46px; height: 46px;">
               <div style="position: absolute; top: 39px; left: 50%; width: 38px; height: 6px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
-              <div style="position: relative; width: 46px; height: 46px; border-radius: 50%; background: #ffb454;"></div>
+              <div style="position: relative; width: 46px; height: 46px; border-radius: 50%; background: #ffb454;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e66-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e66-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e661"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e661)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
             </div>
             <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Bram</div>
             <div style="font-size: 9px; font-weight: 700; color: #ffb454;">Tank</div>
@@ -140,7 +126,7 @@
           <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 82px; margin-top: 48px;">
             <div style="position: relative; width: 33px; height: 33px;">
               <div style="position: absolute; top: 28px; left: 50%; width: 27px; height: 5px; transform: translateX(-50%); border-radius: 50%; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
-              <div style="position: relative; width: 33px; height: 33px; border-radius: 50%; background: #6ee7a0; opacity: 0.85;"></div>
+              <div style="position: relative; width: 33px; height: 33px; border-radius: 50%; background: #6ee7a0; opacity: 0.85;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e67-1"><ellipse cx="30" cy="47" rx="16.5" ry="18"/></clipPath><ellipse cx="30" cy="47" rx="16.5" ry="18" fill="#ffffff" stroke="#14161c" stroke-width="2.42" stroke-opacity="0.5"/><g clip-path="url(#e67-1)"><circle cx="30" cy="49" r="6.6" fill="#14161c"/></g><clipPath id="e671"><ellipse cx="70" cy="47" rx="16.5" ry="18"/></clipPath><ellipse cx="70" cy="47" rx="16.5" ry="18" fill="#ffffff" stroke="#14161c" stroke-width="2.42" stroke-opacity="0.5"/><g clip-path="url(#e671)"><circle cx="70" cy="49" r="6.6" fill="#14161c"/></g></svg></div>
             </div>
             <div style="font-size: 12px; font-weight: 700; color: #e8e8ee;">Sol</div>
             <div style="font-size: 9px; font-weight: 700; color: #6ee7a0;">Healer</div>
@@ -194,51 +180,62 @@
 
     <!-- the scene: enemy on top, the squad below, ranks as the fight screen draws them -->
     <div class="scene" style="position: relative; width: 322px; height: 210px; margin-top: 26px; background: #14161c; border: 1px solid #2a2e3a; border-radius: 10px; overflow: hidden;">
-
-      <!-- one unit across fights: fatigue 0, 25, 50, 80 (the tier floors), then a bench round takes 20 off (80 to 60) -->
-      <div style="position: absolute; left: 0; right: 0; top: 12px; text-align: center; font-size: 9px; font-weight: 700; color: #8a8fa3; letter-spacing: 0.05em; animation: cap1 var(--T) linear infinite;">FIGHTS GO BY…</div>
-      <div style="position: absolute; left: 0; right: 0; top: 12px; text-align: center; font-size: 9px; font-weight: 700; color: #6ee7a0; letter-spacing: 0.05em; animation: cap2 var(--T) linear infinite;">A ROUND ON THE BENCH</div>
-      <div style="position: absolute; left: 56px; top: 50px; width: 110px; height: 120px; animation: slide var(--T) linear infinite;">
-        <div style="position: absolute; left: 30px; top: 0; width: 44px; height: 44px;">
-          <div style="position: absolute; border-radius: 50%; top: 38px; left: 6px; width: 32px; height: 6px; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
-          <div style="position: absolute; inset: 0; border-radius: 50%; background: #b98cff;"></div>
+      <!-- one unit across fights: fatigue 0, 25, 50, 80 (the tier floors), drawn as a still row so it reads with animation off -->
+      <div style="position: absolute; left: 0; right: 0; top: 12px; text-align: center; font-size: 9px; font-weight: 700; color: #8a8fa3; letter-spacing: 0.05em;">ONE UNIT, FIGHT AFTER FIGHT</div>
+      <div style="position: absolute; left: 6px; top: 0; width: 76px; height: 210px;">
+        <div style="position: absolute; left: 18px; top: 36px; width: 40px; height: 40px;">
+          <div style="position: absolute; border-radius: 50%; top: 35px; left: 4px; width: 32px; height: 5px; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+          <div style="position: absolute; inset: 0; border-radius: 50%; background: #b98cff;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e0-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e0-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e01"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e01)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
         </div>
-        <div style="position: absolute; left: 80px; top: 6px; display: flex; flex-direction: column; gap: 2px;"><span style="width: 9px; height: 5px; border-radius: 1px; border: 1px solid #3a3f4e; animation: pip4 var(--T) linear infinite;"></span><span style="width: 9px; height: 5px; border-radius: 1px; border: 1px solid #3a3f4e; animation: pip3 var(--T) linear infinite;"></span><span style="width: 9px; height: 5px; border-radius: 1px; border: 1px solid #3a3f4e; animation: pip2 var(--T) linear infinite;"></span><span style="width: 9px; height: 5px; border-radius: 1px; border: 1px solid #3a3f4e; animation: pip1 var(--T) linear infinite;"></span></div>
-        <div style="position: absolute; left: 0; top: 52px; width: 104px; text-align: center; font-size: 12px; font-weight: 700; color: #e8e8ee;">Ivy</div>
-        <div style="position: absolute; left: 0; top: 70px; width: 104px; text-align: center; font-size: 11px; font-weight: 800; color: #8a8fa3; animation: ph0 var(--T) linear infinite;">fresh</div>
-        <div style="position: absolute; left: 0; top: 70px; width: 104px; text-align: center; font-size: 11px; font-weight: 800; color: #ffcf4d; animation: ph1 var(--T) linear infinite;">worn</div>
-        <div style="position: absolute; left: 0; top: 70px; width: 104px; text-align: center; font-size: 11px; font-weight: 800; color: #e8913c; animation: ph2 var(--T) linear infinite;">frayed</div>
-        <div style="position: absolute; left: 0; top: 70px; width: 104px; text-align: center; font-size: 11px; font-weight: 800; color: #ff4d4d; animation: ph3 var(--T) linear infinite;">breaking</div>
-        <div style="position: absolute; left: 0; top: 70px; width: 104px; text-align: center; font-size: 11px; font-weight: 800; color: #e8913c; animation: ph4 var(--T) linear infinite;">frayed</div>
-        <div style="position: absolute; left: 22px; top: 92px; width: 60px; text-align: center; font-size: 9px; font-weight: 800; letter-spacing: 0.06em; color: #14161c; background: #6ee7a0; border-radius: 6px; padding: 1px 0; animation: bench var(--T) linear infinite;">BENCH</div>
+        <div style="position: absolute; left: 0; top: 86px; width: 76px; text-align: center; font-size: 11px; font-weight: 800; color: #8a8fa3;">fresh</div>
+        <div style="position: absolute; left: 0; top: 108px; width: 76px; text-align: center; font-size: 8px; font-weight: 700; color: #8a8fa3; letter-spacing: 0.04em;">CHAIN HITS</div>
+        <div style="position: absolute; left: 0; top: 118px; width: 76px; text-align: center; font-size: 17px; font-weight: 800; color: #ffcf4d;">+0%</div>
+        <div style="position: absolute; left: 0; top: 146px; width: 76px; text-align: center; font-size: 8px; font-weight: 700; color: #8a8fa3; letter-spacing: 0.04em;">BACKFIRE</div>
+        <div style="position: absolute; left: 0; top: 156px; width: 76px; text-align: center; font-size: 17px; font-weight: 800; color: #ff4d4d;">3%</div>
       </div>
-      <div style="position: absolute; left: 160px; top: 146px; animation: rest var(--T) linear infinite;"><div style="font-size: 11px; font-weight: 800; color: #6ee7a0; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.6);">−20 fatigue</div></div>
-      <div style="position: absolute; left: 186px; top: 58px; width: 116px;">
-        <div style="font-size: 9px; font-weight: 700; color: #8a8fa3; letter-spacing: 0.04em;">CHAIN HITS</div>
-        <div style="position: absolute; top: 12px; font-size: 18px; font-weight: 800; color: #ffcf4d; animation: ph0 var(--T) linear infinite;">+0%</div>
-        <div style="position: absolute; top: 12px; font-size: 18px; font-weight: 800; color: #ffcf4d; animation: ph1 var(--T) linear infinite;">+9%</div>
-        <div style="position: absolute; top: 12px; font-size: 18px; font-weight: 800; color: #ffcf4d; animation: ph2 var(--T) linear infinite;">+18%</div>
-        <div style="position: absolute; top: 12px; font-size: 18px; font-weight: 800; color: #ffcf4d; animation: ph3 var(--T) linear infinite;">+28%</div>
-        <div style="position: absolute; top: 12px; font-size: 18px; font-weight: 800; color: #ffcf4d; animation: ph4 var(--T) linear infinite;">+21%</div>
-        <div style="position: absolute; top: 46px; font-size: 9px; font-weight: 700; color: #8a8fa3; letter-spacing: 0.04em;">BACKFIRE CHANCE</div>
-        <div style="position: absolute; top: 58px; font-size: 18px; font-weight: 800; color: #ff4d4d; animation: ph0 var(--T) linear infinite;">3%</div>
-        <div style="position: absolute; top: 58px; font-size: 18px; font-weight: 800; color: #ff4d4d; animation: ph1 var(--T) linear infinite;">7%</div>
-        <div style="position: absolute; top: 58px; font-size: 18px; font-weight: 800; color: #ff4d4d; animation: ph2 var(--T) linear infinite;">12%</div>
-        <div style="position: absolute; top: 58px; font-size: 18px; font-weight: 800; color: #ff4d4d; animation: ph3 var(--T) linear infinite;">23%</div>
-        <div style="position: absolute; top: 58px; font-size: 18px; font-weight: 800; color: #ff4d4d; animation: ph4 var(--T) linear infinite;">15%</div>
+      <div style="position: absolute; left: 84px; top: 0; width: 76px; height: 210px;">
+        <div style="position: absolute; left: 18px; top: 36px; width: 40px; height: 40px;">
+          <div style="position: absolute; border-radius: 50%; top: 35px; left: 4px; width: 32px; height: 5px; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+          <div style="position: absolute; inset: 0; border-radius: 50%; background: #b98cff;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e1-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="63.5" rx="11" ry="3.2" fill="#14161c" opacity="0.25"/><ellipse cx="33" cy="45" rx="13" ry="15" fill="#fff4e4" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e1-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><g clip-path="url(#e1-1)"><polygon points="18,28 48,28 48,39.00 18,39.00" fill="#6f5499"/><line x1="18" y1="39.00" x2="48" y2="39.00" stroke="#14161c" stroke-width="1.80"/></g><clipPath id="e11"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="63.5" rx="11" ry="3.2" fill="#14161c" opacity="0.25"/><ellipse cx="67" cy="45" rx="13" ry="15" fill="#fff4e4" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e11)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g><g clip-path="url(#e11)"><polygon points="52,28 82,28 82,39.00 52,39.00" fill="#6f5499"/><line x1="52" y1="39.00" x2="82" y2="39.00" stroke="#14161c" stroke-width="1.80"/></g></svg></div>
+        </div>
+        <div style="position: absolute; left: 0; top: 86px; width: 76px; text-align: center; font-size: 11px; font-weight: 800; color: #ffcf4d;">worn</div>
+        <div style="position: absolute; left: 0; top: 108px; width: 76px; text-align: center; font-size: 8px; font-weight: 700; color: #8a8fa3; letter-spacing: 0.04em;">CHAIN HITS</div>
+        <div style="position: absolute; left: 0; top: 118px; width: 76px; text-align: center; font-size: 17px; font-weight: 800; color: #ffcf4d;">+9%</div>
+        <div style="position: absolute; left: 0; top: 146px; width: 76px; text-align: center; font-size: 8px; font-weight: 700; color: #8a8fa3; letter-spacing: 0.04em;">BACKFIRE</div>
+        <div style="position: absolute; left: 0; top: 156px; width: 76px; text-align: center; font-size: 17px; font-weight: 800; color: #ff4d4d;">7%</div>
       </div>
-
-      <!-- replay -->
-      <div style="position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: rgba(42,46,58,0.9); color: #c7cad6; display: flex; align-items: center; justify-content: center; font-size: 13px;">↻</div>
+      <div style="position: absolute; left: 162px; top: 0; width: 76px; height: 210px;">
+        <div style="position: absolute; left: 18px; top: 36px; width: 40px; height: 40px;">
+          <div style="position: absolute; border-radius: 50%; top: 35px; left: 4px; width: 32px; height: 5px; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+          <div style="position: absolute; inset: 0; border-radius: 50%; background: #b98cff;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e2-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="63.5" rx="11" ry="3.2" fill="#14161c" opacity="0.4"/><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffe9d2" stroke="#e8913c" stroke-width="1.30"/><g clip-path="url(#e2-1)"><circle cx="33" cy="47" r="4.6" fill="#14161c"/></g><g clip-path="url(#e2-1)"><polygon points="18,28 48,28 48,48.00 18,45.00" fill="#6f5499"/><line x1="18" y1="45.00" x2="48" y2="48.00" stroke="#14161c" stroke-width="1.80"/></g><clipPath id="e21"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="63.5" rx="11" ry="3.2" fill="#14161c" opacity="0.4"/><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffe9d2" stroke="#e8913c" stroke-width="1.30"/><g clip-path="url(#e21)"><circle cx="67" cy="47" r="4.6" fill="#14161c"/></g><g clip-path="url(#e21)"><polygon points="52,28 82,28 82,45.00 52,48.00" fill="#6f5499"/><line x1="52" y1="48.00" x2="82" y2="45.00" stroke="#14161c" stroke-width="1.80"/></g></svg></div>
+        </div>
+        <div style="position: absolute; left: 0; top: 86px; width: 76px; text-align: center; font-size: 11px; font-weight: 800; color: #e8913c;">frayed</div>
+        <div style="position: absolute; left: 0; top: 108px; width: 76px; text-align: center; font-size: 8px; font-weight: 700; color: #8a8fa3; letter-spacing: 0.04em;">CHAIN HITS</div>
+        <div style="position: absolute; left: 0; top: 118px; width: 76px; text-align: center; font-size: 17px; font-weight: 800; color: #ffcf4d;">+18%</div>
+        <div style="position: absolute; left: 0; top: 146px; width: 76px; text-align: center; font-size: 8px; font-weight: 700; color: #8a8fa3; letter-spacing: 0.04em;">BACKFIRE</div>
+        <div style="position: absolute; left: 0; top: 156px; width: 76px; text-align: center; font-size: 17px; font-weight: 800; color: #ff4d4d;">12%</div>
+      </div>
+      <div style="position: absolute; left: 240px; top: 0; width: 76px; height: 210px;">
+        <div style="position: absolute; left: 18px; top: 36px; width: 40px; height: 40px;">
+          <div style="position: absolute; border-radius: 50%; top: 35px; left: 4px; width: 32px; height: 5px; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
+          <div style="position: absolute; inset: 0; border-radius: 50%; background: #b98cff;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e3-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="63.5" rx="11" ry="3.2" fill="#14161c" opacity="0.55"/><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffd9d4" stroke="#ff4d4d" stroke-width="1.60"/><g clip-path="url(#e3-1)"><circle cx="33" cy="47" r="3.6" fill="#14161c"/><circle cx="34.8" cy="45.8" r="1.3" fill="#fff"/></g><g clip-path="url(#e3-1)"><polygon points="18,28 48,28 48,55.50 18,49.50" fill="#6f5499"/><line x1="18" y1="49.50" x2="48" y2="55.50" stroke="#14161c" stroke-width="1.80"/></g><clipPath id="e31"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="63.5" rx="11" ry="3.2" fill="#14161c" opacity="0.55"/><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffd9d4" stroke="#ff4d4d" stroke-width="1.60"/><g clip-path="url(#e31)"><circle cx="67" cy="47" r="3.6" fill="#14161c"/><circle cx="68.8" cy="45.8" r="1.3" fill="#fff"/></g><g clip-path="url(#e31)"><polygon points="52,28 82,28 82,49.50 52,55.50" fill="#6f5499"/><line x1="52" y1="55.50" x2="82" y2="49.50" stroke="#14161c" stroke-width="1.80"/></g></svg></div>
+        </div>
+        <div style="position: absolute; left: 0; top: 86px; width: 76px; text-align: center; font-size: 11px; font-weight: 800; color: #ff4d4d;">breaking</div>
+        <div style="position: absolute; left: 0; top: 108px; width: 76px; text-align: center; font-size: 8px; font-weight: 700; color: #8a8fa3; letter-spacing: 0.04em;">CHAIN HITS</div>
+        <div style="position: absolute; left: 0; top: 118px; width: 76px; text-align: center; font-size: 17px; font-weight: 800; color: #ffcf4d;">+28%</div>
+        <div style="position: absolute; left: 0; top: 146px; width: 76px; text-align: center; font-size: 8px; font-weight: 700; color: #8a8fa3; letter-spacing: 0.04em;">BACKFIRE</div>
+        <div style="position: absolute; left: 0; top: 156px; width: 76px; text-align: center; font-size: 17px; font-weight: 800; color: #ff4d4d;">23%</div>
+      </div>
+      <div style="position: absolute; left: 0; right: 0; top: 188px; text-align: center; font-size: 10px; font-weight: 800; color: #6ee7a0;">A round on the bench: −20 fatigue</div>
     </div>
 
     <!-- name and meaning -->
     <div style="display: flex; align-items: center; gap: 7px; margin-top: 12px;">
-      <span style="font-size: 18px;"><span style="display: inline-flex; flex-direction: column; gap: 2px; vertical-align: middle;"><span style="width: 12px; height: 4px; border-radius: 1px; background: #ff4d4d;"></span><span style="width: 12px; height: 4px; border-radius: 1px; background: #e8913c;"></span><span style="width: 12px; height: 4px; border-radius: 1px; background: #ffcf4d;"></span><span style="width: 12px; height: 4px; border-radius: 1px; background: #8a8fa3;"></span></span></span>
+      <span style="font-size: 18px;"><svg width="24" height="14" viewBox="0 0 24 14" style="vertical-align: middle;"><ellipse cx="6.5" cy="7" rx="5.5" ry="6" fill="#ffe9d2" stroke="#e8913c" stroke-width="1.2"/><path d="M1 7 A5.5 6 0 0 1 12 7 Z" fill="#7a5a2a"/><circle cx="7" cy="9" r="2.2" fill="#14161c"/><ellipse cx="17.5" cy="7" rx="5.5" ry="6" fill="#ffe9d2" stroke="#e8913c" stroke-width="1.2"/><path d="M12 7 A5.5 6 0 0 1 23 7 Z" fill="#7a5a2a"/><circle cx="18" cy="9" r="2.2" fill="#14161c"/></svg></span>
       <span style="font-size: 18px; font-weight: 800; color: #c5e86c;">Fatigue</span>
     </div>
     <div style="font-size: 13px; line-height: 1.5; color: #e8e8ee; margin-top: 6px;">
-      Every fight tires a unit, and losing HP or backfiring tires it more. A tired unit's chains hit up to 35% harder, but it <span class="term">backfires</span> more often, and a backfire hits your own side. A unit on the bench loses 20 fatigue each round.
+      Every fight tires a unit, and losing HP or backfiring tires it more. A tired unit's chains hit up to 35% harder, but it <span class="term">backfires</span> more often, and a backfire hits your own side. A unit on the bench loses 20 fatigue each round. Watch its eyes: the lids droop and the whites redden as it tires.
     </div>
 
     <button style="margin-top: 14px; width: 100%; font: inherit; font-weight: 700; background: #4da6ff; color: #0c1420; border: none; border-radius: 8px; padding: 12px; font-size: 15px;">Got it</button>

@@ -16,7 +16,7 @@
 <!-- Shield on the HP bar — built (decided 2026-10-01, DECISIONS.md "Shield shows as a segment on the
      HP bar in fights"; canvas frame 5.2). Colours from prototype/src/style.css: --bg, --panel, --player,
      --enemy, --ignite, --track-bg, --mark-shield. Bars are drawn wider than on a phone so the
-     segments can be judged; fatigue pips are left off to keep the picture on the bar. Units, HP
+     segments can be judged; the face style is on every body (2026-10-15, design/tools/faces.js: Fresh eyes on the Tanks, a villain eye on the enemy), while the chain bar, fatigue and statuses are left off to keep the picture on the bar. The ring that used to circle each body is gone. Units, HP
      and shield values are made up for the picture. -->
 <div style="background:#14161c;width:860px;min-height:1100px;padding:28px;box-sizing:border-box;">
   <div style="font-size:13px;font-weight:800;color:#e8e8ee;margin-bottom:4px;">Shield on the HP bar</div>
@@ -29,9 +29,8 @@
     <div style="font-size:10px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;margin-bottom:10px;">1 · TODAY — badge row</div>
     <div style="display:flex;gap:18px;justify-content:center;align-items:flex-start;padding:12px 4px 10px;background:#14161c;border-radius:8px;"><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e0-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e0-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e01"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e01)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -46,9 +45,8 @@
     <div style="font-size:10px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;margin-bottom:10px;">2 · NEW — shield under max HP</div>
     <div style="display:flex;gap:18px;justify-content:center;align-items:flex-start;padding:12px 4px 10px;background:#14161c;border-radius:8px;"><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e1-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e1-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e11"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e11)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -63,9 +61,8 @@
     <div style="font-size:10px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;margin-bottom:10px;">3 · NEW — HP + shield over max</div>
     <div style="display:flex;gap:18px;justify-content:center;align-items:flex-start;padding:12px 4px 10px;background:#14161c;border-radius:8px;"><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e2-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e2-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e21"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e21)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -80,9 +77,8 @@
     <div style="font-size:10px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;margin-bottom:10px;">4 · HIT EATS SHIELD</div>
     <div style="display:flex;gap:18px;justify-content:center;align-items:flex-start;padding:12px 4px 10px;background:#14161c;border-radius:8px;"><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       <div style="font-size:9px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;text-transform:uppercase;">before</div>
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e3-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e3-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e31"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e31)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -92,9 +88,8 @@
       
     </div><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       <div style="font-size:9px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;text-transform:uppercase;">just after</div>
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e4-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e4-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e41"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e41)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -109,9 +104,8 @@
     <div style="font-size:10px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;margin-bottom:10px;">5 · SHIELD DRAINS WHILE OVER MAX</div>
     <div style="display:flex;gap:18px;justify-content:center;align-items:flex-start;padding:12px 4px 10px;background:#14161c;border-radius:8px;"><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       <div style="font-size:9px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;text-transform:uppercase;">before</div>
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e5-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e5-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e51"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e51)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -121,9 +115,8 @@
       
     </div><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       <div style="font-size:9px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;text-transform:uppercase;">after</div>
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e6-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e6-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e61"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e61)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -138,9 +131,8 @@
     <div style="font-size:10px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;margin-bottom:10px;">6 · SHIELD BREAKS</div>
     <div style="display:flex;gap:18px;justify-content:center;align-items:flex-start;padding:12px 4px 10px;background:#14161c;border-radius:8px;"><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       <div style="font-size:9px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;text-transform:uppercase;">before</div>
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e7-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e7-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e71"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e71)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -150,9 +142,8 @@
       
     </div><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       <div style="font-size:9px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;text-transform:uppercase;">break</div>
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e8-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e8-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e81"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e81)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -167,9 +158,8 @@
     <div style="font-size:10px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;margin-bottom:10px;">7 · SMALL SHIELD</div>
     <div style="display:flex;gap:18px;justify-content:center;align-items:flex-start;padding:12px 4px 10px;background:#14161c;border-radius:8px;"><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e9-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e9-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e91"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e91)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -184,9 +174,8 @@
     <div style="font-size:10px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;margin-bottom:10px;">8 · AEGIS — shield up to full max HP</div>
     <div style="display:flex;gap:18px;justify-content:center;align-items:flex-start;padding:12px 4px 10px;background:#14161c;border-radius:8px;"><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e10-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e10-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e101"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e101)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -201,9 +190,8 @@
     <div style="font-size:10px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;margin-bottom:10px;">9 · ENEMY SIDE</div>
     <div style="display:flex;gap:18px;justify-content:center;align-items:flex-start;padding:12px 4px 10px;background:#14161c;border-radius:8px;"><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 0%,#3a3f4e 0% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#9a4a4a;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#9a4a4a;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="v111"><path d="M13.00,42.00 Q28.00,30.00 47.00,54.75 Q32.00,59.00 13.00,42.00Z"/></clipPath><path d="M13.00,42.00 Q28.00,30.00 47.00,54.75 Q32.00,59.00 13.00,42.00Z" fill="#14161c"/><g clip-path="url(#v111)"><ellipse cx="33.00" cy="48.50" rx="8.60" ry="11.50" fill="#ffe36a"/><ellipse cx="33.00" cy="47.00" rx="4.60" ry="6.50" fill="#fff6c8"/><ellipse cx="33.00" cy="48.50" rx="1.5" ry="7.00" fill="#14161c"/></g><clipPath id="v11-1"><path d="M87.00,42.00 Q72.00,30.00 53.00,54.75 Q68.00,59.00 87.00,42.00Z"/></clipPath><path d="M87.00,42.00 Q72.00,30.00 53.00,54.75 Q68.00,59.00 87.00,42.00Z" fill="#14161c"/><g clip-path="url(#v11-1)"><ellipse cx="67.00" cy="48.50" rx="8.60" ry="11.50" fill="#ffe36a"/><ellipse cx="67.00" cy="47.00" rx="4.60" ry="6.50" fill="#fff6c8"/><ellipse cx="67.00" cy="48.50" rx="1.5" ry="7.00" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Bruiser</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -218,9 +206,8 @@
     <div style="font-size:10px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;margin-bottom:10px;">NUMBER PLACEMENT — pick A or B</div>
     <div style="display:flex;gap:18px;justify-content:center;align-items:flex-start;padding:12px 4px 10px;background:#14161c;border-radius:8px;"><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       <div style="font-size:9px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;text-transform:uppercase;">A · in label, 40</div>
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e12-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e12-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e121"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e121)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -230,9 +217,8 @@
       
     </div><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       <div style="font-size:9px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;text-transform:uppercase;">B · tag at end, 40</div>
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e13-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e13-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e131"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e131)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -242,9 +228,8 @@
       
     </div><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       <div style="font-size:9px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;text-transform:uppercase;">A · in label, 4</div>
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e14-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e14-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e141"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e141)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">
@@ -254,9 +239,8 @@
       
     </div><div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
       <div style="font-size:9px;font-weight:800;letter-spacing:.05em;color:#8a8fa3;text-transform:uppercase;">B · tag at end, 4</div>
-      <div style="position:relative;width:58px;height:58px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(#e8e8ee 0% 30%,#3a3f4e 30% 100%);"></div>
-        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"></div>
+      <div style="position:relative;width:58px;height:58px;">
+        <div style="position:absolute;inset:3px;border-radius:50%;background:#ffb454;box-shadow:0 0 0 1px #1d2029;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="e15-1"><ellipse cx="33" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="33" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e15-1)"><circle cx="33" cy="47" r="5.2" fill="#14161c"/></g><clipPath id="e151"><ellipse cx="67" cy="45" rx="13" ry="15"/></clipPath><ellipse cx="67" cy="45" rx="13" ry="15" fill="#ffffff" stroke="#14161c" stroke-width="0.80" stroke-opacity="0.5"/><g clip-path="url(#e151)"><circle cx="67" cy="47" r="5.2" fill="#14161c"/></g></svg></div>
       </div>
       <div style="font-size:12px;color:#e8e8ee;white-space:nowrap;">Tank 1</div>
       <div style="display:flex;align-items:center;gap:4px;"><div style="position:relative;width:100px;height:8px;">

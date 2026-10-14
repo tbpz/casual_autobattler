@@ -10,6 +10,87 @@
 
 ---
 
+## [2026-10-14] Guard pips and the freeze countdown sit above the body, off the face
+
+- **Decision:**
+  - The guard-pip pill sits just above the head of a hero.
+  - The freeze countdown sits just above the freeze ring.
+  - A frozen guarding Tank shows both, stacked, countdown on top.
+  - This applies to enemies and heroes alike; guard pips only exist on the player side.
+  - Mark badges stay on the body's bottom edge.
+  - Shown on canvas frame 7.2, drawn at 2x in its "Above the body" panel.
+- **Why:**
+  - The body now carries eyes, and both labels covered them: the pips sat a quarter of the way down the body and the countdown sat in its centre.
+  - Tu asked for them "a little bit above" the enemy or hero.
+- **Replaces:**
+  - The 2026-10-02 MarkSlots choice (option A) for where the guard pips and the countdown sit.
+  - Not settled: the transient hero status popups use the same strip above a body, and the pips above the front-rank Tank touch the centre line. Both are noted in `design/HANDOFF.md`, not fixed.
+
+## [2026-10-14] Enemies get villain eyes, a different kind of eye from the squad's
+
+- **Decision:**
+  - Enemy bodies get eyes; Tu chose this over eyes on his own heroes only.
+  - An enemy eye is a slanted almond with no white and a fixed scowl, and it never changes with state.
+  - A squad eye is a white eye with a round pupil whose lids drop with fatigue.
+  - The rule to teach: a white eye is one of my squad; a dark eye with no white is an enemy.
+  - The Executioner gets a stronger scowl than a Guard.
+  - The glowing-slits style (V1 on frame 7.1) is recommended and drawn on frame 7.2; the cat eye and the hollow eye stay candidates.
+- **Why:**
+  - A squad Breaking eye already looks angry, so an enemy eye has to differ in kind, not degree, to avoid being read as a fatigue stage.
+  - Tu judged the clutter on the simulated fight screen and still wanted enemy eyes.
+  - Fatigue exists on player units only, so enemy eyes carry character, not state.
+- **Replaces:**
+  - The heroes-only and eyes-only-when-tired variants from the same day's fight-screen comparison.
+  - Not settled: which villain style; legibility on a real phone has not been tested.
+
+## [2026-10-14] Fatigue is shown as eyes on the body, not as pips
+
+- **Decision:**
+  - Each squad member's body carries two eyes whose lids drop as fatigue rises, with the whites going red-rimmed at the top tiers.
+  - A Fresh body has open, alert eyes.
+  - Small bodies use a size-tuned eye (bigger eyes, a solid lid band, a tinted rim); frame 7.1 draws both.
+  - No word or number sits on the body; the fighter popup and the Fatigue card carry them.
+  - The pip stack stays in the prototype until the eyes are built.
+  - A word badge, an overheat glow, cracks and steam were drawn and dropped.
+- **Why:**
+  - Tu found the pips did not explain themselves, sat in a place that meant nothing, and read as progress.
+  - Light around a body already means a chain firing or a slam winding up, so a glow could be mistaken for them.
+  - Cracks read as decoration, and the steam looked wrong to Tu.
+  - Eyes keep "stronger but riskier": the lids droop while the stare stays sharp.
+- **Replaces:**
+  - The tier-pip display of 2026-09-30, once built; and the "two directions to draw" step of the entry below, which this pick settles.
+  - Not tested with a first-time player or on a real phone.
+
+## [2026-10-14] The chain charge moves to a bar under the HP bar, and the ring around the body goes
+
+- **Decision:**
+  - The chain charge becomes a thin bar under the HP bar.
+  - The ring around the body goes, so a body is a plain circle on both screens.
+  - Frames 7.1 and 7.2 sketch the bar; frames 5.1 and 3.7 still draw the ring.
+- **Why:**
+  - Tu intends to stop using the circle border for chain.
+  - Light and outlines around a body already carry the chain-firing, slam and freeze tells, and a steady ring added to them.
+  - A plain circle leaves the body free for the face.
+- **Replaces:**
+  - The ring-shaped chain meter of 2026-09-29.
+  - Not settled: the bar's look. The prototype is unchanged.
+
+## [2026-10-14] Fatigue is drawn as a gamble, not a penalty, and the pip stack is up for replacement
+
+- **Decision:**
+  - The fatigue display must say "stronger but riskier", so a player sees a reason to push a tired fighter as well as a reason to rest it.
+  - Two replacement directions get drawn side by side on the canvas before anything is built: a tired badge on the body (A) and a body that runs hotter (B).
+  - An energy bar under the HP bar was considered and dropped.
+  - The four-pip stack beside each unit (2026-09-30) stays in the prototype until Tu picks A or B.
+- **Why:**
+  - Tu found the pips do not explain themselves: they carry no word or icon, so they could mean anything.
+  - Their place beside the fighter does not say what they belong to.
+  - A stack that fills up reads as progress or charge, which suits a thing to avoid badly, and it sits next to the guard pips and the chain ring.
+  - Fatigue is not a plain penalty in the sim: it makes chains hit harder and run longer while raising backfire odds (`fatigue*` and `backfire*` in `prototype/src/sim/config.ts`).
+  - Other games signal a built-up cost with a word that shows only when it matters (XCOM 2 "Tired"), a change to the body itself (Slay the Spire's Wrath stance), or a meter with its danger line drawn (Darkest Dungeon 2's stress gauge).
+- **Replaces:**
+  - Nothing yet: the tier-pip display chosen on 2026-09-30 stays until a direction is picked and a later entry replaces it.
+
 ## [2026-10-13] Round-screen stats are icons, and the Healer shows Heal, not Damage
 
 - **Decision:**
