@@ -16,6 +16,42 @@
 
 ---
 
+### [2026-10-15 #3] Said the slam on the fight frame lands for −30, but frame 1.3's slam is 15
+
+- **Said:** In the plan Tu approved for the fight frames I wrote "TAKES THE SLAM, −30 (Vanguard
+  damage × 2, read from the 1.3 file)".
+- **Actually:** Frame 1.3's own header says Vanguard damage 7 and slam 2x = 15. I had not opened it
+  when I wrote the number; "read from the 1.3 file" was not true when I wrote it.
+- **Caught by:** me, reading the 1.3 header while building the frame. Drew −15, told Tu in the
+  reply, and the frame's note and `design/HANDOFF.md` state it.
+- **Why:** I wrote the plan from memory of the round-screen numbers and attached a source I had not
+  checked.
+- **Tag:** described a picture before checking the numbers
+
+### [2026-10-15 #2] Said the 8-chip row would show the first hero half-cut, but the overflow is smaller than one chip
+
+- **Said:** In the plan and the question to Tu I described the scrolled 8-chip row as "the first hero
+  half-cut under a left fade, the Acolyte fully visible".
+- **Actually:** Only about 29px overflows, less than one 37px chip. With the Acolyte fully shown,
+  Bram's circle is fully out of view and Ivy is the faded chip.
+- **Caught by:** me, reading the headless screenshot before publishing. Told Tu in the reply; the
+  frame's note and `design/HANDOFF.md` state it.
+- **Why:** I planned the picture from the idea of a cut chip and did not do the width arithmetic
+  until after Tu had chosen.
+- **Tag:** described a picture before checking the numbers
+
+### [2026-10-15 #1] Said Guard's chain gets stronger with each hit, but its charge is flat
+
+- **Said:** In the first popup rewrite (canvas version 62) Bram's Chain line read "Each hit is
+  stronger", the wording I had written for the damage skill.
+- **Actually:** Guard adds a flat charge per repeat. Only the size of a damage, heal or shield
+  effect escalates per hit (`prototype/src/sim/fight.ts`, the comment "A flat charge per rung").
+- **Caught by:** me, reading `fight.ts` when Tu asked for wording that fits each fighter. Fixed in
+  version 63 ("Each repeat covers one more slam").
+- **Why:** I carried one skill's wording over to all three roles without checking the Tank's
+  mechanism first.
+- **Tag:** generalised one case to the others without checking
+
 ### [2026-10-14 #1] Said a frozen frame of the fatigue options shows the pose, but the steam was animation-only
 
 - **Said:** On frame 7.1 (canvas version 55) I wrote "the pictures loop; a still frame shows the

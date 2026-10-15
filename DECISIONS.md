@@ -10,6 +10,164 @@
 
 ---
 
+## [2026-10-15] The fight text never says "chain"
+
+- **Decision:**
+  - Fight text names a skill use by its skill and a count (`EXPOSE ×3`); the word "chain" does not appear.
+  - A stop reads STOPPED, a backfire reads BACKFIRE ×N, a result reads "N hits · N damage".
+  - "Chain" stays on its term card (3.9) and in the popups, where it is explained.
+- **Why:**
+  - A playtest friend did not know what chain is and found it constantly appearing.
+  - A word only this game has needs teaching at the point of use, and the fight has nowhere to teach it.
+- **Replaces:**
+  - The built HUD wording `NAME — CHAIN ×N` and `NAME'S CHAIN — N HITS`. The code and `CHEATSHEET.md` still say chain.
+  - Builds on the 2026-10-15 entry "The move is a skill; chain means only that the skill goes again".
+  - Not settled: whether `×N` and the skill name are clear without a caption; a first-run caption is not drawn.
+
+## [2026-10-15] A skill is announced by a tag on the unit that uses it, with no top banner
+
+- **Decision:**
+  - The announcement is a speech-bubble tag on the performer's head, its tail pointing at the body; beside the body when its column is full.
+  - A first use is a small tag with the skill name; from the first repeat it gains a count; from 5 hits it is bigger and glows; the cap reads MAX.
+  - A backfire is a red tag, a stop is a muted tag, and the result is a bubble over the same unit.
+  - The top banner, with its seven pips and running total, is removed.
+  - The glow, the dimming of the others and the line to the target stay.
+- **Why:**
+  - A playtest friend could not link the announcement to the unit doing it; the banner sat up to about 250px away.
+  - The glow, the dimming and the line already exist in the built game, and the friend still missed them.
+- **Replaces:**
+  - The dedicated chain HUD at the top of the fight (2026-08-17). Canvas only: the code still draws the top HUD.
+  - A top banner `NAME · SKILL ×N`, drawn and replaced the same day, never logged.
+  - Not settled: readability of a tag over a 30px back-rank body on a real phone.
+
+## [2026-10-15] Tapping a fighter during a fight pauses it and opens its popup
+
+- **Decision:**
+  - A tap on a fighter mid-fight pauses the fight and opens that fighter's popup (2.1 to 2.3).
+  - A small pause button sits in the fight card's corner; closing the popup or pressing play resumes.
+  - No fight frame draws the popup, because it is the same as on the round screen.
+- **Why:**
+  - A popup over a running fight would hide the fight, so the tap must pause it.
+  - Tu judged the popup mostly the same on both screens.
+- **Replaces:**
+  - The rule "no tapping during a fight" (`design/HANDOFF.md`, under 3.1) and its open call 10a.
+  - Not settled: whether a first-time player finds the tap without a hint.
+
+## [2026-10-15] The fight screen shows only what the fight needs, and the shield screen is dropped
+
+- **Decision:**
+  - The fight screen has no round strip, no ENEMY / YOUR SQUAD zones or tags, no VS pill and no enemy badges.
+  - A body shows its face, its name only (no skill beside it), its HP bar and number, and for the squad the charge bar.
+  - The two sides read from the eyes and the bar colours, as on the built screen.
+  - Every status is shown across the key-moment frames 5.1 to 5.6; there is no legend screen.
+  - The shield-bar frame is dropped; its cases live in those frames, and the shield amount sits in the HP label.
+- **Why:**
+  - The round screen already teaches the sides, the squad and the terms.
+  - Tu asked to keep only the necessary detail for the fight.
+- **Replaces:**
+  - The two-phone fight frame (old 5.1) and the shield-bar frame (old 5.2, then 5.7). Open call 5 closes; call 6 stays.
+  - Not settled: whether a first-time player reads the sides without tags.
+
+## [2026-10-15] The switcher row scrolls sideways past 7 chips
+
+- **Decision:**
+  - When the fighter popup's switcher has more chips than fit, it stays one line and scrolls sideways.
+  - A fade marks each edge that hides chips.
+  - The open chip is scrolled into view when the popup opens and on ‹ ›.
+  - Chips keep their size; they do not shrink to fit.
+  - Drawn on frame 2.4 as an 8-chip what-if: six fielded against the Warden's side, scrolled to the open chip.
+- **Why:**
+  - Tu asked what happens when the row overflows; it had no answer past 7 chips.
+  - Seven is the most any lineup makes today (squad cap 5, at most two enemy kinds in `sim/encounters.ts`), so the current game never scrolls.
+  - A face smaller than the drawn chip stops reading.
+  - A scroll lets the squad cap grow without a redesign.
+- **Replaces:**
+  - Nothing drawn; the row had no overflow rule.
+  - Not settled: whether a fade alone tells a player more fighters are hidden. The sixth fighter and the 6-fielded backdrop are made up; nothing in the game fields six.
+
+## [2026-10-15] Same-kind enemies share one switcher chip with a ×N count
+
+- **Decision:**
+  - In the fighter popup's switcher, enemies of one kind share a single chip with a ×N badge.
+  - Units group by name prefix, so `Acolyte 1` and `Acolyte 2`, or `Twin 1` and `Twin 2`, share a chip.
+  - ‹ › still step through each unit, so each shows its own HP.
+  - The enemy popup at 2.4 is now the Warden's, over a dimmed 1.4; the Anvil popup is gone.
+- **Why:**
+  - Tu asked for a header that copes with many heroes and enemies.
+  - Without grouping, a full squad against Pack's five bodies is 10 chips; grouped, no lineup passes 7.
+  - Same-kind units share the same popup text.
+  - Tu picked this over two rows, smaller chips, and a scrolling row alone.
+- **Replaces:**
+  - One chip per body, and the Anvil popup at 2.4.
+  - Not settled: whether `×2` reads as "two of these" at 9px; the ‹ › stepping through grouped units is not drawn.
+
+## [2026-10-15] The popup's Skill card is an ability tile, not a block of text
+
+- **Decision:**
+  - The Skill card in the fighter popup is drawn as a game ability tile.
+  - It has a role-coloured frame with a glow and two corner brackets.
+  - An emblem tile holds a drawn glyph: a shield for Guard, a plus for Mend, a crosshair for Expose.
+  - The skill name is large and uppercase, with a small `SKILL` tag in the corner.
+  - Two chips sit under the headline: a target chip and an effect chip in the mark colour.
+  - The how-it-works text is two or three short icon lines.
+  - Role colours are the ones the bodies already use.
+- **Why:**
+  - Tu found the all-text card too plain and asked for a more "gaming" look.
+  - Chips and icon lines make the card scannable; the facts on it did not change.
+- **Replaces:**
+  - The flat card of a label, a name, a headline and a paragraph, from earlier the same day.
+  - Not settled: not tested with a first-time player or on a real phone. Drawn on canvas frames 2.1, 2.2, 2.3 and 2.5; the styles are in `design/HANDOFF.md`.
+
+## [2026-10-15] A Fatigue card heads the Chain and Backfire odds and shows what fatigue changed
+
+- **Decision:**
+  - Chain and Backfire sit in a Fatigue card under the Skill card.
+  - The card's left edge, its tier word and each ▲ take the tier colour.
+  - Each row shows the odds and a ▲ from the fresh value; a Fresh unit shows no ▲.
+  - Chain, Backfire and Fatigue use the drawn icons from their own term cards, in one aligned column.
+  - The `⚠` text glyph is gone.
+  - Fresh values come from `chainChanceByHitsSoFar` and `backfireAtFresh` in `prototype/src/sim/config.ts`.
+- **Why:**
+  - Tu found the link between the fatigue tier and the two odds weak while they sat in separate boxes.
+  - Backfire had an icon and Chain had none, so the pair looked uneven.
+  - The ▲ states the trade: fatigue buys a small Chain gain and a large Backfire cost.
+- **Replaces:**
+  - The plain fatigue line above the Skill card and the odds at the card's foot, from earlier the same day.
+  - Not settled: the Fatigue term card (3.9) has no Chain column yet.
+
+## [2026-10-15] Chain and Backfire are written for each role, the popup drops Upgrades, and Damage gets frame 2.3
+
+- **Decision:**
+  - Each fighter's Chain and Backfire lines say what its own skill does, read from `sim/fight.ts`.
+  - Guard (Tank): each repeat covers one more slam; a backfire steps aside and the next slam hits the weakest ally.
+  - Mend (Healer): each heal is bigger; a backfire heals the enemy.
+  - Expose (Damage): each hit is stronger and adds an exposed stack; a backfire hits the player's own squad.
+  - Term cards 3.7–3.9 are worded the same way.
+  - The popup has no Upgrades card for now.
+  - The Damage popup moves from 2.5 to 2.3, so the three roles sit together; Anvil becomes 2.4 and the term path 2.5.
+- **Why:**
+  - Tu read the lines as damage-only, and a Tank and a Healer do very different things.
+  - Guard's charge is flat per repeat, so "each hit is stronger" was wrong for it.
+  - Tu judged Upgrades not needed yet.
+- **Replaces:**
+  - The role-neutral wording of the first popup pass and the old popup frame order.
+  - `design/HANDOFF.md` holds the old-to-new frame map.
+
+## [2026-10-15] The move is a skill; chain means only that the skill goes again
+
+- **Decision:**
+  - A unit's move is called a skill.
+  - Chain names only the repetition: the skill going again after its first use.
+  - Chain keeps its own explainer card (3.7).
+  - The fighter popups and term cards 3.7–3.9 follow this rule now.
+- **Why:**
+  - Tu: "chain" is a term only this game has, so it should not name the move itself.
+  - A common word is already known to a new player.
+  - Skill was chosen over ability, ultimate and special; ultimate implies smaller skills exist.
+- **Replaces:**
+  - The popup's CHAIN header and the "Bram's chain" tag.
+  - Not settled: reward frame 6.1 (the `CHAIN` rail and "Tank chain — gains an ability"), the fight text ("IVY'S CHAIN ×N"), the code names (`chainEffectLines`, "chain abilities") and `CHEATSHEET.md` still say chain for the move. Tracked as call 12 in `design/HANDOFF.md`.
+
 ## [2026-10-14] Guard pips and the freeze countdown sit above the body, off the face
 
 - **Decision:**
