@@ -1,10 +1,10 @@
 {
   "artboards": [
     { "file": "RoundFaceOff.dc.html", "x": 0, "y": 0, "w": 390, "h": 710 },
-    { "file": "RoundFaceOffPack.dc.html", "x": 550, "y": 0, "w": 390, "h": 700 },
-    { "file": "RoundFaceOffVanguard.dc.html", "x": 1100, "y": 0, "w": 390, "h": 715 },
-    { "file": "RoundFaceOffWarden.dc.html", "x": 1650, "y": 0, "w": 390, "h": 690 },
-    { "file": "RoundFaceOffFallen.dc.html", "x": 2200, "y": 0, "w": 860, "h": 720 },
+    { "file": "RoundFaceOffPack.dc.html", "x": 550, "y": 0, "w": 390, "h": 781 },
+    { "file": "RoundFaceOffVanguard.dc.html", "x": 1100, "y": 0, "w": 390, "h": 796 },
+    { "file": "RoundFaceOffWarden.dc.html", "x": 1650, "y": 0, "w": 390, "h": 771 },
+    { "file": "RoundFaceOffFallen.dc.html", "x": 2200, "y": 0, "w": 860, "h": 801 },
 
     { "file": "FighterPopupBram.dc.html", "x": 0, "y": 1000, "w": 390, "h": 900 },
     { "file": "FighterPopupSol.dc.html", "x": 550, "y": 1000, "w": 390, "h": 900 },
@@ -35,7 +35,9 @@
     { "file": "FightResult.dc.html", "x": 5810, "y": 4900, "w": 390, "h": 540 },
 
     { "file": "FightDefeat.dc.html", "x": 6350, "y": 4900, "w": 390, "h": 540 },
-    { "file": "OfferAfter.dc.html", "x": 0, "y": 6400, "w": 390, "h": 780 },
+    { "file": "OfferAfter.dc.html", "x": 0, "y": 6400, "w": 860, "h": 860 },
+    { "file": "UpgradeMany.dc.html", "x": 1000, "y": 6400, "w": 1330, "h": 860 },
+    { "file": "UpgradeDrop.dc.html", "x": 2470, "y": 6400, "w": 390, "h": 860 },
 
     { "file": "RunOver.dc.html", "x": 0, "y": 7700, "w": 390, "h": 780 }
   ],
@@ -75,8 +77,10 @@
     { "id": "label-fightstatus", "x": 4780, "y": 4840, "w": 880, "text": "5.5 Statuses — trouble, recovery, and every shield case (proposal)" },
     { "id": "label-fightresult", "x": 5810, "y": 4840, "w": 390, "text": "5.6 Result — VICTORY over the finished fight (proposal)" },
     { "id": "label-fightdefeat", "x": 6350, "y": 4840, "w": 390, "text": "5.7 Result — DEFEAT, the squad is wiped (proposal)" },
-    { "id": "section-offer", "x": 0, "y": 6260, "w": 390, "text": "6 · REWARD PICK — after a win" },
-    { "id": "label-offerafter", "x": 0, "y": 6340, "w": 390, "text": "6.1 Offer screen — mark words coloured (built 2026-10-02, awaiting Tu's approval)" },
+    { "id": "section-offer", "x": 0, "y": 6260, "w": 2860, "text": "6 · REWARD PICK — after a win; an upgrade is one round emblem" },
+    { "id": "label-offerafter", "x": 0, "y": 6340, "w": 860, "text": "6.1 Reward pick → next round screen — an upgrade is one round emblem (proposal, built)" },
+    { "id": "label-upgradesmany", "x": 1000, "y": 6340, "w": 1330, "text": "6.2 Many upgrades — two newest and a +N tile; the full list explains the 8/8 rule (proposal, built)" },
+    { "id": "label-upgradedrop", "x": 2470, "y": 6340, "w": 390, "text": "6.3 At the cap — pick, then drop one (proposal)" },
     { "id": "section-runover", "x": 0, "y": 7560, "w": 390, "text": "7 · RUN OVER — after a lost fight" },
     { "id": "label-runover", "x": 0, "y": 7640, "w": 390, "text": "7.1 Run over — how close, best moment, build, Try again (proposal)" }
   ],

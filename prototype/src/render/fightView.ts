@@ -1,7 +1,7 @@
 import type { ChainEffect, FightConfig } from "../sim/config.js";
 import { fightClock } from "./pauseClock.js";
 import { chainEffectChip, fatigueFraction, fatigueTier } from "../sim/config.js";
-import { squadFace, villainFace } from "./faces.js";
+import { deadFace, squadFace, villainFace } from "./faces.js";
 import { momentHtml, type BestMoment } from "./fightSummary.js";
 import { ROLE_HEX } from "./roundParts.js";
 import { hpBarLayout } from "./hpBar.js";
@@ -153,12 +153,18 @@ interface HeroSlot {
    * .hero-slot.role-* in style.css), so the ring always matches whatever
    * body it's drawn around without repeating per-role numbers. */
   freezeRing: HTMLElement;
+  /** The seconds left, a pill at the body's left edge (the strip over the head belongs to the skill bubble). A sibling of the ring in the body core, not a child of it: the ring's mask would clip it. Shown with the ring. */
   freezeSecs: HTMLElement;
   /** The CHAIN meter drawn as a ring around the body instead of a bar under
    * it (2026-09-29, MidFill.dc.html — see design/HANDOFF.md). Built for
    * every slot for simplicity, same convention as chargeFill/freezeRing;
    * style.css collapses it on the enemy side. */
   chargeRing: HTMLElement;
+  /** The body's face, drawn at build (buildSide). `liveFace` is its markup, kept so a revive can put it back; `face` is the element now
+   * in the body; `fallen` says the ✕ eyes are showing (frame 5.13B: a unit that falls keeps its colour, swaps its eyes, and fades). */
+  liveFace: string;
+  face: Element | null;
+  fallen: boolean;
 }
 
 /** How long a tracer takes to fly from attacker to target, in ms. Impact
@@ -307,6 +313,11 @@ const BOW_MIN_PX = 26;
  * load, the same token .damage-popup.heal and .aim-line.swing-save use. */
 const HEAL_ACCENT = cssToken("--heal", "#6ee7a0");
 
+/** Every enemy's normal hit — line, damage number, back-row glow — is the enemy body's own red
+ * (2026-10-16, Tu: all enemies the same red as their own colour). The slam keeps WINDUP_ACCENT.
+ * Reads style.css's --enemy at load, the token the enemy body fill uses. */
+const ENEMY_ACCENT = cssToken("--enemy", "#ff5d5d");
+
 /** The bruiser's wind-up/slam colour (2026-08-07 rebuild) — a distinct
  * danger-red, separate from both the enemy body's own red and the chain's
  * ignite-yellow, so a telegraphed hit reads as its own category of threat.
@@ -318,7 +329,8 @@ const WINDUP_ACCENT = cssToken("--windup", "#ff5252");
  * background and distinct from both the player-blue/enemy-red body fill and
  * the ignite-yellow chain colour. Assigned by a hero's fixed slot index
  * within its side, so the same hero keeps the same colour for the whole
- * fight. Reads style.css's --accent-0..5 at load. */
+ * fight. Now only the fallback for a player with no known role (enemies use
+ * ENEMY_ACCENT). Reads style.css's --accent-0..5 at load. */
 const ACCENT_PALETTE = [0, 1, 2, 3, 4, 5].map((i) =>
   cssToken(`--accent-${i}`, ["#ffb454", "#5ad1a0", "#b98cff", "#4dd9e8", "#ff8ac2", "#d9e34d"][i] as string),
 );
@@ -334,9 +346,7 @@ function accentFor(index: number): string {
  * colour for player fighters only: the chain is shared by role now, not
  * owned by one named hero, so two tanks share a colour and are told apart by
  * their own number badge instead (same convention the round screen already
- * uses) — enemies keep the old per-slot ACCENT_PALETTE below (accentFor)
- * unchanged, since it still drives their tracer/popup attribution and they
- * have no player role to read. */
+ * uses). Enemies have no player role to read and all share ENEMY_ACCENT. */
 const ROLE_ACCENT: Record<"tank" | "damage" | "support", string> = {
   tank: cssToken("--role-tank", "#ffb454"),
   damage: cssToken("--role-damage", "#b98cff"),
@@ -347,6 +357,7 @@ function accentForHero(hero: HeroSnapshot, side: "player" | "enemy", index: numb
   if (side === "player" && (hero.role === "tank" || hero.role === "damage" || hero.role === "support")) {
     return ROLE_ACCENT[hero.role];
   }
+  if (side === "enemy") return ENEMY_ACCENT;
   return accentFor(index);
 }
 
@@ -465,6 +476,8 @@ export class FightView {
    * never hides anything. Hiding is chainTeardown's job alone, once the
    * resolution beat below has actually been seen. */
   private chainPhase: "idle" | "live" | "resolving" = "idle";
+  /** Set by finishFight when the fight ends while a skill's ending is still playing; chainTeardown runs it, so VICTORY/DEFEAT never covers it. */
+  private afterChainEnding: (() => void) | null = null;
   /** Invalidates any in-flight chain-ending timers (the miss/cap failure
    * hold, the card, the final teardown — showChainEnd chains up to three
    * wall-clock setTimeouts) when a NEW chain fires before the old one's
@@ -756,14 +769,19 @@ export class FightView {
       this.lastPlayerHeroes = snapshot.playerHeroes;
       this.lastEnemyHeroes = snapshot.enemyHeroes;
       for (const id of heldDowns) this.showHeroDown(id);
+      const showResult = () => {
+        if (gen !== this.resolveGen) return;
+        this.showResolve(outcome);
+        this.resolveShown = true;
+        const callbacks = this.resolveCallbacks;
+        this.resolveCallbacks = [];
+        for (const cb of callbacks) cb();
+      };
       fightClock.setTimeout(
         () => {
-          if (gen !== this.resolveGen) return;
-          this.showResolve(outcome);
-          this.resolveShown = true;
-          const callbacks = this.resolveCallbacks;
-          this.resolveCallbacks = [];
-          for (const cb of callbacks) cb();
+          // A skill that ended the fight still plays its STOPPED beat and result bubble before the overlay (chainTeardown runs this).
+          if (this.chainPhase === "resolving") this.afterChainEnding = showResult;
+          else showResult();
         },
         heldDowns.length > 0 ? FINAL_DEATH_HOLD_MS : 0,
       );
@@ -830,6 +848,7 @@ export class FightView {
     this.chainGen++;
     this.windupGen++;
     this.chainPhase = "idle";
+    this.afterChainEnding = null;
     this.chainHud.className = "perf-tag";
     this.ptName.textContent = "";
     this.ptCount.textContent = "";
@@ -872,6 +891,7 @@ export class FightView {
       refs.core.classList.remove("lunge", "flinch");
       refs.body.querySelectorAll(".impact-flash").forEach((el) => el.remove());
       refs.freezeRing.classList.remove("show");
+      refs.freezeSecs.classList.remove("show");
       refs.status.classList.remove("show", "loud");
       refs.status.style.color = "";
       for (const prop of ["--depth-y", "--depth-scale", "--depth-bright", "--depth-sat"]) {
@@ -932,12 +952,12 @@ export class FightView {
       const baseSize = ROLE_BODY_PX[hero.role] ?? 40;
       const faceSize = isFront ? baseSize : baseSize * BACK_RANK_SCALE;
       const hex = hero.role === "tank" || hero.role === "damage" || hero.role === "support" ? ROLE_HEX[hero.role] : ROLE_HEX.damage;
-      refs.body.insertAdjacentHTML(
-        "beforeend",
+      refs.liveFace =
         side === "player"
           ? squadFace(hex, fatigueTier(this.cfg, hero.fatigue), faceSize)
-          : villainFace(faceSize, hero.role === "bruiser" ? 1.35 : 1),
-      );
+          : villainFace(faceSize, hero.role === "bruiser" ? 1.35 : 1);
+      refs.body.insertAdjacentHTML("beforeend", refs.liveFace);
+      refs.face = refs.body.lastElementChild;
       refs.slot.addEventListener("click", () => this.onFighterTap?.(hero.id));
       // Direct fraction of the two sides' combined maxHp (see render()'s
       // own comment) — same pixel-per-HP scale the old two-level flex gave,
@@ -1016,7 +1036,7 @@ export class FightView {
   }
 
   /** Writes the bubble (render/bubble.ts decides the words): the skill, then the count from the second hit, a brighter glow from
-   * cfg.chainFullTellThreshold and MAX at the cap; BACKFIRE in red; STOPPED or NO REPEAT in grey. Only text and classes change, so the
+   * cfg.chainFullTellThreshold and MAX at the cap; BACKFIRE in red; STOPPED (grey, red after a backfire) at every ending. Only text and classes change, so the
    * bubble never changes size and a tick never restarts its animations. The word "chain" is not used in fight text. */
   private writeTag(heroId: string, skill: string, length: number, kind: BubbleKind): void {
     if (this.bubbleHeroId !== heroId) this.placeBubble(heroId);
@@ -1071,6 +1091,19 @@ export class FightView {
     );
   }
 
+  /** A unit that falls takes the ✕ eyes of the fallen popup, on its own colour (the 35% fade is `.body.down`); a revive (Phoenix) or a
+   * rewound fight puts its live face back. Touches the DOM only on the tick the state flips. */
+  private setFallenFace(refs: HeroSlot, fallen: boolean): void {
+    if (refs.fallen === fallen || !refs.face) return;
+    const holder = document.createElement("template");
+    holder.innerHTML = fallen ? deadFace() : refs.liveFace;
+    const next = holder.content.firstElementChild;
+    if (!next) return;
+    refs.face.replaceWith(next);
+    refs.face = next;
+    refs.fallen = fallen;
+  }
+
   private updateSide(map: Map<string, HeroSlot>, heroes: HeroSnapshot[], snapshot: TickSnapshot): void {
     for (const hero of heroes) {
       const refs = map.get(hero.id);
@@ -1103,6 +1136,7 @@ export class FightView {
       refs.hpShieldLabel.classList.toggle("show", shieldVisible);
       if (shieldVisible) refs.hpShieldLabel.textContent = ` ${MARK_CHIP.shield.icon}${Math.round(shield)}`;
       refs.body.classList.toggle("down", !hero.alive);
+      this.setFallenFace(refs, !hero.alive);
       // .hot (2026-08-14 chain rebuild): a single, immediate glow — there is
       // no more "earn the glow" delay. Its colour is driven by --chain-color
       // (set below), gold for a real chain, red for a backfire, so the
@@ -1342,6 +1376,7 @@ export class FightView {
 
       refs.body.classList.toggle("frozen", isFrozen);
       refs.freezeRing.classList.toggle("show", isFrozen);
+      refs.freezeSecs.classList.toggle("show", isFrozen);
       if (isFrozen) {
         let fraction = 1;
         if (!hero.stunnedHeld) {
@@ -1499,7 +1534,7 @@ export class FightView {
         if (e.amount >= 1) this.showMarkPopup(e.side, e.targetId, `-${Math.round(e.amount)}`, "burn", 300, "burn:" + e.targetId);
         break;
       case "chainEnd":
-        this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.totalStunSec, e.killedIds, e.backfire, e.reason, e.effects);
+        this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.totalStunSec, e.killedIds, e.backfire, e.effects);
         break;
       case "heroDown":
         this.showHeroDown(e.heroId);
@@ -2204,28 +2239,12 @@ export class FightView {
     } else land();
   }
 
-  /** The chain's ending, owning the handoff from "live" through an optional
-   * failure/cap beat to the resolution card and finally back to idle
-   * (2026-08-19, chain-ending pass — replaces the old direct-to-card
-   * showChainEnd). Five root causes, two presentations:
-   *
-   *  - "miss"/"capped" get their own beat first — the pip that was pending
-   *    resolves visibly (broken, or the cap flaring) and the HUD title
-   *    states what just happened, held for CHAIN_FAILURE_HOLD_MS — before
-   *    the played-session complaint this answers ("it just cancels
-   *    immediately to normal"), there was no such frame at all.
-   *  - "noTarget" (a real but unglamorous ending — everyone left to hit was
-   *    already dead or full), "fightEnd" (the fight itself resolving is the
-   *    bigger moment; app.ts's own 900ms hold covers it), and "sourceDied"
-   *    (2026-08-29, Phase 0 lockout fix — the hot hero itself died mid-chain;
-   *    nothing was "missed," there's just no one left to keep firing) skip
-   *    straight to the card — a failure tell on any of the three would be a
-   *    lie or a distraction, not a beat.
-   *
-   * No `chainLength === 0` early return anymore (2026-08-17 shipped one,
-   * gated on "fired but never landed a single bonus hit"): a first-roll miss
-   * is ~30% of all chains at the default table and used to render nothing
-   * at all — the single largest source of "it just vanished." */
+  /** The skill's ending, owning the handoff from "live" through the STOPPED beat to the result bubble and finally back to idle.
+   * Every ending looks the same (DECISIONS.md 2026-10-16, "Every skill ending reads STOPPED, then N hits M damage"): the bubble over
+   * the unit says STOPPED (grey, red for a backfire) for CHAIN_FAILURE_HOLD_MS, then hands over to the result bubble, held for
+   * CHAIN_END_CARD_HOLD_MS, even for a skill that landed no hits. Why the sim ended it (`chainEnd.reason`: a failed roll, the cap, nobody left
+   * to hit, the unit died, the fight ended) is not shown. A fight-ending skill holds the VICTORY/DEFEAT overlay until this has finished
+   * (`finishFight`). */
   private showChainEnd(
     heroId: string,
     chainLength: number,
@@ -2233,7 +2252,6 @@ export class FightView {
     totalStunSec: number,
     killedIds: string[],
     backfire: boolean,
-    reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied",
     // This chain's own ability list (config.ts's ChainEffect; became a list
     // 2026-09-29 — see DECISIONS.md) — the end card's replacement for the
     // old per-hero shape label (2026-09-13 rebuild).
@@ -2244,67 +2262,31 @@ export class FightView {
     // individual timer handles across a multi-step callback chain.
     const gen = this.chainGen;
 
-    const showCard = () => {
+    this.writeTag(heroId, this.skillName(effects), chainLength, backfire ? "backfireStopped" : "stopped");
+    fightClock.setTimeout(() => {
       if (gen !== this.chainGen) return; // superseded by a new chain firing first
       // The tag hands over to the result bubble over the same unit: one thing changing state, not two overlapping.
       this.chainHud.classList.remove("show");
-      this.renderChainEndCard(heroId, chainLength, totalDamage, totalStunSec, killedIds, backfire, reason, effects);
-      // A skill that never repeated has no bubble to hold, so it hands the stage back at once.
-      fightClock.setTimeout(() => this.chainTeardown(gen, killedIds), chainLength >= 2 ? CHAIN_END_CARD_HOLD_MS : 0);
-    };
-
-    if (reason === "miss" || reason === "capped") {
-      // The ending states itself on the tag first: STOPPED, NO REPEAT, or the MAX it just reached.
-      const skill = this.skillName(effects);
-      if (reason === "miss") this.writeTag(heroId, skill, chainLength, chainLength <= 1 ? "noRepeat" : "stopped");
-      else this.writeTag(heroId, skill, chainLength, backfire ? "backfire" : "live");
-      fightClock.setTimeout(showCard, CHAIN_FAILURE_HOLD_MS);
-      return;
-    }
-
-    showCard();
+      this.renderChainEndCard(heroId, chainLength, totalDamage, totalStunSec, backfire, effects);
+      fightClock.setTimeout(() => this.chainTeardown(gen, killedIds), CHAIN_END_CARD_HOLD_MS);
+    }, CHAIN_FAILURE_HOLD_MS);
   }
 
-  /** Builds and shows the resolution card itself — split out from
-   * showChainEnd (2026-08-19) so the miss/capped beats above can hold their
-   * own moment first and call this once that hold finishes, rather than the
-   * failure tell and the card competing for the same frame.
-   *
-   * 2026-08-17: every chain gets this card, not just one at/above
-   * chainFullTellThreshold — a played session reported never knowing a
-   * chain had stopped, since below that threshold the only account was a
-   * per-hero status line easy to miss. `.big` keeps the old cascade-tier
-   * distinction as a size bump rather than a presence/absence gate — the
-   * escalating-loudness ladder stays, only the silent floor goes.
-   *
-   * 2026-09-13 rebuild: the detail line used to decompose payoff into chain
-   * LENGTH (the dominant, unpickable axis) vs. this hero's own shape. What's
-   * left to state honestly is the same split, just against cfg's one shared
-   * cap now instead of a per-hero fuse: how much of the chain actually ran
-   * (`chainLength` of cfg.chainMaxHits possible hits) and what the chain WAS
-   * (`effect`, in the same plain words the pick screen uses — config.ts's
-   * chainEffectVerb). For "guard", `totalDamage` is 0 by construction (it
-   * doesn't move HP and has no other single number to report) — the
-   * headline's own number would read as a lie, so this reports the hit count
-   * only, no figure. "stun" gets its own figure instead (2026-09-15
-   * freeze-visibility pass) — `totalStunSec`, the sum of every landed link's
-   * duration, which is the attribution payoff this whole pass exists for:
-   * "my pick bought 6.4 seconds." */
+  /** Builds and shows the result bubble: `N hits` over `M damage`, for every ending, even a skill that landed nothing (`0 hits`, `0 damage`).
+   * The words follow the skill: a Healer's skill reads `N heals` over `M healed`; a Guard reads `N slams covered` alone (it moves no HP, so
+   * there is no figure); a freeze adds `T.Ts frozen`, and drops the damage figure when it dealt none. */
   private renderChainEndCard(
     heroId: string,
     chainLength: number,
     totalDamage: number,
     totalStunSec: number,
-    _killedIds: string[],
     backfire: boolean,
-    _reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied",
     effects: ChainEffect[],
   ): void {
     this.chainEndCard.classList.remove("show");
-    // A skill that never repeated has nothing to total up: its tag already said NO REPEAT.
-    if (chainLength < 2) return;
     const first = effects[0];
     const heals = first === "mend" || first === "ward" || first === "cauterize";
+    const freezes = effects.includes("stun");
     const noun =
       first === "guard"
         ? `slam${chainLength === 1 ? "" : "s"} covered`
@@ -2312,8 +2294,8 @@ export class FightView {
           ? `heal${chainLength === 1 ? "" : "s"}`
           : `hit${chainLength === 1 ? "" : "s"}`;
     const parts: string[] = [];
-    if (effects.includes("stun") && totalStunSec > 0) parts.push(`${totalStunSec.toFixed(1)}s frozen`);
-    if (totalDamage > 0 && first !== "guard") parts.push(`${Math.round(totalDamage)} ${heals ? "healed" : "damage"}`);
+    if (freezes) parts.push(`${totalStunSec.toFixed(1)}s frozen`);
+    if (first !== "guard" && (totalDamage > 0 || !freezes)) parts.push(`${Math.round(totalDamage)} ${heals ? "healed" : "damage"}`);
     this.chainEndCard.innerHTML = `<div class="pr-head">${chainLength} ${noun}</div>${parts.length > 0 ? `<div class="pr-sub">${parts.join(" · ")}</div>` : ""}`;
     this.chainEndCard.className = `perf-result${backfire ? " backfire" : ""}`;
     this.placeOver(this.chainEndCard, heroId);
@@ -2338,6 +2320,9 @@ export class FightView {
     const killedSet = new Set(killedIds);
     this.calloutQueue = this.calloutQueue.filter((entry) => entry.keepIfDeferred && !(entry.heroId && killedSet.has(entry.heroId)));
     this.advanceCalloutQueue();
+    const afterEnding = this.afterChainEnding;
+    this.afterChainEnding = null;
+    afterEnding?.();
   }
 
   private showCallout(text: string, muted: boolean, color?: string, keepIfDeferred = false, heroId?: string): void {
@@ -2713,7 +2698,7 @@ function makeHeroSlot(
   freezeRing.className = "freeze-ring";
   const freezeSecs = document.createElement("div");
   freezeSecs.className = "freeze-secs";
-  freezeRing.appendChild(freezeSecs);
+  // (freezeSecs is appended to the body core below, not to the ring: the ring's mask would clip a pill that sits beside it.)
 
   // The CHAIN meter, as a ring around the body (2026-09-29 MidFill pass —
   // see design/HANDOFF.md) — a sibling of freezeRing, same positioning
@@ -2727,6 +2712,7 @@ function makeHeroSlot(
   core.appendChild(body);
   core.appendChild(chargeRing);
   core.appendChild(freezeRing);
+  core.appendChild(freezeSecs);
   perch.appendChild(core);
 
   slot.appendChild(perch);
@@ -2773,6 +2759,9 @@ function makeHeroSlot(
     freezeRing,
     freezeSecs,
     chargeRing,
+    liveFace: "",
+    face: null,
+    fallen: false,
   };
 }
 

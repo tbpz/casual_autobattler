@@ -8,7 +8,7 @@ import { fierceScowl } from "./roundParts.js";
 import { roundEnemySide } from "../sim/rounds.js";
 import { Playback } from "./playback.js";
 import { RunSession } from "./runSession.js";
-import { renderRunCompleteScreen, renderRoundRecap } from "./runScreens.js";
+import { renderRunCompleteScreen } from "./runScreens.js";
 import { renderRunOverScreen } from "./runOverScreen.js";
 import { renderRoundScreen } from "./roundScreen.js";
 import { renderSquadScreen } from "./squadScreen.js";
@@ -28,9 +28,7 @@ const ICON_PLAY_SMALL = '<svg width="11" height="11" viewBox="0 0 11 11"><path d
  *    in a corner badge on every screen, so a fight worth arguing about can be
  *    reproduced exactly (checks/determinism.ts already guarantees same
  *    seed -> same event log).
- *  - ?test=1 flips runScreens.ts's recap panel to hold its reveal behind
- *    a button, so a written cause isn't contaminated by reading the recap
- *    first.
+ *  - ?test=1 adds the full chain / death log to the run-over screen.
  */
 const urlParams = new URLSearchParams(location.search);
 const testMode = urlParams.get("test") === "1";
@@ -41,6 +39,8 @@ const jumpToRound = Number(urlParams.get("round")) || 0;
 const jumpToRunOver = urlParams.get("runover") === "1";
 /** ?fall=N (with ?round=N): marks the last N fielded units dead, to see the empty-slot screen without a lucky seed. */
 const fallCount = Number(urlParams.get("fall")) || 0;
+/** ?offer=N: plays to round N, wins it if it can, and opens that win's reward pick (the upgrades screen). A no-op when absent. */
+const jumpToOffer = Number(urlParams.get("offer")) || 0;
 
 /** The seed corner badge, present on every screen, with an "export" link that
  * downloads the run so far as JSON (log/runLog.ts). Each click writes every
@@ -81,7 +81,7 @@ export function mountApp(root: HTMLElement): void {
   function startNewRun(): void {
     const seed = pinnedSeed !== null && pinnedSeed !== "" ? Number(pinnedSeed) : Math.floor(Math.random() * 1_000_000_000);
     session = new RunSession(cfg, seed);
-    if (jumpToRound > 1 || jumpToRunOver) fastForward();
+    if (jumpToRound > 1 || jumpToOffer > 1 || jumpToRunOver) fastForward();
     if (fallCount > 0) {
       const byId = new Map(session.currentRoster.heroes.map((h) => [h.id, h]));
       for (const id of session.lastFielded.slice(-fallCount)) {
@@ -93,6 +93,16 @@ export function mountApp(root: HTMLElement): void {
       showRunOver();
       return;
     }
+    if (jumpToOffer > 1) {
+      session.playNextRound();
+      if (runIsOver()) {
+        showRunOver();
+        return;
+      }
+      if (session.awaitingRelic) showRelicScreen();
+      else showOfferScreen();
+      return;
+    }
     // A run opens straight on its first fight (2026-10-01); the relic pick is that
     // fight's reward.
     showRoundScreen();
@@ -100,7 +110,7 @@ export function mountApp(root: HTMLElement): void {
 
   /** Plays rounds with the accept-default pick (the same loop as checks/runLog.ts playSession). */
   function fastForward(): void {
-    while (session.status === "in-progress" && (jumpToRunOver || session.currentRoundIndex < jumpToRound - 1)) {
+    while (session.status === "in-progress" && (jumpToRunOver || session.currentRoundIndex < Math.max(jumpToRound, jumpToOffer) - 1)) {
       session.playNextRound();
       if (session.status !== "in-progress") break;
       if (session.awaitingRelic) {
@@ -112,6 +122,11 @@ export function mountApp(root: HTMLElement): void {
         session.resolveOffer(offer, defaultCardDrop(session.progress, session.currentRoster, offer, cfg));
       }
     }
+  }
+
+  /** Read through a function so the earlier status check does not narrow the type after a round is played. */
+  function runIsOver(): boolean {
+    return session.status === "over";
   }
 
   function showRunOver(): void {
@@ -172,8 +187,7 @@ export function mountApp(root: HTMLElement): void {
         showRunOver();
         return;
       }
-      renderRoundRecap(root, session.currentRoundIndex, result, session.lastProjection, showReward, testMode);
-      appendSeedBadge(root, session);
+      showReward();
     });
 
     let ended = false;
@@ -271,7 +285,7 @@ export function mountApp(root: HTMLElement): void {
       onOfferChosen(null);
       return;
     }
-    renderOfferScreen(root, session.pendingOffers, session.progress.cards, cfg.cardCap, onOfferChosen);
+    renderOfferScreen(root, session.pendingOffers, session.progress.cards, cfg.cardCap, session.progress.relic, onOfferChosen);
     appendSeedBadge(root, session);
   }
 

@@ -33,33 +33,34 @@ export function bubblePath(tailDx = 0): string {
   );
 }
 
-export type BubbleKind = "live" | "backfire" | "stopped" | "noRepeat";
+/** `live` and `backfire` while the skill runs; `stopped` and `backfireStopped` when it ends, whatever the cause. */
+export type BubbleKind = "live" | "backfire" | "stopped" | "backfireStopped";
 
 export interface BubbleText {
   /** The word on the left: the skill, or what is going on with it. */
   name: string;
-  /** The count on the right ("×3"), empty until the skill has repeated. */
+  /** The count on the right ("×3"), empty until the skill has repeated, and always empty once it has stopped. */
   count: string;
   /** From the full-tell hit: a brighter glow, since the bubble itself never grows. */
   big: boolean;
   /** At the cap. */
   max: boolean;
   backfire: boolean;
-  /** Grey: the skill stopped or never repeated. */
+  /** Grey: the skill stopped. */
   muted: boolean;
 }
 
 /**
  * What the bubble says. The first use shows the skill alone; from the second hit the count appears beside it; from `fullAt` hits the glow
- * brightens; at `maxAt` the word reads MAX. A backfire says BACKFIRE, a skill that stopped says STOPPED with its count, and one that never
- * repeated says NO REPEAT. The word "chain" is not used in fight text.
+ * brightens; at `maxAt` the word reads MAX. A backfire says BACKFIRE. Every ending says STOPPED, with no count and no other word: grey, or
+ * red for a backfire. The result bubble that follows carries the hits and the damage. The word "chain" is not used in fight text.
  */
 export function bubbleText(kind: BubbleKind, length: number, skill: string, fullAt: number, maxAt: number): BubbleText {
+  if (kind === "stopped") return { name: "STOPPED", count: "", big: false, max: false, backfire: false, muted: true };
+  if (kind === "backfireStopped") return { name: "STOPPED", count: "", big: false, max: false, backfire: true, muted: false };
   const count = length >= 2 ? `×${length}` : "";
-  const big = kind === "live" || kind === "backfire" ? length >= fullAt : false;
-  const max = kind === "live" || kind === "backfire" ? length >= maxAt : false;
+  const big = length >= fullAt;
+  const max = length >= maxAt;
   if (kind === "backfire") return { name: "BACKFIRE", count, big, max, backfire: true, muted: false };
-  if (kind === "stopped") return { name: "STOPPED", count, big: false, max: false, backfire: false, muted: true };
-  if (kind === "noRepeat") return { name: "NO REPEAT", count: "", big: false, max: false, backfire: false, muted: true };
   return { name: max ? "MAX" : skill, count, big, max, backfire: false, muted: false };
 }

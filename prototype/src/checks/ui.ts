@@ -14,6 +14,8 @@ import { makeSquadFromRoles } from "../sim/roles.js";
 import { PauseClock } from "../render/pauseClock.js";
 import { termifyText } from "../render/terms.js";
 import { bestMoment } from "../render/fightSummary.js";
+import { sectionPlan } from "../render/upgrades.js";
+import type { CardId } from "../sim/cards/index.js";
 import { BUBBLE_H, BUBBLE_TAIL, BUBBLE_TAIL_MAX_DX, BUBBLE_W, bubblePath, bubbleText, clampTailDx } from "../render/bubble.js";
 
 let failed = false;
@@ -101,9 +103,27 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
   const back = bubbleText("backfire", 3, "EXPOSE", 5, 7);
   check("bubble text: a backfire says BACKFIRE in red", back.name === "BACKFIRE" && back.count === "×3" && back.backfire && !back.muted);
   const stopped = bubbleText("stopped", 3, "EXPOSE", 5, 7);
-  check("bubble text: a skill that stopped says STOPPED with its count, in grey", stopped.name === "STOPPED" && stopped.count === "×3" && stopped.muted);
-  const none = bubbleText("noRepeat", 1, "EXPOSE", 5, 7);
-  check("bubble text: a skill that never repeated says NO REPEAT, in grey", none.name === "NO REPEAT" && none.count === "" && none.muted);
+  check("bubble text: an ending says STOPPED, in grey, with no count", stopped.name === "STOPPED" && stopped.count === "" && stopped.muted && !stopped.backfire);
+  const capped = bubbleText("stopped", 7, "EXPOSE", 5, 7);
+  check("bubble text: an ending at the cap says STOPPED, not MAX", capped.name === "STOPPED" && capped.count === "" && !capped.max && !capped.big);
+  const none = bubbleText("stopped", 0, "EXPOSE", 5, 7);
+  check("bubble text: a skill that never repeated says STOPPED too", none.name === "STOPPED" && none.count === "" && none.muted);
+  const backStopped = bubbleText("backfireStopped", 3, "EXPOSE", 5, 7);
+  check("bubble text: a backfire that ended says STOPPED in red", backStopped.name === "STOPPED" && backStopped.count === "" && backStopped.backfire && !backStopped.muted);
+}
+
+// --- the upgrades section (canvas 6.2 and 6.4C): three upgrades or fewer all show, more folds to the two newest and a +N
+{
+  const ups = ["shatter", "execute", "hunterMark", "deepFreeze", "spread", "bulwark", "momentum", "secondWind"] as CardId[];
+  const none = sectionPlan([]);
+  check("section: no upgrades shows nothing and folds nothing", none.shown.length === 0 && none.hidden === 0);
+  const three = sectionPlan(ups.slice(0, 3));
+  check("section: three upgrades all show", three.shown.length === 3 && three.hidden === 0);
+  const four = sectionPlan(ups.slice(0, 4));
+  check("section: four upgrades fold to the two newest and +2", four.shown.join() === ups.slice(2, 4).join() && four.hidden === 2, `${four.shown.length} shown, +${four.hidden}`);
+  const full = sectionPlan(ups);
+  check("section: eight upgrades fold to the two newest and +6", full.shown.join() === ups.slice(6, 8).join() && full.hidden === 6);
+  check("section: shown plus hidden is always the whole list", [0, 1, 3, 4, 8].every((n) => { const p = sectionPlan(ups.slice(0, n)); return p.shown.length + p.hidden === n; }));
 }
 
 if (failed) {

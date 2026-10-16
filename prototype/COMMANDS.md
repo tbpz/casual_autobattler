@@ -25,9 +25,9 @@ the way they are; `src/sim/config.ts` holds every tunable constant in one
 place, `src/sim/rounds.ts`'s `ROUND_PLAN` holds the round-by-round difficulty
 curve, and `src/sim/offers.ts` holds the post-win reward pool.
 
-`npm run dev` with `?test=1&seed=N` holds each round's recap behind a "Show
-what happened" button and pins/displays the run seed; both are no-ops
-without the query params.
+`npm run dev` with `?test=1&seed=N` adds the full chain / death log to the
+run-over screen and pins/displays the run seed; both are no-ops without the
+query params.
 
 `npm run dev` with `?lab=1` opens the lab instead of the real game — pick a
 role per slot, any encounter, a starting charge % per unit, and watch;

@@ -1,7 +1,7 @@
 import type { RunConfig } from "../sim/config.js";
 import { type PlayerRole } from "../sim/roles.js";
 import type { RunProgress } from "../sim/progress.js";
-import { CARD_DEFS, DUO_IDS, cardConnects, duoUnlocked } from "../sim/cards/index.js";
+import { CARD_DEFS, DUO_IDS, cardConnects, duoUnlocked, type CardId } from "../sim/cards/index.js";
 import { squadChainEffects } from "../sim/offers.js";
 import { heldCards } from "../sim/progress.js";
 import type { RosterState } from "../sim/roster.js";
@@ -21,6 +21,7 @@ import {
 } from "./roundParts.js";
 import { openFighterPopup } from "./fighterPopup.js";
 import { openTermCard } from "./termCards.js";
+import { upgradesSection } from "./upgrades.js";
 import { termFromTarget, termifyText } from "./terms.js";
 
 export const ROLE_CSS_VAR: Record<PlayerRole, string> = { tank: "--role-tank", damage: "--role-damage", support: "--role-healer" };
@@ -122,7 +123,7 @@ export function renderRoundScreen(
       <div class="fo-squadrow">${squadBodies}</div>
       ${shelf}
     </div>
-    <div class="fo-cards-slot"></div>
+    <div class="up-slot"></div>
     ${fallenLine}
     <button class="fo-fight" type="button"></button>
   `;
@@ -184,53 +185,44 @@ export function renderRoundScreen(
   window.addEventListener("scroll", onMove, true);
   window.addEventListener("resize", onMove);
 
+  // The upgrades section (canvas 6.1, 6.2 and 6.4C): its own box below the squad box, the relic and the run's upgrades as round emblems,
+  // folded to "+N All ›" past three. A tap on a cell says what it does, with its duo hints.
+  const upSlot = panel.querySelector(".up-slot") as HTMLElement;
   if (progress.cards.length > 0 || progress.relic) {
-    const payoffRow = document.createElement("div");
-    payoffRow.className = "round-payoff-row";
-    const payoffLabel = document.createElement("span");
-    payoffLabel.className = "round-payoff-label";
-    payoffLabel.textContent = `CARDS ${progress.cards.length}/${cfg.cardCap}`;
-    payoffRow.appendChild(payoffLabel);
     const squadEffects = squadChainEffects(progress, roster);
     const held = heldCards(progress);
-    // The relic first, then the cards in the order they were taken.
-    for (const id of progress.relic ? [progress.relic, ...progress.cards] : progress.cards) {
+    const showUpgrade = (id: CardId, anchor: HTMLElement): void => {
       const def = CARD_DEFS[id];
       const isRelic = def.kind === "relic";
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = isRelic ? "round-payoff-card round-relic-card" : "round-payoff-card";
-      chip.textContent = `${def.icon} ${def.title}`;
-      chip.addEventListener("click", () => {
-        const title = document.createElement("div");
-        title.innerHTML = `<strong>${def.title}${isRelic ? " (relic)" : ""}.</strong> ${markWordsHtml(def.detail)}`;
-        const parts: HTMLElement[] = [title];
-        if (!isRelic) {
-          parts.push(
-            cardConnects(id, squadEffects, held)
-              ? Object.assign(document.createElement("div"), { className: "round-popover-answer", textContent: "★ Connects to your squad." })
-              : popoverMeta("Nothing in your squad makes this yet."),
-          );
-        }
-        // A duo this card is a part of: what it pairs with, or that it is unlocked.
-        for (const duoId of DUO_IDS) {
-          const needs = CARD_DEFS[duoId].needs;
-          if (!needs?.cards?.includes(id)) continue;
-          const others = needs.cards.filter((c) => c !== id);
-          const missing = others.filter((c) => !held.includes(c));
-          parts.push(
-            popoverMeta(
-              missing.length === 0 && duoUnlocked(duoId, squadEffects, held)
-                ? `✧ Duo ${CARD_DEFS[duoId].title} is ready to be offered.`
-                : `Pairs with ${others.map((c) => CARD_DEFS[c].title).join(" + ")} into ${CARD_DEFS[duoId].title}.`,
-            ),
-          );
-        }
-        togglePopover(chip, parts);
-      });
-      payoffRow.appendChild(chip);
-    }
-    panel.querySelector(".fo-cards-slot")!.appendChild(payoffRow);
+      const title = document.createElement("div");
+      title.innerHTML = `<strong>${def.title}${isRelic ? " (relic)" : ""}.</strong> ${markWordsHtml(def.detail)}`;
+      const parts: HTMLElement[] = [title];
+      if (!isRelic) {
+        parts.push(
+          cardConnects(id, squadEffects, held)
+            ? Object.assign(document.createElement("div"), { className: "round-popover-answer", textContent: "★ Connects to your squad." })
+            : popoverMeta("Nothing in your squad makes this yet."),
+        );
+      }
+      // A duo this upgrade is a part of: what it pairs with, or that it is unlocked.
+      for (const duoId of DUO_IDS) {
+        const needs = CARD_DEFS[duoId].needs;
+        if (!needs?.cards?.includes(id)) continue;
+        const others = needs.cards.filter((c) => c !== id);
+        const missing = others.filter((c) => !held.includes(c));
+        parts.push(
+          popoverMeta(
+            missing.length === 0 && duoUnlocked(duoId, squadEffects, held)
+              ? `✧ Duo ${CARD_DEFS[duoId].title} is ready to be offered.`
+              : `Pairs with ${others.map((c) => CARD_DEFS[c].title).join(" + ")} into ${CARD_DEFS[duoId].title}.`,
+          ),
+        );
+      }
+      togglePopover(anchor, parts);
+    };
+    upSlot.replaceWith(upgradesSection({ relic: progress.relic ?? undefined, cards: progress.cards, cap: cfg.cardCap, onCell: showUpgrade }));
+  } else {
+    upSlot.remove();
   }
 
   // ---------- taps ----------

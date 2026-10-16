@@ -4,6 +4,8 @@ import { CARD_DEFS } from "../sim/cards/index.js";
 import type { PlayerRole } from "../sim/roles.js";
 import { ROLE_LABEL } from "../sim/roles.js";
 import { markWordsHtml } from "./heroPickShared.js";
+import { emblemHtml, upgradesHeld } from "./upgrades.js";
+import { esc } from "./roundParts.js";
 import { ROLE_CSS_VAR } from "./roundScreen.js";
 
 /**
@@ -18,6 +20,10 @@ import { ROLE_CSS_VAR } from "./roundScreen.js";
  * second step that asks which held card to drop. A mark word in a card's text
  * is coloured where it sits (2026-10-02; the old "reads / makes" chip lines
  * are gone).
+ *
+ * 2026-10-16 (upgrades, canvas 6.1 to 6.3): a card is called an upgrade on screen and drawn as its round emblem, the same one the round
+ * screen's UPGRADES shelf shows after the pick. The top of the pick holds what the run already has (the same relic, divider and upgrades as the round screen's section, folded to
+ * "+N All ›" past three), an upgrade row's rail is its emblem, and at the cap the drop step lists the held upgrades with a DROP tag.
  *
  * 2026-09-30 (offer screen redesign — design/canvas/OfferAfter.dc.html): every
  * offer is a full-width row with the SAME frame, so no kind looks like the
@@ -73,19 +79,19 @@ function rowHtml(p: RowParts): string {
   const def = p.card ? CARD_DEFS[p.card] : undefined;
   // A card carries its own glyph in the rail (so a card can be told from the
   // next one at a glance, and recalled next run), and a duo says so.
-  const railIcon = def ? def.icon : cat.icon;
-  const railWord = def ? (def.kind === "duo" ? "DUO" : "CARD") : cat.word;
+  const railIcon = p.card ? emblemHtml(p.card, 44) : `<span class="offer-rail-icon">${cat.icon}</span>`;
+  const railWord = def ? (def.kind === "duo" ? "DUO" : "UPGRADE") : cat.word;
   // A card's headline is its name, left plain; a chain offer's headline is the
   // ability it adds ("New: ❄ freeze"), so a mark word in it is coloured too.
   const headline = p.card ? p.headline : markWordsHtml(p.headline);
   return (
-    `<span class="offer-rail"><span class="offer-rail-icon">${railIcon}</span><span class="offer-rail-word">${railWord}</span></span>` +
+    `<span class="offer-rail">${railIcon}<span class="offer-rail-word">${railWord}</span></span>` +
     `<span class="offer-body">` +
     `<span class="offer-head"><span class="offer-headline">${headline}</span>${pill}</span>` +
     (p.title ? `<span class="offer-title">${p.title}</span>` : "") +
     `<span class="offer-detail">${markWordsHtml(p.detail)}</span>` +
     (p.worksWith ? `<span class="offer-with">↳ ${p.worksWith}</span>` : "") +
-    (p.replaces ? `<span class="offer-replaces">replaces one of your cards</span>` : "") +
+    (p.replaces ? `<span class="offer-replaces">⇄ replaces one of your upgrades</span>` : "") +
     `</span>`
   );
 }
@@ -95,6 +101,7 @@ export function renderOfferScreen(
   offers: Offer[],
   held: CardId[],
   cap: number,
+  relic: CardId | undefined,
   onChoose: (offer: Offer, dropCardId?: CardId) => void,
 ): void {
   container.innerHTML = "";
@@ -108,12 +115,7 @@ export function renderOfferScreen(
     h1.textContent = "Victory — pick one";
     screen.appendChild(h1);
 
-    if (held.length > 0) {
-      const heldLine = document.createElement("div");
-      heldLine.className = "offer-held";
-      heldLine.textContent = `Your cards (${held.length}/${cap}): ${held.map((id) => CARD_DEFS[id].title).join(", ")}`;
-      screen.appendChild(heldLine);
-    }
+    if (held.length > 0 || relic) screen.appendChild(upgradesHeld({ relic, cards: held, cap }));
 
     const choices = document.createElement("div");
     choices.className = "offer-rows";
@@ -146,17 +148,23 @@ export function renderOfferScreen(
     h1.textContent = `Drop one to take ${offer.title}`;
     screen.appendChild(h1);
 
+    // What comes in, so the player sees what the drop is for.
+    if (offer.card) {
+      const incoming = document.createElement("div");
+      incoming.className = "offer-incoming";
+      incoming.innerHTML = `${emblemHtml(offer.card, 34)}<span class="offer-incoming-main"><b>COMING IN</b><span class="offer-incoming-name">${esc(offer.title)}</span><span class="offer-incoming-text">${markWordsHtml(esc(offer.detail))}</span></span>`;
+      screen.appendChild(incoming);
+    }
+
     const choices = document.createElement("div");
-    choices.className = "offer-rows";
+    choices.className = "offer-rows compact";
     for (const id of held) {
       const btn = document.createElement("button");
-      btn.className = "offer-row cat-reaction";
-      btn.innerHTML = rowHtml({
-        category: "reaction",
-        headline: `Drop ${CARD_DEFS[id].title}`,
-        detail: CARD_DEFS[id].detail,
-        card: id,
-      });
+      btn.className = "offer-row offer-drop cat-reaction";
+      btn.innerHTML =
+        `<span class="offer-rail">${emblemHtml(id, 34)}</span>` +
+        `<span class="offer-body"><span class="offer-headline">${esc(CARD_DEFS[id].title)}</span><span class="offer-detail">${markWordsHtml(esc(CARD_DEFS[id].detail))}</span></span>` +
+        `<span class="offer-drop-tag">DROP</span>`;
       btn.addEventListener("click", () => onChoose(offer, id));
       choices.appendChild(btn);
     }

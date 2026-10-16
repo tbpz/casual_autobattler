@@ -1,15 +1,15 @@
 import type { RunConfig } from "../sim/config.js";
-import { CARD_DEFS } from "../sim/cards/index.js";
 import type { RunSession } from "./runSession.js";
 import { bestMoment, momentHtml, type BestMoment } from "./fightSummary.js";
 import { DEAD_BODY, villainFace } from "./faces.js";
 import { esc, roundStripHtml } from "./roundParts.js";
 import { appendAnswerKey } from "./runScreens.js";
+import { upgradesBuildHtml } from "./upgrades.js";
 
 /**
  * The run-over screen (canvas 7.1, DECISIONS.md 2026-10-16), reached from the defeat overlay's Continue. Leads with how close it
  * was (the enemy still standing with the most HP: its face, its bar, "Still standing with N HP left"), then the run's best moment,
- * the relic and cards held, and the fallen squad. One action: Try again. It replaces the old text screen with its per-unit recap
+ * the relic and upgrades held (each as its round emblem, canvas 6.1), and the fallen squad. One action: Try again. It replaces the old text screen with its per-unit recap
  * and spare-seconds line. The other ending (too many units fell to fill the slots, which follows a win) is the same screen with
  * its own headline and no SO CLOSE block.
  */
@@ -41,9 +41,7 @@ export function renderRunOverScreen(container: HTMLElement, cfg: RunConfig, sess
 
   // ---------- the build and the squad ----------
   const progress = session.progress;
-  const relic = progress.relic ? `<span class="ro-chip relic">${esc(CARD_DEFS[progress.relic].title)}</span>` : "";
-  const cards = progress.cards.map((id) => `<span class="ro-chip">${esc(CARD_DEFS[id].title)}</span>`).join("");
-  const build = relic || cards ? `<div class="ro-block"><div class="ro-sec">YOUR BUILD</div><div class="ro-chips">${relic}${cards}</div></div>` : "";
+  const build = progress.relic || progress.cards.length > 0 ? `<div class="ro-block"><div class="ro-sec">YOUR BUILD</div><div class="ro-chips">${upgradesBuildHtml(progress.relic ?? undefined, progress.cards)}</div></div>` : "";
 
   const byId = new Map(session.currentRoster.heroes.map((h) => [h.id, h]));
   const squadIds = session.lastFielded.length > 0 ? session.lastFielded : session.currentRoster.heroes.map((h) => h.id);

@@ -10,6 +10,61 @@
 
 ---
 
+## [2026-10-16] Cards are called upgrades, drawn as one round emblem, in their own section
+
+- **Decision:**
+  - On screen a card is an "upgrade". Role abilities, stats, recruits and recovery keep their names; "card" stays for the explainer cards.
+  - The relic stays a relic: a gold ring, first, set apart by a divider.
+  - An upgrade is one round emblem, a ring in its mark colour round its glyph. It is the same on the pick, the round screen, the run-over build row and the drop step.
+  - On the round screen the upgrades are their own box below the squad box, with no title and no RELIC tag. Squad and bench stay together.
+  - The count is upgrades only, a label on the box's top edge. The relic is not counted, so a relic alone reads 0/8.
+  - Three upgrades or fewer all show. More shows the two newest and a `+N All ›` cell that opens a sheet of every upgrade.
+  - The sheet states the cap rule: the relic does not count, and when full a new upgrade means dropping one.
+  - The code is `prototype/src/render/upgrades.ts` with the offer, round and run-over screens. The sim and `cardCap` are unchanged.
+- **Why:**
+  - Tu: "cards" is hard to understand, and the pick should read as the same thing the round screen holds.
+  - Tu picked from three canvas sets: emblem 6.2B, fold 6.3D, section 6.4C.
+  - Tu's objections to the first shelf: it split squad and bench, its title and tag cost height, and "0/8" beside a relic confused.
+  - Tu asked for the cap rule in the full list.
+  - Measured 2026-10-16: the section is 81px, the old shelf 104px.
+  - Checked 2026-10-16 in a desktop headless browser and on the live canvas; `npm run check` passes. Not seen on a phone.
+- **Replaces:**
+  - The text-chip "CARDS n/cap" row, "Your cards (n/cap)" on the pick, the run-over chips, and the shelf inside the squad box.
+
+## [2026-10-16] The post-win round summary screen is dropped
+
+- **Decision:**
+  - After a won fight, `Continue` on the result overlay (5.6) goes straight to the reward: the relic pick on round 1, the offer screen after.
+  - The "Round N — Victory" text screen between them is removed from the prototype: its per-unit lines, spare-seconds line, chain line and cards line.
+  - The run-over screen keeps the `?test=1` answer key. The run log still exports what the summary showed.
+  - The code is `renderRoundRecap` in `prototype/src/render/runScreens.ts`, removed; `render/app.ts` calls the reward step directly.
+  - Canvas frames 5.6 and 5.7 had notes about the recap; they are corrected. No frame ever drew the summary screen.
+- **Why:**
+  - Tu: "It's not needed now."
+  - The screen was a text leftover that no canvas frame drew and the new screens do not use.
+  - Its "chained ×N for 0" wording was an open item (call 12c); that item goes with it.
+  - Checked 2026-10-16 in a desktop browser: round 1 went from Continue to the relic pick, round 2 to the offer screen. Not seen on a phone.
+- **Replaces:**
+  - The 900 ms switch from the result overlay to a text recap, and the second `Continue` after it.
+
+## [2026-10-16] A unit that falls in the fight takes ✕ eyes on its own colour
+
+- **Decision:**
+  - When a unit falls in a fight, its face becomes the two ✕ eyes of the fallen popup (2.6).
+  - The body keeps its own colour (squad role colour, enemy red) and the fade it already had.
+  - This holds on both sides and happens on the tick the unit falls.
+  - A revive (Phoenix) puts the live face back.
+  - The grey fallen body stays on the screens that are not a fight: the fallen popup, the squad screen, the bench shelf and the run-over screen.
+  - The code is in `prototype/src/render/fightView.ts` (`setFallenFace`) and `render/faces.ts` (`deadFace`). The sim is unchanged.
+  - Frames 5.5A, 5.6, 5.7 and the Rex behind 2.6 carry the same look.
+- **Why:**
+  - Tu asked for the face to change when a fighter dies. A fallen unit kept its live eyes and only faded, so a still read as dim, not out.
+  - Tu picked B from four canvas options (5.13A to D) with "go with B" and gave no reason.
+  - B keeps the role colour that C and D drop, so who fell stays readable mid-fight. That is my reading, not Tu's words.
+  - Checked 2026-10-16 in a desktop browser: the ✕ eyes swapped in on the tick a unit fell and the fade held. Not seen on a phone; the revive was not exercised.
+- **Replaces:**
+  - The fight's fallen look: the live face with only a fade.
+
 ## [2026-10-16] The charge shows as a border round one fixed-size skill bubble
 
 - **Decision:**

@@ -16,6 +16,20 @@
 
 ---
 
+### [2026-10-16 #3] Published canvas frames 6.3A, 6.3C and 6.3D with the upgrade shelf's cells squashed to 0–2px
+
+- **Said:** After publishing version 96 I reported 6.3A–D as "published, read back, all five frames
+  are on it", and said the frames rendered correctly.
+- **Actually:** In the live canvas 6.3A and 6.3D (the one Tu picked) drew every named emblem on top
+  of the next: `cell(u, w, fs)` took a width, but the frames called `HELD.map(cell)`, which passes the
+  array index as `w`, so each cell was 0 to 8px wide. The read-back I did only checked that the
+  files and artboards were in the page, not how they looked.
+- **Caught by:** Tu: "your screen looks a bit broken when multiple icons overlap on each other".
+  I then opened the live canvas in Chrome and found the collapsed shelf.
+- **Why:** I changed a helper's signature after the screenshots, re-rendered only B and C, and
+  never looked at A and D again before publishing.
+- **Tag:** published without looking at the final render
+
 ### [2026-10-16 #2] Drew the slam option frame with the built number at 1.1×, but the build draws it at 1.3 to 2.0×
 
 - **Said:** On canvas frame 5.8 (the slam options, published as version 79) the captions and
