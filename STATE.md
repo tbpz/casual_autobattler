@@ -22,12 +22,12 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 ## Where it stands
 
-A run grows over 20 rounds through a relic, reward cards, role upgrades and duo cards. The screens drawn on the canvas to make the game explain itself to a first-time player are now built in the prototype: a face-off round screen, a squad screen, a fighter popup, underlined terms with animated cards, a bare fight screen with a tag on the unit that uses a skill, and a run-over screen. None has been played by a first-time player, and every canvas frame still awaits Tu's approval. Fight, card and relic mechanics are batch-verified and unchanged.
+A run grows over 20 rounds through a relic, reward cards, role upgrades and duo cards. The screens drawn on the canvas to make the game explain itself to a first-time player are built in the prototype: a face-off round screen, a squad screen, a fighter popup, underlined terms with animated cards, a bare fight screen with a tag on the unit that uses a skill, a drawn line for every hit, a heavy finish on the slam, and a run-over screen. None has been played by a first-time player, every canvas frame still awaits Tu's approval, and the new hit lines and slam finish have not been seen on a phone. Fight, card and relic mechanics are batch-verified and unchanged.
 
 ## Next up
 
-1. **Play it:** run `npm run dev` on a phone with a different build each time, then put it in front of the playtest friend and ask whether the tag on the unit alone explains the skill and its count, and whether they find the underlines, the icons and the popup unprompted.
-2. **Fix what that shows, then get the frames approved** (open calls 8–12 and 10b in `design/HANDOFF.md`); carry the underline marks and the skill rename onto the reward pick 6.1 (call 12) and the post-win recap, which still says "chained ×N for 0".
+1. **Play it:** run `npm run dev` on a phone with a different build each time, then put it in front of the playtest friend and ask whether the tag on the unit alone explains the skill and its count, whether they find the underlines, the icons and the popup unprompted, and whether a slam reads as the biggest hit.
+2. **Fix what that shows, then get the frames approved** (open calls 8–12 and 10b in `design/HANDOFF.md`); carry the underline marks and the skill rename onto the reward pick 6.1 (call 12) and the post-win recap, which still says "chained ×N for 0"; redraw frame 5.3 to the built slam.
 3. **Fix the cards that rarely fire:** Glass fires only when a freeze ends; Overflow, Ember heart, Cold snap, Bulwark and Deep freeze fire in under half their held fights (the "rarely fires" line of `npm run batch -- --offers build`).
 4. **Rebalance outliers** from the synergy block (Punish is the weakest card by a wide margin; recheck whether Exposed's cards still trail Burn's) and **pick a target for chains' share of damage** (about 44% of player damage now).
 5. **Send the `export` file from each play**; the healer-only stalemate and the guard's repeated "against" recap line wait behind #1.
@@ -43,6 +43,7 @@ A run grows over 20 rounds through a relic, reward cards, role upgrades and duo 
 | Fatigue — per-unit, sets backfire odds and chain size | batch-verified | `sim/roster.ts`, `sim/config.ts`, `checks/fatigue.ts` |
 | Chain abilities — 12; each role has 3 upgrade options, 2 drawn per run | batch-verified | `sim/roles.ts`, `sim/progress.ts`, `checks/abilities.ts` |
 | Fight screen — bare arena, a tag on the unit that uses a skill, thin charge bar, ⏸ and tap to pause, result overlay with best moment | built | `render/fightView.ts`, `render/app.ts`, `render/pauseClock.ts`, `design/HANDOFF.md` |
+| Hit lines and slam finish — a quick drawn line per hit; a slam ends on a strike beam, lunge, ring and heavy shake | built | `render/fightView.ts`, `style.css`, `design/HANDOFF.md` |
 | Shield on the HP bar — segment, ghosts, break flash | built | `render/hpBar.ts`, `render/fightView.ts`, `checks/hpBar.ts` |
 | Round screen — face-off, enemy badges, bench shelf, empty slot when a unit falls, squad screen | built | `render/roundScreen.ts`, `render/squadScreen.ts`, `render/roundParts.ts` |
 | Fighter popup — switcher, skill tile, fatigue card; fallen units open it from the fight only | built | `render/fighterPopup.ts` |
@@ -74,7 +75,7 @@ A run grows over 20 rounds through a relic, reward cards, role upgrades and duo 
 - Chains every fight still feel unpredictable, rather than averaging out into a steady trade.
 - Push or rest stays a real choice, and players bench a tired hero by hand and notice the bench shelf.
 - Cards, duos and relics give a run an identity and a combo worth chasing.
-- A cascade stays readable on a phone screen, and a tap on a fighter that pauses the fight feels natural.
+- A cascade stays readable on a phone screen, a slam reads as the biggest hit, and a tap on a fighter that pauses the fight feels natural.
 - A first-time player finds the underlined terms, the stat icons and the enemy badges, opens a fighter's popup, reads the eyes as fatigue and enemy, and links a skill to the unit that did it from the tag on its head, without being told.
 
 ## Open questions

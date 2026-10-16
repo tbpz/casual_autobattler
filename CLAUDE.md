@@ -13,7 +13,7 @@ Placement rules:
 - If a line explains *how a mechanism works*, it belongs in the code — `prototype/src/sim/config.ts` holds every tunable in one place. STATE names where a piece stands and points; it never paraphrases behaviour.
 - A line earns a place in STATE only if it would change what the reader does next session. Everything else is reference.
 
-The `decision-log`, `state-sync`, `cheatsheet-update` and `browser-check` skills referenced below live in `.claude/skills/` and are tracked with this repo.
+The `decision-log`, `state-sync`, `cheatsheet-update`, `canvas-update` and `browser-check` skills referenced below live in `.claude/skills/` and are tracked with this repo.
 
 ## On session start — the READ protocol
 
@@ -67,6 +67,27 @@ Update `CHEATSHEET.md` in the same change, **without asking**, whenever a change
 - A card, relic, mark or ability added, removed or renamed.
 
 **Invoke the `cheatsheet-update` skill**, which carries the editing steps. It needs no DECISIONS entry and is not a STATE sync.
+
+## Keeping the design canvas current
+
+Sessions often make a quick UI adjustment straight in the prototype. Update the canvas in the same
+change, **without asking**, whenever a change alters how the built game looks or behaves on screen
+(colours, sizes, layout, wording, motion or timing) in a file `design/HANDOFF.md` "Built in the
+prototype" names: the `render/*.ts` screen modules, `style.css`, `screens.css`, `termCards.css`.
+Refactors with no visible change, dev-only URL params and screens no frame draws are not triggers.
+
+- By default the frames are redrawn to match. If the code differs only because of a limit of the
+  build, not a design call, note it under "Where the build differs from the canvas" instead.
+- Publish once, at the end of the task, before saying it is done. The steps are in `design/HANDOFF.md`
+  under "Publishing"; the rule under "Changing the design canvas" below still applies.
+
+**Invoke the `canvas-update` skill**, which carries the editing steps. It needs no DECISIONS entry and is not a STATE sync.
+
+## Editing files
+
+Python is not installed on Tu's laptop — `python` is only the Microsoft Store stub. Never use
+`python` for file edits or scripts. Use the Edit/Write tools; for a scripted bulk edit across many
+files, use `node` (installed, since the prototype is TypeScript) with the script in the scratchpad.
 
 ## Testing UI in a browser
 

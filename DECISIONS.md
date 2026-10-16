@@ -10,6 +10,43 @@
 
 ---
 
+## [2026-10-16] A slam ends on a strike beam, a longer lunge, a shockwave, a heavier shake and a bigger number
+
+- **Decision:**
+  - On release the slam's aim line snaps into a thick beam, and the hit lands at that instant.
+  - In the last 0.2s of the wind-up the slammer swells and pulls back from its victim.
+  - On release it lunges farther than a normal hit does, and the victim is knocked back.
+  - A red ring bursts from the victim and a red flash runs round the arena's edge.
+  - The shake is stronger and longer than a chain's.
+  - The number is 45% bigger than its built size, with a pop-in.
+  - The values live in `prototype/src/render/fightView.ts` (`SLAM_*`) and `prototype/src/style.css`.
+- **Why:**
+  - Once every normal hit drew the same quick line, a slam ended on that same line and read as a normal hit, weaker than it is.
+  - Tu saw six options as looping phones on a canvas frame and chose the strike beam, the step-in, the shockwave and the heavier shake and number together.
+  - The built number already scaled with the damage share of the victim's HP, so the boost is on top of that rule, not a fixed size.
+  - It is screen-only: the sim never reads render code, so no balance changes.
+- **Replaces:**
+  - The slam ending on a second normal-hit line, a flash and a small shake (the 2026-09-13 slam-visibility pass).
+  - The six-option frame, 5.8, which is dropped.
+  - Not settled: frame 5.3B still draws the old hit.
+
+## [2026-10-16] A hit is drawn as a quick growing line, not a travelling dot
+
+- **Decision:**
+  - Every hit, heal and chain hit is a thin glowing line that grows from the attacker to the target, then fades.
+  - It is the line the term cards already used.
+  - The hit lands as the line arrives.
+  - A back-rank unit's own shot is a straight line.
+  - Only a hit that skips a living front-rank unit curves.
+  - After Tu's first look the draw was slowed a little; the timing is `--tracer-ms` in `prototype/src/style.css`.
+- **Why:**
+  - Tu found the card's line far clearer than the small fast dot: one stroke says who hit whom.
+  - A line that touches the target as the number appears keeps the cause and the effect together.
+  - The draw time is screen-only, so slowing it cannot change fight length, chain frequency or difficulty.
+- **Replaces:**
+  - The travelling-dot tracer (the 2026-08-06 attribution pass).
+  - The curved path for a back-rank attacker's own shot.
+
 ## [2026-10-16] Units have names of their own, drawn from a fixed pool by the run seed
 
 - **Decision:**

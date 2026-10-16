@@ -23,7 +23,7 @@ function cssToken(name: string, fallback: string): string {
 }
 
 /** Same as cssToken, but parsed as a plain number — for a unitless scale
- * (--back-rank-scale) or a CSS time (--tracer-ms, "0.2s") converted to the
+ * (--back-rank-scale) or a CSS time (--tracer-ms, "0.3s") converted to the
  * ms this file schedules setTimeouts in. */
 function cssNumber(name: string, fallback: number): number {
   const raw = cssToken(name, String(fallback));
@@ -163,7 +163,9 @@ interface HeroSlot {
  * at t=0, so the tracer is the thing that establishes "who hit whom" before
  * the damage number appears. Reads style.css's --tracer-ms at load, so the
  * CSS transition duration and this schedule can never drift apart. */
-const TRACER_MS = cssNumber("--tracer-ms", 200);
+const TRACER_MS = cssNumber("--tracer-ms", 300);
+/** How long a drawn line takes to fade once it has reached its target, in ms. Reads style.css's --tracer-fade-ms. */
+const TRACER_FADE_MS = cssNumber("--tracer-fade-ms", 130);
 
 /** How long the miss/cap flourish holds before handing off to the end card
  * (2026-08-19, chain-ending pass) — long enough to read as its own beat
@@ -193,12 +195,30 @@ const GUARD_PIP_CAP = 5;
  * track the line and read WHICH body it stopped on before the impact
  * flash/shake overwrite the frame — which is exactly what made the old swing
  * unreadable as proof of anything. 420ms sits between the ordinary tracer
- * (TRACER_MS, 200ms) and the chain-failure hold (CHAIN_FAILURE_HOLD_MS,
+ * (TRACER_MS, 300ms) and the chain-failure hold (CHAIN_FAILURE_HOLD_MS,
  * 600ms) on this file's own loudness ladder — long enough to read as a
  * deliberate reversal, short enough to still read as a consequence of the
  * 1.5s telegraph rather than a second one of its own. Costs 0.4s once per
  * slam in a fight that runs ~20s. */
 const SLAM_SWING_MS = 420;
+
+/** The slam's finish (2026-10-16, Tu chose "all of B to E" on canvas frame 5.8 after every
+ * normal hit began drawing the same quick line, which made a slam read as a normal hit): in
+ * the last SLAM_PULLBACK_SEC of the telegraph the slammer swells to SLAM_SWELL and pulls
+ * SLAM_PULLBACK_PX back from its victim; on release a thick strike beam (STRIKE_MS) replaces
+ * the 300ms line and the hit lands at once, the slammer lunges SLAM_LUNGE_PX (a normal front
+ * hit steps in STEP_IN_PX), the victim is knocked SLAM_KNOCK_PX, a red ring (SLAM_RING_MS) and
+ * a red edge flash go off, the arena shakes harder, and the number is SLAM_NUMBER_BOOST bigger
+ * than the built size (capped at SLAM_NUMBER_CAP em). Screen only; nothing here reaches the sim. */
+const SLAM_PULLBACK_SEC = 0.2;
+const SLAM_PULLBACK_PX = 6;
+const SLAM_SWELL = 1.12;
+const SLAM_LUNGE_PX = 28;
+const SLAM_KNOCK_PX = 8;
+const STRIKE_MS = 350;
+const SLAM_RING_MS = 350;
+const SLAM_NUMBER_BOOST = 1.45;
+const SLAM_NUMBER_CAP = 2.6;
 
 /** How long the last body to fall stays visibly dead before VICTORY / DEFEAT
  * shows (finishFight). */
@@ -255,19 +275,16 @@ const STEP_IN_PX = 22;
  * not a recoil. */
 const RECOIL_PX = 6;
 
-/** Flight time for a back-rank attacker's own shot, or any hit that reaches
- * behind the front rank — both fly the bowed path (fireTracer's `bow`), and
- * both take longer than a front-rank melee hit (TRACER_MS) since they're
- * covering more ground, not closing a gap at arm's reach. Unchanged by the
- * second back-row pass despite the longer flight (front-to-back distance
- * roughly doubled, from BACK_RANK_OFFSET_PX/FRONT_LEAN_PX's old 32px total
- * to this pass's ~48-80px including the straddle) — 320ms already reads as
- * a genuine throw rather than a snap; re-check by eye before retuning. */
-const LOB_TRACER_MS = 320;
+/** Draw time for a hit that reaches behind a living front rank — it draws the
+ * curved line (fireTracer's `bow`) and takes longer than a straight hit
+ * (TRACER_MS) since it covers more ground. A back-rank attacker's own shot is
+ * a straight line now (2026-10-16) and uses TRACER_MS. 420ms (100ms over
+ * TRACER_MS, slowed with it on 2026-10-16) reads as a genuine throw rather
+ * than a snap; re-check by eye before retuning. */
+const LOB_TRACER_MS = 420;
 
-/** How far a bowed tracer (a hit that skips a living front-rank body, or any
- * back-rank attacker's own throw — showAttack) is pushed off the straight
- * line to its target, in px. Scaled per-flight by distance (fireTracer)
+/** How far a bowed tracer (a hit that skips a living front-rank body —
+ * showAttack, showChainHit) is pushed off the straight line to its target, in px. Scaled per-flight by distance (fireTracer)
  * between BOW_MIN_PX and this. Widened again (2026-09-16 second back-row
  * pass, from 42/22): the front/back gap is now real ground (BACK_RANK_OFFSET_PX
  * plus the straddle), not a 32px nudge, so a hit has further to visibly go
@@ -777,7 +794,7 @@ export class FightView {
     this.chainEndCard.innerHTML = "";
     this.popupLayer.innerHTML = "";
     this.tracerLayer.innerHTML = "";
-    this.arena.classList.remove("shake", "chain-live", "chain-backfire");
+    this.arena.classList.remove("shake", "shake-heavy", "chain-live", "chain-backfire");
     this.lastPlayerHpFraction = 1;
     this.lastPlayerHeroes = [];
     this.lastEnemyHeroes = [];
@@ -1125,6 +1142,8 @@ export class FightView {
   private drawWindupFrame(snapshot: TickSnapshot, simT: number): void {
     this.lastSnapshot = snapshot;
     const draws: Array<{ aimLine: HTMLElement; from: HTMLElement; to: HTMLElement; progress: number; bypass: boolean }> = [];
+    // The slammer's pull-back (see SLAM_PULLBACK_SEC): `pull` runs 0 -> 1 across the last 0.2s of the telegraph.
+    const pulls: Array<{ core: HTMLElement; from: HTMLElement; to: HTMLElement; pull: number }> = [];
 
     for (const hero of snapshot.enemyHeroes) {
       if (hero.role !== "bruiser") continue;
@@ -1144,6 +1163,13 @@ export class FightView {
       }
       refs.chargeFill.style.width = `${(fraction * 100).toFixed(1)}%`;
       refs.chargeGhostFill.style.width = `${(fraction * 100).toFixed(1)}%`;
+
+      // Before the swing check below, so a slam that has just fired (isCharging false) clears the pose
+      // the same frame instead of leaving the last pulled-back frame behind.
+      const pullTarget = isCharging && hero.windupTargetId ? this.playerHeroes.get(hero.windupTargetId) : undefined;
+      const untilFire = isCharging ? (hero.windupFireT as number) - simT : Infinity;
+      const pull = pullTarget && untilFire < SLAM_PULLBACK_SEC ? 1 - Math.max(0, untilFire) / SLAM_PULLBACK_SEC : 0;
+      pulls.push({ core: refs.core, from: refs.body, to: pullTarget?.body ?? refs.body, pull });
 
       // This bruiser's aim line is mid-swing (startAimSwing) — it owns the
       // line's position for the swing's own duration; the ordinary
@@ -1169,10 +1195,25 @@ export class FightView {
 
     // Read pass, then write pass (see docstring).
     const centers = draws.map((d) => ({ a: this.centerOf(d.from), b: this.centerOf(d.to) }));
+    const pullCenters = pulls.map((p) => (p.pull > 0 ? { a: this.centerOf(p.from), b: this.centerOf(p.to) } : null));
     draws.forEach((d, i) => {
       const { a, b } = centers[i] as (typeof centers)[number];
       this.writeAimLine(d.aimLine, a, b, d.progress);
       d.aimLine.classList.toggle("bypass", d.bypass);
+    });
+    // The individual `translate` and `scale` properties, not `transform`, so the lunge animation on the
+    // same element (which owns `transform`) is untouched when the slam lands.
+    pulls.forEach((p, i) => {
+      const c = pullCenters[i];
+      if (!c) {
+        p.core.style.translate = "";
+        p.core.style.scale = "";
+        return;
+      }
+      const dist = Math.hypot(c.b.x - c.a.x, c.b.y - c.a.y) || 1;
+      const k = (-SLAM_PULLBACK_PX * p.pull) / dist;
+      p.core.style.translate = `${((c.b.x - c.a.x) * k).toFixed(1)}px ${((c.b.y - c.a.y) * k).toFixed(1)}px`;
+      p.core.style.scale = (1 + (SLAM_SWELL - 1) * p.pull).toFixed(3);
     });
   }
 
@@ -1464,13 +1505,16 @@ export class FightView {
     pulseClass(core, "lunge", 250);
   }
 
-  /** The core attribution device: a small dot that visibly travels from
-   * `from` to `to` over `durationMs`, coloured by the source's identity.
-   * Motion along a path reads as "A did something to B" without requiring
-   * the viewer to correlate two separate, unlinked animations. `extraClass`
-   * (2026-08-14) lets a gift tracer opt into a slower, distinctly-styled
-   * flight (see .tracer.gift in style.css) and skip the ambient dim rule
-   * that fades ordinary combat tracers while a chain is live. */
+  /** The core attribution device: a thin glowing line that draws itself from
+   * `from` to `to` over `durationMs`, then fades, coloured by the source's
+   * identity (2026-10-16, Tu: the term cards' line reads far better than the
+   * small fast dot it replaces — the line touches the target exactly as the
+   * hit lands, so "A did something to B" is one stroke, not two animations to
+   * correlate). `size` is the old dot's diameter and picks the stroke: 6 is a
+   * 2px line, anything bigger 3px, as on card 3.9. `extraClass` lets a chain
+   * hit opt into its own glow and skip the ambient dim rule that fades
+   * ordinary combat lines while a chain is live. A `bow` line curves round
+   * `awayFrom` — only a hit that skips a living front-rank body does. */
   private fireTracer(
     from: HTMLElement,
     to: HTMLElement,
@@ -1483,71 +1527,83 @@ export class FightView {
   ): void {
     const start = this.centerOf(from);
     const end = this.centerOf(to);
-    const el = document.createElement("div");
-    el.className = extraClass ? `tracer ${extraClass}` : "tracer ambient";
-    el.style.width = `${size}px`;
-    el.style.height = `${size}px`;
-    el.style.marginLeft = `${-size / 2}px`;
-    el.style.marginTop = `${-size / 2}px`;
-    el.style.background = color;
-    el.style.boxShadow = `0 0 6px 1px ${color}`;
-    this.tracerLayer.appendChild(el);
-
-    if (!bow) {
-      el.style.left = `${start.x}px`;
-      el.style.top = `${start.y}px`;
-      void el.offsetWidth;
-      el.style.transform = `translate(${(end.x - start.x).toFixed(1)}px, ${(end.y - start.y).toFixed(1)}px)`;
-      fightClock.setTimeout(() => el.remove(), durationMs + 60);
-      return;
-    }
-
-    // Bowed flight (2026-09-16, upright-field pass) — showAttack asks for
-    // this when the hit is skipping past a living front-rank body to reach
-    // someone behind it, so the occasional dice roll that lands on the
-    // backline never reads as passing straight through the tank standing in
-    // the way. A quadratic bezier through one control point pushed
-    // perpendicular to the straight line, not sideways relative to the
-    // screen — attacks travel vertically now, so an up/down push would just
-    // make the dot arrive early or late, not visibly go around anything.
-    // No CSS transition (same reasoning as startAimSwing's own rAF loop):
-    // a per-frame position fights a transition instead of being shown by it.
-    el.style.transition = "none";
-    el.style.left = "0px";
-    el.style.top = "0px";
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const dist = Math.hypot(dx, dy) || 1;
-    const lift = Math.min(BOW_MAX_PX, Math.max(BOW_MIN_PX, dist * 0.35));
-    // Perpendicular to the flight line, signed AWAY from whoever's in the
-    // way (2026-09-16 second back-row pass) — with the back rank now
-    // straddling either side of the front rank instead of sitting directly
-    // behind it, a fixed handedness here bowed roughly half of all bypass
-    // shots INTO the body they exist to go around, not past it.
-    let nx = -dy / dist;
-    let ny = dx / dist;
-    if (awayFrom) {
-      const blocker = this.centerOf(awayFrom);
-      const midX0 = (start.x + end.x) / 2;
-      const midY0 = (start.y + end.y) / 2;
-      if ((blocker.x - midX0) * nx + (blocker.y - midY0) * ny > 0) {
-        nx = -nx;
-        ny = -ny;
+    const pt = (x: number, y: number) => `${x.toFixed(1)} ${y.toFixed(1)}`;
+    let d = `M ${pt(start.x, start.y)} L ${pt(end.x, end.y)}`;
+    if (bow) {
+      // A quadratic curve through one control point pushed perpendicular to
+      // the straight line (not sideways on screen — attacks travel vertically,
+      // so an up/down push would only make the line arrive early or late),
+      // signed AWAY from the front-rank body in the way so a bypass shot never
+      // bows into it.
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const lift = Math.min(BOW_MAX_PX, Math.max(BOW_MIN_PX, dist * 0.35));
+      let nx = -dy / dist;
+      let ny = dx / dist;
+      const midX = (start.x + end.x) / 2;
+      const midY = (start.y + end.y) / 2;
+      if (awayFrom) {
+        const blocker = this.centerOf(awayFrom);
+        if ((blocker.x - midX) * nx + (blocker.y - midY) * ny > 0) {
+          nx = -nx;
+          ny = -ny;
+        }
       }
+      d = `M ${pt(start.x, start.y)} Q ${pt(midX + nx * lift, midY + ny * lift)} ${pt(end.x, end.y)}`;
     }
-    const midX = (start.x + end.x) / 2 + nx * lift;
-    const midY = (start.y + end.y) / 2 + ny * lift;
-    const startMs = fightClock.now();
-    const frame = () => {
-      const t = Math.min(1, (fightClock.now() - startMs) / durationMs);
-      const inv = 1 - t;
-      const x = inv * inv * start.x + 2 * inv * t * midX + t * t * end.x;
-      const y = inv * inv * start.y + 2 * inv * t * midY + t * t * end.y;
-      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-      if (t < 1) requestAnimationFrame(frame);
-      else fightClock.setTimeout(() => el.remove(), 60);
-    };
-    requestAnimationFrame(frame);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", extraClass ? `tracer ${extraClass}` : "tracer ambient");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d);
+    // pathLength 1 so the dash draw is one 0-to-1 sweep whatever the length.
+    path.setAttribute("pathLength", "1");
+    path.setAttribute("stroke-width", size > 6 ? "3" : "2");
+    svg.style.color = color;
+    svg.style.setProperty("--draw-ms", `${durationMs}ms`);
+    svg.appendChild(path);
+    this.tracerLayer.appendChild(svg);
+    // Drawn by CSS animation, so a paused fight holds it still (style.css's
+    // .fight-view.paused rule); the removal timer runs on the pause clock.
+    fightClock.setTimeout(() => svg.remove(), durationMs + TRACER_FADE_MS + 60);
+  }
+
+  /** The slam's strike (2026-10-16): the aim line that has just reached the victim snaps thick —
+   * a WINDUP_ACCENT line with a white-hot core, in place at once (no draw, unlike a normal hit's
+   * line), held, then faded over STRIKE_MS. A CSS animation, so ⏸ freezes it. Not `.tracer`,
+   * whose dash-draw animation would hide it. */
+  private fireStrike(from: HTMLElement, to: HTMLElement): void {
+    const a = this.centerOf(from);
+    const b = this.centerOf(to);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "slam-strike");
+    svg.style.setProperty("--strike-ms", `${STRIKE_MS}ms`);
+    const d = `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} L ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+    for (const cls of ["outer", "core"]) {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("class", cls);
+      path.setAttribute("d", d);
+      svg.appendChild(path);
+    }
+    this.tracerLayer.appendChild(svg);
+    fightClock.setTimeout(() => svg.remove(), STRIKE_MS + 60);
+  }
+
+  /** The shockwave on a slam's victim and the red flash round the arena's edge (2026-10-16) — one-shot
+   * CSS animations in the tracer layer, which a reset clears; normal hits get neither. */
+  private showSlamBurst(victim: HTMLElement): void {
+    const c = this.centerOf(victim);
+    const ring = document.createElement("div");
+    ring.className = "slam-ring";
+    ring.style.left = `${c.x}px`;
+    ring.style.top = `${c.y}px`;
+    const edge = document.createElement("div");
+    edge.className = "slam-edge";
+    this.tracerLayer.append(ring, edge);
+    fightClock.setTimeout(() => {
+      ring.remove();
+      edge.remove();
+    }, SLAM_RING_MS + 60);
   }
 
   /** An independent, additively-stacking flash on the target's own body —
@@ -1582,12 +1638,11 @@ export class FightView {
     // from) and the "quiet half of the tell" pulse below share one answer.
     const blocker = bypass ? this.firstFrontSurvivor(defenderSide) : undefined;
     const attackerIsFront = this.heroIsFront.get(attackerId) === true;
-    // Either reason flies the bowed path: a hit skipping the front rank, or
-    // a back-rank attacker's own shot arcing out of its row (see this
-    // file's LOB_TRACER_MS/BOW_MAX_PX docstrings).
-    const arced = bypass || !attackerIsFront;
-    const arcClass = bypass ? "bypass" : arced ? "lob" : undefined;
-    const flightMs = attackerIsFront ? TRACER_MS : LOB_TRACER_MS;
+    // Only a hit skipping a living front-rank body curves (2026-10-16, Tu: the
+    // term cards' straight line reads best); a back-rank shot is a straight
+    // line with a glow of its own (see LOB_TRACER_MS/BOW_MAX_PX).
+    const arcClass = bypass ? "bypass" : !attackerIsFront ? "lob" : undefined;
+    const flightMs = bypass ? LOB_TRACER_MS : TRACER_MS;
 
     if (attackerIsFront) {
       // The front rank steps into the clash line to trade the blow — see
@@ -1603,10 +1658,10 @@ export class FightView {
       attacker.body,
       target.body,
       attacker.accent,
-      bypass ? 9 : arced ? 8 : 6,
+      bypass ? 9 : !attackerIsFront ? 8 : 6,
       arcClass,
       flightMs,
-      arced,
+      bypass,
       blocker?.body,
     );
 
@@ -1778,6 +1833,9 @@ export class FightView {
    * flashing the victim) — a heavier version of a normal attack: bigger
    * flash, its own damage-popup colour (WINDUP_ACCENT), and an arena shake,
    * since this is meant to be the single biggest hit the player watches for.
+   * 2026-10-16: with every normal hit now a quick line, the finish is a strike beam, a longer
+   * lunge, a knock, a ring, an edge flash, a heavier shake and a bigger number (see
+   * SLAM_PULLBACK_SEC); the slammer's pull-back before it lives in drawWindupFrame.
    *
    * `redirect` (events.ts) is what makes Bracer's guard provable (2026-09-15
    * slam-provability pass — replaces the old single 150ms tracer, which
@@ -1806,14 +1864,22 @@ export class FightView {
       if (gen !== this.windupGen) return; // reset() happened mid-flight — see windupGen's docstring
       const maxHp = this.heroMaxHp.get(targetId) ?? 1;
       const frac = Math.max(0.3, Math.min(1, damage / maxHp));
-      if (attacker) this.lungeToward(attacker.core, target.body, 14);
+      if (attacker) {
+        this.lungeToward(attacker.core, target.body, SLAM_LUNGE_PX);
+        this.fireStrike(attacker.body, target.body);
+      }
       target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
+      // The victim is knocked SLAM_KNOCK_PX along the flinch axis (down, for the player's row): the
+      // flinch moves --flinch-y x --flinch-scale, so divide the scale back out. Cleared after the flinch.
+      target.core.style.setProperty("--flinch-y", `${(SLAM_KNOCK_PX / frac).toFixed(1)}px`);
+      fightClock.setTimeout(() => target.core.style.removeProperty("--flinch-y"), 350);
       pulseClass(target.core, "flinch", 300);
       this.showImpactFlash(target.body, frac);
-      this.showPopup(target.body, `-${Math.round(damage)}`, "windup", 1 + frac, 0, WINDUP_ACCENT);
-      this.arena.classList.remove("shake");
+      this.showSlamBurst(target.body);
+      this.showPopup(target.body, `-${Math.round(damage)}`, "windup", Math.min(SLAM_NUMBER_CAP, (1 + frac) * SLAM_NUMBER_BOOST), 0, WINDUP_ACCENT);
+      this.arena.classList.remove("shake", "shake-heavy");
       void this.arena.offsetWidth;
-      this.arena.classList.add("shake");
+      this.arena.classList.add("shake-heavy");
     };
 
     if ((redirect === "guard" || redirect === "guardBackfire") && originalTargetId && attacker) {
@@ -1872,13 +1938,10 @@ export class FightView {
       this.showHeroStatusTell(targetId, "TAKES THE SLAM", HEAL_ACCENT, true);
     };
 
-    if (attacker) {
-      this.fireTracer(attacker.body, target.body, WINDUP_ACCENT, 8);
-      this.noteImpact(TRACER_MS);
-      fightClock.setTimeout(heldLand, TRACER_MS);
-    } else {
-      heldLand();
-    }
+    // The slam lands at the instant of release, with the strike beam (land() draws it): the aim line
+    // has already reached the victim, so there is no 300ms draw to wait for as a normal hit has.
+    this.noteImpact(150);
+    heldLand();
   }
 
   /** Tiered per DECISIONS.md's 2026-08-06 "spectacle gated on payoff" entry
@@ -2029,7 +2092,7 @@ export class FightView {
       // escalating-loudness ladder itself is unchanged: nothing below this
       // threshold, an emphasis pulse + arena shake at/above it.
       if (hitIndex >= this.cfg.chainFullTellThreshold) {
-        this.arena.classList.remove("shake");
+        this.arena.classList.remove("shake", "shake-heavy");
         void this.arena.offsetWidth;
         this.arena.classList.add("shake");
         pulseClass(this.chainHud, "emphasize", 500);

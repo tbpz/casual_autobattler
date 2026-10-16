@@ -9,7 +9,13 @@
 @keyframes tc-slam-pulse { from { filter: brightness(1); } to { filter: brightness(1.5); } }
 @keyframes tc-slam-aimGrow { 0%, 16.9% { opacity: 0; transform: rotate(118.3deg) scaleX(0); } 17% { opacity: 1; transform: rotate(118.3deg) scaleX(0); }
                          59.9% { opacity: 1; transform: rotate(118.3deg) scaleX(1); } 60%, 100% { opacity: 0; transform: rotate(118.3deg) scaleX(1); } }
-@keyframes tc-slam-swing { 0%, 54% { transform: translate(0, 0); } 60% { transform: translate(-6px, 11px); } 68%, 100% { transform: translate(0, 0); } }
+@keyframes tc-slam-swing { 0%, 54.3% { transform: translate(0, 0) scale(1); } 59.9% { transform: translate(2.9px, -5.3px) scale(1.12); } 60% { transform: translate(-13.3px, 24.7px) scale(1); } 67%, 100% { transform: translate(0, 0) scale(1); } }
+@keyframes tc-slam-beamO { 0%, 59.9% { opacity: 0; } 60%, 66% { opacity: 1; } 70%, 100% { opacity: 0; } }
+@keyframes tc-slam-ring { 0%, 59.9% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); } 60% { opacity: 1; transform: translate(-50%, -50%) scale(0.2); } 70%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); } }
+@keyframes tc-slam-edge { 0%, 59.9% { opacity: 0; } 60% { opacity: 0.9; } 67%, 100% { opacity: 0; } }
+@keyframes tc-slam-sceneShake { 0%, 60% { transform: translateX(0); } 62.5% { transform: translateX(-14px) rotate(-1.5deg); } 65% { transform: translateX(12px) rotate(1deg); } 68% { transform: translateX(-8px); } 71% { transform: translateX(5px); } 75.7%, 100% { transform: translateX(0); } }
+@keyframes tc-slam-knock { 0%, 59.9% { transform: translateY(0); } 63% { transform: translateY(8px); } 70%, 100% { transform: translateY(0); } }
+@keyframes tc-slam-slamPop { 0%, 60% { scale: 1.6; } 68.6%, 100% { scale: 1; } }
 @keyframes tc-slam-hitFlash { 0%, 59.9% { box-shadow: none; filter: none; } 60% { box-shadow: 0 0 0 3px #ff5252, 0 0 14px 3px #ff5252; filter: brightness(1.8); }
                          72%, 100% { box-shadow: none; filter: none; } }
 @keyframes tc-slam-hpDrop { 0%, 59.9% { width: 100%; } 63%, 100% { width: 70%; } }

@@ -84,11 +84,16 @@
      struck body's forward pop has to land at exactly front-rank size via the
      reciprocal 1/this value. One number, not two. */
   --back-rank-scale: 0.72;
-  /* How long a tracer's flight takes (2026-08-06) — .tracer's own transition
-     duration below AND fightView.ts's TRACER_MS (read at startup instead of
-     restating 200), since the JS setTimeout that lands the hit has to fire
-     the instant the CSS transition finishes, not before or after. */
-  --tracer-ms: 0.2s;
+  /* How long a hit line takes to draw from attacker to target (2026-08-06,
+     a line since 2026-10-16) — .tracer's own draw animation below AND
+     fightView.ts's TRACER_MS (read at startup instead of restating 300),
+     since the JS setTimeout that lands the hit has to fire the instant the
+     line reaches the target, not before or after. Slowed from 0.2s on
+     2026-10-16 (Tu: a little slower; the sim is untouched, so no balance
+     effect). --tracer-fade-ms is how long the line then takes to fade
+     (TRACER_FADE_MS), as on the term cards. */
+  --tracer-ms: 0.3s;
+  --tracer-fade-ms: 0.13s;
   /* How long a CHAIN bar rise takes to glide into place (2026-08-15
      chain-bar-visibility fix) — tuned against attackIntervalSec (0.9-1.5s
      across the pool, see sim/heroes.ts) so one action's charge gain is still
@@ -188,6 +193,33 @@ body {
   }
   80% {
     transform: translateX(4px);
+  }
+}
+
+/* The slam's shake (2026-10-16): stronger and longer than a chain's (+-14px over
+   0.55s, against +-8px over 0.4s), so the slam is the biggest jolt in the fight.
+   fightView.ts's showWindupHit swaps this for .shake, and a chain's shake swaps
+   it back, so only one is ever on the arena. */
+.arena.shake-heavy {
+  animation: shakeHeavy 0.55s ease-in-out;
+}
+
+@keyframes shakeHeavy {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  14% {
+    transform: translateX(-14px) rotate(-1.5deg);
+  }
+  30% {
+    transform: translateX(12px) rotate(1deg);
+  }
+  48% {
+    transform: translateX(-8px);
+  }
+  68% {
+    transform: translateX(5px);
   }
 }
 
@@ -1258,12 +1290,14 @@ body {
   }
 }
 
-/* The tracer layer sits between the callout and the popup layer so a
-   travelling dot passes under the damage number it's about to spawn. Each
-   .tracer is a single flight (attacker -> target), coloured by the
-   source's accent — see fightView.ts's fireTracer. The transition duration
-   comes from --tracer-ms in :root above; fightView.ts's TRACER_MS reads the
-   same token at startup, so there is one number, not two to keep in sync. */
+/* The tracer layer sits between the callout and the popup layer so a hit
+   line passes under the damage number it's about to spawn. Each .tracer is
+   an svg holding one line (attacker -> target) that draws itself over
+   --draw-ms (set per hit by fightView.ts's fireTracer) and then fades over
+   --tracer-fade-ms, coloured by the source's accent (its `color`). The same
+   look as the term cards' lines (2026-10-16, Tu). The draw time comes from
+   --tracer-ms in :root above; fightView.ts's TRACER_MS reads the same token
+   at startup, so there is one number, not two to keep in sync. */
 .tracer-layer {
   position: absolute;
   inset: 0;
@@ -1272,11 +1306,37 @@ body {
 
 .tracer {
   position: absolute;
-  border-radius: 50%;
-  transform: translate(0, 0);
-  transition:
-    transform var(--tracer-ms) ease-out,
-    opacity var(--tracer-ms) ease-out;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 3px currentColor);
+}
+
+.tracer path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation:
+    tracerDraw var(--draw-ms, 200ms) linear forwards,
+    tracerFade var(--tracer-fade-ms) ease-out var(--draw-ms, 200ms) forwards;
+}
+
+@keyframes tracerDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes tracerFade {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 /* The line from a charging bruiser to its locked target (2026-09-13
@@ -1315,7 +1375,92 @@ body {
   box-shadow: 0 0 6px 2px var(--backfire);
 }
 
-/* A chain tracer (see fightView.ts's showChainHit) — bigger and glowier
+/* The slam's finish (2026-10-16, Tu chose B to E on canvas frame 5.8) — a normal hit
+   is a thin drawn line now, so the slam needs more. fightView.ts's fireStrike draws the
+   aim line snapping thick (9px red with a glow, a 3px white-hot core) in place at once,
+   held for 60% of --strike-ms and then faded; showSlamBurst adds the shockwave ring from
+   the victim (80px, growing to 1.4x) and a red flash round the arena's edge. All CSS
+   animations, so the pause rule at the end of this file freezes them. */
+.slam-strike {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  animation: slamStrike var(--strike-ms, 350ms) ease-out forwards;
+}
+
+.slam-strike path {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.slam-strike .outer {
+  stroke: var(--windup);
+  stroke-width: 9;
+  filter: drop-shadow(0 0 6px var(--windup));
+}
+
+.slam-strike .core {
+  stroke: #fff4ea;
+  stroke-width: 3;
+}
+
+@keyframes slamStrike {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.slam-ring {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  margin: -40px 0 0 -40px;
+  border-radius: 50%;
+  border: 3px solid var(--windup);
+  box-shadow:
+    0 0 10px 1px var(--windup),
+    inset 0 0 8px 0 var(--windup);
+  pointer-events: none;
+  animation: slamRing 0.35s ease-out forwards;
+}
+
+@keyframes slamRing {
+  from {
+    opacity: 1;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+.slam-edge {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  box-shadow: inset 0 0 40px 6px rgba(255, 82, 82, 0.35);
+  pointer-events: none;
+  animation: slamEdge 0.25s ease-out forwards;
+}
+
+@keyframes slamEdge {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* A chain tracer (see fightView.ts's showChainHit) — thicker and glowier
    than an ordinary attack tracer, coloured gold for a real chain or
    --backfire for one gone wrong. Deliberately lacks .ambient, so it's
    excluded from the chain-live dim rule above — the chain's own traffic
@@ -1326,8 +1471,7 @@ body {
 
 /* A back-rank attacker's own shot (showAttack, back-row pass) — thrown from
    its row rather than carried in on a lunge, so it needs to look thrown: a
-   slower, glowier dot on the same bowed flight fireTracer already has for a
-   hit that skips the front rank. */
+   thicker, glowier straight line than a front-rank hit's. */
 .tracer.lob {
   filter: drop-shadow(0 0 4px currentColor);
 }
@@ -1543,6 +1687,21 @@ body {
   text-shadow:
     0 1px 3px rgba(0, 0, 0, 0.6),
     0 0 8px var(--windup);
+  /* 2026-10-16: the number pops in (the individual `scale` property, so it
+     doesn't fight popUp's own transform). fightView.ts sets font-size inline
+     to the slam's own scale, so the 1.1em above is only a fallback. */
+  animation:
+    popUp 0.85s ease-out forwards,
+    slamPop 0.3s ease-out;
+}
+
+@keyframes slamPop {
+  from {
+    scale: 1.6;
+  }
+  to {
+    scale: 1;
+  }
 }
 
 /* --owner-accent (set inline by fightView.ts's showChainHit) is the

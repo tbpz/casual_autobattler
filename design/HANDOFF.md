@@ -41,6 +41,8 @@ Every frame below marked "not built" was built this day, in `prototype/src/`. Th
 | Face style | `render/faces.ts`, a port of `design/tools/faces.js` plus the fallen face |
 | Unit names | `sim/roles.ts` `UNIT_NAMES` and `nameUnits`, applied by `render/runSession.ts` |
 
+This table is also the map the `canvas-update` skill uses to find which frames a UI change touches, so keep it current when a frame or a build file moves.
+
 **Where the build differs from the canvas (decided with Tu on 2026-10-16 unless noted):**
 - **A relic and cards row** sits under YOUR SQUAD on the round screen (tap a card to read it, with its duo hints). It is not drawn on 1.1–1.5; it is the old row, restyled, kept so the cards stay readable before a fight.
 - **Upgrade abilities** (Stun, Brace, Scorch and the rest) appear on a skill tile as one extra chip each. The canvas draws only the three base skills.
@@ -50,6 +52,8 @@ Every frame below marked "not built" was built this day, in `prototype/src/`. Th
 - **A fallen fighter is not offered by the round screen.** 2.6 opens from a tap on a dead unit in a fight; on the round screen a dead unit sits on the bench shelf and does not open a popup (the open point under 2.6 stands).
 - **Best moment** counts runs of two or more hits, and a Guard shows no damage figure (it moves no HP).
 - **The recap and the "chained ×N for 0" wording** on the round-recap screen after a win are unchanged: they still say "chained" (call 12c), and that screen was never on the canvas.
+- **Hit lines (2026-10-16, Tu: a little slower):** the fight screen draws a hit as a thin glowing line, the look the term cards already had (2px, 3px for a chain, 0.13s fade; `fireTracer` in `render/fightView.ts`, `.tracer` in `style.css`). The build draws a line in 0.3s (`--tracer-ms`; a hit that skips a living front rank curves and takes 0.42s). The cards that loop a line (3.3–3.10) draw it in about 0.2s (3.9 checked: 5% of a 4.4s loop = 0.22s; the others not measured), and their numbers land on the line's arrival, so retiming them means retiming every impact in each loop: left as drawn. The frames 5.1–5.7 are stills and draw no flight.
+- **The slam's finish (2026-10-16, Tu: "all of B to E together"):** built in `render/fightView.ts` (`SLAM_*` constants, `fireStrike`, `showSlamBurst`, the pull-back in `drawWindupFrame`) and `style.css` (`.slam-strike`, `.slam-ring`, `.slam-edge`, `.arena.shake-heavy`, `.damage-popup.windup`). The slam lands at the instant of release (no 300ms line). The number is `min(2.6, (1 + damage/victim max HP) × 1.45)` em: the built size was already 1.3 to 2.0em, so a drawn size is not a fixed 1.1×. The knock is vertical only (it reuses the flinch). **5.3B still draws the old hit** (a thin line, a smaller number, a small shake); redraw 5.3 when it is next touched. Card 3.1 is redrawn (see 3.1).
 - Dev-only URL params for screenshots: `?round=N` (play headless to round N), `?runover=1` (play to the end), `?fall=N` (mark the last N fielded units dead). All are no-ops when absent.
 
 ### 1 · Round screen — before every fight
@@ -148,6 +152,8 @@ Every frame below marked "not built" was built this day, in `prototype/src/`. Th
    with `--virtual-time-budget` does not advance opacity/transform animations, so pause `document.getAnimations()` at set times in a Playwright page instead.
    The 11 cards (Tu, 2026-10-11; changed 2026-10-15): Slam, the three skill cards Guard, Mend and Expose (charge is explained on each, not on Chain), Exposed, Frozen, Burn, Shield, Chain, Backfire, Fatigue.
    No tapping during a fight. (**Reversed on the canvas 2026-10-15**: a tap on a fighter pauses the fight and opens its popup, 2.1 to 2.3; not logged yet.)
+
+   - **3.1 redrawn 2026-10-16 (Tu chose the slam finish "B to E together" from a six-option frame, 5.8, since dropped):** the scene's release (60% of the 3.5s loop) is now the built slam's: in the last 0.2s the Executioner swells to ×1.12 and pulls 6px back from Ivy, on release the aim line snaps to a 9px red beam with a 3px white core (held to 66%, gone by 70%), the Executioner lunges 28px, Ivy is knocked 8px, a red ring (80px, to ×1.4) and a red edge flash go off, the scene shakes ±14px over 0.55s (a chain's is ±8px over 0.4s), and the number is 25px with a pop (was 17px). Text unchanged. The base style is the impact moment, so it reads with animation off. Ported to the game with `node design/tools/port-term-cards.js`.
 
 **3.2–3.11 Term cards: Guard, Mend, Expose, Exposed, Frozen, Burn, Shield, Chain, Backfire, Fatigue** — **proposal, drawn 2026-10-11, not built, awaiting Tu's approval.** Same card
    shell as 3.1, each over the same dimmed frame 1.1; Frozen, Burn, Backfire and Fatigue don't appear on 1.1, so it is only a stand-in there (Tu's call), said in
@@ -251,6 +257,8 @@ The look Tu approved for fatigue and for enemies, built as frames 7.1 and 7.2 (d
 - **Old 5.7 / 5.2 (ShieldBar), dropped 2026-10-15 (Tu: drop the shield screen and add its cases to the other screens).** Nine states of the HP bar with the teal shield segment, plus the number-placement choice (call 5, closed: A). Its cases now sit in 5.1 (under max, sliver), 5.3B (a hit eats shield), 5.4C (enemy shield) and 5.5B (over max, drains, break flash, Aegis); the mapping is under 5. Present in git history and in canvas versions up to 71.
 
 - **FightPaused (5.5 of the first take), dropped 2026-10-15 (Tu: it is the same hero card as 2.3).** The fight dimmed under a PAUSED pill with Ivy's popup open. The pause rule is kept (a tap on a fighter pauses the fight and opens its popup, 2.1 to 2.3), with the ⏸ button on every fight frame. Present in canvas version 71.
+
+- **5.8 Slam impact options, dropped 2026-10-16 (Tu: chose B to E together, built).** Six looping phones (A today, B strike beam, C wind-up and step-in, D shockwave, E bigger shake and number, F all of B to E) over the same slam landing on Bram, drawn so Tu could choose. He chose F. The chosen finish is built (see "Where the build differs") and drawn on card 3.1; 5.3 still shows the old hit. One error in it: its captions said the built slam number was 1.1× when it is `(1 + damage/max HP)` em, 1.3 to 2.0× (logged in `MISTAKES.md`). It was on the canvas as version 79 and removed in the next; the file was never committed, so it exists nowhere else.
 
 Seven frames were removed in the reorganisation. They are still in git history (last present at commit `4db6b07`).
 

@@ -16,6 +16,18 @@
 
 ---
 
+### [2026-10-16 #2] Drew the slam option frame with the built number at 1.1×, but the build draws it at 1.3 to 2.0×
+
+- **Said:** On canvas frame 5.8 (the slam options, published as version 79) the captions and
+  HANDOFF said the slam number is "−15 at 1.1×" today and option E makes it "1.6×".
+- **Actually:** `.damage-popup.windup` says `font-size: 1.1em`, but `showPopup` overrides it inline
+  with `(1 + frac)em`, where `frac` is damage over the victim's max HP, floored at 0.3. The built
+  number is 1.3 to 2.0×, so a "1.6×" option would have shrunk the biggest hits.
+- **Caught by:** me, reading `showPopup` while planning the build Tu had approved. Asked Tu how
+  to size the number (he chose +45% over the built size, capped at 2.6×), built it, and removed 5.8.
+- **Why:** I took the size from the CSS rule and never read where the popup's font size is set.
+- **Tag:** described a picture before checking the numbers
+
 ### [2026-10-16 #1] Said a Revive brings back "the unit that fell last", but it names the last fallen in roster order
 
 - **Said:** In the plan Tu approved for the fallen-hero popup I wrote "Revive picks the unit that
