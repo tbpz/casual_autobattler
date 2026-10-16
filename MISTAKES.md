@@ -16,6 +16,20 @@
 
 ---
 
+### [2026-10-16 #1] Said a Revive brings back "the unit that fell last", but it names the last fallen in roster order
+
+- **Said:** In the plan Tu approved for the fallen-hero popup I wrote "Revive picks the unit that
+  fell **last** (`fallen[fallen.length - 1]`)" and planned a card line saying so.
+- **Actually:** `roster.heroes` is never reordered when a unit dies, so `fallen[fallen.length - 1]`
+  is the last fallen unit in roster order, not the last to die. With two down, the player has no
+  way to predict which one the offer names.
+- **Caught by:** me, rereading `sim/offers.ts` and `sim/roster.ts` before writing the card text.
+  Drew the card with the true rule ("names one fallen fighter at a time; you do not pick which"),
+  and `design/HANDOFF.md` 2.6 states it and lists it as open point (c).
+- **Why:** I read the index expression as "the most recent" and wrote the plan line from that
+  reading without checking how the array is ordered.
+- **Tag:** described a picture before checking the numbers
+
 ### [2026-10-15 #3] Said the slam on the fight frame lands for −30, but frame 1.3's slam is 15
 
 - **Said:** In the plan Tu approved for the fight frames I wrote "TAKES THE SLAM, −30 (Vanguard

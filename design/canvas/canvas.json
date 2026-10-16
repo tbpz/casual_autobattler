@@ -10,6 +10,7 @@
     { "file": "FighterPopupSol.dc.html", "x": 550, "y": 1000, "w": 390, "h": 900 },
     { "file": "FighterPopupWarden.dc.html", "x": 1650, "y": 1000, "w": 390, "h": 900 },
     { "file": "FighterPopupTerm.dc.html", "x": 2200, "y": 1000, "w": 390, "h": 900 },
+    { "file": "FighterPopupFallen.dc.html", "x": 2750, "y": 1000, "w": 390, "h": 900 },
     { "file": "FighterPopupIvy.dc.html", "x": 1100, "y": 1000, "w": 390, "h": 900 },
 
     { "file": "TermSlam.dc.html", "x": 0, "y": 2300, "w": 390, "h": 900 },
@@ -33,7 +34,10 @@
     { "file": "FightStatus.dc.html", "x": 4780, "y": 4900, "w": 880, "h": 600 },
     { "file": "FightResult.dc.html", "x": 5810, "y": 4900, "w": 390, "h": 540 },
 
-    { "file": "OfferAfter.dc.html", "x": 0, "y": 6400, "w": 390, "h": 780 }
+    { "file": "FightDefeat.dc.html", "x": 6350, "y": 4900, "w": 390, "h": 540 },
+    { "file": "OfferAfter.dc.html", "x": 0, "y": 6400, "w": 390, "h": 780 },
+
+    { "file": "RunOver.dc.html", "x": 0, "y": 7700, "w": 390, "h": 780 }
   ],
   "annotations": [
     { "id": "section-round", "x": 0, "y": -140, "w": 3060, "text": "1 · ROUND SCREEN — before every fight: who fights whom, the bench shelf, the busiest enemy lineups, and a fallen unit" },
@@ -42,12 +46,13 @@
     { "id": "label-faceoffvanguard", "x": 1100, "y": -60, "w": 390, "text": "1.3 Mini-boss, two kinds — a 💥 badge marks the slammer (proposal)" },
     { "id": "label-faceoffwarden", "x": 1650, "y": -60, "w": 390, "text": "1.4 Warden — ✚ 💥 badges, full squad (proposal)" },
     { "id": "label-faceofffallen", "x": 2200, "y": -60, "w": 860, "text": "1.5 A unit fell — empty slot, Fight disabled until filled (proposal)" },
-    { "id": "section-popup", "x": 0, "y": 860, "w": 2590, "text": "2 · FIGHTER POPUP — tap a fighter on 1.1 (later, mid-fight too)" },
+    { "id": "section-popup", "x": 0, "y": 860, "w": 3140, "text": "2 · FIGHTER POPUP — tap a fighter on 1.1 (later, mid-fight too)" },
     { "id": "label-popupbram", "x": 0, "y": 940, "w": 390, "text": "2.1 Bram, the Tank — Breaking; stats, skill, switcher (proposal)" },
     { "id": "label-popupsol", "x": 550, "y": 940, "w": 390, "text": "2.2 Sol, the Healer — Frayed (proposal)" },
     { "id": "label-popupivy", "x": 1100, "y": 940, "w": 390, "text": "2.3 Ivy, the Damage — Worn (proposal)" },
     { "id": "label-popupwarden", "x": 1650, "y": 940, "w": 390, "text": "2.4 Warden, the enemy — 8 chips, the switcher row scrolls (what-if: 6 fielded; proposal)" },
     { "id": "label-popupterm", "x": 2200, "y": 940, "w": 390, "text": "2.5 Popup → Guard card, second level (proposal)" },
+    { "id": "label-popupfallen", "x": 2750, "y": 940, "w": 390, "text": "2.6 A fallen fighter — greyed, what was lost, how to bring them back (proposal; one popup for fight and round screen)" },
     { "id": "section-terms", "x": 0, "y": 2160, "w": 5890, "text": "3 · TERM AND SKILL CARDS — tap an underlined word on 1.1 or a popup, or the 'See … in action' row on a skill tile; each plays a short loop" },
     { "id": "label-termslam", "x": 0, "y": 2240, "w": 390, "text": "3.1 Slam (proposal)" },
     { "id": "label-termguard", "x": 550, "y": 2240, "w": 390, "text": "3.2 Guard — a Tank's skill (proposal; 1.1 is a stand-in behind it)" },
@@ -62,15 +67,18 @@
     { "id": "label-termfatigue", "x": 5500, "y": 2240, "w": 390, "text": "3.11 Fatigue (proposal; 1.1 is a stand-in behind it)" },
     { "id": "section-squad", "x": 0, "y": 3460, "w": 860, "text": "4 · SQUAD SCREEN — opened from the bench shelf, Change squad ›" },
     { "id": "label-squadscreen", "x": 0, "y": 3540, "w": 860, "text": "4.1 The bench — resting and mid-swap (proposal)" },
-    { "id": "section-fight", "x": 0, "y": 4760, "w": 6200, "text": "5 · FIGHT SCREEN — only what the fight needs: the key moments, with every status (proposal, not built)" },
+    { "id": "section-fight", "x": 0, "y": 4760, "w": 6740, "text": "5 · FIGHT SCREEN — only what the fight needs: the key moments, with every status (proposal, not built)" },
     { "id": "label-fightstart", "x": 0, "y": 4840, "w": 390, "text": "5.1 Fight starts — charge bars, small shields, four fatigue faces (proposal)" },
     { "id": "label-fightskill", "x": 550, "y": 4840, "w": 1260, "text": "5.2 A skill fires and repeats — the tag on the unit: EXPOSE ×3, stopped, the result, and every tag size (proposal)" },
     { "id": "label-fightslam", "x": 1960, "y": 4840, "w": 1260, "text": "5.3 Slam and Guard — winds up, the Guard takes it, a freeze shatters it (proposal)" },
     { "id": "label-fightbackfire", "x": 3370, "y": 4840, "w": 1260, "text": "5.4 Backfires — Expose, Guard and Mend each go wrong; the tag turns red (proposal)" },
     { "id": "label-fightstatus", "x": 4780, "y": 4840, "w": 880, "text": "5.5 Statuses — trouble, recovery, and every shield case (proposal)" },
     { "id": "label-fightresult", "x": 5810, "y": 4840, "w": 390, "text": "5.6 Result — VICTORY over the finished fight (proposal)" },
+    { "id": "label-fightdefeat", "x": 6350, "y": 4840, "w": 390, "text": "5.7 Result — DEFEAT, the squad is wiped (proposal)" },
     { "id": "section-offer", "x": 0, "y": 6260, "w": 390, "text": "6 · REWARD PICK — after a win" },
-    { "id": "label-offerafter", "x": 0, "y": 6340, "w": 390, "text": "6.1 Offer screen — mark words coloured (built 2026-10-02, awaiting Tu's approval)" }
+    { "id": "label-offerafter", "x": 0, "y": 6340, "w": 390, "text": "6.1 Offer screen — mark words coloured (built 2026-10-02, awaiting Tu's approval)" },
+    { "id": "section-runover", "x": 0, "y": 7560, "w": 390, "text": "7 · RUN OVER — after a lost fight" },
+    { "id": "label-runover", "x": 0, "y": 7640, "w": 390, "text": "7.1 Run over — how close, best moment, build, Try again (proposal)" }
   ],
   "launch": { "view": "canvas" }
 }

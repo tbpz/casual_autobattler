@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .chip { font-size: 11px; font-weight: 700; color: #e8e8ee; background: #2a2e3a; border-radius: 10px; padding: 3px 9px; white-space: nowrap; }
+  .chip.relic { color: #ffd98a; box-shadow: inset 0 0 0 1px rgba(255,217,138,0.4); }
+  .sec { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; color: #8a8fa3; margin-bottom: 7px; }
+  .fx { position: absolute; top: -3px; right: -3px; width: 13px; height: 13px; border-radius: 50%; background: #e2564b; border: 2px solid #1d2029; display: flex; align-items: center; justify-content: center; font-size: 7px; color: #14161c; font-weight: 800; }
+  /* Round-strip markers (2026-10-14, Tu): skulls instead of diamonds. Mini-bosses at rounds 7 and 14, boss at 20.
+     ahead = bone skull, red ring; now = same plus still red glow; beaten = grey skull with X eyes, blue ring.
+     The boss skull is horned with red eyes and its glow pulses on a 2s loop (bossPulse). Drawn as SVG, not emoji. */
+  .bm { position: absolute; top: 50%; border-radius: 50%; background: #14161c; display: flex; align-items: center; justify-content: center; transform: translate(-50%, -50%); }
+  .bm.mini { width: 14px; height: 14px; border: 1.5px solid rgba(255,93,93,0.55); }
+  .bm.mini svg { width: 10px; height: 10px; }
+  .bm.mini.now { border-color: #ff5d5d; box-shadow: 0 0 6px 1px rgba(255,93,93,0.65); }
+  .bm.mini.done { border-color: #4da6ff; }
+  .bm.boss { width: 22px; height: 22px; border: 1.5px solid #ff5d5d; animation: bossPulse 2s ease-in-out infinite; }
+  .bm.boss svg { width: 18px; height: 18px; }
+  @keyframes bossPulse { 0%, 100% { box-shadow: 0 0 3px 0 rgba(255,60,60,0.5); } 50% { box-shadow: 0 0 10px 3px rgba(255,60,60,0.9); } }
+
+</style>
+</helmet>
+<!-- Frame 7.1 (2026-10-16): the run-over screen, after a lost fight (5.7 Continue). Proposal, not built. It replaces the built "Run over" text screen (render/runScreens.ts:307, renderRunOverScreen), which shows a heading, "Your fielded squad was wiped after N wins." and a text recap. Round strip, skulls and chips come from frame 1.3; the Vanguard's face is design/tools/faces.js. The round, the Vanguard's HP, the best moment, the relic and the cards are made up. Generated from a scratch script; edit by hand from here on. -->
+<div style="background:#14161c;width:390px;min-height:760px;padding:24px 16px 20px;box-sizing:border-box;">
+  <div style="position:relative;background:#1d2029;border-radius:12px;padding:20px 16px 18px;box-sizing:border-box;width:358px;">
+    <div style="text-align:center;">
+      <div style="font-size:30px;font-weight:900;letter-spacing:0.04em;color:#ff5d5d;text-shadow:0 0 18px rgba(255,93,93,0.4);">RUN OVER</div>
+      <div style="margin-top:6px;font-size:13px;color:#c7cad6;">Your squad fell to the Vanguard in round 14.</div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;margin-top:20px;">
+      <div style="font-weight:800;font-size:12px;letter-spacing:0.04em;color:#e8e8ee;white-space:nowrap;">ROUND 14/20</div>
+      <div style="position:relative;flex:1;height:6px;border-radius:3px;background:#2a2e3a;">
+        <div style="position:absolute;inset:0;width:70%;border-radius:3px;background:#4da6ff;"></div>
+        <div class="bm mini done" style="left:35%;"><svg viewBox="0 0 24 24" aria-label="Mini-boss beaten"><path d="M12 4.5c-4.2 0-7 2.7-7 6.3 0 2.2 1 3.6 2.4 4.4V19.5h9.2v-4.3c1.4-.8 2.4-2.2 2.4-4.4 0-3.6-2.8-6.3-7-6.3z" fill="#8a8fa3"/><path d="M6.8 9.4l4 4M10.8 9.4l-4 4M13.2 9.4l4 4M17.2 9.4l-4 4" stroke="#14161c" stroke-width="1.6" stroke-linecap="round"/><path d="M12 14.2l-1 1.8h2z" fill="#14161c"/><path d="M10 19.5v-2M12 19.5v-2M14 19.5v-2" stroke="#14161c" stroke-width="0.9"/></svg></div>
+        <div class="bm mini now" style="left:70%;"><svg viewBox="0 0 24 24" aria-label="Mini-boss"><path d="M12 4.5c-4.2 0-7 2.7-7 6.3 0 2.2 1 3.6 2.4 4.4V19.5h9.2v-4.3c1.4-.8 2.4-2.2 2.4-4.4 0-3.6-2.8-6.3-7-6.3z" fill="#f1ece0"/><circle cx="9" cy="11.2" r="2.1" fill="#14161c"/><circle cx="15" cy="11.2" r="2.1" fill="#14161c"/><path d="M12 13.6l-1.1 2h2.2z" fill="#14161c"/><path d="M10 19.5v-2.3M12 19.5v-2.3M14 19.5v-2.3" stroke="#14161c" stroke-width="0.9"/></svg></div>
+        <div class="bm boss" style="left:calc(100% - 7px);"><svg viewBox="0 0 24 24" aria-label="Boss"><path d="M5.6 9C3 8.2 1.8 5.2 2.6 1.6 4.6 3.6 6.6 4.6 8.6 6.4z" fill="#ff5d5d"/><path d="M18.4 9c2.6-.8 3.8-3.8 3-7.4-2 2-4 3-6 4.8z" fill="#ff5d5d"/><path d="M12 4.5c-4.2 0-7 2.7-7 6.3 0 2.2 1 3.6 2.4 4.4V19.5h9.2v-4.3c1.4-.8 2.4-2.2 2.4-4.4 0-3.6-2.8-6.3-7-6.3z" fill="#f1ece0"/><circle cx="9" cy="11.6" r="2.1" fill="#ff2a2a"/><circle cx="15" cy="11.6" r="2.1" fill="#ff2a2a"/><circle cx="9" cy="11.6" r="0.8" fill="#ffd0d0"/><circle cx="15" cy="11.6" r="0.8" fill="#ffd0d0"/><path d="M12 13.6l-1.1 2.1h2.2z" fill="#14161c"/><path d="M10 19.5v-2.3M12 19.5v-2.3M14 19.5v-2.3" stroke="#14161c" stroke-width="0.9"/></svg></div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;background:rgba(255,93,93,0.07);border:1px solid rgba(255,93,93,0.28);border-radius:12px;padding:12px;">
+      <div class="sec" style="color:#ff8c8c;">SO CLOSE</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="position:relative;width:56px;height:56px;flex:none;border-radius:50%;background:#b23b3b;box-shadow:0 0 10px 2px rgba(178,59,59,.5);"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="v01"><path d="M13.00,42.00 Q28.00,30.00 47.00,54.75 Q32.00,59.00 13.00,42.00Z"/></clipPath><path d="M13.00,42.00 Q28.00,30.00 47.00,54.75 Q32.00,59.00 13.00,42.00Z" fill="#14161c"/><g clip-path="url(#v01)"><ellipse cx="33.00" cy="48.50" rx="8.60" ry="11.50" fill="#ffe36a"/><ellipse cx="33.00" cy="47.00" rx="4.60" ry="6.50" fill="#fff6c8"/><ellipse cx="33.00" cy="48.50" rx="1.5" ry="7.00" fill="#14161c"/></g><clipPath id="v0-1"><path d="M87.00,42.00 Q72.00,30.00 53.00,54.75 Q68.00,59.00 87.00,42.00Z"/></clipPath><path d="M87.00,42.00 Q72.00,30.00 53.00,54.75 Q68.00,59.00 87.00,42.00Z" fill="#14161c"/><g clip-path="url(#v0-1)"><ellipse cx="67.00" cy="48.50" rx="8.60" ry="11.50" fill="#ffe36a"/><ellipse cx="67.00" cy="47.00" rx="4.60" ry="6.50" fill="#fff6c8"/><ellipse cx="67.00" cy="48.50" rx="1.5" ry="7.00" fill="#14161c"/></g></svg></div>
+        <div style="flex:1;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;">
+            <span style="font-size:13px;font-weight:700;color:#e8e8ee;">Vanguard</span>
+            <span style="font-size:11px;color:#8a8fa3;">120/699</span>
+          </div>
+          <div style="margin-top:5px;height:7px;border-radius:4px;background:#2a2e3a;overflow:hidden;"><div style="width:17.2%;height:100%;background:#ff5d5d;"></div></div>
+          <div style="margin-top:6px;font-size:12px;color:#c7cad6;">Still standing with <b style="color:#e8e8ee;">120 HP</b> left.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px;">
+      <div class="sec">BEST MOMENT OF THE RUN</div>
+      <div style="font-size:13px;font-weight:800;"><span style="color:#e8e8ee;">IVY</span><span style="color:#8a8fa3;"> · </span><span style="color:#b98cff;">EXPOSE</span><span style="color:#ffcf4d;"> ×6</span><span style="color:#c7cad6;font-weight:600;"> — 188 damage · round 11</span></div>
+    </div>
+
+    <div style="margin-top:18px;">
+      <div class="sec">YOUR BUILD</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;"><span class="chip relic">Hunter's eye</span><span class="chip" >Hunter's mark</span><span class="chip" >Execute</span><span class="chip" >Weak spot</span><span class="chip" >Bulwark</span></div>
+    </div>
+
+    <div style="margin-top:18px;">
+      <div class="sec">YOUR SQUAD</div>
+      <div style="display:flex;justify-content:space-between;padding:0 6px;"><div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:62px;"><div style="position:relative;width:34px;height:34px;"><div style="position:absolute;inset:0;border-radius:50%;background:#3a3f4e;opacity:.8;"></div><div class="fx">✕</div></div><div style="font-size:11px;font-weight:700;color:#8a8fa3;">Bram</div></div><div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:62px;"><div style="position:relative;width:34px;height:34px;"><div style="position:absolute;inset:0;border-radius:50%;background:#3a3f4e;opacity:.8;"></div><div class="fx">✕</div></div><div style="font-size:11px;font-weight:700;color:#8a8fa3;">Ivy</div></div><div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:62px;"><div style="position:relative;width:34px;height:34px;"><div style="position:absolute;inset:0;border-radius:50%;background:#3a3f4e;opacity:.8;"></div><div class="fx">✕</div></div><div style="font-size:11px;font-weight:700;color:#8a8fa3;">Sol</div></div><div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:62px;"><div style="position:relative;width:34px;height:34px;"><div style="position:absolute;inset:0;border-radius:50%;background:#3a3f4e;opacity:.8;"></div><div class="fx">✕</div></div><div style="font-size:11px;font-weight:700;color:#8a8fa3;">Rex</div></div></div>
+    </div>
+
+    <button style="margin-top:22px;width:100%;font:inherit;font-weight:700;background:#4da6ff;color:#0c1420;border:none;border-radius:8px;padding:13px;font-size:16px;">Try again</button>
+  </div>
+  <div style="margin-top:12px;font-size:10.5px;line-height:1.45;color:#8a8fa3;width:358px;">7.1 The run-over screen, reached from 5.7's Continue. Leads with how close it was (the standing enemy with the most HP, its face and bar), then the run's best moment, the relic (gold-ringed) and cards held, and the four fallen fighters. One action: Try again. <b>Built today:</b> a text screen, “Your fielded squad was wiped after N wins.”, plus a per-unit recap and a spare-seconds line. <b>The other ending</b> (“too many units fell to fill the slots”, <code>rosterExhausted</code>) is this same screen with the headline line “No one left to send: too many units fell.” and no SO CLOSE block, because that ending follows a win; not drawn separately. Round, HP, best moment, relic and cards are made up.</div>
+</div>
+</x-dc>
+</body>
+</html>

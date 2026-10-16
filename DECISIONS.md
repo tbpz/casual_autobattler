@@ -10,6 +10,34 @@
 
 ---
 
+## [2026-10-16] A fallen fighter has a popup: grey face, greyed skill, the way back in place of Fatigue
+
+- **Decision:**
+  - A dead fighter's popup has the layout of a living one, with a grey body and ✕ eyes and no FALLEN tag.
+  - The skill tile stays, greyed and tagged LOST; the HP chip reads 0 of max with an empty bar.
+  - A "Bring Rex back" card replaces the Fatigue card: a Revive reward after a win brings the unit back, as tired as it fell.
+  - One popup, over the fight screen, serves both the fight and the round screen (frame 2.6).
+- **Why:**
+  - Tu judged the face and the greyed look enough; a tag adds nothing.
+  - The Fatigue card's Chain and Backfire odds mean nothing for a unit that is out.
+  - Tu ruled that the fight screen is the only screen needed, used from both places.
+- **Replaces:**
+  - The first take of 2.6 (two phones, a red FALLEN tag, a tap on the bench shelf); never logged.
+  - Revive HP is `reviveHpFraction` in `sim/config.ts`, and which unit a Revive names is in `sim/offers.ts` (the last fallen in roster order, not the last to die); neither is restated here.
+  - Not settled: how the popup opens from the round screen; whether a greyed tile reads "lost" or "not ready"; what a held Phoenix does. Canvas only, not built.
+
+## [2026-10-16] A dead squad member stays in the squad's chip row, greyed, never set apart
+
+- **Decision:**
+  - In the fighter popup's switcher, a fallen fighter keeps its place among the squad chips, greyed, with ✕ eyes.
+  - The squad group stays together and the enemy chips follow it; a dead unit is never moved to the end.
+  - This covers the switcher row only; the round screen's bench shelf (1.5) is unchanged.
+- **Why:**
+  - Tu ruled that the team in the squad stays together, dead or not.
+- **Replaces:**
+  - The first take of frame 2.6 (canvas version 75), which put the fallen unit after the enemy chips; never logged.
+  - Not settled: how the popup opens from the round screen, where 1.5 still keeps dead units on the bench shelf.
+
 ## [2026-10-15] The fight text never says "chain"
 
 - **Decision:**
