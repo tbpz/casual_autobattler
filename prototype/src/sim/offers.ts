@@ -6,7 +6,7 @@ import { ABILITY_MARKS, MARK_CHIP, CARD_DEFS, CARD_IDS, cardConnects, duoUnlocke
 import type { SideState } from "./types.js";
 import type { PlayerRole } from "./roles.js";
 import { PLAYER_ROLES, ROLE_LABEL, ROLE_POOL, ROLE_UPGRADE_POOL, makeUnitState } from "./roles.js";
-import { heldCards, type RunProgress } from "./progress.js";
+import { heldCards, heldCount, type RunProgress } from "./progress.js";
 import { defaultFieldPick } from "./roster.js";
 
 /**
@@ -548,8 +548,11 @@ export function applyOffer(
       const id = offer.card!;
       if (progress.cards.includes(id)) return { progress, roster };
       // At the cap the new card replaces one held (2026-09-30 decision);
-      // the caller must say which. Below the cap it is simply added.
-      if (progress.cards.length >= cfg.cardCap) {
+      // the caller must say which, and the relic can be that one. Below the cap it is simply added.
+      if (heldCount(progress) >= cfg.cardCap) {
+        if (dropCardId && dropCardId === progress.relic) {
+          return { progress: { ...progress, relic: undefined, cards: [...progress.cards, id] }, roster };
+        }
         if (!dropCardId || !progress.cards.includes(dropCardId)) {
           throw new Error("applyOffer: card cap reached — a held card must be named to drop");
         }
@@ -614,8 +617,9 @@ export function applyOffer(
 
 /** The headless drop choice when a payoff offer is taken at the cap — the
  * interactive UI asks the player instead. Undefined when there is nothing to
- * drop (below the cap, or not a payoff offer). */
+ * drop (below the cap, or not a payoff offer). It never drops the relic, so a
+ * batch run behaves as before the relic began to count toward the cap. */
 export function defaultCardDrop(progress: RunProgress, roster: SideState, offer: Offer, cfg: RunConfig): CardId | undefined {
-  if (offer.kind !== "card" || progress.cards.length < cfg.cardCap) return undefined;
+  if (offer.kind !== "card" || heldCount(progress) < cfg.cardCap) return undefined;
   return pickCardToDrop(progress.cards, squadChainEffects(progress, roster), progress.relic ? [progress.relic] : []);
 }

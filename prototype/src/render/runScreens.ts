@@ -85,7 +85,7 @@ function cardsRecapLine(result: FightResult): string | undefined {
         : "";
       return `${CARD_DEFS[card].title} ×${n}${after}`;
     });
-  return `Upgrades: ${parts.join(" · ")}`;
+  return `Runes: ${parts.join(" · ")}`;
 }
 
 export function appendAnswerKey(revealContainer: HTMLElement, result: FightResult): void {

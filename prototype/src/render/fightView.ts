@@ -5,6 +5,7 @@ import { deadFace, squadFace, villainFace } from "./faces.js";
 import { momentHtml, type BestMoment } from "./fightSummary.js";
 import { ROLE_HEX } from "./roundParts.js";
 import { hpBarLayout } from "./hpBar.js";
+import { termFromTarget, type TermId } from "./terms.js";
 import { BUBBLE_H, BUBBLE_TAIL, BUBBLE_W, bubblePath, bubbleText, clampTailDx, type BubbleKind } from "./bubble.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
 import { ROLE_SORT_PRIORITY } from "../sim/roles.js";
@@ -417,7 +418,7 @@ export class FightView {
    * element faster than its own ~1.1s pop-fade could finish — silently cut
    * each other off; a played session reported exactly this ("the chain
    * announcement overlapped the enrage line and vanished quickly"). The
-   * chain no longer uses this element at all (see chainHud/chainEndCard
+   * chain no longer uses this element at all (see chainHud/resultCards
    * below), so this queue now only has to arbitrate between routine events.
    *
    * 2026-08-19 (chain-ending pass): gated by chainPhase now too, not just
@@ -461,7 +462,11 @@ export class FightView {
    * "is it still going?". Decomposes the payoff into length (luck, the
    * dominant axis) and how worn this hero was, so the recap states honestly how
    * much of the number on screen the player's own pick bought. */
-  private chainEndCard: HTMLElement;
+  /** The result bubbles on screen, one per unit (DECISIONS.md: a skill's ending is never wiped by the next skill). Each removes itself after
+   * CHAIN_END_CARD_HOLD_MS; a new one over the same unit replaces the old one. */
+  private resultCards = new Map<string, HTMLElement>();
+  /** The ending whose STOPPED beat is still playing, so a skill that starts now can show its result at once instead of wiping it. */
+  private pendingEnding: { gen: number; showCard: () => void } | null = null;
   /** Presentation-only state machine for the chain's OWN lifecycle across
    * ticks (2026-08-19, chain-ending pass) — deliberately NOT read off
    * snapshot.hotHeroId. fight.ts nulls hotHeroId the instant a chain ends,
@@ -503,6 +508,8 @@ export class FightView {
   private built = false;
   /** Called with a fighter's id when the player taps its body: the fight pauses and its popup opens (DECISIONS.md 2026-10-16). */
   private onFighterTap: ((id: string) => void) | null = null;
+  /** Called with a term when the player taps a status pill or the skill bubble: the fight pauses and that term's card opens. */
+  private onTermTap: ((term: TermId) => void) | null = null;
   /** What the result overlay adds under VICTORY / DEFEAT, set by app.ts from the finished fight. */
   private bestMomentValue: BestMoment | null = null;
   private continueCallback: (() => void) | null = null;
@@ -611,7 +618,7 @@ export class FightView {
 
     // The performer bubble (DECISIONS.md 2026-10-16): a speech-bubble on the unit that uses a skill, naming the skill and, from the second
     // hit, the count. One fixed size for the whole skill; its outline is one path (the box and the arrow) with a grey track and a yellow
-    // border that runs round it, so the charge visibly turns into the skill. `chainHud` is the bubble and `chainEndCard` the result bubble
+    // border that runs round it, so the charge visibly turns into the skill. `chainHud` is the bubble and `resultCards` hold the result bubbles
     // that follows it over the same unit. Built once here: a tick never rebuilds it, so its one-shot animations are not restarted.
     this.chainHud = document.createElement("div");
     this.chainHud.className = "perf-tag";
@@ -637,11 +644,8 @@ export class FightView {
     this.ptCount.className = "pt-count";
     this.chainHud.append(outline, this.ptName, this.ptCount);
     this.setBubbleOutline(0);
+    this.bindTermTap(this.chainHud);
     this.arena.appendChild(this.chainHud);
-
-    this.chainEndCard = document.createElement("div");
-    this.chainEndCard.className = "perf-result";
-    this.arena.appendChild(this.chainEndCard);
 
     // 2026-08-19 (chain-ending pass): the callout band is now a SIBLING of
     // .arena, below it, not an overlay inside .arena's own top band — the
@@ -804,6 +808,23 @@ export class FightView {
     return this.lastSnapshot;
   }
 
+  /** Makes one element open its term card on a tap (its `data-term`, read at tap time, since the bubble's changes). Each element listens
+   * itself rather than one listener higher up: a finger tap on a touch screen is snapped to the nearest element that listens, so a pill
+   * next to its unit's body is not lost to the body. The tap stops here, so the fighter popup does not also open. */
+  private bindTermTap(el: HTMLElement): void {
+    el.addEventListener("click", (e) => {
+      const term = termFromTarget(el);
+      if (!term || !this.onTermTap) return;
+      e.stopPropagation();
+      this.onTermTap(term);
+    });
+  }
+
+  /** Registers what a tap on a status pill or the skill bubble does: it is given the term whose card to open. */
+  setTermTapHandler(cb: (term: TermId) => void): void {
+    this.onTermTap = cb;
+  }
+
   /** Registers what a tap on a fighter does. */
   setFighterTapHandler(cb: (id: string) => void): void {
     this.onFighterTap = cb;
@@ -853,8 +874,9 @@ export class FightView {
     this.ptName.textContent = "";
     this.ptCount.textContent = "";
     this.bubbleHeroId = null;
-    this.chainEndCard.classList.remove("show");
-    this.chainEndCard.innerHTML = "";
+    this.pendingEnding = null;
+    for (const card of this.resultCards.values()) card.remove();
+    this.resultCards.clear();
     this.popupLayer.innerHTML = "";
     this.tracerLayer.innerHTML = "";
     this.arena.classList.remove("shake", "shake-heavy", "chain-live", "chain-backfire");
@@ -959,6 +981,7 @@ export class FightView {
       refs.body.insertAdjacentHTML("beforeend", refs.liveFace);
       refs.face = refs.body.lastElementChild;
       refs.slot.addEventListener("click", () => this.onFighterTap?.(hero.id));
+      for (const el of refs.slot.querySelectorAll<HTMLElement>("[data-term]")) this.bindTermTap(el);
       // Direct fraction of the two sides' combined maxHp (see render()'s
       // own comment) — same pixel-per-HP scale the old two-level flex gave,
       // now that a side's own flex-grow can no longer double as its width.
@@ -1043,6 +1066,11 @@ export class FightView {
     const t = bubbleText(kind, length, skill, this.cfg.chainFullTellThreshold, this.cfg.chainMaxHits);
     const refs = this.slotFor(heroId);
     this.chainHud.style.setProperty("--skill", refs?.accent ?? "var(--chain)");
+    // A tap on the bubble opens its card: Backfire while it reads a backfire, otherwise the skill's own (EXPOSE → expose).
+    const skillTerm = skill.toLowerCase();
+    const term = t.backfire ? "backfire" : skillTerm === "guard" || skillTerm === "mend" || skillTerm === "expose" ? skillTerm : "";
+    if (term) this.chainHud.dataset.term = term;
+    else delete this.chainHud.dataset.term;
     this.ptName.textContent = t.name;
     this.ptCount.textContent = t.count;
     const c = this.chainHud.classList;
@@ -1936,7 +1964,11 @@ export class FightView {
     // here stops the previous chain's state bleeding into this one's row.
     this.chainGen++;
     this.chainPhase = "live";
-    this.chainEndCard.classList.remove("show");
+    // The skill that just ended keeps its ending: if its STOPPED beat is still playing, its result bubble appears now, over its own unit,
+    // and stays its full hold while this skill's bubble pops over the next unit.
+    const ending = this.pendingEnding;
+    this.pendingEnding = null;
+    ending?.showCard();
     const refs = this.slotFor(heroId);
     if (!refs) return;
     // The bubble (DECISIONS.md 2026-10-16): put over this performer and written again here, so a skill that starts on the very tick another
@@ -2263,8 +2295,14 @@ export class FightView {
     const gen = this.chainGen;
 
     this.writeTag(heroId, this.skillName(effects), chainLength, backfire ? "backfireStopped" : "stopped");
+    // If the next skill starts while STOPPED is still showing, showChainStart runs this at once (no STOPPED), so the ending is never wiped.
+    this.pendingEnding = {
+      gen,
+      showCard: () => this.renderChainEndCard(heroId, chainLength, totalDamage, totalStunSec, backfire, effects),
+    };
     fightClock.setTimeout(() => {
-      if (gen !== this.chainGen) return; // superseded by a new chain firing first
+      if (gen !== this.chainGen || this.pendingEnding?.gen !== gen) return; // superseded by a new chain firing first, which showed this result already
+      this.pendingEnding = null;
       // The tag hands over to the result bubble over the same unit: one thing changing state, not two overlapping.
       this.chainHud.classList.remove("show");
       this.renderChainEndCard(heroId, chainLength, totalDamage, totalStunSec, backfire, effects);
@@ -2283,7 +2321,10 @@ export class FightView {
     backfire: boolean,
     effects: ChainEffect[],
   ): void {
-    this.chainEndCard.classList.remove("show");
+    this.resultCards.get(heroId)?.remove();
+    const card = document.createElement("div");
+    this.resultCards.set(heroId, card);
+    this.arena.appendChild(card);
     const first = effects[0];
     const heals = first === "mend" || first === "ward" || first === "cauterize";
     const freezes = effects.includes("stun");
@@ -2296,11 +2337,16 @@ export class FightView {
     const parts: string[] = [];
     if (freezes) parts.push(`${totalStunSec.toFixed(1)}s frozen`);
     if (first !== "guard" && (totalDamage > 0 || !freezes)) parts.push(`${Math.round(totalDamage)} ${heals ? "healed" : "damage"}`);
-    this.chainEndCard.innerHTML = `<div class="pr-head">${chainLength} ${noun}</div>${parts.length > 0 ? `<div class="pr-sub">${parts.join(" · ")}</div>` : ""}`;
-    this.chainEndCard.className = `perf-result${backfire ? " backfire" : ""}`;
-    this.placeOver(this.chainEndCard, heroId);
-    void this.chainEndCard.offsetWidth;
-    this.chainEndCard.classList.add("show");
+    card.innerHTML = `<div class="pr-head">${chainLength} ${noun}</div>${parts.length > 0 ? `<div class="pr-sub">${parts.join(" · ")}</div>` : ""}`;
+    card.className = `perf-result${backfire ? " backfire" : ""}`;
+    this.placeOver(card, heroId);
+    void card.offsetWidth;
+    card.classList.add("show");
+    // Its own hold, so a skill that starts meanwhile cannot cut it short.
+    fightClock.setTimeout(() => {
+      card.remove();
+      if (this.resultCards.get(heroId) === card) this.resultCards.delete(heroId);
+    }, CHAIN_END_CARD_HOLD_MS);
   }
 
   /** Hands the stage back once the end card has actually been seen
@@ -2316,7 +2362,6 @@ export class FightView {
     if (gen !== this.chainGen) return; // superseded by a new chain firing first
     this.chainPhase = "idle";
     this.chainHud.classList.remove("show");
-    this.chainEndCard.classList.remove("show");
     const killedSet = new Set(killedIds);
     this.calloutQueue = this.calloutQueue.filter((entry) => entry.keepIfDeferred && !(entry.heroId && killedSet.has(entry.heroId)));
     this.advanceCalloutQueue();
@@ -2617,6 +2662,7 @@ function makeHeroSlot(
   hpLabel.appendChild(hpLabelText);
   const hpShieldLabel = document.createElement("span");
   hpShieldLabel.className = "hp-label-shield";
+  hpShieldLabel.dataset.term = "shield";
   hpLabel.appendChild(hpShieldLabel);
 
   const counter = document.createElement("div");
@@ -2649,6 +2695,10 @@ function makeHeroSlot(
   const chargeLabel = document.createElement("div");
   chargeLabel.className = isSlamBar ? "charge-label windup" : "charge-label";
   chargeLabel.textContent = isSlamBar ? "SLAM" : "";
+  if (isSlamBar) {
+    chargeTrack.dataset.term = "slam";
+    chargeLabel.dataset.term = "slam";
+  }
 
   // Guard pips (2026-09-15 guard-visibility pass; since 2026-10-02 a pill on
   // the body, out of layout) — built for every slot for
@@ -2658,6 +2708,7 @@ function makeHeroSlot(
   // guardian with charges > 0).
   const guardPips = document.createElement("div");
   guardPips.className = "guard-pips";
+  guardPips.dataset.term = "guard";
   const guardPipEls: HTMLElement[] = [];
   for (let i = 0; i < GUARD_PIP_CAP; i++) {
     const pip = document.createElement("div");
@@ -2680,6 +2731,7 @@ function makeHeroSlot(
     const badge = document.createElement("span");
     badge.className = `mark-badge mark-${mark}`;
     badge.title = MARK_CHIP[mark].word;
+    badge.dataset.term = mark;
     markRow.appendChild(badge);
     markBadges[mark] = badge;
   }
@@ -2698,6 +2750,7 @@ function makeHeroSlot(
   freezeRing.className = "freeze-ring";
   const freezeSecs = document.createElement("div");
   freezeSecs.className = "freeze-secs";
+  freezeSecs.dataset.term = "frozen";
   // (freezeSecs is appended to the body core below, not to the ring: the ring's mask would clip a pill that sits beside it.)
 
   // The CHAIN meter, as a ring around the body (2026-09-29 MidFill pass —

@@ -1,9 +1,11 @@
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
 import { defaultCardDrop, type Offer } from "../sim/offers.js";
 import type { CardId } from "../sim/cards/index.js";
+import { heldCards } from "../sim/progress.js";
 import { FightView } from "./fightView.js";
 import { bestMoment } from "./fightSummary.js";
 import { openFighterPopup, type PopupFighter } from "./fighterPopup.js";
+import { openTermCard } from "./termCards.js";
 import { fierceScowl } from "./roundParts.js";
 import { roundEnemySide } from "../sim/rounds.js";
 import { Playback } from "./playback.js";
@@ -268,6 +270,22 @@ export function mountApp(root: HTMLElement): void {
       });
     });
 
+    // A tap on a status pill or the skill bubble pauses the fight and opens that word's card; closing it resumes.
+    view.setTermTapHandler((term) => {
+      if (closePopup) return;
+      pausedByPopup = true;
+      syncPause();
+      let done = false;
+      const close = openTermCard(term, () => {
+        done = true;
+        closePopup = null;
+        pausedByPopup = false;
+        syncPause();
+      });
+      // A term with no card closes at once, before this line: do not keep a stale closer.
+      if (!done) closePopup = close;
+    });
+
     playback.play();
     appendSeedBadge(root, session);
   }
@@ -285,7 +303,7 @@ export function mountApp(root: HTMLElement): void {
       onOfferChosen(null);
       return;
     }
-    renderOfferScreen(root, session.pendingOffers, session.progress.cards, cfg.cardCap, session.progress.relic, onOfferChosen);
+    renderOfferScreen(root, session.pendingOffers, heldCards(session.progress), cfg.cardCap, onOfferChosen);
     appendSeedBadge(root, session);
   }
 

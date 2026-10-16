@@ -252,9 +252,8 @@
 .ro-unitname { font-size: 11px; font-weight: 700; color: #8a8fa3; }
 .ro-again { margin-top: 22px; font-size: 16px; }
 
-/* ---------- Upgrades (canvas 6.1 to 6.4C): one round emblem everywhere ---------- */
+/* ---------- Runes (canvas 6.1 to 6.4C): one round emblem everywhere ---------- */
 .up-emblem { width: var(--sz, 34px); height: var(--sz, 34px); flex: none; border-radius: 50%; box-sizing: border-box; border: 1.5px solid var(--em); background: color-mix(in srgb, var(--em) 16%, transparent); color: var(--em); display: flex; align-items: center; justify-content: center; font-size: calc(var(--sz, 34px) * 0.5); line-height: 1; }
-.up-emblem.relic { border-width: 2px; border-color: var(--ignite); }
 .up-emblem.more { border-style: dashed; border-color: #4da6ff; background: rgba(77,166,255,0.1); color: #4da6ff; font-size: 12px; font-weight: 800; }
 .up-emblem.none { border-style: dashed; border-color: #5a6074; background: none; color: #8a8fa3; font-size: 14px; }
 .up-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 66px; flex: none; padding: 0; border: 0; background: none; font: inherit; color: inherit; }
@@ -264,11 +263,10 @@ button.up-cell { cursor: pointer; }
 .up-none .up-name { color: #8a8fa3; }
 .up-cell.open .up-emblem { box-shadow: 0 0 0 2px #1d2029, 0 0 0 3.5px var(--em); }
 .up-box { position: relative; margin-top: 10px; padding: 10px 12px; border: 1px solid #3a3f4e; border-radius: 12px; background: rgba(255,255,255,0.03); }
-.up-box.held { margin: 0 0 14px; padding: 10px 12px 12px; border-radius: 10px; background: #1d2029; text-align: left; }
-.up-legend { position: absolute; top: -7px; right: 12px; padding: 0 6px; background: #1d2029; font-size: 10px; font-weight: 700; color: #8a8fa3; }
-.up-title { margin-bottom: 8px; font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: #8a8fa3; }
+.up-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; font-size: 10px; color: #8a8fa3; }
+.up-title { font-weight: 800; letter-spacing: 0.06em; }
+.up-count { font-weight: 700; }
 .up-row { display: flex; gap: 6px; align-items: flex-start; }
-.up-divider { width: 1px; align-self: stretch; background: #3a3f4e; margin: 2px 4px; flex: none; }
 .up-sheet-overlay { position: fixed; inset: 0; z-index: 110; display: flex; align-items: flex-end; justify-content: center; background: rgba(8,9,12,0.74); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 .up-sheet { width: 100%; max-width: 430px; max-height: 88vh; overflow-y: auto; box-sizing: border-box; background: #1d2029; border: 1px solid #3a3f4e; border-radius: 16px 16px 0 0; padding: 10px 16px 18px; color: #e8e8ee; text-align: left; }
 .up-sheet-grab { width: 36px; height: 4px; border-radius: 2px; background: #3a3f4e; margin: 0 auto 10px; }
@@ -278,7 +276,6 @@ button.up-cell { cursor: pointer; }
 .up-sheet-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #2a2e3a; }
 .up-sheet-main { min-width: 0; flex: 1; }
 .up-sheet-name { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
-.up-sheet-tag { font-size: 8px; font-weight: 800; letter-spacing: 0.06em; color: var(--ignite); border: 1px solid var(--ignite); border-radius: 6px; padding: 0 4px; }
 .up-sheet-text { font-size: 11px; line-height: 1.35; color: #8a8fa3; }
 .up-sheet-rule { margin: 6px 0 4px; padding: 8px 10px; border: 1px solid #3a3f4e; border-radius: 8px; background: rgba(255,255,255,0.03); }
 .up-sheet-rule.full { border-color: rgba(255,180,84,0.45); background: rgba(255,180,84,0.08); }

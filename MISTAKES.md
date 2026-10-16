@@ -16,6 +16,19 @@
 
 ---
 
+### [2026-10-16 #4] Read "a skill silently disappears" as Claude's own skills, not the game's skill bubble
+
+- **Said:** After scanning session logs I wrote a plan saying no skill ever ended silently, and that
+  Tu was probably seeing two Claude skills run back to back with no words between them.
+- **Actually:** Tu meant the in-game skill (the chain): its bubble vanishes with no STOPPED and no
+  result bubble. The project's own words for it are "skill" and "bubble", and `STATE.md` says so.
+- **Caught by:** Tu rejected the plan: "I mean the skill which is a chain in the game. Not claude skill".
+- **Why:** I searched for the word "skill" in tooling first and never checked it against this
+  project's own meaning of the word.
+- **Tag:** misread a project word
+
+---
+
 ### [2026-10-16 #3] Published canvas frames 6.3A, 6.3C and 6.3D with the upgrade shelf's cells squashed to 0–2px
 
 - **Said:** After publishing version 96 I reported 6.3A–D as "published, read back, all five frames

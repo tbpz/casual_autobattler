@@ -4,7 +4,7 @@ import { CARD_DEFS } from "../sim/cards/index.js";
 import type { PlayerRole } from "../sim/roles.js";
 import { ROLE_LABEL } from "../sim/roles.js";
 import { markWordsHtml } from "./heroPickShared.js";
-import { emblemHtml, upgradesHeld } from "./upgrades.js";
+import { emblemHtml } from "./upgrades.js";
 import { esc } from "./roundParts.js";
 import { ROLE_CSS_VAR } from "./roundScreen.js";
 
@@ -21,9 +21,9 @@ import { ROLE_CSS_VAR } from "./roundScreen.js";
  * is coloured where it sits (2026-10-02; the old "reads / makes" chip lines
  * are gone).
  *
- * 2026-10-16 (upgrades, canvas 6.1 to 6.3): a card is called an upgrade on screen and drawn as its round emblem, the same one the round
- * screen's UPGRADES shelf shows after the pick. The top of the pick holds what the run already has (the same relic, divider and upgrades as the round screen's section, folded to
- * "+N All ›" past three), an upgrade row's rail is its emblem, and at the cap the drop step lists the held upgrades with a DROP tag.
+ * 2026-10-16 (runes, canvas 6.1 to 6.3): a card is called a rune on screen and drawn as its round emblem, the same one the round
+ * screen's runes box shows after the pick. A rune row's rail is its emblem, and at the cap the drop step lists every held rune
+ * (the first one, once a relic, included) with a DROP tag. The pick has no box of what the run holds: the rows are not all runes.
  *
  * 2026-09-30 (offer screen redesign — design/canvas/OfferAfter.dc.html): every
  * offer is a full-width row with the SAME frame, so no kind looks like the
@@ -80,7 +80,7 @@ function rowHtml(p: RowParts): string {
   // A card carries its own glyph in the rail (so a card can be told from the
   // next one at a glance, and recalled next run), and a duo says so.
   const railIcon = p.card ? emblemHtml(p.card, 44) : `<span class="offer-rail-icon">${cat.icon}</span>`;
-  const railWord = def ? (def.kind === "duo" ? "DUO" : "UPGRADE") : cat.word;
+  const railWord = def ? (def.kind === "duo" ? "DUO" : "RUNE") : cat.word;
   // A card's headline is its name, left plain; a chain offer's headline is the
   // ability it adds ("New: ❄ freeze"), so a mark word in it is coloured too.
   const headline = p.card ? p.headline : markWordsHtml(p.headline);
@@ -91,7 +91,7 @@ function rowHtml(p: RowParts): string {
     (p.title ? `<span class="offer-title">${p.title}</span>` : "") +
     `<span class="offer-detail">${markWordsHtml(p.detail)}</span>` +
     (p.worksWith ? `<span class="offer-with">↳ ${p.worksWith}</span>` : "") +
-    (p.replaces ? `<span class="offer-replaces">⇄ replaces one of your upgrades</span>` : "") +
+    (p.replaces ? `<span class="offer-replaces">⇄ replaces one of your runes</span>` : "") +
     `</span>`
   );
 }
@@ -99,9 +99,9 @@ function rowHtml(p: RowParts): string {
 export function renderOfferScreen(
   container: HTMLElement,
   offers: Offer[],
+  /** Every rune held, the first one included (sim/progress.ts's heldCards). */
   held: CardId[],
   cap: number,
-  relic: CardId | undefined,
   onChoose: (offer: Offer, dropCardId?: CardId) => void,
 ): void {
   container.innerHTML = "";
@@ -114,8 +114,6 @@ export function renderOfferScreen(
     const h1 = document.createElement("h1");
     h1.textContent = "Victory — pick one";
     screen.appendChild(h1);
-
-    if (held.length > 0 || relic) screen.appendChild(upgradesHeld({ relic, cards: held, cap }));
 
     const choices = document.createElement("div");
     choices.className = "offer-rows";

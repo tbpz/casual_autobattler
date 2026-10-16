@@ -5,7 +5,7 @@ import type { CardDef } from "../types.js";
 
 export const SPREAD: CardDef = {
   id: "spread",
-  title: "Spread",
+  title: "Creep",
   detail: "When a burning enemy dies, its burn jumps to the next enemy.",
   icon: "♨",
   kind: "mark",
@@ -29,7 +29,7 @@ export const SPREAD: CardDef = {
 
 export const OPEN_WOUND: CardDef = {
   id: "openWound",
-  title: "Open wound",
+  title: "Rot",
   detail: "When an exposed enemy burns, the burn ticks count triple.",
   icon: "✂",
   kind: "mark",
@@ -49,7 +49,7 @@ export const OPEN_WOUND: CardDef = {
 
 export const KINDLING: CardDef = {
   id: "kindling",
-  title: "Kindling",
+  title: "Tinder",
   detail: "When your Damage unit attacks, the target catches burn.",
   icon: "♢",
   kind: "mark",
@@ -71,7 +71,7 @@ export const KINDLING: CardDef = {
 
 export const INFERNO: CardDef = {
   id: "inferno",
-  title: "Inferno",
+  title: "Blaze",
   detail: "When burn ticks, every earlier tick this fight makes it hit harder.",
   icon: "☄",
   kind: "mark",
@@ -95,7 +95,7 @@ export const INFERNO: CardDef = {
 
 export const SMOKE: CardDef = {
   id: "smoke",
-  title: "Smoke",
+  title: "Pall",
   detail: "When an enemy's burn ticks, your weakest unit gains shield.",
   icon: "☁",
   kind: "mark",
@@ -117,7 +117,7 @@ export const SMOKE: CardDef = {
 
 export const WILDFIRE: CardDef = {
   id: "wildfire",
-  title: "Wildfire",
+  title: "Smolder",
   detail: "When an enemy burns, the burn fades half as fast.",
   icon: "✹",
   kind: "mark",

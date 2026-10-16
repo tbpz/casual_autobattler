@@ -769,7 +769,7 @@ export interface RunConfig {
   chainLevelStep: number;
   chainLevelCap: number;
   /** Payoff cards (2026-09-30; sim/cards/index.ts, sim/offers.ts): the most a run
-   * can hold at once — taking another at the cap means dropping one held.
+   * can hold at once, the relic included — taking another at the cap means dropping one held.
    * `cardWeight` is a payoff offer's flat draw weight (they don't ramp with
    * the round like small/big offers do); `cardConnectBoost` multiplies it by
    * `1 + boost` when the card reads a mark the squad can already make. */
@@ -1096,7 +1096,7 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   offersPerWin: 3,
   chainLevelStep: 1,
   chainLevelCap: 5,
-  cardCap: 8,
+  cardCap: 9,
   cardWeight: 1.2,
   cardConnectBoost: 1.5,
   duoBoost: 6,

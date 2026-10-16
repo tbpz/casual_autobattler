@@ -9,7 +9,7 @@ import type { CardDef } from "../types.js";
 
 export const FORTRESS: CardDef = {
   id: "fortress",
-  title: "Fortress",
+  title: "Bastion",
   detail: "When Guard blocks a slam, the squad shields again and the slammer is hurt.",
   icon: "♜",
   kind: "duo",
@@ -31,7 +31,7 @@ export const FORTRESS: CardDef = {
 
 export const THERMAL_SHOCK: CardDef = {
   id: "thermalShock",
-  title: "Thermal shock",
+  title: "Quench",
   detail: "When you hit a frozen, burning enemy, all its burn goes off at once.",
   icon: "⚛",
   kind: "duo",
@@ -55,7 +55,7 @@ export const THERMAL_SHOCK: CardDef = {
 
 export const KILLING_FROST: CardDef = {
   id: "killingFrost",
-  title: "Killing frost",
+  title: "Reaper",
   detail: "When an exposed enemy is frozen, Execute's line rises to half its HP.",
   icon: "☃",
   kind: "duo",
@@ -78,7 +78,7 @@ export const KILLING_FROST: CardDef = {
 
 export const CINDER_SHIELD: CardDef = {
   id: "cinderShield",
-  title: "Cinder shield",
+  title: "Cinder",
   detail: "When a shield absorbs a hit, the attacker catches burn too.",
   icon: "⛉",
   kind: "duo",
@@ -99,7 +99,7 @@ export const CINDER_SHIELD: CardDef = {
 
 export const GLASS: CardDef = {
   id: "glass",
-  title: "Glass",
+  title: "Shard",
   detail: "When a freeze ends, the enemy's exposure doubles.",
   icon: "◇",
   kind: "duo",

@@ -77,9 +77,9 @@
     { "id": "label-fightstatus", "x": 4780, "y": 4840, "w": 880, "text": "5.5 Statuses — trouble, recovery, and every shield case (proposal)" },
     { "id": "label-fightresult", "x": 5810, "y": 4840, "w": 390, "text": "5.6 Result — VICTORY over the finished fight (proposal)" },
     { "id": "label-fightdefeat", "x": 6350, "y": 4840, "w": 390, "text": "5.7 Result — DEFEAT, the squad is wiped (proposal)" },
-    { "id": "section-offer", "x": 0, "y": 6260, "w": 2860, "text": "6 · REWARD PICK — after a win; an upgrade is one round emblem" },
-    { "id": "label-offerafter", "x": 0, "y": 6340, "w": 860, "text": "6.1 Reward pick → next round screen — an upgrade is one round emblem (proposal, built)" },
-    { "id": "label-upgradesmany", "x": 1000, "y": 6340, "w": 1330, "text": "6.2 Many upgrades — two newest and a +N tile; the full list explains the 8/8 rule (proposal, built)" },
+    { "id": "section-offer", "x": 0, "y": 6260, "w": 2860, "text": "6 · REWARD PICK — after a win; a rune is one round emblem" },
+    { "id": "label-offerafter", "x": 0, "y": 6340, "w": 860, "text": "6.1 Reward pick → next round screen — a rune is one round emblem (proposal, built)" },
+    { "id": "label-upgradesmany", "x": 1000, "y": 6340, "w": 1330, "text": "6.2 Many runes — two newest and a +N tile; the full list explains the 9/9 rule (proposal, built)" },
     { "id": "label-upgradedrop", "x": 2470, "y": 6340, "w": 390, "text": "6.3 At the cap — pick, then drop one (proposal)" },
     { "id": "section-runover", "x": 0, "y": 7560, "w": 390, "text": "7 · RUN OVER — after a lost fight" },
     { "id": "label-runover", "x": 0, "y": 7640, "w": 390, "text": "7.1 Run over — how close, best moment, build, Try again (proposal)" }

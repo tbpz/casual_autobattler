@@ -8,7 +8,7 @@
  */
 import { Rng } from "../sim/rng.js";
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
-import { makeInitialProgress } from "../sim/progress.js";
+import { heldCount, makeInitialProgress } from "../sim/progress.js";
 import { makeStartingRoster, PLAYER_ROLES, ROLE_POOL } from "../sim/roles.js";
 import { applyFightResultToRoster, canFieldSquad, defaultFieldPick, fieldSquad } from "../sim/roster.js";
 import { drawRoundEncounters, roundEnemySide } from "../sim/rounds.js";
@@ -60,7 +60,7 @@ function checkInvariants(label: string): void {
   }
   // 2026-09-30 (marks and payoffs): the payoff list never passes its cap and
   // never holds a card twice.
-  if (progress.cards.length > cfg.cardCap) invariantBroken ??= `${label}: payoffs past the cap (${progress.cards.length})`;
+  if (heldCount(progress) > cfg.cardCap) invariantBroken ??= `${label}: payoffs past the cap (${heldCount(progress)})`;
   if (new Set(progress.cards).size !== progress.cards.length) {
     invariantBroken ??= `${label}: a payoff card is held twice (${progress.cards.join(",")})`;
   }

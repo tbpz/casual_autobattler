@@ -5,7 +5,7 @@ import type { CardDef } from "../types.js";
 
 export const MOMENTUM: CardDef = {
   id: "momentum",
-  title: "Momentum",
+  title: "Surge",
   detail: "When a chain ends, the next chain's hits are bigger.",
   icon: "➶",
   kind: "general",
@@ -33,7 +33,7 @@ export const MOMENTUM: CardDef = {
 
 export const SECOND_WIND: CardDef = {
   id: "secondWind",
-  title: "Second wind",
+  title: "Vigil",
   detail: "When a unit drops low, it gains chain charge, once a fight.",
   icon: "♺",
   kind: "general",
@@ -55,7 +55,7 @@ export const SECOND_WIND: CardDef = {
 
 export const IRON_HIDE: CardDef = {
   id: "ironHide",
-  title: "Iron hide",
+  title: "Mantle",
   detail: "When your Tank's chain marks, it leaves more stacks the tougher it is.",
   icon: "▦",
   kind: "general",
@@ -76,7 +76,7 @@ export const IRON_HIDE: CardDef = {
 
 export const BLOODLUST: CardDef = {
   id: "bloodlust",
-  title: "Bloodlust",
+  title: "Thirst",
   detail: "When an enemy dies, your most worn unit gains chain charge.",
   icon: "☾",
   kind: "general",

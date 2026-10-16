@@ -10,6 +10,71 @@
 
 ---
 
+## [2026-10-16] In a fight, a tap on a status or the skill bubble pauses and opens its explainer card
+
+- **Decision:**
+  - A tap on a status pill on a unit opens that word's term card: Exposed, Burn, frozen seconds, shield number, guard pips, a bruiser's SLAM bar.
+  - A tap on the skill bubble opens the unit's skill card (Guard, Mend or Expose), or Backfire while the bubble reads a backfire.
+  - The fight pauses while the card is open and resumes when it closes, the same rule as the fighter popup.
+  - A tap on the unit's body still opens the fighter popup. A pill tap opens only the card.
+  - The result bubble (`N hits / M damage`) and the one-second status words stay untappable.
+  - Nothing looks different, so no canvas frame was redrawn.
+  - The code is `setTermTapHandler` in `prototype/src/render/fightView.ts` and `render/app.ts`, with `data-term` on each element.
+- **Why:**
+  - Tu asked for fight markers to open the same explain cards as the round screen.
+  - Checked 2026-10-16 by type check and `check:ui` only. Not yet tapped through in a browser or on a phone.
+- **Replaces:**
+  - The "no tapping during a fight" line under 3.1 in `design/HANDOFF.md`, already reversed for the fighter popup.
+
+## [2026-10-16] The runes box has a RUNES title row with the count at its right
+
+- **Decision:**
+  - The box below the squad box on the round screen has a small grey `RUNES` title at its top-left and the count at its right, on one line, with the emblems below.
+  - The box is one line taller than before.
+  - The code is `upgradesSection` in `prototype/src/render/upgrades.ts` and `.up-head` in `screens.css`. It is drawn on canvas 6.1 and 6.2.
+- **Why:**
+  - Tu asked for a label of its own once relics and upgrades became one thing.
+  - Tu picked C from four canvas frames: A none, B a pill, C a title row, D on the box's top edge.
+  - Checked 2026-10-16 in a headless browser at phone width. Not seen on a phone.
+- **Replaces:**
+  - The "no title" and "label on the box's top edge" lines of the entry "Cards are called upgrades, drawn as one round emblem, in their own section".
+
+## [2026-10-16] Runes are named with one short mythic word each
+
+- **Decision:**
+  - 38 of the 40 runes were renamed to one short word each, for example Frost crown → Rime, Shatter → Rend, Execute → Doom, Second wind → Vigil. Aegis and Phoenix kept.
+  - Only the `title:` text changed. Card ids, `CARD_DEFS` and every number are unchanged.
+  - The full old → new list is in `design/HANDOFF.md` under 6.1.
+  - New names avoid words the game already uses: Guard, Mend, Ward, Brace, Quake, Scorch, Siphon, Chill, Expose, Freeze, and the enemy "Glass Pair". So the duo Glass became Shard.
+- **Why:**
+  - Tu: the names should sound more like runes.
+  - Tu chose all 40, in the style "short mythic words", over invented old-tongue words and "Rune of …" names.
+  - Tu approved the old → new table when he approved the plan.
+  - Measured 2026-10-16: batch completion still 3.3% at n=1000, so no numbers moved.
+- **Replaces:**
+  - Nothing. Older entries here keep the old names; read them through the table in `design/HANDOFF.md`.
+
+## [2026-10-16] Relics and upgrades are one thing, called runes; the first one counts toward the limit
+
+- **Decision:**
+  - On screen "relic" and "upgrade" are both "rune". The round 1 pick is just the first rune.
+  - The first rune is drawn like any other: the same round emblem, no gold ring, no divider, no RELIC tag.
+  - It counts toward the limit and can be dropped for a new rune.
+  - The limit went up by one so a run holds the same total as before. The value is `cardCap` in `prototype/src/sim/config.ts`.
+  - The pick screen no longer shows a box of what you hold, because not every row there is a rune.
+  - The round 1 pick says "Choose a rune".
+  - The batch player never drops the first rune, so batch runs behave as before.
+  - The code is `render/upgrades.ts`, `offerScreen.ts` and `relicScreen.ts`, `applyOffer` and `defaultCardDrop` in `sim/offers.ts`, and `heldCount` in `sim/progress.ts`.
+- **Why:**
+  - Tu: a player need not tell a relic from an upgrade; some simply show up earlier.
+  - Tu picked the name "Runes" and the limit rule (the first rune counts, one more slot) from text options.
+  - Measured 2026-10-16, n=1000 with `--offers build`: 3.3% run completion before and after the rule change.
+  - Checked 2026-10-16 in a desktop headless browser and on the live canvas. Not seen on a phone.
+  - The round 1 pick screen and the drop step at the limit were not seen in a browser.
+- **Replaces:**
+  - From the entry "Cards are called upgrades, drawn as one round emblem, in their own section": the word "upgrade", the gold-ring relic set apart by a divider, and the count that left the relic out.
+  - Its round emblem, its own box and the `+N All ›` fold still hold.
+
 ## [2026-10-16] Cards are called upgrades, drawn as one round emblem, in their own section
 
 - **Decision:**

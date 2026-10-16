@@ -10,7 +10,7 @@ import type { CardDef } from "../types.js";
 
 export const EMBER_HEART: CardDef = {
   id: "emberHeart",
-  title: "Ember heart",
+  title: "Pyre",
   detail: "When a chain backfires, every enemy catches burn.",
   icon: "❤",
   kind: "relic",
@@ -32,7 +32,7 @@ export const EMBER_HEART: CardDef = {
 
 export const FROST_CROWN: CardDef = {
   id: "frostCrown",
-  title: "Frost crown",
+  title: "Rime",
   detail: "When a fight starts, the front enemy is frozen.",
   icon: "♛",
   kind: "relic",
@@ -53,7 +53,7 @@ export const FROST_CROWN: CardDef = {
 
 export const HUNTERS_EYE: CardDef = {
   id: "huntersEye",
-  title: "Hunter's eye",
+  title: "Augur",
   detail: "When a fight starts, every enemy is already exposed.",
   icon: "◎",
   kind: "relic",
@@ -74,7 +74,7 @@ export const HUNTERS_EYE: CardDef = {
 
 export const BASTION: CardDef = {
   id: "bastion",
-  title: "Bastion",
+  title: "Citadel",
   detail: "When a fight starts, every unit has a shield.",
   icon: "⛨",
   kind: "relic",
@@ -95,7 +95,7 @@ export const BASTION: CardDef = {
 
 export const RESTLESS: CardDef = {
   id: "restless",
-  title: "Restless",
+  title: "Frenzy",
   detail: "When a fight starts, every unit has charge but starts worn.",
   icon: "↯",
   kind: "relic",
@@ -120,7 +120,7 @@ export const RESTLESS: CardDef = {
 
 export const MERCENARY: CardDef = {
   id: "mercenary",
-  title: "Mercenary",
+  title: "Wanderer",
   detail: "A fourth unit of a random role joins your squad.",
   icon: "⚔",
   passive: true,

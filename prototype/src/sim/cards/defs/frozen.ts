@@ -5,7 +5,7 @@ import type { CardDef } from "../types.js";
 
 export const SHATTER: CardDef = {
   id: "shatter",
-  title: "Shatter",
+  title: "Rend",
   detail: "When you hit a frozen enemy, the hit does double.",
   icon: "✸",
   kind: "mark",
@@ -25,7 +25,7 @@ export const SHATTER: CardDef = {
 
 export const DEEP_FREEZE: CardDef = {
   id: "deepFreeze",
-  title: "Deep freeze",
+  title: "Hoar",
   detail: "When you freeze an exposed enemy, the freeze lasts longer.",
   icon: "❄",
   kind: "mark",
@@ -46,7 +46,7 @@ export const DEEP_FREEZE: CardDef = {
 
 export const COLD_SNAP: CardDef = {
   id: "coldSnap",
-  title: "Cold snap",
+  title: "Gelid",
   detail: "When a chain backfires, the front enemy freezes.",
   icon: "❅",
   kind: "mark",
@@ -68,7 +68,7 @@ export const COLD_SNAP: CardDef = {
 
 export const BRITTLE: CardDef = {
   id: "brittle",
-  title: "Brittle",
+  title: "Fissure",
   detail: "When you freeze an enemy, it becomes exposed for every second.",
   icon: "❋",
   kind: "mark",
@@ -94,7 +94,7 @@ export const BRITTLE: CardDef = {
 
 export const FROSTBITE: CardDef = {
   id: "frostbite",
-  title: "Frostbite",
+  title: "Frostfire",
   detail: "When you freeze an enemy, it catches burn for every second.",
   icon: "❆",
   kind: "mark",
@@ -115,7 +115,7 @@ export const FROSTBITE: CardDef = {
 
 export const PERMAFROST: CardDef = {
   id: "permafrost",
-  title: "Permafrost",
+  title: "Winter",
   detail: "While any enemy is frozen, your chains are likelier to go on.",
   icon: "▥",
   kind: "mark",

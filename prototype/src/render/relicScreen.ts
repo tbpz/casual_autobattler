@@ -1,15 +1,20 @@
 import type { CardId } from "../sim/cards/index.js";
 import { CARD_DEFS } from "../sim/cards/index.js";
 import { markWordsHtml } from "./heroPickShared.js";
+import { emblemHtml } from "./upgrades.js";
 
 /**
  * 2026-10-01 (the build-depth plan, "G. a pick at the start of the run", moved by
  * DECISIONS.md's relic-timing entries). The reward for winning round 1: three
- * relics, pick one. Each is a small rule-bender held for the rest of the run
+ * relics, pick one. Each is a small rule-bender held from then on
  * (sim/relics.ts), so it points the run at a build once the player has seen a
  * fight. Reuses the offer screen's row frame (style.css's .offer-row) so a relic
  * reads as the same kind of choice as the picks that follow, and — like those —
  * no row is dressed up or pre-selected as the right answer.
+ *
+ * 2026-10-16 (runes): the player is not told a relic from any other rune. The screen says "rune",
+ * the rail is the same round emblem the offer rows use, and nothing claims it stays all run,
+ * since it counts toward the cap and can be dropped.
  */
 export function renderRelicScreen(
   container: HTMLElement,
@@ -22,13 +27,8 @@ export function renderRelicScreen(
   container.appendChild(screen);
 
   const h1 = document.createElement("h1");
-  h1.textContent = "Choose a relic";
+  h1.textContent = "Choose a rune";
   screen.appendChild(h1);
-
-  const sub = document.createElement("div");
-  sub.className = "offer-held";
-  sub.textContent = "It stays with you for the whole run.";
-  screen.appendChild(sub);
 
   const rows = document.createElement("div");
   rows.className = "offer-rows";
@@ -37,7 +37,7 @@ export function renderRelicScreen(
     const btn = document.createElement("button");
     btn.className = "offer-row cat-reaction";
     btn.innerHTML =
-      `<span class="offer-rail"><span class="offer-rail-icon">${def.icon}</span><span class="offer-rail-word">RELIC</span></span>` +
+      `<span class="offer-rail">${emblemHtml(id, 44)}<span class="offer-rail-word">RUNE</span></span>` +
       `<span class="offer-body">` +
       `<span class="offer-head"><span class="offer-headline">${def.title}</span></span>` +
       `<span class="offer-detail">${markWordsHtml(def.detail)}</span>` +

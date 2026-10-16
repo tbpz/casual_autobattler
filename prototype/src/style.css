@@ -2458,7 +2458,7 @@ button:disabled {
 /* the result bubble that follows it, over the same unit: a plain box with its own little arrow */
 .perf-result { position: absolute; z-index: 5; display: none; flex-direction: column; align-items: center; transform: translate(-50%, -100%); min-width: 46px; padding: 2px 7px; box-sizing: border-box; border-radius: 8px; background: #14161c; border: 1px solid rgba(255, 255, 255, 0.35); pointer-events: none; text-align: center; white-space: nowrap; }
 .perf-result.show { display: flex; }
-.perf-result::after { content: ""; position: absolute; bottom: -4px; left: calc(50% + var(--tail-x, 0px)); width: 6px; height: 6px; background: #14161c; border: 0 solid inherit; border-right-width: 1px; border-bottom-width: 1px; border-color: inherit; transform: translateX(-50%) rotate(45deg); }
+.perf-result::after { content: ""; position: absolute; bottom: -4px; left: calc(50% + var(--tail-x, 0px)); width: 6px; height: 6px; background: #14161c; border: 0 solid; border-right-width: 1px; border-bottom-width: 1px; border-color: inherit; transform: translateX(-50%) rotate(45deg); }
 .perf-result { border-color: rgba(255, 207, 77, 0.55); }
 .perf-result.backfire { border-color: #ff4d4d; }
 .perf-result.show { animation: perfResultPop 1.6s ease-out forwards; }
@@ -2479,3 +2479,19 @@ button:disabled {
 .resolve-best-line .bm-amount { font-weight: 600; }
 .resolve-continue { width: 100%; max-width: 230px; margin-top: 18px; background: var(--player); color: #0c1420; border: none; border-radius: 8px; padding: 12px; font-size: 15px; font-weight: 700; letter-spacing: 0; }
 .resolve-continue:hover { background: #66b8ff; }
+
+/* tapping a status pill or the skill bubble opens its explainer card (render/fightView.ts, setTermTapHandler). The elements take taps
+ * themselves while their rows stay click-through; each pill gets an invisible larger tap area, nothing visible changes. */
+.mark-badge[data-term],
+.hp-label-shield[data-term],
+.freeze-secs[data-term],
+.guard-pips[data-term],
+.charge-track[data-term],
+.charge-label[data-term],
+.perf-tag[data-term] { pointer-events: auto; cursor: pointer; }
+.mark-badge[data-term], .hp-label-shield[data-term], .freeze-secs[data-term], .charge-label[data-term] { position: relative; }
+.freeze-secs[data-term] { position: absolute; }
+.mark-badge[data-term]::after, .hp-label-shield[data-term]::after, .freeze-secs[data-term]::after, .charge-label[data-term]::after,
+.guard-pips[data-term]::after, .perf-tag[data-term]::after { content: ""; position: absolute; inset: -12px -9px; }
+.guard-pips[data-term]::after { inset: -6px -12px; }
+.perf-tag[data-term]::after { inset: -8px; }

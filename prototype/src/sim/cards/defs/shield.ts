@@ -4,7 +4,7 @@ import type { CardDef } from "../types.js";
 
 export const SPIKED_SHIELD: CardDef = {
   id: "spikedShield",
-  title: "Spiked shield",
+  title: "Thorn",
   detail: "When a shield absorbs a hit, the attacker becomes exposed.",
   icon: "✶",
   kind: "mark",
@@ -27,7 +27,7 @@ export const SPIKED_SHIELD: CardDef = {
 
 export const BULWARK: CardDef = {
   id: "bulwark",
-  title: "Bulwark",
+  title: "Rampart",
   detail: "When Guard blocks a slam, the whole squad gains a shield.",
   icon: "⛫",
   kind: "mark",
@@ -47,7 +47,7 @@ export const BULWARK: CardDef = {
 
 export const OVERFLOW: CardDef = {
   id: "overflow",
-  title: "Overflow",
+  title: "Brim",
   detail: "When a heal has nowhere to go, the extra becomes shield.",
   icon: "≈",
   kind: "mark",
@@ -67,7 +67,7 @@ export const OVERFLOW: CardDef = {
 
 export const SHIELD_BASH: CardDef = {
   id: "shieldBash",
-  title: "Shield bash",
+  title: "Ram",
   detail: "When your Tank hits, it adds a quarter of its shield as damage.",
   icon: "▣",
   kind: "mark",
@@ -88,7 +88,7 @@ export const SHIELD_BASH: CardDef = {
 
 export const SHATTERGUARD: CardDef = {
   id: "shatterguard",
-  title: "Shatterguard",
+  title: "Splinter",
   detail: "When a shield breaks, the attacker freezes.",
   icon: "◈",
   kind: "mark",

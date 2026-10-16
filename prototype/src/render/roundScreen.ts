@@ -195,7 +195,7 @@ export function renderRoundScreen(
       const def = CARD_DEFS[id];
       const isRelic = def.kind === "relic";
       const title = document.createElement("div");
-      title.innerHTML = `<strong>${def.title}${isRelic ? " (relic)" : ""}.</strong> ${markWordsHtml(def.detail)}`;
+      title.innerHTML = `<strong>${def.title}.</strong> ${markWordsHtml(def.detail)}`;
       const parts: HTMLElement[] = [title];
       if (!isRelic) {
         parts.push(
@@ -220,7 +220,7 @@ export function renderRoundScreen(
       }
       togglePopover(anchor, parts);
     };
-    upSlot.replaceWith(upgradesSection({ relic: progress.relic ?? undefined, cards: progress.cards, cap: cfg.cardCap, onCell: showUpgrade }));
+    upSlot.replaceWith(upgradesSection({ cards: held, cap: cfg.cardCap, onCell: showUpgrade }));
   } else {
     upSlot.remove();
   }

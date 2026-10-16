@@ -4,6 +4,7 @@ import { bestMoment, momentHtml, type BestMoment } from "./fightSummary.js";
 import { DEAD_BODY, villainFace } from "./faces.js";
 import { esc, roundStripHtml } from "./roundParts.js";
 import { appendAnswerKey } from "./runScreens.js";
+import { heldCards } from "../sim/progress.js";
 import { upgradesBuildHtml } from "./upgrades.js";
 
 /**
@@ -41,7 +42,7 @@ export function renderRunOverScreen(container: HTMLElement, cfg: RunConfig, sess
 
   // ---------- the build and the squad ----------
   const progress = session.progress;
-  const build = progress.relic || progress.cards.length > 0 ? `<div class="ro-block"><div class="ro-sec">YOUR BUILD</div><div class="ro-chips">${upgradesBuildHtml(progress.relic ?? undefined, progress.cards)}</div></div>` : "";
+  const build = progress.relic || progress.cards.length > 0 ? `<div class="ro-block"><div class="ro-sec">YOUR RUNES</div><div class="ro-chips">${upgradesBuildHtml(heldCards(progress))}</div></div>` : "";
 
   const byId = new Map(session.currentRoster.heroes.map((h) => [h.id, h]));
   const squadIds = session.lastFielded.length > 0 ? session.lastFielded : session.currentRoster.heroes.map((h) => h.id);

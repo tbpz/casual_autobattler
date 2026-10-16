@@ -71,8 +71,9 @@ export interface RunProgress {
    * two runs push the same role toward different builds. */
   upgradeOptions: Record<PlayerRole, ChainEffect[]>;
   /** 2026-10-01: the relic picked as the round 1 reward (sim/relics.ts), held
-   * from then on and never in the card list — so it takes no card slot and can't be dropped.
-   * Undefined until the pick is made. */
+   * from then on and kept apart from the card list, but it counts toward cfg.cardCap
+   * (heldCount) and can be dropped for a new card like any other. Undefined until
+   * the pick is made, or after it is dropped. */
   relic?: CardId;
 }
 
@@ -81,6 +82,11 @@ export interface RunProgress {
  * cards in the order they were taken. */
 export function heldCards(progress: RunProgress): CardId[] {
   return progress.relic ? [progress.relic, ...progress.cards] : progress.cards;
+}
+
+/** How many of the cap's slots the run uses: the relic counts like any held card. */
+export function heldCount(progress: RunProgress): number {
+  return progress.cards.length + (progress.relic ? 1 : 0);
 }
 
 /** Draws `cfg.upgradeOptionsPerRole` of each role's upgrade pool for one run,

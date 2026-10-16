@@ -5,7 +5,7 @@ import type { CardDef } from "../types.js";
 
 export const EXECUTE: CardDef = {
   id: "execute",
-  title: "Execute",
+  title: "Doom",
   detail: "When an exposed enemy is at low HP, it dies outright.",
   icon: "☠",
   kind: "mark",
@@ -27,7 +27,7 @@ export const EXECUTE: CardDef = {
 
 export const PUNISH: CardDef = {
   id: "punish",
-  title: "Punish",
+  title: "Smite",
   detail: "When your Tank hits an exposed enemy, it uses up the exposure for a big hit.",
   icon: "⚒",
   kind: "mark",
@@ -53,7 +53,7 @@ export const PUNISH: CardDef = {
 
 export const WEAK_SPOT: CardDef = {
   id: "weakSpot",
-  title: "Weak spot",
+  title: "Cleft",
   detail: "When your Damage unit hits an exposed enemy, it adds damage for every stack.",
   icon: "◉",
   kind: "mark",
@@ -77,7 +77,7 @@ export const WEAK_SPOT: CardDef = {
 
 export const CRACK: CardDef = {
   id: "crack",
-  title: "Crack",
+  title: "Fault",
   detail: "When an enemy reaches 5 exposed, it freezes and loses 2 stacks.",
   icon: "⚡",
   kind: "mark",
@@ -103,7 +103,7 @@ export const CRACK: CardDef = {
 
 export const LAY_BARE: CardDef = {
   id: "layBare",
-  title: "Lay bare",
+  title: "Heir",
   detail: "When an exposed enemy dies, its exposure moves to the next enemy.",
   icon: "↬",
   kind: "mark",
@@ -126,7 +126,7 @@ export const LAY_BARE: CardDef = {
 
 export const HUNTER_MARK: CardDef = {
   id: "hunterMark",
-  title: "Hunter's mark",
+  title: "Brand",
   detail: "When a chain starts, the front enemy becomes exposed.",
   icon: "⌖",
   kind: "mark",
