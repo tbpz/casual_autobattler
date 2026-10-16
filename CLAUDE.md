@@ -110,3 +110,27 @@ Tu sees canvas changes only through the canvas link, never in the local files. S
 
 - Any plan that touches `design/canvas/` lists "publish to the canvas link" as a step.
 - If I stop before publishing, I say plainly that the canvas still shows the old version.
+
+## Choosing UI, animation and interaction: draw, don't ask
+
+Tu cannot judge a look, a motion or a tap flow from a question in words. For these choices only,
+**do not ask — draw each option as its own screen on the canvas** and let him pick by looking.
+
+- **In scope:** how the game looks (layout, colour, size, wording in place), how it moves
+  (animation, timing, motion), and how it responds to the player (taps, gestures, screen flow,
+  pause and popup behaviour).
+- **Out of scope** (these stay normal questions): game rules, numbers, balance, names of mechanics,
+  code or file structure.
+- **The rule:** for an in-scope choice, never use AskUserQuestion or a text question, in plan mode
+  or out. Draw one screen per option, publish to the canvas link, say in one line which frames to
+  look at, then stop until he picks.
+- **Drawing is still asking.** Never build, redraw into the real frames, or log an option he has not
+  chosen. If there is only one sensible option it is not a choice: draw it as a proposal, as usual.
+- **In plan mode** the canvas cannot be edited, so the plan's first step is "draw the options on the
+  canvas and publish, then stop for Tu's pick". Build steps come after his pick.
+- **Not affected:** "That sounds like a decision. Log it?" stays a text question (it confirms, it
+  does not choose between looks). Open points that can't be settled by looking (for example "check
+  on a real phone") stay as text in HANDOFF.
+
+**Invoke the `canvas-options` skill**, which carries the steps. It needs no DECISIONS entry until
+Tu picks.

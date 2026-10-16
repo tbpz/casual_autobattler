@@ -1479,6 +1479,13 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
     chainStunHeld = new Map();
   }
 
+  // The bar of the unit whose skill just ended restarts at zero. It is held full for the whole skill (the chain trigger does not
+  // reset it), and any charge the unit gained meanwhile is thrown away, so the bar visibly ends with the skill.
+  function restartCharge(heroId: string): void {
+    const hero = player.heroes.find((h) => h.id === heroId);
+    if (hero) hero.charge = 0;
+  }
+
   // Cards that set a fight up (starting marks, shields) listen here.
   runHook(ctx!, "fightStart", { t: 0 });
 
@@ -1576,6 +1583,7 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
           runHook(ctx!, "chainEnd", { hero, backfire: chainBackfire, length: bonusHitsLanded });
           finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
           releaseStunHold(t);
+          restartCharge(hero.id);
           hotHeroId = null;
           hotEffects = null;
         }
@@ -1646,6 +1654,7 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
         if (hotHero) runHook(ctx!, "chainEnd", { hero: hotHero, backfire: chainBackfire, length: bonusHitsLanded });
         finalChainLength = Math.max(finalChainLength, bonusHitsLanded);
         releaseStunHold(t);
+        restartCharge(hotHeroId);
         hotHeroId = null;
         hotEffects = null;
       }
@@ -1663,7 +1672,7 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
     // Time trickle (DECISIONS.md 2026-09-30 "Chains fire every fight"): every
     // living player hero also charges with time, so one that nothing has
     // hurt, healed or hit still reaches a chain. The firing hero is skipped;
-    // its bar restarts at zero when the chain ends.
+    // its bar stays full while its skill plays and restarts at zero when the skill ends (restartCharge).
     if (!outcome && cfg.chargeTricklePerSec > 0) {
       for (const h of player.heroes) {
         if (h.alive && h.id !== hotHeroId) h.charge += cfg.chargeTricklePerSec * dt;
@@ -1677,7 +1686,6 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
         if (!ready || h.charge > ready.charge) ready = h;
       }
       if (ready) {
-        ready.charge = 0;
         ignited = true;
         hotHeroId = ready.id;
         // The roll always happens, whether or not cfg.forceBackfire overrides
@@ -1788,6 +1796,7 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
     // No more ticks/snapshots follow the fight ending, so this has nothing
     // left to render — closes out HeroState consistently regardless.
     releaseStunHold(endT);
+    restartCharge(hotHeroId);
   }
 
   events.push({ type: "resolve", t: endT, outcome, reason: endReason });

@@ -10,6 +10,44 @@
 
 ---
 
+## [2026-10-16] The charge shows as a border round one fixed-size skill bubble
+
+- **Decision:**
+  - When a unit's bar is full and its skill fires, one bubble pops over the unit. It is the same size for every skill and every count.
+  - A bright streak of the bar's yellow runs from the bar's left end, up beside the unit, to the bubble's arrow tip while the bar drains.
+  - The yellow border then runs round the whole outline from the arrow tip, arrow included, and stays closed while the skill plays.
+  - The count (×2, ×3) appears inside the same bubble. The skill name slides left to make room.
+  - The performer's bar stays empty during the skill and refills from zero afterwards.
+  - Other units dim as a whole (name, HP, bar). A unit waiting at full stays steady yellow, dimmed.
+  - All five skill cards (Chain, Guard, Mend, Expose, Backfire) and fight frames 5.2 to 5.5 carry the same look.
+  - The code is in `prototype/src/render/fightView.ts`, `render/bubble.ts` and `style.css`. The sim is unchanged.
+- **Why:**
+  - Tu picked it from three canvas options (5.10A, B, C) as "exactly my point": the bar visibly builds into the bubble.
+  - Tu's three fixes are all in: the flow runs to the bubble, the bubble never changes size, and the arrow fills with the border.
+  - A fixed size means the old size escalation needs another signal: a brighter glow from 5 repeats and a `MAX` label at the cap. Those are my proposal, not yet seen by Tu.
+- **Replaces:**
+  - The display parts of the entry "A unit's charge bar stays full while its skill plays": the bar is now empty, not held full, and a waiting unit no longer pulses.
+  - The sim rule in that entry (charge held while the skill plays, restart at zero) stands.
+  - The tag sizes (small, bigger, biggest) of the 2026-10-15 fight redraw.
+
+## [2026-10-16] A unit's charge bar stays full while its skill plays, and is yellow only when full
+
+- **Decision:**
+  - A unit's charge bar is held full for the whole time its skill plays, and restarts at zero when the skill ends.
+  - The unit gains no charge while its own skill plays; anything it would have gained is thrown away.
+  - The bar is white while it fills and yellow only when it is full: ready, waiting behind another unit's skill, or in use.
+  - A unit waiting behind another skill pulses; the bar flashes when the tag appears over the unit.
+  - The "nearly full" yellow from 85% is dropped.
+  - The code is in `prototype/src/sim/fight.ts` (`restartCharge`), `render/fightView.ts` (`updateSide`) and `style.css`.
+- **Why:**
+  - The bar emptied the instant the skill started and began refilling from the unit's own hits while the tag counted ×2, ×3, so it did not read as what fires the skill (Tu).
+  - Yellow came on at 85% of the sim value while the slow-moving bar still looked about 70% full, and went off at exactly full, so it looked like a random flash.
+  - A full bar waiting behind another unit's skill was plain white, with nothing marking it as ready.
+  - Measured 2026-10-16, n=1000 greedy: run completion 2.9% before and 3.3% after; chain damage share 43.7% before and 42.6% after. No balance change seen.
+- **Replaces:**
+  - The reset to zero at the moment a skill starts (2026-08-14 chain rebuild).
+  - The near-full pulse at 85% (2026-08-14 dread beat).
+
 ## [2026-10-16] A slam ends on a strike beam, a longer lunge, a shockwave, a heavier shake and a bigger number
 
 - **Decision:**

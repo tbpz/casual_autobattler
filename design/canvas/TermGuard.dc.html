@@ -22,9 +22,8 @@
   .scene { --T: 8s; }
   .term.frozen { color: #7ec8ff; }
   .term.burn { color: #ff8a3d; }
-  @keyframes brBar { 0% { width: 15%; background: #e8e8ee; } 20.9% { width: 100%; background: #e8e8ee; } 21%, 29.9% { width: 100%; background: #ffcf4d; } 30% { width: 0; background: #e8e8ee; } 100% { width: 20%; background: #e8e8ee; } }
+
   @keyframes brGlow { 0%, 21.9% { box-shadow: none; filter: none; } 22%, 29.9% { box-shadow: 0 0 0 3px #ffb454, 0 0 14px 3px #ffb454; filter: brightness(1.2); } 30%, 100% { box-shadow: none; filter: none; } }
-  @keyframes lblBr { 0%, 21.9% { opacity: 0; } 22%, 31.9% { opacity: 1; } 32%, 100% { opacity: 0; } }
 
   @keyframes pips { 0%, 21.9% { opacity: 0; } 22%, 100% { opacity: 1; } }
   @keyframes bar { 0%, 40% { width: 0; background: #7a2b2b; } 47.125% { width: 100%; background: #7a2b2b; } 47.172% { width: 100%; background: #ff5252; } 66.125%, 100% { width: 0; background: #ff5252; } }
@@ -54,6 +53,11 @@
   .bm.boss { width: 22px; height: 22px; border: 1.5px solid #ff5d5d; animation: bossPulse 2s ease-in-out infinite; }
   .bm.boss svg { width: 18px; height: 18px; }
   @keyframes bossPulse { 0%, 100% { box-shadow: 0 0 3px 0 rgba(255,60,60,0.5); } 50% { box-shadow: 0 0 10px 3px rgba(255,60,60,0.9); } }
+  @keyframes brBar { 0% { width: 15%; background: #e8e8ee; } 20.9% { width: 100%; background: #e8e8ee; } 21% { width: 100%; background: #ffcf4d; } 22% { width: 100%; background: #ffcf4d; } 25.75% { width: 0; background: #ffcf4d; } 25.85% { width: 0; background: #e8e8ee; } 100% { width: 20%; background: #e8e8ee; } }
+  @keyframes brBarGlow { 0% { box-shadow: none; } 20.95% { box-shadow: none; } 21% { box-shadow: 0 0 6px 1px #ffcf4d; } 25.75% { box-shadow: 0 0 6px 1px #ffcf4d; } 25.85% { box-shadow: none; } 100% { box-shadow: none; } }
+  @keyframes nbPop { 0% { opacity: 0; transform: scale(0.7); } 22% { opacity: 0; transform: scale(0.7); } 23.13% { opacity: 1; transform: scale(1); } 31.95% { opacity: 1; transform: scale(1); } 32% { opacity: 0; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+  @keyframes nbBorder { 0% { stroke-dashoffset: 100; } 25% { stroke-dashoffset: 100; } 29.5% { stroke-dashoffset: 0; } 31.95% { stroke-dashoffset: 0; } 32% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 100; } }
+  @keyframes nbFlow { 0% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; } 21.95% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; } 22.2% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 1; } 25.75% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 1; } 25.85% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 0; } 100% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 0; } }
 </style>
 </helmet>
 
@@ -199,9 +203,9 @@
     <div class="scene" style="position: relative; width: 322px; height: 210px; margin-top: 26px; background: #14161c; border: 1px solid #2a2e3a; border-radius: 10px; overflow: hidden;">
 
       <div style="position: absolute; top: 104px; left: 16px; right: 16px; height: 1px; background: linear-gradient(90deg, transparent, #3a3f4e, transparent);"></div>
-      <div style="position: absolute; left: 161px; top: 37px; width: 145px; height: 2px; transform-origin: 0 50%; opacity: 0; animation: aim var(--T) linear infinite;"></div>
+      <div style="position: absolute; left: 161px; top: 29px; width: 145px; height: 2px; transform-origin: 0 50%; opacity: 0; animation: aim var(--T) linear infinite;"></div>
       <!-- Executioner -->
-      <div style="position: absolute; left: 137px; top: 14px; width: 48px; height: 48px;">
+      <div style="position: absolute; left: 137px; top: 6px; width: 48px; height: 48px;">
         <div style="position: absolute; border-radius: 50%; top: 42px; left: 6px; width: 36px; height: 6px; background: rgba(0,0,0,0.4); filter: blur(2px);"></div>
         <div style="position: absolute; inset: 0; animation: swing var(--T) linear infinite;">
           <div style="position: absolute; inset: 0; border-radius: 50%; background: #ff5d5d;"><svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;"><clipPath id="v31"><path d="M13.00,42.00 Q28.00,30.00 47.00,54.75 Q32.00,59.00 13.00,42.00Z"/></clipPath><path d="M13.00,42.00 Q28.00,30.00 47.00,54.75 Q32.00,59.00 13.00,42.00Z" fill="#14161c"/><g clip-path="url(#v31)"><ellipse cx="33.00" cy="48.50" rx="8.60" ry="11.50" fill="#ffe36a"/><ellipse cx="33.00" cy="47.00" rx="4.60" ry="6.50" fill="#fff6c8"/><ellipse cx="33.00" cy="48.50" rx="1.5" ry="7.00" fill="#14161c"/></g><clipPath id="v3-1"><path d="M87.00,42.00 Q72.00,30.00 53.00,54.75 Q68.00,59.00 87.00,42.00Z"/></clipPath><path d="M87.00,42.00 Q72.00,30.00 53.00,54.75 Q68.00,59.00 87.00,42.00Z" fill="#14161c"/><g clip-path="url(#v3-1)"><ellipse cx="67.00" cy="48.50" rx="8.60" ry="11.50" fill="#ffe36a"/><ellipse cx="67.00" cy="47.00" rx="4.60" ry="6.50" fill="#fff6c8"/><ellipse cx="67.00" cy="48.50" rx="1.5" ry="7.00" fill="#14161c"/></g></svg></div>
@@ -209,9 +213,9 @@
           <div style="position: absolute; top: 48px; left: 50%; transform: translate(-50%, -50%); z-index: 3; font-size: 9px; font-weight: 800; padding: 0 4px; border-radius: 8px; border: 1px solid #ff7ab6; color: #ff7ab6; background: #2a2e3a; white-space: nowrap; opacity: 0; animation: exBadge var(--T) linear infinite;">✦1</div>
         </div>
       </div>
-      <div style="position: absolute; left: 111px; top: 65px; width: 100px; text-align: center; font-size: 8.5px; font-weight: 700; color: #e8e8ee;">Executioner</div>
-      <div style="position: absolute; left: 137px; top: 77px; width: 48px; height: 4px; border-radius: 2px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #ff5d5d;"></div></div>
-      <div style="position: absolute; left: 123px; top: 84px; display: flex; align-items: center; gap: 3px;">
+      <div style="position: absolute; left: 111px; top: 57px; width: 100px; text-align: center; font-size: 8.5px; font-weight: 700; color: #e8e8ee;">Executioner</div>
+      <div style="position: absolute; left: 137px; top: 69px; width: 48px; height: 4px; border-radius: 2px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #ff5d5d;"></div></div>
+      <div style="position: absolute; left: 123px; top: 76px; display: flex; align-items: center; gap: 3px;">
         <span style="font-size: 7px; font-weight: 800; letter-spacing: 0.05em; color: #ff5252;">SLAM</span>
         <div style="position: relative; width: 52px; height: 5px; border-radius: 3px; background: #2a2e3a; overflow: hidden;">
           <div style="height: 100%; border-radius: 3px; width: 0; animation: bar var(--T) linear infinite;"></div>
@@ -228,7 +232,7 @@
       </div>
       <div style="position: absolute; left: 111px; top: 156px; width: 100px; text-align: center; font-size: 8.5px; font-weight: 700; color: #e8e8ee;">Bram · <span style="color: #ffb454;">Guard</span></div>
       <div style="position: absolute; left: 143px; top: 167px; width: 36px; height: 4px; border-radius: 2px; background: #2a2e3a; overflow: hidden;"><div style="width: 80%; height: 100%; background: #4da6ff; animation: brHp var(--T) linear infinite;"></div></div>
-      <div style="position: absolute; left: 143px; top: 172px; width: 36px; height: 3px; border-radius: 2px; background: #2a2e3a; overflow: hidden;"><div style="width: 62%; height: 100%; background: #e8e8ee; animation: brBar var(--T) linear infinite;"></div></div>
+      <div style="position: absolute; left: 143px; top: 172px; width: 36px; height: 3px; border-radius: 2px; background: #2a2e3a; overflow: hidden; animation: brBarGlow var(--T) linear infinite;"><div style="width: 0; height: 100%; background: #e8e8ee; animation: brBar var(--T) linear infinite;"></div></div>
       <!-- Ivy -->
       <div style="position: absolute; left: 77px; top: 151px; width: 30px; height: 30px;">
         <div style="position: absolute; border-radius: 50%; top: 25.5px; left: 3.8px; width: 22.5px; height: 4.5px; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
@@ -250,12 +254,13 @@
       <div style="position: absolute; left: 180px; top: 183px; width: 100px; text-align: center; font-size: 8.5px; font-weight: 700; color: #e8e8ee;">Sol · <span style="color: #6ee7a0;">Mend</span></div>
       <div style="position: absolute; left: 212px; top: 195px; width: 36px; height: 4px; border-radius: 2px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
       <div style="position: absolute; left: 212px; top: 200px; width: 36px; height: 3px; border-radius: 2px; background: #2a2e3a; overflow: hidden;"><div style="width: 45%; height: 100%; background: #e8e8ee;"></div></div>
-      <div style="position: absolute; left: 32px; top: 131px; width: 120px; text-align: center; font-size: 8px; font-weight: 800; letter-spacing: 0.06em; color: #ffb454; text-shadow: 0 1px 3px rgba(0,0,0,0.8); opacity: 0; animation: lblBr var(--T) linear infinite;">BRAM USES GUARD</div>
       <div style="position: absolute; left: 32px; top: 131px; width: 120px; text-align: center; font-size: 8px; font-weight: 800; letter-spacing: 0.06em; color: #ff5252; text-shadow: 0 1px 3px rgba(0,0,0,0.8); opacity: 0; animation: incoming var(--T) linear infinite;">SLAM INCOMING</div>
       <div style="position: absolute; left: 101px; top: 92px; width: 120px; text-align: center; font-size: 8px; font-weight: 800; letter-spacing: 0.06em; color: #6ee7a0; text-shadow: 0 1px 3px rgba(0,0,0,0.8); opacity: 0; animation: takes var(--T) linear infinite;">TAKES THE SLAM</div>
       <div style="position: absolute; left: 199px; top: 122px; font-size: 17px; font-weight: 800; color: #ff5252; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.6), 0 0 8px #ff5252; opacity: 0; animation: dmg var(--T) linear infinite;">−24</div>
-      <div style="position: absolute; left: 223px; top: 34px; font-size: 9px; font-weight: 800; color: #ff7ab6; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.6), 0 0 8px transparent; opacity: 0; animation: exPop var(--T) linear infinite;">+1 EXPOSED</div>
+      <div style="position: absolute; left: 223px; top: 26px; font-size: 9px; font-weight: 800; color: #ff7ab6; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.6), 0 0 8px transparent; opacity: 0; animation: exPop var(--T) linear infinite;">+1 EXPOSED</div>
 
+          <svg width="322" height="210" viewBox="0 0 322 210" style="position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 3;"><path d="M143,173.5 L131,173.5 L131,110 L161,110" fill="none" stroke="#ffcf4d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" pathLength="100" opacity="0.85" style="filter: drop-shadow(0 0 3px #ffcf4d); animation: nbFlow var(--T) linear infinite;"/></svg>
+      <div style="position: absolute; left: 128px; top: 88px; width: 66px; height: 18px; z-index: 4; white-space: nowrap; transform-origin: 50% 122.22222222222223%; animation: nbPop var(--T) linear infinite;"><svg width="66" height="18" viewBox="0 0 66 18" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none;"><path d="M33,22 L29,18 H8 A8 8 0 0 1 0,10 V8 A8 8 0 0 1 8,0 H58 A8 8 0 0 1 66,8 V10 A8 8 0 0 1 58,18 H37 Z" fill="#14161c" stroke="#3a3f4e" stroke-width="1.4" stroke-linejoin="round"/><path d="M33,22 L29,18 H8 A8 8 0 0 1 0,10 V8 A8 8 0 0 1 8,0 H58 A8 8 0 0 1 66,8 V10 A8 8 0 0 1 58,18 H37 Z" fill="none" stroke="#ffcf4d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0" style="filter: drop-shadow(0 0 2.5px #ffcf4d); animation: nbBorder var(--T) linear infinite;"/></svg><span style="position: absolute; left: 0; right: 0; top: 0; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 800; letter-spacing: 0.05em; color: #ffb454;">GUARD</span></div>
     </div>
 
     <!-- name and meaning -->

@@ -635,10 +635,9 @@ body {
    normal attack, so a fast snap read as a step-then-dead-air twitch instead
    of visible progress. .instant is the escape hatch for the one case that
    must NOT creep: firing resets charge to 0, and that reset has to read as
-   an instant drain (matched by the ghost's own delayed fade below), exactly
-   like near-full's dread beat needs the opposite — a rise slow enough to
-   watch coming. fightView.ts's updateSide toggles .instant by comparing
-   against the last fraction it actually rendered. */
+   an instant drain (matched by the ghost's own delayed fade below).
+   fightView.ts's updateSide toggles .instant by comparing against the last
+   fraction it actually rendered. */
 .charge-fill {
   background: var(--chain);
   transition: width var(--charge-rise) linear;
@@ -652,23 +651,6 @@ body {
   background: var(--chain);
   opacity: 0.4;
   transition: width 0.6s ease-out 0.45s;
-}
-
-/* The dread beat (2026-08-14): once the bar crosses ~85% full, it pulses —
-   the player feels the chain closing in on firing without knowing, yet,
-   which way it'll go. */
-.charge-fill.near-full {
-  animation: chargeNearFull 0.7s ease-in-out infinite alternate;
-}
-
-@keyframes chargeNearFull {
-  from {
-    filter: brightness(1);
-  }
-  to {
-    filter: brightness(1.6);
-    box-shadow: 0 0 6px 1px var(--chain);
-  }
 }
 
 /* 2026-09-13 slam-visibility pass: the enemy side's CHAIN bar stays hidden
@@ -920,22 +902,6 @@ body {
 
 .charge-ring.instant {
   transition: none;
-}
-
-/* The dread beat moves here from .charge-fill.near-full (2026-08-14) — same
-   ≥85% cutoff, same pulse, just glowing the ring instead of a bar. */
-.charge-ring.near-full {
-  animation: chargeRingNearFull 0.7s ease-in-out infinite alternate;
-}
-
-@keyframes chargeRingNearFull {
-  from {
-    filter: brightness(1);
-  }
-  to {
-    filter: brightness(1.6);
-    box-shadow: 0 0 6px 1px var(--chain);
-  }
 }
 
 .enemy-side .charge-ring {
@@ -1505,64 +1471,6 @@ body {
 
 .body.healed {
   animation: healPulse 0.5s ease-out;
-}
-
-@keyframes chainHudEmphasize {
-  0% {
-    transform: scale(1);
-  }
-  30% {
-    transform: scale(1.15);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-@keyframes chainPipRoll {
-  from {
-    opacity: 0.3;
-    transform: scale(0.85);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1.15);
-  }
-}
-
-@keyframes chainPipLand {
-  0% {
-    transform: scale(1.7);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-@keyframes chainPipMiss {
-  0% {
-    transform: scale(1.3);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 0.7;
-  }
-}
-
-@keyframes chainPipCapFlare {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 0 4px 1px var(--chain-hud-color);
-  }
-  40% {
-    transform: scale(1.8);
-    box-shadow: 0 0 12px 4px var(--chain-hud-color);
-  }
-  100% {
-    transform: scale(1);
-    box-shadow: 0 0 4px 1px var(--chain-hud-color);
-  }
 }
 
 /* Routine-event callout band (2026-08-19, chain-ending pass) — moved out of
@@ -2566,10 +2474,19 @@ button:disabled {
 .body > svg { pointer-events: none; }
 .hero-slot { cursor: pointer; }
 
-/* the thin charge bar under a squad HP bar: white while it fills, yellow and glowing when nearly full */
-.player-side .charge-track { display: block; height: 4px; border-radius: 2px; margin-top: 3px; background: #3a3f4e; }
-.player-side .charge-fill, .player-side .charge-ghost-fill { background: #e8e8ee; }
-.player-side .charge-fill.near-full { background: #ffcf4d; box-shadow: 0 0 4px 1px rgba(255, 207, 77, 0.55); animation: none; }
+/* the thin charge bar under a squad HP bar (DECISIONS.md 2026-10-16): white while it fills. A unit that is full while another unit's skill
+ * plays waits, steady yellow and dimmed. When a unit's own skill fires, its bar is seen full for 0.15 s, then drains in 0.3 s as the flow of
+ * yellow runs to the bubble (.flow-line), and stays empty while the skill plays (the sim holds its charge); the end of the skill hands the
+ * bar back to the real charge, which has been reset to zero. The drain is an animation, not a transition, so a paused fight holds it. */
+.player-side .charge-track { display: block; height: 4px; border-radius: 2px; margin-top: 3px; background: #3a3f4e; overflow: visible; }
+.player-side .charge-fill { background: #e8e8ee; border-radius: 2px; }
+.player-side .charge-ghost-fill { display: none; }
+.player-side .charge-fill.full { background: #ffcf4d; transition-duration: 0.15s; }
+.player-side .charge-fill.firing { background: #ffcf4d; box-shadow: 0 0 4px 1px rgba(255, 207, 77, 0.55), 0 0 9px 2px rgba(255, 207, 77, 0.45); animation: chargeDrain 0.3s linear 0.15s both; }
+@keyframes chargeDrain { from { width: 100%; } to { width: 0%; box-shadow: 0 0 0 0 rgba(255, 207, 77, 0); } }
+
+/* while a skill plays, the other units dim as a whole: name, HP, bar and marks, not only the body */
+.arena.chain-live .player-side .hero-slot:not(.performing) :is(.body-name, .hp-bar, .hp-label, .charge-track, .mark-row) { opacity: 0.55; transition: opacity 0.3s ease-out; }
 
 /* guard pips and the freeze countdown sit a little above the body, off the face */
 .guard-pips { top: -3px; transform: translate(-50%, -100%); }
@@ -2584,25 +2501,46 @@ button:disabled {
 /* everything inside a paused fight holds still */
 .fight-view.paused *, .fight-view.paused *::before, .fight-view.paused *::after { animation-play-state: paused !important; }
 
-/* the performer tag: a speech bubble over the unit that uses a skill, with a tail that points at it */
-.perf-tag, .perf-result { position: absolute; z-index: 5; display: none; flex-direction: column; align-items: center; transform: translate(-50%, -100%); min-width: 46px; padding: 2px 7px; box-sizing: border-box; border-radius: 8px; background: #14161c; border: 1px solid rgba(255, 255, 255, 0.35); pointer-events: none; text-align: center; white-space: nowrap; }
-.perf-tag.show, .perf-result.show { display: flex; }
-.perf-tag::after, .perf-result::after { content: ""; position: absolute; bottom: -4px; left: calc(50% + var(--tail-x, 0px)); width: 6px; height: 6px; background: #14161c; border: 0 solid inherit; border-right-width: 1px; border-bottom-width: 1px; border-color: inherit; transform: translateX(-50%) rotate(45deg); }
-.perf-tag.inline { flex-direction: row; gap: 0; }
-.pt-skill { font-size: 8.5px; font-weight: 800; letter-spacing: 0.06em; line-height: 1.5; }
-.pt-count { color: #ffcf4d; font-size: 16px; font-weight: 800; line-height: 1; }
-.pt-back { color: #ff4d4d; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; line-height: 1.2; }
-.pt-note { color: #8a8fa3; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; }
-.perf-tag.big { border-color: #ffcf4d; box-shadow: 0 0 10px 2px rgba(255, 207, 77, 0.45); }
-.perf-tag.big .pt-count { font-size: 23px; }
-.perf-tag.max .pt-count { font-size: 19px; }
-.perf-tag.backfire { border-color: #ff4d4d; box-shadow: 0 0 8px 1px rgba(255, 77, 77, 0.5); }
-.perf-tag.muted { border-color: rgba(138, 143, 163, 0.7); box-shadow: none; }
-.perf-tag.muted .pt-skill { color: #8a8fa3 !important; }
-.perf-tag.emphasize { animation: perfEmphasize 0.5s ease-out; }
+/* the skill bubble (DECISIONS.md 2026-10-16): one fixed size for the whole skill. Its outline is one path, the box and the arrow
+ * (render/bubble.ts), with a grey track and a yellow border that runs round it from the arrow tip. The name sits in the middle; from the second
+ * hit the count appears beside it and the name slides left, inside the same bubble. The flow of yellow reaches the arrow tip as the border starts. */
+.perf-tag { position: absolute; z-index: 5; display: none; width: 72px; height: 20px; pointer-events: none; white-space: nowrap; transform-origin: 50% 120%; --skill: #b98cff; }
+.perf-tag.show { display: block; }
+.pt-outline { position: absolute; left: 0; top: 0; width: 72px; height: 20px; overflow: visible; pointer-events: none; }
+.pt-fill { fill: #14161c; stroke: none; }
+.pt-track { fill: none; stroke: #3a3f4e; stroke-width: 1.5; stroke-linejoin: round; }
+.pt-progress { fill: none; stroke: #ffcf4d; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 100; stroke-dashoffset: 0; filter: drop-shadow(0 0 2.5px #ffcf4d); }
+.pt-name, .pt-count { position: absolute; top: 0; height: 20px; display: flex; align-items: center; font-weight: 800; }
+.pt-name { left: 0; right: 0; justify-content: center; font-size: 9px; letter-spacing: 0.06em; color: var(--skill); transition: transform 0.15s ease-out; }
+.pt-count { right: 9px; color: #ffcf4d; font-size: 12px; opacity: 0; transition: opacity 0.15s ease-out; }
+.perf-tag.has-count .pt-name { transform: translateX(-11px); }
+.perf-tag.has-count .pt-count { opacity: 1; }
+/* the bubble keeps its size, so the long chains show in the glow and in MAX instead of a bigger tag */
+.perf-tag.big .pt-progress { filter: drop-shadow(0 0 5px #ffcf4d) drop-shadow(0 0 2px #ffcf4d); }
+.perf-tag.max .pt-name { color: #ffcf4d; }
+/* a backfire is red all round; a skill that stopped or never repeated is grey. Their longer words are set a little smaller. */
+.perf-tag.backfire .pt-progress { stroke: #ff4d4d; filter: drop-shadow(0 0 2.5px #ff4d4d); }
+.perf-tag.backfire .pt-name, .perf-tag.backfire .pt-count { color: #ff4d4d; }
+.perf-tag.muted .pt-progress { stroke: #8a8fa3; filter: none; }
+.perf-tag.muted .pt-name, .perf-tag.muted .pt-count { color: #8a8fa3; }
+.perf-tag.backfire .pt-name, .perf-tag.muted .pt-name { font-size: 8px; letter-spacing: 0.03em; }
+/* the entrance: after the bar has been seen full the bubble pops, and the border runs round it once the flow has reached the arrow */
+.perf-tag.enter { animation: bubblePop 0.09s ease-out 0.15s both; }
+.perf-tag.enter .pt-progress { animation: bubbleBorder 0.36s linear 0.39s both; }
+@keyframes bubblePop { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+@keyframes bubbleBorder { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+/* the brightness pulse on a big hit sits on the inner outline, not on the bubble, so ending it does not restart the entrance */
+.perf-tag.emphasize .pt-outline { animation: perfEmphasize 0.5s ease-out; }
 @keyframes perfEmphasize { 0% { filter: brightness(1.7); } 100% { filter: brightness(1); } }
+/* the flow of yellow from the bar to the arrow tip: a short bright streak running along the line */
+.flow-line { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; filter: drop-shadow(0 0 3px #ffcf4d); }
+.flow-line path { fill: none; stroke: #ffcf4d; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; animation: flowRun 0.3s linear 0.15s both; }
+@keyframes flowRun { 0% { stroke-dashoffset: 22; opacity: 0; } 2% { opacity: 1; } 98% { opacity: 1; } 100% { stroke-dashoffset: -100; opacity: 0; } }
 
-/* the result bubble that follows it, over the same unit */
+/* the result bubble that follows it, over the same unit: a plain box with its own little arrow */
+.perf-result { position: absolute; z-index: 5; display: none; flex-direction: column; align-items: center; transform: translate(-50%, -100%); min-width: 46px; padding: 2px 7px; box-sizing: border-box; border-radius: 8px; background: #14161c; border: 1px solid rgba(255, 255, 255, 0.35); pointer-events: none; text-align: center; white-space: nowrap; }
+.perf-result.show { display: flex; }
+.perf-result::after { content: ""; position: absolute; bottom: -4px; left: calc(50% + var(--tail-x, 0px)); width: 6px; height: 6px; background: #14161c; border: 0 solid inherit; border-right-width: 1px; border-bottom-width: 1px; border-color: inherit; transform: translateX(-50%) rotate(45deg); }
 .perf-result { border-color: rgba(255, 207, 77, 0.55); }
 .perf-result.backfire { border-color: #ff4d4d; }
 .perf-result.show { animation: perfResultPop 1.6s ease-out forwards; }

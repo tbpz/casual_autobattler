@@ -34,7 +34,8 @@
     { "file": "FightStatus.dc.html", "x": 4780, "y": 4900, "w": 880, "h": 600 },
     { "file": "FightResult.dc.html", "x": 5810, "y": 4900, "w": 390, "h": 540 },
 
-    { "file": "FightDefeat.dc.html", "x": 6350, "y": 4900, "w": 390, "h": 540 },    { "file": "OfferAfter.dc.html", "x": 0, "y": 6400, "w": 390, "h": 780 },
+    { "file": "FightDefeat.dc.html", "x": 6350, "y": 4900, "w": 390, "h": 540 },
+    { "file": "OfferAfter.dc.html", "x": 0, "y": 6400, "w": 390, "h": 780 },
 
     { "file": "RunOver.dc.html", "x": 0, "y": 7700, "w": 390, "h": 780 }
   ],
@@ -73,7 +74,8 @@
     { "id": "label-fightbackfire", "x": 3370, "y": 4840, "w": 1260, "text": "5.4 Backfires — Expose, Guard and Mend each go wrong; the tag turns red (proposal)" },
     { "id": "label-fightstatus", "x": 4780, "y": 4840, "w": 880, "text": "5.5 Statuses — trouble, recovery, and every shield case (proposal)" },
     { "id": "label-fightresult", "x": 5810, "y": 4840, "w": 390, "text": "5.6 Result — VICTORY over the finished fight (proposal)" },
-    { "id": "label-fightdefeat", "x": 6350, "y": 4840, "w": 390, "text": "5.7 Result — DEFEAT, the squad is wiped (proposal)" },    { "id": "section-offer", "x": 0, "y": 6260, "w": 390, "text": "6 · REWARD PICK — after a win" },
+    { "id": "label-fightdefeat", "x": 6350, "y": 4840, "w": 390, "text": "5.7 Result — DEFEAT, the squad is wiped (proposal)" },
+    { "id": "section-offer", "x": 0, "y": 6260, "w": 390, "text": "6 · REWARD PICK — after a win" },
     { "id": "label-offerafter", "x": 0, "y": 6340, "w": 390, "text": "6.1 Offer screen — mark words coloured (built 2026-10-02, awaiting Tu's approval)" },
     { "id": "section-runover", "x": 0, "y": 7560, "w": 390, "text": "7 · RUN OVER — after a lost fight" },
     { "id": "label-runover", "x": 0, "y": 7640, "w": 390, "text": "7.1 Run over — how close, best moment, build, Try again (proposal)" }

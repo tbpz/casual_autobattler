@@ -25,9 +25,7 @@
 
 /* ---------- TermGuard ---------- */
 .tc-guard .scene { --T: 8s; }
-@keyframes tc-guard-brBar { 0% { width: 15%; background: #e8e8ee; } 20.9% { width: 100%; background: #e8e8ee; } 21%, 29.9% { width: 100%; background: #ffcf4d; } 30% { width: 0; background: #e8e8ee; } 100% { width: 20%; background: #e8e8ee; } }
 @keyframes tc-guard-brGlow { 0%, 21.9% { box-shadow: none; filter: none; } 22%, 29.9% { box-shadow: 0 0 0 3px #ffb454, 0 0 14px 3px #ffb454; filter: brightness(1.2); } 30%, 100% { box-shadow: none; filter: none; } }
-@keyframes tc-guard-lblBr { 0%, 21.9% { opacity: 0; } 22%, 31.9% { opacity: 1; } 32%, 100% { opacity: 0; } }
 @keyframes tc-guard-pips { 0%, 21.9% { opacity: 0; } 22%, 100% { opacity: 1; } }
 @keyframes tc-guard-bar { 0%, 40% { width: 0; background: #7a2b2b; } 47.125% { width: 100%; background: #7a2b2b; } 47.172% { width: 100%; background: #ff5252; } 66.125%, 100% { width: 0; background: #ff5252; } }
 @keyframes tc-guard-commit { 0%, 47.078% { opacity: 0; } 47.125%, 66.078% { opacity: 1; } 66.125%, 100% { opacity: 0; } }
@@ -45,29 +43,40 @@
 @keyframes tc-guard-pip3b { 0%, 66.078% { border-color: #ffcf4d; } 66.125%, 100% { border-color: #3a3f4e; } }
 @keyframes tc-guard-exBadge { 0%, 67.502% { opacity: 0; } 67.55%, 100% { opacity: 1; } }
 @keyframes tc-guard-pulse { from { filter: brightness(1); } to { filter: brightness(1.5); } }
+@keyframes tc-guard-brBar { 0% { width: 15%; background: #e8e8ee; } 20.9% { width: 100%; background: #e8e8ee; } 21% { width: 100%; background: #ffcf4d; } 22% { width: 100%; background: #ffcf4d; } 25.75% { width: 0; background: #ffcf4d; } 25.85% { width: 0; background: #e8e8ee; } 100% { width: 20%; background: #e8e8ee; } }
+@keyframes tc-guard-brBarGlow { 0% { box-shadow: none; } 20.95% { box-shadow: none; } 21% { box-shadow: 0 0 6px 1px #ffcf4d; } 25.75% { box-shadow: 0 0 6px 1px #ffcf4d; } 25.85% { box-shadow: none; } 100% { box-shadow: none; } }
+@keyframes tc-guard-nbPop { 0% { opacity: 0; transform: scale(0.7); } 22% { opacity: 0; transform: scale(0.7); } 23.13% { opacity: 1; transform: scale(1); } 31.95% { opacity: 1; transform: scale(1); } 32% { opacity: 0; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+@keyframes tc-guard-nbBorder { 0% { stroke-dashoffset: 100; } 25% { stroke-dashoffset: 100; } 29.5% { stroke-dashoffset: 0; } 31.95% { stroke-dashoffset: 0; } 32% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 100; } }
+@keyframes tc-guard-nbFlow { 0% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; } 21.95% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; } 22.2% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 1; } 25.75% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 1; } 25.85% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 0; } 100% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 0; } }
 
 /* ---------- TermMend ---------- */
 .tc-mend .scene { --T: 5s; }
-@keyframes tc-mend-soBar { 0% { width: 12%; background: #e8e8ee; } 44.9% { width: 100%; background: #e8e8ee; } 45%, 53.9% { width: 100%; background: #ffcf4d; } 54% { width: 0; background: #e8e8ee; } 100% { width: 12%; background: #e8e8ee; } }
 @keyframes tc-mend-soGlow { 0%, 45.9% { box-shadow: none; filter: none; } 46%, 53.9% { box-shadow: 0 0 0 3px #6ee7a0, 0 0 14px 3px #6ee7a0; filter: brightness(1.2); } 54%, 100% { box-shadow: none; filter: none; } }
-@keyframes tc-mend-lblSo { 0%, 45.9% { opacity: 0; } 46%, 65.9% { opacity: 1; } 66%, 100% { opacity: 0; } }
 @keyframes tc-mend-healLn { 0%, 49.9% { opacity: 0; transform: rotate(-155.1deg) scaleX(0); } 50% { opacity: 0.9; transform: rotate(-155.1deg) scaleX(0.1); } 56% { opacity: 0.9; transform: rotate(-155.1deg) scaleX(1); } 60% { opacity: 0; transform: rotate(-155.1deg) scaleX(1); } 100% { opacity: 0; transform: rotate(-155.1deg) scaleX(1); } }
 @keyframes tc-mend-healPop { 0%, 50.9% { opacity: 0; transform: translate(-50%, 0) scale(0.8); } 52% { opacity: 1; transform: translate(-50%, -4px) scale(1.25); } 62% { opacity: 1; transform: translate(-50%, -14px) scale(1); } 74%, 100% { opacity: 0; transform: translate(-50%, -18px) scale(1); } }
 @keyframes tc-mend-shPop { 0%, 54.9% { opacity: 0; transform: translate(-50%, 0) scale(0.8); } 56% { opacity: 1; transform: translate(-50%, -4px) scale(1.25); } 66% { opacity: 1; transform: translate(-50%, -14px) scale(1); } 78%, 100% { opacity: 0; transform: translate(-50%, -18px) scale(1); } }
 @keyframes tc-mend-brGood { 0%, 54.9% { box-shadow: none; filter: none; } 55%, 61.9% { box-shadow: 0 0 0 3px #6ee7a0, 0 0 14px 3px #6ee7a0; filter: brightness(1.2); } 62%, 100% { box-shadow: none; filter: none; } }
 @keyframes tc-mend-brHp { 0%, 54.9% { width: 85%; } 57%, 100% { width: 92%; } }
 @keyframes tc-mend-brSh { 0%, 54.9% { width: 0; } 57%, 100% { width: 8%; } }
+@keyframes tc-mend-soBar { 0% { width: 12%; background: #e8e8ee; } 44.9% { width: 100%; background: #e8e8ee; } 45% { width: 100%; background: #ffcf4d; } 46% { width: 100%; background: #ffcf4d; } 52% { width: 0; background: #ffcf4d; } 52.1% { width: 0; background: #e8e8ee; } 100% { width: 12%; background: #e8e8ee; } }
+@keyframes tc-mend-soBarGlow { 0% { box-shadow: none; } 44.95% { box-shadow: none; } 45% { box-shadow: 0 0 6px 1px #ffcf4d; } 52% { box-shadow: 0 0 6px 1px #ffcf4d; } 52.1% { box-shadow: none; } 100% { box-shadow: none; } }
+@keyframes tc-mend-nbPop { 0% { opacity: 0; transform: scale(0.7); } 46% { opacity: 0; transform: scale(0.7); } 47.8% { opacity: 1; transform: scale(1); } 65.95% { opacity: 1; transform: scale(1); } 66% { opacity: 0; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+@keyframes tc-mend-nbBorder { 0% { stroke-dashoffset: 100; } 50.8% { stroke-dashoffset: 100; } 58% { stroke-dashoffset: 0; } 65.95% { stroke-dashoffset: 0; } 66% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 100; } }
+@keyframes tc-mend-nbFlow { 0% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; } 45.95% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; } 46.2% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 1; } 52% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 1; } 52.1% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 0; } 100% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 0; } }
 
 /* ---------- TermExpose ---------- */
 .tc-expose .scene { --T: 5s; }
-@keyframes tc-expose-ivBar { 0% { width: 8%; background: #e8e8ee; } 44.9% { width: 100%; background: #e8e8ee; } 45%, 53.9% { width: 100%; background: #ffcf4d; } 54% { width: 0; background: #e8e8ee; } 100% { width: 8%; background: #e8e8ee; } }
 @keyframes tc-expose-ivGlow { 0%, 45.9% { box-shadow: none; filter: none; } 46%, 53.9% { box-shadow: 0 0 0 3px #b98cff, 0 0 14px 3px #b98cff; filter: brightness(1.2); } 54%, 100% { box-shadow: none; filter: none; } }
-@keyframes tc-expose-lblIv { 0%, 45.9% { opacity: 0; } 46%, 67.9% { opacity: 1; } 68%, 100% { opacity: 0; } }
 @keyframes tc-expose-expLn { 0%, 49.9% { opacity: 0; transform: rotate(-61.7deg) scaleX(0); } 50% { opacity: 0.9; transform: rotate(-61.7deg) scaleX(0.1); } 56% { opacity: 0.9; transform: rotate(-61.7deg) scaleX(1); } 60% { opacity: 0; transform: rotate(-61.7deg) scaleX(1); } 100% { opacity: 0; transform: rotate(-61.7deg) scaleX(1); } }
 @keyframes tc-expose-exPop { 0%, 54.9% { opacity: 0; transform: translate(-50%, 0) scale(0.8); } 56% { opacity: 1; transform: translate(-50%, -4px) scale(1.25); } 68% { opacity: 1; transform: translate(-50%, -14px) scale(1); } 80%, 100% { opacity: 0; transform: translate(-50%, -18px) scale(1); } }
 @keyframes tc-expose-exHit { 0%, 55.9% { box-shadow: none; filter: none; } 56%, 63% { box-shadow: 0 0 0 3px #ff5252, 0 0 14px 3px #ff5252; filter: brightness(1.7); } 63.1%, 100% { box-shadow: none; filter: none; } }
 @keyframes tc-expose-wHp { 0%, 55.9% { width: 100%; } 59%, 100% { width: 91%; } }
 @keyframes tc-expose-exBadge { 0%, 55.9% { opacity: 0; } 56%, 100% { opacity: 1; } }
+@keyframes tc-expose-ivBar { 0% { width: 8%; background: #e8e8ee; } 44.9% { width: 100%; background: #e8e8ee; } 45% { width: 100%; background: #ffcf4d; } 46% { width: 100%; background: #ffcf4d; } 52% { width: 0; background: #ffcf4d; } 52.1% { width: 0; background: #e8e8ee; } 100% { width: 8%; background: #e8e8ee; } }
+@keyframes tc-expose-ivBarGlow { 0% { box-shadow: none; } 44.95% { box-shadow: none; } 45% { box-shadow: 0 0 6px 1px #ffcf4d; } 52% { box-shadow: 0 0 6px 1px #ffcf4d; } 52.1% { box-shadow: none; } 100% { box-shadow: none; } }
+@keyframes tc-expose-nbPop { 0% { opacity: 0; transform: scale(0.7); } 46% { opacity: 0; transform: scale(0.7); } 47.8% { opacity: 1; transform: scale(1); } 67.95% { opacity: 1; transform: scale(1); } 68% { opacity: 0; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+@keyframes tc-expose-nbBorder { 0% { stroke-dashoffset: 100; } 50.8% { stroke-dashoffset: 100; } 58% { stroke-dashoffset: 0; } 67.95% { stroke-dashoffset: 0; } 68% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 100; } }
+@keyframes tc-expose-nbFlow { 0% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; } 45.95% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; } 46.2% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 1; } 52% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 1; } 52.1% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 0; } 100% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 0; } }
 
 /* ---------- TermExposed ---------- */
 .tc-exposed .scene { --T: 3.6s; }
@@ -146,16 +155,10 @@
 
 /* ---------- TermChain ---------- */
 .tc-chain .scene { --T: 4.4s; }
-@keyframes tc-chain-ivBar { 0% { width: 0; background: #e8e8ee; } 27.9% { width: 82%; background: #e8e8ee; } 28% { width: 82%; background: #ffcf4d; } 34%, 38.9% { width: 100%; background: #ffcf4d; } 39%, 100% { width: 0; background: #e8e8ee; } }
-@keyframes tc-chain-ivBarGlow { 0%, 27.9% { box-shadow: none; } 28%, 38.9% { box-shadow: 0 0 6px 1px #ffcf4d; } 39%, 100% { box-shadow: none; } }
 @keyframes tc-chain-brBar { 0% { width: 0; } 38%, 100% { width: 62%; } }
 @keyframes tc-chain-soBar { 0% { width: 0; } 38%, 100% { width: 45%; } }
 @keyframes tc-chain-dim { 0%, 38.9% { opacity: 1; } 39%, 79.9% { opacity: 0.45; } 80%, 100% { opacity: 1; } }
 @keyframes tc-chain-ivGlow { 0%, 38.9% { box-shadow: none; } 39%, 79.9% { box-shadow: 0 0 0 2px #b98cff, 0 0 10px 2px #b98cff; } 80%, 100% { box-shadow: none; } }
-@keyframes tc-chain-tg1 { 0%, 38.9% { opacity: 0; } 39%, 53.9% { opacity: 1; } 54%, 100% { opacity: 0; } }
-@keyframes tc-chain-tg2 { 0%, 53.9% { opacity: 0; } 54%, 63.9% { opacity: 1; } 64%, 100% { opacity: 0; } }
-@keyframes tc-chain-tg3 { 0%, 63.9% { opacity: 0; } 64%, 73.9% { opacity: 1; } 74%, 100% { opacity: 0; } }
-@keyframes tc-chain-tg4 { 0%, 73.9% { opacity: 0; } 74%, 79.9% { opacity: 1; } 80%, 100% { opacity: 0; } }
 @keyframes tc-chain-small { 0% { opacity: 0; transform: rotate(-61.7deg) scaleX(0); } 5.0% { opacity: 0; transform: rotate(-61.7deg) scaleX(0); } 5.1% { opacity: 0.9; transform: rotate(-61.7deg) scaleX(0.1); } 10% { opacity: 0.9; transform: rotate(-61.7deg) scaleX(1); } 13% { opacity: 0; transform: rotate(-61.7deg) scaleX(1); } 17.0% { opacity: 0; transform: rotate(-61.7deg) scaleX(0); } 17.1% { opacity: 0.9; transform: rotate(-61.7deg) scaleX(0.1); } 22% { opacity: 0.9; transform: rotate(-61.7deg) scaleX(1); } 25% { opacity: 0; transform: rotate(-61.7deg) scaleX(1); } 100% { opacity: 0; transform: rotate(-61.7deg) scaleX(1); } }
 @keyframes tc-chain-enemy { 0% { opacity: 0; transform: rotate(90.0deg) scaleX(0); } 11.0% { opacity: 0; transform: rotate(90.0deg) scaleX(0); } 11.1% { opacity: 0.9; transform: rotate(90.0deg) scaleX(0.1); } 16% { opacity: 0.9; transform: rotate(90.0deg) scaleX(1); } 19% { opacity: 0; transform: rotate(90.0deg) scaleX(1); } 100% { opacity: 0; transform: rotate(90.0deg) scaleX(1); } }
 @keyframes tc-chain-heal { 0% { opacity: 0; transform: rotate(-155.1deg) scaleX(0); } 21.0% { opacity: 0; transform: rotate(-155.1deg) scaleX(0); } 21.1% { opacity: 0.9; transform: rotate(-155.1deg) scaleX(0.1); } 26% { opacity: 0.9; transform: rotate(-155.1deg) scaleX(1); } 29% { opacity: 0; transform: rotate(-155.1deg) scaleX(1); } 100% { opacity: 0; transform: rotate(-155.1deg) scaleX(1); } }
@@ -170,17 +173,22 @@
 @keyframes tc-chain-c3 { 0%, 73.9% { opacity: 0; transform: translate(-50%, 0) scale(0.8); } 75% { opacity: 1; transform: translate(-50%, -4px) scale(1.25); } 86.0% { opacity: 1; transform: translate(-50%, -14px) scale(1); } 90.0%, 100% { opacity: 0; transform: translate(-50%, -18px) scale(1); } }
 @keyframes tc-chain-end { 0%, 79.9% { opacity: 0; } 80%, 98.9% { opacity: 1; } 99%, 100% { opacity: 0; } }
 @keyframes tc-chain-pulse { from { filter: brightness(1); } to { filter: brightness(1.5); } }
+@keyframes tc-chain-ivBar { 0% { width: 0%; background: #e8e8ee; } 27.9% { width: 82%; background: #e8e8ee; } 28% { width: 82%; background: #ffcf4d; } 34% { width: 100%; background: #ffcf4d; } 39% { width: 100%; background: #ffcf4d; } 45.82% { width: 0; background: #ffcf4d; } 45.92% { width: 0; background: #e8e8ee; } 100% { width: 0%; background: #e8e8ee; } }
+@keyframes tc-chain-ivBarGlow { 0% { box-shadow: none; } 27.95% { box-shadow: none; } 28% { box-shadow: 0 0 6px 1px #ffcf4d; } 45.82% { box-shadow: 0 0 6px 1px #ffcf4d; } 45.92% { box-shadow: none; } 100% { box-shadow: none; } }
+@keyframes tc-chain-nbPop { 0% { opacity: 0; transform: scale(0.7); } 39% { opacity: 0; transform: scale(0.7); } 41.05% { opacity: 1; transform: scale(1); } 79.95% { opacity: 1; transform: scale(1); } 80% { opacity: 0; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+@keyframes tc-chain-nbBorder { 0% { stroke-dashoffset: 100; } 44.45% { stroke-dashoffset: 100; } 52.64% { stroke-dashoffset: 0; } 79.95% { stroke-dashoffset: 0; } 80% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 100; } }
+@keyframes tc-chain-nbFlow { 0% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; } 38.95% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; } 39.2% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 1; } 45.82% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 1; } 45.92% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 0; } 100% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 0; } }
+@keyframes tc-chain-nbName { 0% { transform: translateX(0); } 53% { transform: translateX(0); } 54% { transform: translateX(-10px); } 79.95% { transform: translateX(-10px); } 80% { transform: translateX(0); } 100% { transform: translateX(0); } }
+@keyframes tc-chain-nbC2 { 0% { opacity: 0; } 53.95% { opacity: 0; } 54% { opacity: 1; } 63.95% { opacity: 1; } 64% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes tc-chain-nbC3 { 0% { opacity: 0; } 63.95% { opacity: 0; } 64% { opacity: 1; } 73.95% { opacity: 1; } 74% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes tc-chain-nbC4 { 0% { opacity: 0; } 73.95% { opacity: 0; } 74% { opacity: 1; } 79.95% { opacity: 1; } 80% { opacity: 0; } 100% { opacity: 0; } }
 
 /* ---------- TermBackfire ---------- */
 .tc-backfire .scene { --T: 4.2s; }
-@keyframes tc-backfire-ivBar { 0% { width: 0; background: #e8e8ee; } 24.5% { width: 82%; background: #e8e8ee; } 24.6% { width: 82%; background: #ffcf4d; } 30%, 35.9% { width: 100%; background: #ffcf4d; } 36%, 100% { width: 0; background: #e8e8ee; } }
-@keyframes tc-backfire-ivBarGlow { 0%, 24.5% { box-shadow: none; } 24.6%, 35.9% { box-shadow: 0 0 6px 1px #ffcf4d; } 36%, 100% { box-shadow: none; } }
 @keyframes tc-backfire-brBar { 0% { width: 0; } 32%, 100% { width: 62%; } }
 @keyframes tc-backfire-soBar { 0% { width: 0; } 32%, 100% { width: 45%; } }
 @keyframes tc-backfire-dim { 0%, 35.9% { opacity: 1; } 36%, 89.9% { opacity: 0.45; } 90%, 100% { opacity: 1; } }
 @keyframes tc-backfire-ivGlow { 0%, 35.9% { box-shadow: none; } 36%, 89.9% { box-shadow: 0 0 0 2px #b98cff, 0 0 10px 2px #b98cff; } 90%, 100% { box-shadow: none; } }
-@keyframes tc-backfire-tgA { 0%, 37.9% { opacity: 0; } 38%, 61.9% { opacity: 1; } 62%, 100% { opacity: 0; } }
-@keyframes tc-backfire-tgB { 0%, 61.9% { opacity: 0; } 62%, 89.9% { opacity: 1; } 90%, 100% { opacity: 0; } }
 @keyframes tc-backfire-vig { 0%, 35.9% { opacity: 0; } 36%, 89.9% { opacity: 1; } 90%, 100% { opacity: 0; } }
 @keyframes tc-backfire-tr { 0% { opacity: 0; transform: rotate(-24.9deg) scaleX(0); } 42.0% { opacity: 0; transform: rotate(-24.9deg) scaleX(0); } 42.1% { opacity: 0.9; transform: rotate(-24.9deg) scaleX(0.1); } 46% { opacity: 0.9; transform: rotate(-24.9deg) scaleX(1); } 49% { opacity: 0; transform: rotate(-24.9deg) scaleX(1); } 58.0% { opacity: 0; transform: rotate(-24.9deg) scaleX(0); } 58.1% { opacity: 0.9; transform: rotate(-24.9deg) scaleX(0.1); } 62% { opacity: 0.9; transform: rotate(-24.9deg) scaleX(1); } 65% { opacity: 0; transform: rotate(-24.9deg) scaleX(1); } 100% { opacity: 0; transform: rotate(-24.9deg) scaleX(1); } }
 @keyframes tc-backfire-ivLunge { 0% { transform: translate(0, 0); } 41.0% { transform: translate(0, 0); } 46% { transform: translate(3px, -2px); } 51% { transform: translate(0, 0); } 57.0% { transform: translate(0, 0); } 62% { transform: translate(3px, -2px); } 67% { transform: translate(0, 0); } 100% { transform: translate(0, 0); } }
@@ -191,6 +199,13 @@
 @keyframes tc-backfire-m1 { 0%, 45.9% { opacity: 0; } 46%, 61.9% { opacity: 1; } 62%, 100% { opacity: 0; } }
 @keyframes tc-backfire-m2 { 0%, 61.9% { opacity: 0; } 62%, 100% { opacity: 1; } }
 @keyframes tc-backfire-pulse { from { filter: brightness(1); } to { filter: brightness(1.5); } }
+@keyframes tc-backfire-ivBar { 0% { width: 0%; background: #e8e8ee; } 24.5% { width: 82%; background: #e8e8ee; } 24.6% { width: 82%; background: #ffcf4d; } 30% { width: 100%; background: #ffcf4d; } 36% { width: 100%; background: #ffcf4d; } 43.14% { width: 0; background: #ffcf4d; } 43.24% { width: 0; background: #e8e8ee; } 100% { width: 0%; background: #e8e8ee; } }
+@keyframes tc-backfire-ivBarGlow { 0% { box-shadow: none; } 24.55% { box-shadow: none; } 24.6% { box-shadow: 0 0 6px 1px #ffcf4d; } 43.14% { box-shadow: 0 0 6px 1px #ffcf4d; } 43.24% { box-shadow: none; } 100% { box-shadow: none; } }
+@keyframes tc-backfire-nbPop { 0% { opacity: 0; transform: scale(0.7); } 36% { opacity: 0; transform: scale(0.7); } 38.14% { opacity: 1; transform: scale(1); } 89.95% { opacity: 1; transform: scale(1); } 90% { opacity: 0; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+@keyframes tc-backfire-nbBorder { 0% { stroke-dashoffset: 100; } 41.71% { stroke-dashoffset: 100; } 50.29% { stroke-dashoffset: 0; } 89.95% { stroke-dashoffset: 0; } 90% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 100; } }
+@keyframes tc-backfire-nbFlow { 0% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; } 35.95% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; } 36.2% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 1; } 43.14% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 1; } 43.24% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 0; } 100% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 0; } }
+@keyframes tc-backfire-nbName { 0% { transform: translateX(0); } 61% { transform: translateX(0); } 62% { transform: translateX(-10px); } 89.95% { transform: translateX(-10px); } 90% { transform: translateX(0); } 100% { transform: translateX(0); } }
+@keyframes tc-backfire-nbC2 { 0% { opacity: 0; } 61.95% { opacity: 0; } 62% { opacity: 1; } 89.95% { opacity: 1; } 90% { opacity: 0; } 100% { opacity: 0; } }
 
 /* ---------- TermFatigue ---------- */
 .tc-fatigue .scene { --T: 5.2s; }

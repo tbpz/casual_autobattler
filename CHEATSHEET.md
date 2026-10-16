@@ -1,5 +1,5 @@
 # Cheatsheet
-Last updated: 2026-10-02 14:35 (values from prototype/src/sim/config.ts). All marks last one fight.
+Last updated: 2026-10-16 15:16 (values from prototype/src/sim/config.ts). All marks last one fight.
 
 Effects:
 - Exposed: each stack makes the body take +12% damage from every hit, max 10 stacks.
@@ -71,3 +71,4 @@ Upgrades:
 + Healer — Chill: freezes whoever last hit your weakest unit 0.5s.
 - Each run offers 2 of a role's 3 upgrades; a role holds at most 2.
 - Cards are offered only after you've met the marks they read; Mend does not count as a Shield source.
+- A unit's charge is held full while its own skill plays and restarts at zero when it ends; charge gained meanwhile (Second wind, Bloodlust, Restless included) is lost. The screen drains the bar as the skill fires and shows it empty meanwhile.

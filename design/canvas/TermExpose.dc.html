@@ -22,9 +22,8 @@
   .scene { --T: 5s; }
   .term.frozen { color: #7ec8ff; }
   .term.burn { color: #ff8a3d; }
-  @keyframes ivBar { 0% { width: 8%; background: #e8e8ee; } 44.9% { width: 100%; background: #e8e8ee; } 45%, 53.9% { width: 100%; background: #ffcf4d; } 54% { width: 0; background: #e8e8ee; } 100% { width: 8%; background: #e8e8ee; } }
+
   @keyframes ivGlow { 0%, 45.9% { box-shadow: none; filter: none; } 46%, 53.9% { box-shadow: 0 0 0 3px #b98cff, 0 0 14px 3px #b98cff; filter: brightness(1.2); } 54%, 100% { box-shadow: none; filter: none; } }
-  @keyframes lblIv { 0%, 45.9% { opacity: 0; } 46%, 67.9% { opacity: 1; } 68%, 100% { opacity: 0; } }
 
   @keyframes expLn { 0%, 49.9% { opacity: 0; transform: rotate(-61.7deg) scaleX(0); } 50% { opacity: 0.9; transform: rotate(-61.7deg) scaleX(0.1); } 56% { opacity: 0.9; transform: rotate(-61.7deg) scaleX(1); } 60% { opacity: 0; transform: rotate(-61.7deg) scaleX(1); } 100% { opacity: 0; transform: rotate(-61.7deg) scaleX(1); } }
   @keyframes exPop { 0%, 54.9% { opacity: 0; transform: translate(-50%, 0) scale(0.8); } 56% { opacity: 1; transform: translate(-50%, -4px) scale(1.25); } 68% { opacity: 1; transform: translate(-50%, -14px) scale(1); } 80%, 100% { opacity: 0; transform: translate(-50%, -18px) scale(1); } }
@@ -43,6 +42,11 @@
   .bm.boss { width: 22px; height: 22px; border: 1.5px solid #ff5d5d; animation: bossPulse 2s ease-in-out infinite; }
   .bm.boss svg { width: 18px; height: 18px; }
   @keyframes bossPulse { 0%, 100% { box-shadow: 0 0 3px 0 rgba(255,60,60,0.5); } 50% { box-shadow: 0 0 10px 3px rgba(255,60,60,0.9); } }
+  @keyframes ivBar { 0% { width: 8%; background: #e8e8ee; } 44.9% { width: 100%; background: #e8e8ee; } 45% { width: 100%; background: #ffcf4d; } 46% { width: 100%; background: #ffcf4d; } 52% { width: 0; background: #ffcf4d; } 52.1% { width: 0; background: #e8e8ee; } 100% { width: 8%; background: #e8e8ee; } }
+  @keyframes ivBarGlow { 0% { box-shadow: none; } 44.95% { box-shadow: none; } 45% { box-shadow: 0 0 6px 1px #ffcf4d; } 52% { box-shadow: 0 0 6px 1px #ffcf4d; } 52.1% { box-shadow: none; } 100% { box-shadow: none; } }
+  @keyframes nbPop { 0% { opacity: 0; transform: scale(0.7); } 46% { opacity: 0; transform: scale(0.7); } 47.8% { opacity: 1; transform: scale(1); } 67.95% { opacity: 1; transform: scale(1); } 68% { opacity: 0; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+  @keyframes nbBorder { 0% { stroke-dashoffset: 100; } 50.8% { stroke-dashoffset: 100; } 58% { stroke-dashoffset: 0; } 67.95% { stroke-dashoffset: 0; } 68% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 100; } }
+  @keyframes nbFlow { 0% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; } 45.95% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 0; } 46.2% { stroke-dasharray: 22 178; stroke-dashoffset: 22; opacity: 1; } 52% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 1; } 52.1% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 0; } 100% { stroke-dasharray: 22 178; stroke-dashoffset: -100; opacity: 0; } }
 </style>
 </helmet>
 
@@ -235,7 +239,7 @@
       </div>
       <div style="position: absolute; left: 42px; top: 183px; width: 100px; text-align: center; font-size: 8.5px; font-weight: 700; color: #e8e8ee;">Ivy · <span style="color: #b98cff;">Expose</span></div>
       <div style="position: absolute; left: 74px; top: 195px; width: 36px; height: 4px; border-radius: 2px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
-      <div style="position: absolute; left: 74px; top: 200px; width: 36px; height: 3px; border-radius: 2px; background: #2a2e3a; overflow: hidden;"><div style="width: 80%; height: 100%; background: #e8e8ee; animation: ivBar var(--T) linear infinite;"></div></div>
+      <div style="position: absolute; left: 74px; top: 200px; width: 36px; height: 3px; border-radius: 2px; background: #2a2e3a; overflow: hidden; animation: ivBarGlow var(--T) linear infinite;"><div style="width: 0; height: 100%; background: #e8e8ee; animation: ivBar var(--T) linear infinite;"></div></div>
       <div style="position: absolute; left: 215px; top: 151px; width: 30px; height: 30px;">
         <div style="position: absolute; border-radius: 50%; top: 25.5px; left: 3.8px; width: 22.5px; height: 4.5px; background: rgba(0,0,0,0.24); filter: blur(2px);"></div>
         <div style="position: absolute; inset: 0;">
@@ -245,9 +249,10 @@
       <div style="position: absolute; left: 180px; top: 183px; width: 100px; text-align: center; font-size: 8.5px; font-weight: 700; color: #e8e8ee;">Sol · <span style="color: #6ee7a0;">Mend</span></div>
       <div style="position: absolute; left: 212px; top: 195px; width: 36px; height: 4px; border-radius: 2px; background: #2a2e3a; overflow: hidden;"><div style="width: 100%; height: 100%; background: #4da6ff;"></div></div>
       <div style="position: absolute; left: 212px; top: 200px; width: 36px; height: 3px; border-radius: 2px; background: #2a2e3a; overflow: hidden;"><div style="width: 45%; height: 100%; background: #e8e8ee;"></div></div>
-      <div style="position: absolute; left: 81px; top: 94px; width: 160px; text-align: center; font-size: 8px; font-weight: 800; letter-spacing: 0.06em; color: #b98cff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); opacity: 0; animation: lblIv var(--T) linear infinite;">IVY HITS THE BIGGEST ENEMY</div>
       <div style="position: absolute; left: 205px; top: 16px; font-size: 15px; font-weight: 800; color: #e8e8ee; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.6), 0 0 8px #ff5252; opacity: 0; animation: exPop var(--T) linear infinite;">−18</div>
 
+          <svg width="322" height="210" viewBox="0 0 322 210" style="position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 3;"><path d="M74,201.5 L62,201.5 L62,147 L92,147" fill="none" stroke="#ffcf4d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" pathLength="100" opacity="0.85" style="filter: drop-shadow(0 0 3px #ffcf4d); animation: nbFlow var(--T) linear infinite;"/></svg>
+      <div style="position: absolute; left: 59px; top: 125px; width: 66px; height: 18px; z-index: 4; white-space: nowrap; transform-origin: 50% 122.22222222222223%; animation: nbPop var(--T) linear infinite;"><svg width="66" height="18" viewBox="0 0 66 18" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none;"><path d="M33,22 L29,18 H8 A8 8 0 0 1 0,10 V8 A8 8 0 0 1 8,0 H58 A8 8 0 0 1 66,8 V10 A8 8 0 0 1 58,18 H37 Z" fill="#14161c" stroke="#3a3f4e" stroke-width="1.4" stroke-linejoin="round"/><path d="M33,22 L29,18 H8 A8 8 0 0 1 0,10 V8 A8 8 0 0 1 8,0 H58 A8 8 0 0 1 66,8 V10 A8 8 0 0 1 58,18 H37 Z" fill="none" stroke="#ffcf4d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0" style="filter: drop-shadow(0 0 2.5px #ffcf4d); animation: nbBorder var(--T) linear infinite;"/></svg><span style="position: absolute; left: 0; right: 0; top: 0; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 800; letter-spacing: 0.05em; color: #b98cff;">EXPOSE</span></div>
     </div>
 
     <!-- name and meaning -->

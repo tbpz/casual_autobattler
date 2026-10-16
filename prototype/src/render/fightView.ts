@@ -5,6 +5,7 @@ import { squadFace, villainFace } from "./faces.js";
 import { momentHtml, type BestMoment } from "./fightSummary.js";
 import { ROLE_HEX } from "./roundParts.js";
 import { hpBarLayout } from "./hpBar.js";
+import { BUBBLE_H, BUBBLE_TAIL, BUBBLE_W, bubblePath, bubbleText, clampTailDx, type BubbleKind } from "./bubble.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
 import { ROLE_SORT_PRIORITY } from "../sim/roles.js";
 import { MARK_CHIP, CARD_DEFS, type CardId } from "../sim/cards/index.js";
@@ -94,6 +95,8 @@ interface HeroSlot {
    * width:100% resolves against the slot rather than shrink-wrapping around
    * a label — see 2026-08-15 chain-bar-visibility fix. */
   chargeFill: HTMLElement;
+  /** The bar's track: the flow of yellow that leaves the bar when a skill fires starts at its left end. */
+  chargeTrack: HTMLElement;
   /** Lags behind chargeFill via a longer, delayed CSS transition — same
    * device as hpGhostFill above. The one moment this matters is the chain
    * FIRING: chargeFill snaps to 0 instantly while the ghost drains behind
@@ -174,6 +177,12 @@ const TRACER_FADE_MS = cssNumber("--tracer-fade-ms", 130);
  * see playback.ts's own tail-window constant, which this should stay
  * roughly under.  */
 const CHAIN_FAILURE_HOLD_MS = 600;
+
+/** The flow of yellow from the bar to the bubble's arrow (style.css .flow-line): it starts this long after the skill fires, so the bar is seen full first, and runs this long. */
+const FLOW_DELAY_MS = 150;
+const FLOW_MS = 300;
+/** How far left of the bar's end the flow line runs before it turns up. */
+const FLOW_JOG_PX = 14;
 
 /** How long the result bubble is held onscreen before chainTeardown hides it
  * and drains the callout queue — matches .perf-result's own animation
@@ -426,6 +435,16 @@ export class FightView {
    * invisible), and a running total, none of which are gated by
    * chainTellThreshold anymore: a chain is visible from hit 1, not hit 3. */
   private chainHud: HTMLElement;
+  /** The bubble's own parts, built once (DECISIONS.md 2026-10-16): the outline paths and the two text slots. Ticks only change text and classes. */
+  private ptFill!: SVGPathElement;
+  private ptTrack!: SVGPathElement;
+  private ptProgress!: SVGPathElement;
+  private ptName!: HTMLElement;
+  private ptCount!: HTMLElement;
+  /** Whose unit the bubble is over, so a new performer makes it move. */
+  private bubbleHeroId: string | null = null;
+  /** How far the arrow sits from the bubble's centre (the box was clamped inside the arena). */
+  private bubbleTailDx = 0;
   /** The chain's resolution beat (2026-08-17) — every chain gets one, not
    * just a cascade-tier one, since "did it just stop?" was as illegible as
    * "is it still going?". Decomposes the payoff into length (luck, the
@@ -577,11 +596,34 @@ export class FightView {
     this.arena.appendChild(this.playerSlots);
     container.appendChild(this.arena);
 
-    // The performer tag (DECISIONS.md 2026-10-16): a speech-bubble on the unit that uses a skill, naming the skill and, from the first
-    // repeat, the count. It replaces the old banner, pip row and running total at the top of the arena, which sat far from the unit.
-    // `chainHud` is the tag and `chainEndCard` the result bubble that follows it over the same unit.
+    // The performer bubble (DECISIONS.md 2026-10-16): a speech-bubble on the unit that uses a skill, naming the skill and, from the second
+    // hit, the count. One fixed size for the whole skill; its outline is one path (the box and the arrow) with a grey track and a yellow
+    // border that runs round it, so the charge visibly turns into the skill. `chainHud` is the bubble and `chainEndCard` the result bubble
+    // that follows it over the same unit. Built once here: a tick never rebuilds it, so its one-shot animations are not restarted.
     this.chainHud = document.createElement("div");
     this.chainHud.className = "perf-tag";
+    const ns = "http://www.w3.org/2000/svg";
+    const outline = document.createElementNS(ns, "svg");
+    outline.setAttribute("class", "pt-outline");
+    outline.setAttribute("width", String(BUBBLE_W));
+    outline.setAttribute("height", String(BUBBLE_H));
+    outline.setAttribute("viewBox", `0 0 ${BUBBLE_W} ${BUBBLE_H}`);
+    const outlinePath = (cls: string): SVGPathElement => {
+      const p = document.createElementNS(ns, "path");
+      p.setAttribute("class", cls);
+      p.setAttribute("pathLength", "100");
+      outline.appendChild(p);
+      return p;
+    };
+    this.ptFill = outlinePath("pt-fill");
+    this.ptTrack = outlinePath("pt-track");
+    this.ptProgress = outlinePath("pt-progress");
+    this.ptName = document.createElement("span");
+    this.ptName.className = "pt-name";
+    this.ptCount = document.createElement("span");
+    this.ptCount.className = "pt-count";
+    this.chainHud.append(outline, this.ptName, this.ptCount);
+    this.setBubbleOutline(0);
     this.arena.appendChild(this.chainHud);
 
     this.chainEndCard = document.createElement("div");
@@ -788,8 +830,10 @@ export class FightView {
     this.chainGen++;
     this.windupGen++;
     this.chainPhase = "idle";
-    this.chainHud.classList.remove("show", "emphasize");
-    this.chainHud.innerHTML = "";
+    this.chainHud.className = "perf-tag";
+    this.ptName.textContent = "";
+    this.ptCount.textContent = "";
+    this.bubbleHeroId = null;
     this.chainEndCard.classList.remove("show");
     this.chainEndCard.innerHTML = "";
     this.popupLayer.innerHTML = "";
@@ -836,7 +880,8 @@ export class FightView {
       // Drop back to 0 without animating the sweep — a restart isn't a fire,
       // so it must skip --charge-rise entirely, not play it backwards.
       refs.chargeFill.classList.add("instant");
-      refs.chargeFill.classList.remove("committed");
+      refs.chargeFill.classList.remove("committed", "full", "waiting", "firing");
+      refs.slot.classList.remove("performing");
       refs.chargeFill.style.width = "0%";
       refs.chargeGhostFill.style.width = "0%";
       refs.lastChargeFraction = 0;
@@ -946,24 +991,70 @@ export class FightView {
     el.style.setProperty("--tail-x", `${(cx - x).toFixed(1)}px`);
   }
 
-  /** Writes the performer tag: the skill name, and under it a count from the first repeat (×2, ×3), bigger from
-   * cfg.chainFullTellThreshold, "×7 MAX" at the cap. A backfire gets a red border and BACKFIRE; a chain that stopped or never
-   * repeated goes muted. The word "chain" is not used in fight text. */
-  private writeTag(heroId: string, skill: string, length: number, kind: "live" | "backfire" | "stopped" | "noRepeat"): void {
+  /** Sets the bubble outline: the box and the arrow as one path (render/bubble.ts), the arrow slid by `tailDx` when the box had to be clamped inside the arena. */
+  private setBubbleOutline(tailDx: number): void {
+    const d = bubblePath(tailDx);
+    this.ptFill.setAttribute("d", d);
+    this.ptTrack.setAttribute("d", d);
+    this.ptProgress.setAttribute("d", d);
+    this.bubbleTailDx = clampTailDx(tailDx);
+  }
+
+  /** Puts the bubble over a unit: centred on its slot (the slot, not the body, which pulses and lunges) and kept inside the arena, with the
+   * arrow tip a few pixels above the unit and sliding sideways by however far the clamp moved the box. Done once per performer. */
+  private placeBubble(heroId: string): void {
     const refs = this.slotFor(heroId);
-    const color = kind === "backfire" ? "var(--backfire)" : (refs?.accent ?? "var(--chain)");
-    const repeated = length >= 2;
-    const max = length >= this.cfg.chainMaxHits;
-    const big = length >= this.cfg.chainFullTellThreshold;
-    let second = "";
-    if (kind === "noRepeat") second = `<span class="pt-note"> · NO REPEAT</span>`;
-    else if (kind === "stopped") second = `<span class="pt-note">×${length} · STOPPED</span>`;
-    else if (kind === "backfire") second = `<span class="pt-back">BACKFIRE${repeated ? ` ×${length}` : ""}</span>`;
-    else if (repeated) second = `<span class="pt-count">${max ? `×${length} MAX` : `×${length}`}</span>`;
-    const keep = this.chainHud.classList.contains("emphasize") ? " emphasize" : "";
-    this.chainHud.className = `perf-tag show${kind === "noRepeat" ? " inline" : ""}${big ? " big" : ""}${max ? " max" : ""}${kind === "backfire" ? " backfire" : ""}${kind === "stopped" || kind === "noRepeat" ? " muted" : ""}${keep}`;
-    this.chainHud.innerHTML = `<span class="pt-skill" style="color:${color}">${skill}</span>${second}`;
-    this.placeOver(this.chainHud, heroId);
+    if (!refs) return;
+    const a = this.arena.getBoundingClientRect();
+    const s = refs.slot.getBoundingClientRect();
+    const cx = s.left - a.left + s.width / 2;
+    const left = Math.max(4, Math.min(a.width - BUBBLE_W - 4, cx - BUBBLE_W / 2));
+    this.chainHud.style.left = `${left.toFixed(1)}px`;
+    this.chainHud.style.top = `${(s.top - a.top - 8 - BUBBLE_H).toFixed(1)}px`;
+    this.setBubbleOutline(cx - (left + BUBBLE_W / 2));
+    this.bubbleHeroId = heroId;
+  }
+
+  /** Writes the bubble (render/bubble.ts decides the words): the skill, then the count from the second hit, a brighter glow from
+   * cfg.chainFullTellThreshold and MAX at the cap; BACKFIRE in red; STOPPED or NO REPEAT in grey. Only text and classes change, so the
+   * bubble never changes size and a tick never restarts its animations. The word "chain" is not used in fight text. */
+  private writeTag(heroId: string, skill: string, length: number, kind: BubbleKind): void {
+    if (this.bubbleHeroId !== heroId) this.placeBubble(heroId);
+    const t = bubbleText(kind, length, skill, this.cfg.chainFullTellThreshold, this.cfg.chainMaxHits);
+    const refs = this.slotFor(heroId);
+    this.chainHud.style.setProperty("--skill", refs?.accent ?? "var(--chain)");
+    this.ptName.textContent = t.name;
+    this.ptCount.textContent = t.count;
+    const c = this.chainHud.classList;
+    c.add("show");
+    c.toggle("has-count", t.count !== "");
+    c.toggle("big", t.big);
+    c.toggle("max", t.max);
+    c.toggle("backfire", t.backfire);
+    c.toggle("muted", t.muted);
+  }
+
+  /** The flow of yellow that leaves the bar when a skill fires: a short bright streak runs along a line from the bar's left end, a little
+   * to the left, up beside the unit and across to the bubble's arrow tip, while the bar drains. It arrives as the border starts to run
+   * round the bubble from the tip, so the charge visibly turns into the skill. A CSS animation, so a paused fight holds it still. */
+  private fireFlow(heroId: string): void {
+    const refs = this.slotFor(heroId);
+    if (!refs) return;
+    const a = this.arena.getBoundingClientRect();
+    const t = refs.chargeTrack.getBoundingClientRect();
+    const sx = t.left - a.left;
+    const sy = t.top - a.top + t.height / 2;
+    const jogX = Math.max(4, sx - FLOW_JOG_PX);
+    const tipX = Number.parseFloat(this.chainHud.style.left) + BUBBLE_W / 2 + this.bubbleTailDx;
+    const tipY = Number.parseFloat(this.chainHud.style.top) + BUBBLE_H + BUBBLE_TAIL;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "flow-line");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", `M ${sx.toFixed(1)} ${sy.toFixed(1)} L ${jogX.toFixed(1)} ${sy.toFixed(1)} L ${jogX.toFixed(1)} ${tipY.toFixed(1)} L ${tipX.toFixed(1)} ${tipY.toFixed(1)}`);
+    path.setAttribute("pathLength", "100");
+    svg.appendChild(path);
+    this.tracerLayer.appendChild(svg);
+    fightClock.setTimeout(() => svg.remove(), FLOW_MS + FLOW_DELAY_MS + 120);
   }
 
   /** Drives the performer tag purely off the snapshot, so it stays correct under pause and step. Visible from the first use
@@ -1018,6 +1109,8 @@ export class FightView {
       // WHICH-WAY read is instant, not just the fact that someone's hot.
       const isHot = hero.id === snapshot.hotHeroId;
       refs.body.classList.toggle("hot", isHot);
+      // While a skill plays the other units dim as a whole (name, HP and bar too, not only the body): style.css keys on this.
+      refs.slot.classList.toggle("performing", isHot);
       refs.body.style.setProperty("--chain-color", isHot && snapshot.chainBackfire ? "var(--backfire)" : refs.accent);
       refs.body.classList.toggle("broken", hero.role === "tank" && hero.alive && !hero.holding);
       // The wind-up telegraph's own tells (attacker glow, victim mark, the
@@ -1046,11 +1139,14 @@ export class FightView {
         // applied to --charge-frac and the ring's own classes instead.
         refs.chargeRing.classList.toggle("instant", chargeFraction < refs.lastChargeFraction);
         refs.chargeRing.style.setProperty("--charge-frac", chargeFraction.toFixed(3));
-        refs.chargeRing.classList.toggle("near-full", chargeFraction >= 0.85 && chargeFraction < 1);
         refs.lastChargeFraction = chargeFraction;
-        // Near-full pulse (2026-08-14) — the dread beat: the player feels
-        // the bar closing in on firing without knowing which way it'll go.
-        refs.chargeFill.classList.toggle("near-full", chargeFraction >= 0.85 && chargeFraction < 1);
+        // A unit that is full while another unit's skill plays waits, steady yellow and dimmed. The unit whose skill is playing runs
+        // `firing` instead (style.css): its bar is seen full, drains into the bubble in 0.3 s and stays empty while the skill plays (the
+        // sim holds its charge meanwhile), so removing the class at the skill's end hands the bar back to the real charge, now zero.
+        const isFull = chargeFraction >= 1;
+        refs.chargeFill.classList.toggle("full", isFull && !isHot);
+        refs.chargeFill.classList.toggle("waiting", isFull && !isHot);
+        refs.chargeFill.classList.toggle("firing", isHot);
       }
       // Guard row (2026-09-15 guard-visibility pass) — snapshot-driven, same
       // discipline as the charge bar above. guardHeroId is always a player
@@ -1378,7 +1474,7 @@ export class FightView {
         this.showTankTransition(e.heroId, "holding", `${this.nameOf(e.heroId)} HOLDS`);
         break;
       case "chainStart":
-        this.showChainStart(e.heroId, e.backfire);
+        this.showChainStart(e.heroId, e.backfire, e.effects);
         break;
       case "chainHit":
         this.showChainHit(
@@ -1792,7 +1888,7 @@ export class FightView {
    * both stronger and likelier to go wrong. Never scales below 0.6 — every
    * ignition is still a real tell, per the same "nothing goes silent" rule the
    * hit-by-hit spectacle ladder follows (see showChainHit). */
-  private showChainStart(heroId: string, backfire: boolean): void {
+  private showChainStart(heroId: string, backfire: boolean, effects: ChainEffect[]): void {
     this.anyChainFiredThisFight = true;
     // A new chain firing is the authoritative "the stage is live again"
     // signal (2026-08-19) — handles the rare back-to-back case where a
@@ -1808,11 +1904,15 @@ export class FightView {
     this.chainEndCard.classList.remove("show");
     const refs = this.slotFor(heroId);
     if (!refs) return;
-    // The title text itself comes from updateChainHud (snapshot-driven, same
-    // tick) — this only adds the one-shot flourish, since ignition fires
-    // once per chain and can't collide with itself the way a rapid chainHit
-    // stream used to collide with the old shared .callout.
-    pulseClass(this.chainHud, "emphasize", 600);
+    // The bubble (DECISIONS.md 2026-10-16): put over this performer and written again here, so a skill that starts on the very tick another
+    // one ended (chainEnd, then chainStart) does not keep the old unit's words. Its entrance is restarted by toggling `enter`: it pops
+    // after the bar has been seen full, then the border runs round it from the arrow tip. The flow of yellow runs from the bar to that tip.
+    this.placeBubble(heroId);
+    this.writeTag(heroId, this.skillName(effects), 0, backfire ? "backfire" : "live");
+    this.chainHud.classList.remove("enter");
+    void this.chainHud.offsetWidth;
+    this.chainHud.classList.add("enter");
+    this.fireFlow(heroId);
     const igniteScale = 0.6 + 0.4 * fatigueFraction(this.cfg, this.heroFatigue.get(heroId) ?? 0);
     refs.body.style.setProperty("--ignite-scale", igniteScale.toFixed(2));
     pulseClass(refs.body, backfire ? "backfire-burst" : "ignite-burst", 500);
@@ -2657,6 +2757,7 @@ function makeHeroSlot(
     lastHpFrac: -1,
     lastEdgeFrac: -1,
     chargeFill,
+    chargeTrack,
     chargeGhostFill,
     chargeLabel,
     lastChargeFraction: 0,

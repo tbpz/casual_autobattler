@@ -4,6 +4,7 @@
  *  - PauseClock: a pause holds every timer and freezes now(); a resume gives each its remaining time back.
  *  - termifyText: the term words of a plain sentence become tappable, nothing else does.
  *  - bestMoment: the longest skill run of a fight, and none for a fight with no repeat.
+ *  - the skill bubble: its closed outline from the arrow tip, and the text of each state (first use, count, bright glow, MAX, backfire, stopped, no repeat).
  */
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
 import { runFight } from "../sim/fight.js";
@@ -13,6 +14,7 @@ import { makeSquadFromRoles } from "../sim/roles.js";
 import { PauseClock } from "../render/pauseClock.js";
 import { termifyText } from "../render/terms.js";
 import { bestMoment } from "../render/fightSummary.js";
+import { BUBBLE_H, BUBBLE_TAIL, BUBBLE_TAIL_MAX_DX, BUBBLE_W, bubblePath, bubbleText, clampTailDx } from "../render/bubble.js";
 
 let failed = false;
 function check(name: string, condition: boolean, detail = ""): void {
@@ -80,6 +82,28 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
   }
   check("best moment: most fights have one", withMoment >= 6, `${withMoment} of 12`);
   check("best moment: it is the longest run, at least two hits, with a skill and a name", sane);
+}
+
+// --- the skill bubble: its outline and what it says
+{
+  const d = bubblePath();
+  check("bubble: the outline starts at the arrow tip, below the box", d.startsWith(`M${BUBBLE_W / 2},${BUBBLE_H + BUBBLE_TAIL} `), d.slice(0, 24));
+  check("bubble: the outline is closed", d.endsWith("Z") && (d.match(/Z/g) ?? []).length === 1);
+  check("bubble: the arrow slides along the bottom edge", bubblePath(10).startsWith(`M${BUBBLE_W / 2 + 10},`));
+  check("bubble: the arrow stays clear of the corners", clampTailDx(500) === BUBBLE_TAIL_MAX_DX && clampTailDx(-500) === -BUBBLE_TAIL_MAX_DX && bubblePath(500).startsWith(`M${BUBBLE_W / 2 + BUBBLE_TAIL_MAX_DX},`));
+
+  const first = bubbleText("live", 0, "EXPOSE", 5, 7);
+  check("bubble text: the first use is the skill alone", first.name === "EXPOSE" && first.count === "" && !first.big && !first.max);
+  check("bubble text: the count appears from the second hit", bubbleText("live", 1, "EXPOSE", 5, 7).count === "" && bubbleText("live", 2, "EXPOSE", 5, 7).count === "×2");
+  check("bubble text: the glow brightens from the full-tell hit", !bubbleText("live", 4, "EXPOSE", 5, 7).big && bubbleText("live", 5, "EXPOSE", 5, 7).big);
+  const max = bubbleText("live", 7, "EXPOSE", 5, 7);
+  check("bubble text: the cap reads MAX with its count", max.name === "MAX" && max.count === "×7" && max.max);
+  const back = bubbleText("backfire", 3, "EXPOSE", 5, 7);
+  check("bubble text: a backfire says BACKFIRE in red", back.name === "BACKFIRE" && back.count === "×3" && back.backfire && !back.muted);
+  const stopped = bubbleText("stopped", 3, "EXPOSE", 5, 7);
+  check("bubble text: a skill that stopped says STOPPED with its count, in grey", stopped.name === "STOPPED" && stopped.count === "×3" && stopped.muted);
+  const none = bubbleText("noRepeat", 1, "EXPOSE", 5, 7);
+  check("bubble text: a skill that never repeated says NO REPEAT, in grey", none.name === "NO REPEAT" && none.count === "" && none.muted);
 }
 
 if (failed) {
