@@ -2,7 +2,7 @@ import { Rng } from "../sim/rng.js";
 import type { RunConfig } from "../sim/config.js";
 import type { FightSetup, SideState } from "../sim/types.js";
 import { sideHp, sideMaxHp } from "../sim/types.js";
-import { makeStartingRoster } from "../sim/roles.js";
+import { makeStartingRoster, nameUnits } from "../sim/roles.js";
 import { encounterAt } from "../sim/encounters.js";
 import { drawRoundEncounters, roundDef, roundEnemySide } from "../sim/rounds.js";
 import { runFight } from "../sim/fight.js";
@@ -12,6 +12,7 @@ import {
   applyFightResultToRoster,
   canFieldSquad,
   carryOverFieldPick,
+  carryOverWithGaps,
   fieldSquad,
   livingRosterHeroes,
   type RosterState,
@@ -114,10 +115,17 @@ export class RunSession {
     this.rng = new Rng(seed);
     this.offerRng = new Rng((seed ^ 0x51ed270b) >>> 0);
     this.progressValue = makeInitialProgress(cfg, upgradeRngFor(seed));
-    this.roster = makeStartingRoster(this.progressValue.bonus);
+    this.roster = this.withNames(makeStartingRoster(this.progressValue.bonus));
     this.roundOrder = drawRoundEncounters(seed, cfg.roundsPerRun);
     this.relicRng = relicRngFor(seed);
     this.relicChoices = drawRelicChoices(this.relicRng);
+  }
+
+  /** Gives any unit that still has a role-label name a name of its own (sim/roles.ts nameUnits),
+   * drawn from the run seed, so a recruit or the Mercenary is named the moment it joins. */
+  private withNames(roster: RosterState): RosterState {
+    const heroes = nameUnits(roster.heroes, this.seedValue);
+    return heroes === roster.heroes ? roster : { ...roster, heroes };
   }
 
   get progress(): RunProgress {
@@ -131,7 +139,7 @@ export class RunSession {
     if (!this.awaitingRelic || !this.relicChoices.includes(id)) return;
     const applied = applyRelic(this.progressValue, this.roster, id, this.relicRng);
     this.progressValue = applied.progress;
-    this.roster = applied.roster;
+    this.roster = this.withNames(applied.roster);
     this.awaitingRelic = false;
     const log = this.roundLogs[this.roundLogs.length - 1];
     if (log) {
@@ -186,6 +194,18 @@ export class RunSession {
    * the minimum path stays Play -> watch -> Play. */
   get defaultFielding(): string[] {
     return carryOverFieldPick(this.roster, this.progressValue.slots, this.fieldedThisRound);
+  }
+
+  /** The round screen's starting pick: last round's living squad, with a slot left EMPTY where a
+   * unit died (DECISIONS.md 2026-10-16), so it can be shorter than the slot count. The player
+   * fills each gap on the squad screen before Fight is allowed. */
+  get defaultPickWithGaps(): string[] {
+    return carryOverWithGaps(this.roster, this.progressValue.slots, this.fieldedThisRound);
+  }
+
+  /** The ids fielded in the round just played (empty before round 1), for the "X fell last round" line. */
+  get lastFielded(): string[] {
+    return this.fieldedThisRound;
   }
 
   /** Whether the roster can even field a full squad for the next round. */
@@ -287,7 +307,7 @@ export class RunSession {
     if (offer) {
       const applied = applyOffer(this.progressValue, this.roster, offer, this.cfg, dropCardId);
       this.progressValue = applied.progress;
-      this.roster = applied.roster;
+      this.roster = this.withNames(applied.roster);
       const log = this.roundLogs[this.roundLogs.length - 1];
       if (log) {
         log.offerTaken = offer;

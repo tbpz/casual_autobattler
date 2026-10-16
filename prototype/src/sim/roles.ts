@@ -143,3 +143,45 @@ export function makeSquadFromRoles(roles: PlayerRole[]): SideState {
     .sort((a, b) => ROLE_SORT_PRIORITY[a.role] - ROLE_SORT_PRIORITY[b.role]);
   return { heroes, dpsBonus: 0 };
 }
+
+/**
+ * Units have names of their own (DECISIONS.md 2026-10-16): a short name drawn
+ * from this pool, seeded from the run seed and the unit's place in the roster,
+ * so a seed replays the same names. The draw is a pure hash — it never touches
+ * the fight RNG or any other stream, so no batch number moves. Lab, batch and
+ * check squads (makeSquadFromRoles) keep the role labels.
+ */
+export const UNIT_NAMES: readonly string[] = [
+  "Bram", "Ivy", "Sol", "Rex", "Moss", "Kit", "Wren", "Olo", "Mira", "Dax", "Pip", "Juno",
+  "Finn", "Tamsin", "Orin", "Lark", "Brix", "Nell", "Cato", "Vesper", "Hale", "Odette", "Rook", "Sable",
+];
+
+/** A role-label name as makeUnitState builds it ("Tank 2"), i.e. not yet given a name of its own. */
+const ROLE_LABEL_NAME = /^(Tank|Damage|Healer) \d+$/;
+
+function nameHash(seed: number, index: number): number {
+  let h = (Math.imul(seed >>> 0, 0x9e3779b1) ^ Math.imul(index + 1, 0x85ebca6b)) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0;
+  h = Math.imul(h ^ (h >>> 12), 0x297a2d39) >>> 0;
+  return (h ^ (h >>> 15)) >>> 0;
+}
+
+/** Gives every unit still named from its role label a name from UNIT_NAMES. Units that
+ * already have one keep it, and a name is never used twice in one roster. Returns the
+ * same array when there is nothing to rename. */
+export function nameUnits(heroes: HeroState[], seed: number): HeroState[] {
+  if (!heroes.some((h) => ROLE_LABEL_NAME.test(h.name))) return heroes;
+  const taken = new Set(heroes.filter((h) => !ROLE_LABEL_NAME.test(h.name)).map((h) => h.name));
+  return heroes.map((h, i) => {
+    if (!ROLE_LABEL_NAME.test(h.name)) return h;
+    const start = nameHash(seed, i) % UNIT_NAMES.length;
+    for (let k = 0; k < UNIT_NAMES.length; k++) {
+      const name = UNIT_NAMES[(start + k) % UNIT_NAMES.length]!;
+      if (!taken.has(name)) {
+        taken.add(name);
+        return { ...h, name };
+      }
+    }
+    return h;
+  });
+}

@@ -196,7 +196,7 @@ function makeRevealContainer(screen: HTMLElement, testMode: boolean): HTMLElemen
   return revealContainer;
 }
 
-function appendAnswerKey(revealContainer: HTMLElement, result: FightResult): void {
+export function appendAnswerKey(revealContainer: HTMLElement, result: FightResult): void {
   const answerKey = document.createElement("div");
   answerKey.className = "answer-key";
   const title = document.createElement("p");
@@ -283,89 +283,6 @@ export function renderRoundRecap(
   continueBtn.addEventListener("click", onContinue);
   screen.appendChild(continueBtn);
 
-  container.appendChild(screen);
-}
-
-/** A run can now end two structurally
- * different ways (see sim/run.ts's RunResult.overReason) — a fight LOST
- * outright, or the living roster falling below cfg.playerN so the next
- * fight can't even be fielded. They read very differently to a player
- * ("we got wiped" vs. "we ran out of people to send"), so the copy splits
- * on it rather than lumping both under one generic message.
- *
- * 2026-08-15: on a "loss" over-reason, `lastFightResult`/`lastProjection`
- * are the fight that was actually lost — RunSession.playNextFight stashes
- * both before it can know the outcome, so they're populated the same way a
- * won fight's spend screen already gets them. Reused here via the same
- * fightRecap/chainRecapLine/noChainRecapLine/spareLine helpers so a lost
- * run explains itself instead of ending on one flat sentence — the
- * loser-friendly pattern this project's research on run-to-run thinness
- * named directly. Not shown for "rosterExhausted": that reason follows a
- * WIN (the last fight's own recap already played on its spend screen), so
- * there's nothing to explain about the roster running dry beyond the
- * existing sentence. */
-export function renderRunOverScreen(
-  container: HTMLElement,
-  fightsWon: number,
-  overReason: "loss" | "rosterExhausted" | null,
-  lastFightResult: FightResult | null,
-  lastProjection: Projection | null,
-  onRetry: () => void,
-  testMode = false,
-): void {
-  container.innerHTML = "";
-  const screen = document.createElement("div");
-  screen.className = "screen";
-  const wonNote = `after ${fightsWon} win${fightsWon === 1 ? "" : "s"}`;
-  const body =
-    overReason === "rosterExhausted"
-      ? `Your roster couldn't field a full squad ${wonNote} — too many fallen.`
-      : `Your fielded squad was wiped ${wonNote}.`;
-  screen.innerHTML = `<h1>Run over</h1><p>${body}</p>`;
-
-  if (overReason === "loss" && lastFightResult) {
-    // 2026-08-20 (attribution-test instrumentation) — same reveal-behind-a-
-    // button treatment as the round recap, see makeRevealContainer.
-    const revealContainer = makeRevealContainer(screen, testMode);
-
-    const recap = document.createElement("div");
-    recap.className = "recap";
-    for (const line of fightRecap(lastFightResult)) {
-      const p = document.createElement("p");
-      p.textContent = line;
-      recap.appendChild(p);
-    }
-    const spare = document.createElement("p");
-    spare.className = "recap-spare";
-    spare.textContent = spareLine(lastFightResult, lastProjection);
-    recap.appendChild(spare);
-    revealContainer.appendChild(recap);
-
-    if (lastFightResult.ignited) {
-      const chainLine = chainRecapLine(lastFightResult);
-      if (chainLine) {
-        const tag = document.createElement("p");
-        tag.className = chainLine.backfire ? "recap-chain backfire" : "recap-chain";
-        tag.textContent = chainLine.text;
-        revealContainer.appendChild(tag);
-      }
-    } else {
-      const missLine = noChainRecapLine(lastFightResult);
-      if (missLine) {
-        const tag = document.createElement("p");
-        tag.className = "recap-miss";
-        tag.textContent = missLine;
-        revealContainer.appendChild(tag);
-      }
-    }
-
-    if (testMode) appendAnswerKey(revealContainer, lastFightResult);
-  }
-
-  const retry = document.createElement("button");
-  retry.textContent = "New run";
-  retry.addEventListener("click", onRetry);
-  screen.appendChild(retry);
   container.appendChild(screen);
 }
 

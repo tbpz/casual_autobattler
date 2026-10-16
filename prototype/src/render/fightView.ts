@@ -1,6 +1,9 @@
-import type { ChainEffect, FatigueTier, FightConfig } from "../sim/config.js";
-import { chainEffectVerb, fatigueFraction, fatigueTier } from "../sim/config.js";
-import { fatiguePipsHtml } from "./heroPickShared.js";
+import type { ChainEffect, FightConfig } from "../sim/config.js";
+import { fightClock } from "./pauseClock.js";
+import { chainEffectChip, fatigueFraction, fatigueTier } from "../sim/config.js";
+import { squadFace, villainFace } from "./faces.js";
+import { momentHtml, type BestMoment } from "./fightSummary.js";
+import { ROLE_HEX } from "./roundParts.js";
 import { hpBarLayout } from "./hpBar.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
 import { ROLE_SORT_PRIORITY } from "../sim/roles.js";
@@ -170,11 +173,13 @@ const TRACER_MS = cssNumber("--tracer-ms", 200);
  * roughly under.  */
 const CHAIN_FAILURE_HOLD_MS = 600;
 
-/** How long the end card itself is held onscreen before chainTeardown hides
- * the HUD and drains the callout queue — matches .chain-end-card's own
- * chainEndPop animation (1.6s, style.css) plus a small buffer so teardown
- * never clips the card mid-animation. */
+/** How long the result bubble is held onscreen before chainTeardown hides it
+ * and drains the callout queue — matches .perf-result's own animation
+ * (style.css) plus a small buffer so teardown never clips it mid-animation. */
 const CHAIN_END_CARD_HOLD_MS = 1700;
+
+/** Body sizes by role, copied from style.css's --role-size (tank 52, damage and grunt 34, support 40, bruiser 68). */
+const ROLE_BODY_PX: Record<string, number> = { tank: 52, damage: 34, support: 40, bruiser: 68, grunt: 34 };
 
 /** How many guard pips to draw before collapsing to a bare "⛨ ×N" count
  * (2026-09-15 guard-visibility pass) — past this, individual pips stop being
@@ -363,6 +368,8 @@ export class FightView {
    * stronger and likelier to go wrong. Enemies carry 0 and never chain. */
   private heroFatigue: Map<string, number> = new Map();
   private arena: HTMLElement;
+  /** The whole fight view (arena, callout band, result overlay): .paused on it freezes every CSS animation inside. */
+  private arenaRoot: HTMLElement;
   private tracerLayer: HTMLElement;
   private calloutBand: HTMLElement;
   private callout: HTMLElement;
@@ -402,10 +409,6 @@ export class FightView {
    * invisible), and a running total, none of which are gated by
    * chainTellThreshold anymore: a chain is visible from hit 1, not hit 3. */
   private chainHud: HTMLElement;
-  private chainHudTitle: HTMLElement;
-  private chainHudPips: HTMLElement;
-  private chainHudPipEls: HTMLElement[] = [];
-  private chainHudTotal: HTMLElement;
   /** The chain's resolution beat (2026-08-17) — every chain gets one, not
    * just a cascade-tier one, since "did it just stop?" was as illegible as
    * "is it still going?". Decomposes the payoff into length (luck, the
@@ -440,7 +443,7 @@ export class FightView {
   /** Same stale-timer guard as chainGen, for the end-of-fight sequence
    * (finishFight): reset() bumps it so a rewind can't show a result late. */
   private resolveGen = 0;
-  /** Wall-clock time (performance.now()) the latest scheduled hit, heal or
+  /** Wall-clock time (fightClock.now(), which stops while paused) the latest scheduled hit, heal or
    * slam finishes landing — finishFight waits for it so the killing blow is
    * seen before the body falls. */
   private lastImpactAt = 0;
@@ -449,6 +452,11 @@ export class FightView {
   private resolveShown = false;
   private resolveCallbacks: Array<() => void> = [];
   private built = false;
+  /** Called with a fighter's id when the player taps its body: the fight pauses and its popup opens (DECISIONS.md 2026-10-16). */
+  private onFighterTap: ((id: string) => void) | null = null;
+  /** What the result overlay adds under VICTORY / DEFEAT, set by app.ts from the finished fight. */
+  private bestMomentValue: BestMoment | null = null;
+  private continueCallback: (() => void) | null = null;
   /** Cycles a small vertical jitter across popups so near-simultaneous
    * numbers on the same target don't land on the exact same baseline. */
   private popupSeq = 0;
@@ -528,6 +536,9 @@ export class FightView {
     this.cfg = cfg;
     container.innerHTML = "";
     container.classList.add("fight-view");
+    this.arenaRoot = container;
+    // A new fight starts on a running clock, even if the last one was left paused.
+    fightClock.resume();
 
     this.arena = document.createElement("div");
     this.arena.className = "arena";
@@ -549,22 +560,15 @@ export class FightView {
     this.arena.appendChild(this.playerSlots);
     container.appendChild(this.arena);
 
+    // The performer tag (DECISIONS.md 2026-10-16): a speech-bubble on the unit that uses a skill, naming the skill and, from the first
+    // repeat, the count. It replaces the old banner, pip row and running total at the top of the arena, which sat far from the unit.
+    // `chainHud` is the tag and `chainEndCard` the result bubble that follows it over the same unit.
     this.chainHud = document.createElement("div");
-    this.chainHud.className = "chain-hud";
-    this.chainHudTitle = document.createElement("div");
-    this.chainHudTitle.className = "chain-hud-title";
-    this.chainHudPips = document.createElement("div");
-    this.chainHudPips.className = "chain-hud-pips";
-    this.buildChainPips(cfg.chainMaxHits);
-    this.chainHudTotal = document.createElement("div");
-    this.chainHudTotal.className = "chain-hud-total";
-    this.chainHud.appendChild(this.chainHudTitle);
-    this.chainHud.appendChild(this.chainHudPips);
-    this.chainHud.appendChild(this.chainHudTotal);
+    this.chainHud.className = "perf-tag";
     this.arena.appendChild(this.chainHud);
 
     this.chainEndCard = document.createElement("div");
-    this.chainEndCard.className = "chain-end-card";
+    this.chainEndCard.className = "perf-result";
     this.arena.appendChild(this.chainEndCard);
 
     // 2026-08-19 (chain-ending pass): the callout band is now a SIBLING of
@@ -684,8 +688,8 @@ export class FightView {
    * and stay down for a beat, then VICTORY / DEFEAT shows. */
   private finishFight(snapshot: TickSnapshot, heldDowns: string[], outcome: "win" | "loss"): void {
     const gen = this.resolveGen;
-    const hitWaitMs = Math.max(0, this.lastImpactAt - performance.now()) + 40;
-    setTimeout(() => {
+    const hitWaitMs = Math.max(0, this.lastImpactAt - fightClock.now()) + 40;
+    fightClock.setTimeout(() => {
       if (gen !== this.resolveGen) return;
       this.updateSide(this.playerHeroes, snapshot.playerHeroes, snapshot);
       this.updateSide(this.enemyHeroes, snapshot.enemyHeroes, snapshot);
@@ -693,7 +697,7 @@ export class FightView {
       this.lastPlayerHeroes = snapshot.playerHeroes;
       this.lastEnemyHeroes = snapshot.enemyHeroes;
       for (const id of heldDowns) this.showHeroDown(id);
-      setTimeout(
+      fightClock.setTimeout(
         () => {
           if (gen !== this.resolveGen) return;
           this.showResolve(outcome);
@@ -707,6 +711,37 @@ export class FightView {
     }, hitWaitMs);
   }
 
+  /** Stops every fight timer, animation frame and CSS animation where it is. Playback pauses its own clock separately. */
+  pause(): void {
+    fightClock.pause();
+    this.arenaRoot.classList.add("paused");
+  }
+
+  resume(): void {
+    this.arenaRoot.classList.remove("paused");
+    fightClock.resume();
+  }
+
+  /** The latest tick's snapshot (what a popup built mid-fight reads), or null before the first tick. */
+  get currentSnapshot(): TickSnapshot | null {
+    return this.lastSnapshot;
+  }
+
+  /** Registers what a tap on a fighter does. */
+  setFighterTapHandler(cb: (id: string) => void): void {
+    this.onFighterTap = cb;
+  }
+
+  /** The fight's best moment, for the result overlay (read from the finished fight's events by app.ts). */
+  setBestMoment(m: BestMoment | null): void {
+    this.bestMomentValue = m;
+  }
+
+  /** Runs `cb` when the player taps Continue on the result overlay. */
+  onContinue(cb: () => void): void {
+    this.continueCallback = cb;
+  }
+
   /** Runs `cb` once VICTORY / DEFEAT is on screen (at once if it already is). */
   onResolveShown(cb: () => void): void {
     if (this.resolveShown) cb();
@@ -715,7 +750,7 @@ export class FightView {
 
   /** Marks that a hit, heal or slam finishes landing `delayMs` from now. */
   private noteImpact(delayMs: number): void {
-    this.lastImpactAt = Math.max(this.lastImpactAt, performance.now() + delayMs);
+    this.lastImpactAt = Math.max(this.lastImpactAt, fightClock.now() + delayMs);
   }
 
   reset(): void {
@@ -737,10 +772,8 @@ export class FightView {
     this.windupGen++;
     this.chainPhase = "idle";
     this.chainHud.classList.remove("show", "emphasize");
-    this.chainHudTitle.textContent = "";
-    this.chainHudTotal.textContent = "";
-    for (const pip of this.chainHudPipEls) pip.classList.remove("filled", "rolling", "landed", "missed", "capped-flare");
-    this.chainEndCard.classList.remove("show", "big");
+    this.chainHud.innerHTML = "";
+    this.chainEndCard.classList.remove("show");
     this.chainEndCard.innerHTML = "";
     this.popupLayer.innerHTML = "";
     this.tracerLayer.innerHTML = "";
@@ -831,7 +864,19 @@ export class FightView {
       const isFront = stillFront;
       this.heroIsFront.set(hero.id, isFront);
 
-      const refs = makeHeroSlot(hero, side, accentForHero(hero, side, i), i, fatigueTier(this.cfg, hero.fatigue));
+      const refs = makeHeroSlot(hero, side, accentForHero(hero, side, i), i);
+      // The face style (DECISIONS.md 2026-10-14): a squad body's eyes show its fatigue tier, an enemy's are villain eyes. Drawn at the body's
+      // real size, back rank included, which decides between the plain and the size-tuned eye.
+      const baseSize = ROLE_BODY_PX[hero.role] ?? 40;
+      const faceSize = isFront ? baseSize : baseSize * BACK_RANK_SCALE;
+      const hex = hero.role === "tank" || hero.role === "damage" || hero.role === "support" ? ROLE_HEX[hero.role] : ROLE_HEX.damage;
+      refs.body.insertAdjacentHTML(
+        "beforeend",
+        side === "player"
+          ? squadFace(hex, fatigueTier(this.cfg, hero.fatigue), faceSize)
+          : villainFace(faceSize, hero.role === "bruiser" ? 1.35 : 1),
+      );
+      refs.slot.addEventListener("click", () => this.onFighterTap?.(hero.id));
       // Direct fraction of the two sides' combined maxHp (see render()'s
       // own comment) — same pixel-per-HP scale the old two-level flex gave,
       // now that a side's own flex-grow can no longer double as its width.
@@ -863,71 +908,59 @@ export class FightView {
     });
   }
 
-  /** Builds the chain HUD's pip row, once, at cfg.chainMaxHits — every hero
-   * shares this same cap (2026-09-13 rebuild), so there is nothing left to
-   * rebuild mid-fight the way a per-hero fuse once required. */
-  private buildChainPips(maxHits: number): void {
-    this.chainHudPips.innerHTML = "";
-    this.chainHudPipEls = [];
-    for (let i = 0; i < maxHits; i++) {
-      const pip = document.createElement("span");
-      // The LAST pip is a hard ceiling, not just another slot (2026-08-19 —
-      // tagged here, off the same maxHits the sim enforces the cap with, so
-      // the marker can never drift from the real cap). Styled distinctly in
-      // style.css so reaching it reads as "the maximum possible," not as an
-      // ordinary hit landing that happens to be last.
-      pip.className = i === maxHits - 1 ? "chain-pip cap" : "chain-pip";
-      this.chainHudPips.appendChild(pip);
-      this.chainHudPipEls.push(pip);
-    }
+  /** The skill's name for the tag: the chain's base effect (always listed first), in capitals ("EXPOSE", "GUARD", "MEND"). */
+  private skillName(effects: ChainEffect[] | null | undefined): string {
+    const first = effects?.[0];
+    return first ? chainEffectChip(first).word.toUpperCase() : "SKILL";
   }
 
-  /** Drives the persistent chain HUD purely off the snapshot — owner, a pip
-   * per hit, running total — so it stays correct under pause/step/scrub,
-   * same discipline as every other snapshot-driven tell. Backfire flips both
-   * the label and the colour so a glance mid-chain reads "is this working"
-   * without waiting for the next chainHit event.
-   *
-   * Visible from the ignition tick itself (visibleChainLength === 0), not
-   * gated by chainTellThreshold — a played session reported never seeing a
-   * chain begin because hits 1-2 used to be entirely silent. One pip beyond
-   * the landed count pulses ("rolling") for as long as hotHeroId stays set —
-   * the continuation-roll beat that previously had no rendered state at all.
-   *
-   * 2026-08-19 (chain-ending pass): no longer HIDES on `!snapshot.hotHeroId`
-   * — that used to fire on the exact same tick fight.ts nulls hotHeroId to
-   * emit chainEnd, deleting the HUD before the event loop (later in the same
-   * render() call) ever reached showChainEnd. Hiding is chainTeardown's job
-   * now, once the resolution beat has actually held onscreen. This function
-   * only ever WRITES fresh content while a chain is truly live, and skips
-   * entirely while `resolving` so it can't stomp the miss/cap/end beat
-   * showChainEnd is presenting.
-   *
-   * 2026-09-13 rebuild: every hero shares cfg.chainMaxHits again (no more
-   * per-hero fuse), so the pip row built once in the constructor
-   * (buildChainPips(cfg.chainMaxHits)) never needs rebuilding mid-fight —
-   * the per-chain rebuild this function used to do is gone with it. */
+  /** Puts a tag-like element over a unit's body, centred and kept inside the arena (DECISIONS.md 2026-10-16: the announcement sits
+   * on the unit that acts, not in a strip at the top). The tail points at the body by how far the clamp moved the tag. */
+  private placeOver(el: HTMLElement, heroId: string): void {
+    const refs = this.slotFor(heroId);
+    if (!refs) return;
+    const a = this.arena.getBoundingClientRect();
+    const b = refs.body.getBoundingClientRect();
+    const half = el.offsetWidth / 2;
+    const cx = b.left - a.left + b.width / 2;
+    const x = Math.max(half + 4, Math.min(a.width - half - 4, cx));
+    el.style.left = `${x.toFixed(1)}px`;
+    el.style.top = `${(b.top - a.top - 20).toFixed(1)}px`;
+    el.style.setProperty("--tail-x", `${(cx - x).toFixed(1)}px`);
+  }
+
+  /** Writes the performer tag: the skill name, and under it a count from the first repeat (×2, ×3), bigger from
+   * cfg.chainFullTellThreshold, "×7 MAX" at the cap. A backfire gets a red border and BACKFIRE; a chain that stopped or never
+   * repeated goes muted. The word "chain" is not used in fight text. */
+  private writeTag(heroId: string, skill: string, length: number, kind: "live" | "backfire" | "stopped" | "noRepeat"): void {
+    const refs = this.slotFor(heroId);
+    const color = kind === "backfire" ? "var(--backfire)" : (refs?.accent ?? "var(--chain)");
+    const repeated = length >= 2;
+    const max = length >= this.cfg.chainMaxHits;
+    const big = length >= this.cfg.chainFullTellThreshold;
+    let second = "";
+    if (kind === "noRepeat") second = `<span class="pt-note"> · NO REPEAT</span>`;
+    else if (kind === "stopped") second = `<span class="pt-note">×${length} · STOPPED</span>`;
+    else if (kind === "backfire") second = `<span class="pt-back">BACKFIRE${repeated ? ` ×${length}` : ""}</span>`;
+    else if (repeated) second = `<span class="pt-count">${max ? `×${length} MAX` : `×${length}`}</span>`;
+    const keep = this.chainHud.classList.contains("emphasize") ? " emphasize" : "";
+    this.chainHud.className = `perf-tag show${kind === "noRepeat" ? " inline" : ""}${big ? " big" : ""}${max ? " max" : ""}${kind === "backfire" ? " backfire" : ""}${kind === "stopped" || kind === "noRepeat" ? " muted" : ""}${keep}`;
+    this.chainHud.innerHTML = `<span class="pt-skill" style="color:${color}">${skill}</span>${second}`;
+    this.placeOver(this.chainHud, heroId);
+  }
+
+  /** Drives the performer tag purely off the snapshot, so it stays correct under pause and step. Visible from the first use
+   * (a small tag with just the skill), then the count. Only ever WRITES while a skill is truly live; hiding is
+   * chainTeardown's job (see chainPhase), once the ending has been seen. */
   private updateChainHud(snapshot: TickSnapshot): void {
     if (!snapshot.hotHeroId || this.chainPhase === "resolving") return;
     this.chainPhase = "live";
-    const name = this.nameOf(snapshot.hotHeroId);
-    const refs = this.slotFor(snapshot.hotHeroId);
-    const backfire = snapshot.chainBackfire;
-    const color = backfire ? "var(--backfire)" : (refs?.accent ?? "var(--chain)");
-    const startedLabel = backfire ? "BACKFIRES" : "IGNITES";
-    const runningLabel = backfire ? "BACKFIRE" : "CHAIN";
-    this.chainHudTitle.textContent =
-      snapshot.visibleChainLength === 0 ? `${name} — ${startedLabel}` : `${name} — ${runningLabel} ×${snapshot.visibleChainLength}`;
-    this.chainHudTitle.style.color = color;
-    this.chainHud.style.setProperty("--chain-hud-color", color);
-    for (let i = 0; i < this.chainHudPipEls.length; i++) {
-      const idx = i + 1;
-      const pip = this.chainHudPipEls[i] as HTMLElement;
-      pip.classList.toggle("filled", idx <= snapshot.visibleChainLength);
-      pip.classList.toggle("rolling", idx === snapshot.visibleChainLength + 1);
-    }
-    this.chainHudTotal.textContent = snapshot.chainDamageSoFar > 0 ? String(Math.round(snapshot.chainDamageSoFar)) : "";
-    this.chainHud.classList.add("show");
+    this.writeTag(
+      snapshot.hotHeroId,
+      this.skillName(snapshot.chainEffects),
+      snapshot.visibleChainLength,
+      snapshot.chainBackfire ? "backfire" : "live",
+    );
   }
 
   private updateSide(map: Map<string, HeroSlot>, heroes: HeroSnapshot[], snapshot: TickSnapshot): void {
@@ -989,7 +1022,6 @@ export class FightView {
         refs.chargeFill.classList.toggle("instant", chargeFraction < refs.lastChargeFraction);
         refs.chargeFill.style.width = `${(chargeFraction * 100).toFixed(1)}%`;
         refs.chargeGhostFill.style.width = `${(chargeFraction * 100).toFixed(1)}%`;
-        refs.chargeLabel.textContent = `CHAIN ${Math.round(hero.charge)}/${Math.round(this.cfg.chargeThreshold)}`;
         // 2026-09-29 (MidFill pass — see design/HANDOFF.md): the ring that
         // actually renders for a player fighter — the bar above is now
         // hidden by CSS, kept updated only so nothing else here has to
@@ -1267,9 +1299,9 @@ export class FightView {
     const easeOutBack = (x: number) => 1 + c3 * (x - 1) ** 3 + c1 * (x - 1) ** 2;
 
     el.style.opacity = "1";
-    const startMs = performance.now();
-    const frame = (now: number) => {
-      const raw = Math.min(1, (now - startMs) / SLAM_SWING_MS);
+    const startMs = fightClock.now();
+    const frame = () => {
+      const raw = Math.min(1, (fightClock.now() - startMs) / SLAM_SWING_MS);
       const eased = raw < 1 ? easeOutBack(raw) : 1;
       const angle = angle0 + delta * eased;
       const dist = dist0 + (dist1 - dist0) * Math.min(1, eased);
@@ -1403,7 +1435,7 @@ export class FightView {
     perch.style.setProperty("--depth-scale", String(BACK_POP_SCALE));
     perch.style.setProperty("--depth-bright", "1");
     perch.style.setProperty("--depth-sat", "1");
-    setTimeout(() => {
+    fightClock.setTimeout(() => {
       if (this.backPopGen.get(perch) !== gen) return; // a later pop owns this body now
       perch.style.removeProperty("--depth-y");
       perch.style.removeProperty("--depth-scale");
@@ -1466,7 +1498,7 @@ export class FightView {
       el.style.top = `${start.y}px`;
       void el.offsetWidth;
       el.style.transform = `translate(${(end.x - start.x).toFixed(1)}px, ${(end.y - start.y).toFixed(1)}px)`;
-      setTimeout(() => el.remove(), durationMs + 60);
+      fightClock.setTimeout(() => el.remove(), durationMs + 60);
       return;
     }
 
@@ -1505,15 +1537,15 @@ export class FightView {
     }
     const midX = (start.x + end.x) / 2 + nx * lift;
     const midY = (start.y + end.y) / 2 + ny * lift;
-    const startMs = performance.now();
-    const frame = (now: number) => {
-      const t = Math.min(1, (now - startMs) / durationMs);
+    const startMs = fightClock.now();
+    const frame = () => {
+      const t = Math.min(1, (fightClock.now() - startMs) / durationMs);
       const inv = 1 - t;
       const x = inv * inv * start.x + 2 * inv * t * midX + t * t * end.x;
       const y = inv * inv * start.y + 2 * inv * t * midY + t * t * end.y;
       el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
       if (t < 1) requestAnimationFrame(frame);
-      else setTimeout(() => el.remove(), 60);
+      else fightClock.setTimeout(() => el.remove(), 60);
     };
     requestAnimationFrame(frame);
   }
@@ -1528,7 +1560,7 @@ export class FightView {
     flash.className = "impact-flash";
     flash.style.setProperty("--flash-opacity", (0.35 + frac * 0.55).toFixed(2));
     body.appendChild(flash);
-    setTimeout(() => flash.remove(), 380);
+    fightClock.setTimeout(() => flash.remove(), 380);
   }
 
   private showAttack(side: "player" | "enemy", attackerId: string, targetId: string, damage: number): void {
@@ -1594,7 +1626,7 @@ export class FightView {
     // Impact lands when the tracer arrives, not at t=0 — the flight itself
     // is a second attribution cue ("that one is heading for Cairn").
     this.noteImpact(flightMs);
-    setTimeout(() => {
+    fightClock.setTimeout(() => {
       target.body.style.setProperty("--flinch-scale", frac.toFixed(2));
       pulseClass(target.core, "flinch", 300);
       this.showImpactFlash(target.body, frac);
@@ -1634,7 +1666,7 @@ export class FightView {
     };
     if (healer) {
       this.noteImpact(TRACER_MS);
-      setTimeout(land, TRACER_MS);
+      fightClock.setTimeout(land, TRACER_MS);
     } else land();
   }
 
@@ -1718,8 +1750,7 @@ export class FightView {
     // here stops the previous chain's state bleeding into this one's row.
     this.chainGen++;
     this.chainPhase = "live";
-    this.chainEndCard.classList.remove("show", "big");
-    for (const pip of this.chainHudPipEls) pip.classList.remove("filled", "rolling", "landed", "missed", "capped-flare");
+    this.chainEndCard.classList.remove("show");
     const refs = this.slotFor(heroId);
     if (!refs) return;
     // The title text itself comes from updateChainHud (snapshot-driven, same
@@ -1844,7 +1875,7 @@ export class FightView {
     if (attacker) {
       this.fireTracer(attacker.body, target.body, WINDUP_ACCENT, 8);
       this.noteImpact(TRACER_MS);
-      setTimeout(heldLand, TRACER_MS);
+      fightClock.setTimeout(heldLand, TRACER_MS);
     } else {
       heldLand();
     }
@@ -1997,8 +2028,6 @@ export class FightView {
       // own pip in the chain HUD, which can't collide with anything. The
       // escalating-loudness ladder itself is unchanged: nothing below this
       // threshold, an emphasis pulse + arena shake at/above it.
-      const pipEl = this.chainHudPipEls[hitIndex - 1];
-      if (pipEl) pulseClass(pipEl, "landed", 400);
       if (hitIndex >= this.cfg.chainFullTellThreshold) {
         this.arena.classList.remove("shake");
         void this.arena.offsetWidth;
@@ -2008,7 +2037,7 @@ export class FightView {
     };
     if (attacker && target) {
       this.noteImpact(chainFlightMs);
-      setTimeout(land, chainFlightMs);
+      fightClock.setTimeout(land, chainFlightMs);
     } else land();
   }
 
@@ -2048,49 +2077,25 @@ export class FightView {
     effects: ChainEffect[],
   ): void {
     this.chainPhase = "resolving";
-    // Captured now, checked inside every deferred callback below — see
-    // chainGen's own docstring for why this beats tracking individual
-    // setTimeout handles across a multi-step (fail-beat -> card ->
-    // teardown) callback chain.
+    // Captured now, checked inside every deferred callback below — see chainGen's own docstring for why this beats tracking
+    // individual timer handles across a multi-step callback chain.
     const gen = this.chainGen;
 
     const showCard = () => {
       if (gen !== this.chainGen) return; // superseded by a new chain firing first
-      // The HUD and the end card share the exact same anchor (top:-54px in
-      // style.css), deliberately — the handoff is meant to read as one
-      // element changing state, not two things overlapping. Hide the HUD
-      // right here, at the moment the card actually takes over, whether or
-      // not a failure beat played first — this is the ONLY line that hides
-      // it now (chainTeardown's own removal below is a defensive no-op).
+      // The tag hands over to the result bubble over the same unit: one thing changing state, not two overlapping.
       this.chainHud.classList.remove("show");
       this.renderChainEndCard(heroId, chainLength, totalDamage, totalStunSec, killedIds, backfire, reason, effects);
-      setTimeout(() => this.chainTeardown(gen, killedIds), CHAIN_END_CARD_HOLD_MS);
+      // A skill that never repeated has no bubble to hold, so it hands the stage back at once.
+      fightClock.setTimeout(() => this.chainTeardown(gen, killedIds), chainLength >= 2 ? CHAIN_END_CARD_HOLD_MS : 0);
     };
 
     if (reason === "miss" || reason === "capped") {
-      const runningLabel = backfire ? "BACKFIRE" : "CHAIN";
-      if (reason === "miss") {
-        // The pip that was "rolling" (the pending continuation roll) is at
-        // 0-based index `chainLength` — see updateChainHud's own indexing.
-        const pipEl = this.chainHudPipEls[chainLength];
-        if (pipEl) {
-          pipEl.classList.remove("rolling");
-          pipEl.classList.add("missed");
-        }
-        this.chainHudTitle.textContent = `${this.nameOf(heroId)} — ${runningLabel} BROKEN`;
-        this.chainHudTitle.style.color = "var(--muted)";
-      } else {
-        // "capped": there is no pending pip past the last one (the sim
-        // forces the continuation chance to 0 the instant cfg.chainMaxHits —
-        // shared by every hero again since the 2026-09-13 rebuild — is
-        // reached, so the roll never actually happens); flare the cap pip
-        // itself instead of a pip that doesn't exist.
-        const pipEl = this.chainHudPipEls[this.cfg.chainMaxHits - 1];
-        if (pipEl) pulseClass(pipEl, "capped-flare", CHAIN_FAILURE_HOLD_MS);
-        this.chainHudTitle.textContent = `${this.nameOf(heroId)} — MAXED`;
-        this.chainHudTitle.style.color = this.slotFor(heroId)?.accent ?? "var(--chain)";
-      }
-      setTimeout(showCard, CHAIN_FAILURE_HOLD_MS);
+      // The ending states itself on the tag first: STOPPED, NO REPEAT, or the MAX it just reached.
+      const skill = this.skillName(effects);
+      if (reason === "miss") this.writeTag(heroId, skill, chainLength, chainLength <= 1 ? "noRepeat" : "stopped");
+      else this.writeTag(heroId, skill, chainLength, backfire ? "backfire" : "live");
+      fightClock.setTimeout(showCard, CHAIN_FAILURE_HOLD_MS);
       return;
     }
 
@@ -2127,44 +2132,28 @@ export class FightView {
     chainLength: number,
     totalDamage: number,
     totalStunSec: number,
-    killedIds: string[],
+    _killedIds: string[],
     backfire: boolean,
-    reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied",
+    _reason: "miss" | "capped" | "noTarget" | "fightEnd" | "sourceDied",
     effects: ChainEffect[],
   ): void {
-    const refs = this.slotFor(heroId);
-    const name = this.nameOf(heroId);
-    const label = backfire ? "BACKFIRE" : "CHAIN";
-    const color = backfire ? "var(--backfire)" : (refs?.accent ?? "var(--chain)");
-    const killNote = killedIds.length > 0 ? ` — ${killedIds.map((id) => this.nameOf(id)).join(", ")} DOWN` : "";
-    const hitWord = chainLength === 1 ? "hit" : "hits";
-    const maxedNote = reason === "capped" ? " — MAXED" : "";
-    // 2026-09-29 (add-don't-swap — see DECISIONS.md): every total that isn't
-    // zero shows, not just one effect's — a chain with both guard and stun
-    // reports the freeze seconds AND the damage, since both really happened
-    // this chain. Guard alone still shows nothing (it moves no HP and has no
-    // other honest figure — same reasoning the old single-effect version
-    // used).
-    const amountParts: string[] = [];
-    if (effects.includes("stun") && totalStunSec > 0) amountParts.push(`${totalStunSec.toFixed(1)}s`);
-    if (totalDamage > 0) amountParts.push(`${Math.round(totalDamage)}`);
-    const amountPart = amountParts.length > 0 ? `, ${amountParts.join(", ")}` : "";
-
-    this.chainEndCard.innerHTML = "";
-    const headline = document.createElement("div");
-    headline.className = "chain-end-headline";
-    headline.textContent =
-      chainLength === 0
-        ? `${name}'S ${label} FIZZLED`
-        : `${name}'S ${label} — ${chainLength} ${hitWord.toUpperCase()}${amountPart}${killNote}${maxedNote}`;
-    const detail = document.createElement("div");
-    detail.className = "chain-end-detail";
-    detail.textContent = `${chainLength} of ${this.cfg.chainMaxHits} hits rolled · ${effects.map(chainEffectVerb).join(" and ")}`;
-    this.chainEndCard.appendChild(headline);
-    this.chainEndCard.appendChild(detail);
-    this.chainEndCard.style.color = color;
-    this.chainEndCard.classList.toggle("big", chainLength >= this.cfg.chainFullTellThreshold);
     this.chainEndCard.classList.remove("show");
+    // A skill that never repeated has nothing to total up: its tag already said NO REPEAT.
+    if (chainLength < 2) return;
+    const first = effects[0];
+    const heals = first === "mend" || first === "ward" || first === "cauterize";
+    const noun =
+      first === "guard"
+        ? `slam${chainLength === 1 ? "" : "s"} covered`
+        : heals
+          ? `heal${chainLength === 1 ? "" : "s"}`
+          : `hit${chainLength === 1 ? "" : "s"}`;
+    const parts: string[] = [];
+    if (effects.includes("stun") && totalStunSec > 0) parts.push(`${totalStunSec.toFixed(1)}s frozen`);
+    if (totalDamage > 0 && first !== "guard") parts.push(`${Math.round(totalDamage)} ${heals ? "healed" : "damage"}`);
+    this.chainEndCard.innerHTML = `<div class="pr-head">${chainLength} ${noun}</div>${parts.length > 0 ? `<div class="pr-sub">${parts.join(" · ")}</div>` : ""}`;
+    this.chainEndCard.className = `perf-result${backfire ? " backfire" : ""}`;
+    this.placeOver(this.chainEndCard, heroId);
     void this.chainEndCard.offsetWidth;
     this.chainEndCard.classList.add("show");
   }
@@ -2182,6 +2171,7 @@ export class FightView {
     if (gen !== this.chainGen) return; // superseded by a new chain firing first
     this.chainPhase = "idle";
     this.chainHud.classList.remove("show");
+    this.chainEndCard.classList.remove("show");
     const killedSet = new Set(killedIds);
     this.calloutQueue = this.calloutQueue.filter((entry) => entry.keepIfDeferred && !(entry.heroId && killedSet.has(entry.heroId)));
     this.advanceCalloutQueue();
@@ -2236,7 +2226,7 @@ export class FightView {
     const slot = (side === "enemy" ? this.enemyHeroes : this.playerHeroes).get(targetId);
     if (!slot) return;
     if (key && throttleMs > 0) {
-      const now = performance.now();
+      const now = fightClock.now();
       const last = this.markPopupSeen.get(key) ?? -Infinity;
       if (now - last < throttleMs) return;
       this.markPopupSeen.set(key, now);
@@ -2265,7 +2255,7 @@ export class FightView {
     const cause = causeCard ? `  ← ${CARD_DEFS[causeCard].title}` : "";
     const slot = (side === "enemy" ? this.enemyHeroes : this.playerHeroes).get(targetId);
     if (!slot) return;
-    const now = performance.now();
+    const now = fightClock.now();
     const key = `card:${card}:${targetId}`;
     if (now - (this.markPopupSeen.get(key) ?? -Infinity) < 500) return;
     this.markPopupSeen.set(key, now);
@@ -2302,7 +2292,7 @@ export class FightView {
     popup.style.top = `${rect.top - arenaRect.top - jitterY}px`;
 
     this.popupLayer.appendChild(popup);
-    setTimeout(() => popup.remove(), 900);
+    fightClock.setTimeout(() => popup.remove(), 900);
     return popup;
   }
 
@@ -2331,6 +2321,28 @@ export class FightView {
       noteEl.textContent = `WON WITH ${Math.round(this.lastPlayerHpFraction * 100)}% OF THE SQUAD'S HP LEFT`;
       this.resolveOverlay.appendChild(noteEl);
     }
+    // Defeat names the enemy that came closest to being beaten the other way: the standing one with the most HP.
+    if (outcome === "loss") {
+      const standing = this.lastEnemyHeroes.filter((h) => h.alive).sort((a, b) => b.hp - a.hp)[0];
+      if (standing) {
+        const left = document.createElement("span");
+        left.className = "margin-note";
+        left.textContent = `${standing.name.toUpperCase()} HAD ${Math.round(standing.hp)} HP LEFT`;
+        this.resolveOverlay.appendChild(left);
+      }
+    }
+    if (this.bestMomentValue) {
+      const best = document.createElement("div");
+      best.className = "resolve-best";
+      best.innerHTML = `<div class="resolve-best-label">BEST MOMENT</div><div class="resolve-best-line">${momentHtml(this.bestMomentValue)}</div>`;
+      this.resolveOverlay.appendChild(best);
+    }
+    const next = document.createElement("button");
+    next.type = "button";
+    next.className = "resolve-continue";
+    next.textContent = "Continue";
+    next.addEventListener("click", () => this.continueCallback?.());
+    this.resolveOverlay.appendChild(next);
     this.resolveOverlay.className = `resolve-overlay show ${outcome}${tier ? ` ${tier}` : ""}`;
     for (const { body } of this.playerHeroes.values()) {
       body.classList.remove("hot");
@@ -2392,7 +2404,6 @@ function makeHeroSlot(
   side: "player" | "enemy",
   accent: string,
   offsetIndex: number,
-  tier: FatigueTier,
 ): HeroSlot {
   const slot = document.createElement("div");
   // role-* here (2026-09-16 freeze-layout pass) declares --body-size once
@@ -2420,7 +2431,6 @@ function makeHeroSlot(
   const name = document.createElement("div");
   name.className = "body-name";
   name.textContent = hero.name;
-  name.style.color = accent;
 
   const hpTrack = document.createElement("div");
   hpTrack.className = "hp-track";
@@ -2490,7 +2500,7 @@ function makeHeroSlot(
 
   const chargeLabel = document.createElement("div");
   chargeLabel.className = isSlamBar ? "charge-label windup" : "charge-label";
-  chargeLabel.textContent = isSlamBar ? "SLAM" : "CHAIN";
+  chargeLabel.textContent = isSlamBar ? "SLAM" : "";
 
   // Guard pips (2026-09-15 guard-visibility pass; since 2026-10-02 a pill on
   // the body, out of layout) — built for every slot for
@@ -2556,12 +2566,6 @@ function makeHeroSlot(
   core.appendChild(freezeRing);
   perch.appendChild(core);
 
-  // Fatigue pips (2026-09-30, design/canvas/FatiguePips.dc.html) — a stack
-  // beside the body, lit to the unit's tier. Player side only: enemies author
-  // no fatigue. Fatigue changes between fights, never inside one, so this is
-  // set once here and nothing updates it.
-  if (side === "player") perch.insertAdjacentHTML("beforeend", fatiguePipsHtml(tier));
-
   slot.appendChild(perch);
   slot.appendChild(name);
   slot.appendChild(hpBar);
@@ -2614,5 +2618,5 @@ function pulseClass(el: HTMLElement, className: string, ms: number): void {
   el.classList.remove(className);
   void el.offsetWidth;
   el.classList.add(className);
-  setTimeout(() => el.classList.remove(className), ms);
+  fightClock.setTimeout(() => el.classList.remove(className), ms);
 }

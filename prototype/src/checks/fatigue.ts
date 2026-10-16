@@ -20,11 +20,12 @@ import {
 } from "../sim/config.js";
 import { runFight } from "../sim/fight.js";
 import { makeInitialProgress } from "../sim/progress.js";
-import { makeSquadFromRoles, makeStartingRoster } from "../sim/roles.js";
+import { makeStartingRoster } from "../sim/roles.js";
 import { applyFightResultToRoster, fieldSquad } from "../sim/roster.js";
 import { makeEnemySide } from "../sim/run.js";
 import { applyOffer, drawOffers } from "../sim/offers.js";
-import { FATIGUE_PIP_COUNT, FATIGUE_TIER_PIPS, fatiguePipsHtml } from "../render/heroPickShared.js";
+import { TUNED_UNDER, deadFace, eyeSvg, squadFace, villainFace, type FaceTier } from "../render/faces.js";
+import { UNIT_NAMES, makeSquadFromRoles, nameUnits } from "../sim/roles.js";
 
 let failed = false;
 
@@ -97,40 +98,33 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
   check("boost: a max-fatigue unit's first rung hits harder than a fresh unit's", worn > fresh && fresh > 0, `${fresh} -> ${worn}`);
 }
 
-// --- The pips show the tier: 1 / 2 / 3 / 4 lit, and every fatigue value lights its own tier's count.
+// --- The faces show the tier: lids drop, a rim appears, and small bodies get the size-tuned eye.
 {
-  const tiers = ["fresh", "worn", "frayed", "breaking"] as const;
-  const litIn = (html: string) => (html.match(/class="fatigue-pip lit"/g) ?? []).length;
-  const totalIn = (html: string) => (html.match(/class="fatigue-pip(?: lit)?"/g) ?? []).length;
+  const tiers: FaceTier[] = ["fresh", "worn", "frayed", "breaking"];
+  const tank = "#ffb454";
+  check("faces: every tier draws an svg", tiers.every((t) => squadFace(tank, t, 52).startsWith("<svg")));
+  const noIds = (svg: string) => svg.replace(/e\d+(-1|1)/g, "e");
+  check("faces: the four tiers draw four different faces", new Set(tiers.map((t) => noIds(squadFace(tank, t, 52)))).size === 4);
+  check("faces: Frayed and Breaking carry a rim, Fresh and Worn do not", ["frayed", "breaking"].every((t) => /#e8913c|#ff4d4d/.test(squadFace(tank, t as FaceTier, 52))) && !/#e8913c|#ff4d4d/.test(squadFace(tank, "fresh", 52) + squadFace(tank, "worn", 52)));
+  check(
+    "faces: under TUNED_UNDER the size-tuned eye is used, at TUNED_UNDER the plain one",
+    /rx="16.5"/.test(squadFace(tank, "worn", TUNED_UNDER - 1)) && /rx="13"/.test(squadFace(tank, "worn", TUNED_UNDER)),
+  );
+  check("faces: an unknown tier throws", (() => { try { eyeSvg(tank, "rested" as FaceTier, 52, "plain"); return false; } catch { return true; } })());
+  check("faces: clip ids stay unique across faces", (() => { const a = squadFace(tank, "fresh", 52), b = squadFace(tank, "fresh", 52); return a.match(/id="(e\d+)/)![1] !== b.match(/id="(e\d+)/)![1]; })());
+  check("faces: villain and fallen faces draw", villainFace(34).startsWith("<svg") && villainFace(56, 1.35).includes("clipPath") && deadFace().includes("M23 37"));
+}
 
-  check("pips: fresh lights 1 and breaking lights all of them", FATIGUE_TIER_PIPS.fresh === 1 && FATIGUE_TIER_PIPS.breaking === FATIGUE_PIP_COUNT);
-  check(
-    "pips: each tier lights more than the one before",
-    tiers.every((t, i) => i === 0 || FATIGUE_TIER_PIPS[t] > FATIGUE_TIER_PIPS[tiers[i - 1]!]),
-  );
-  check("pips: one pip per tier", FATIGUE_PIP_COUNT === tiers.length);
-  check(
-    "pips: the markup has every pip and lights exactly the tier's count",
-    tiers.every((t) => totalIn(fatiguePipsHtml(t)) === FATIGUE_PIP_COUNT && litIn(fatiguePipsHtml(t)) === FATIGUE_TIER_PIPS[t]),
-  );
-  check(
-    "pips: the markup carries its tier class",
-    tiers.every((t) => fatiguePipsHtml(t).includes(`fatigue-pips tier-${t}`)),
-  );
-
-  const [worn, frayed, breaking] = fc.fatigueTierFloors;
-  const edge = (fatigue: number) => litIn(fatiguePipsHtml(fatigueTier(fc, fatigue)));
-  check(
-    "pips: the lit count steps up exactly at each tier floor",
-    edge(0) === 1 &&
-      edge(worn - 1) === 1 &&
-      edge(worn) === 2 &&
-      edge(frayed - 1) === 2 &&
-      edge(frayed) === 3 &&
-      edge(breaking - 1) === 3 &&
-      edge(breaking) === 4 &&
-      edge(fc.fatigueMax) === 4,
-  );
+// --- Unit names: drawn from the pool, seeded, never repeated in one roster, role labels left alone elsewhere.
+{
+  const progress = makeInitialProgress(run);
+  const named = (seed: number) => nameUnits(makeStartingRoster(progress.bonus).heroes, seed).map((h) => h.name);
+  check("names: a seed replays the same names", JSON.stringify(named(7)) === JSON.stringify(named(7)));
+  check("names: every starting unit gets a pool name", named(7).every((n) => UNIT_NAMES.includes(n)));
+  check("names: no name twice in a roster", new Set(named(7)).size === named(7).length);
+  check("names: different seeds give different names", new Set([1, 2, 3, 4, 5, 6].map((s) => named(s).join())).size > 1);
+  check("names: a named unit keeps its name", (() => { const once = nameUnits(makeStartingRoster(progress.bonus).heroes, 9); return nameUnits(once, 123) === once; })());
+  check("names: a check squad keeps the role labels", makeSquadFromRoles(["tank", "damage"]).heroes.every((h) => /^(Tank|Damage|Healer) \d+$/.test(h.name)));
 }
 
 // --- The roster moves fatigue and keeps it in range.

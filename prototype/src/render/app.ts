@@ -1,16 +1,25 @@
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
-import type { Offer } from "../sim/offers.js";
+import { defaultCardDrop, type Offer } from "../sim/offers.js";
 import type { CardId } from "../sim/cards/index.js";
 import { FightView } from "./fightView.js";
+import { bestMoment } from "./fightSummary.js";
+import { openFighterPopup, type PopupFighter } from "./fighterPopup.js";
+import { fierceScowl } from "./roundParts.js";
+import { roundEnemySide } from "../sim/rounds.js";
 import { Playback } from "./playback.js";
 import { RunSession } from "./runSession.js";
-import { renderRunCompleteScreen, renderRunOverScreen, renderRoundRecap } from "./runScreens.js";
+import { renderRunCompleteScreen, renderRoundRecap } from "./runScreens.js";
+import { renderRunOverScreen } from "./runOverScreen.js";
 import { renderRoundScreen } from "./roundScreen.js";
+import { renderSquadScreen } from "./squadScreen.js";
 import { renderOfferScreen } from "./offerScreen.js";
 import { renderRelicScreen } from "./relicScreen.js";
 import { downloadRunLog } from "../log/download.js";
 
 const cfg = DEFAULT_RUN_CONFIG;
+
+const ICON_PAUSE = '<svg width="11" height="11" viewBox="0 0 11 11"><rect x="1.5" y="1" width="3" height="9" rx="0.8" fill="#e8e8ee"/><rect x="6.5" y="1" width="3" height="9" rx="0.8" fill="#e8e8ee"/></svg>';
+const ICON_PLAY_SMALL = '<svg width="11" height="11" viewBox="0 0 11 11"><path d="M2.5 1 L9.5 5.5 L2.5 10 Z" fill="#e8e8ee"/></svg>';
 
 /**
  * Attribution self-test instrumentation (archive/ATTRIBUTION_TEST.md) —
@@ -26,6 +35,12 @@ const cfg = DEFAULT_RUN_CONFIG;
 const urlParams = new URLSearchParams(location.search);
 const testMode = urlParams.get("test") === "1";
 const pinnedSeed = urlParams.get("seed");
+/** Screenshot helpers, no-ops when absent: ?round=N plays the run headless with the default
+ * picks until round N's round screen, ?runover=1 plays it until the run ends. */
+const jumpToRound = Number(urlParams.get("round")) || 0;
+const jumpToRunOver = urlParams.get("runover") === "1";
+/** ?fall=N (with ?round=N): marks the last N fielded units dead, to see the empty-slot screen without a lucky seed. */
+const fallCount = Number(urlParams.get("fall")) || 0;
 
 /** The seed corner badge, present on every screen, with an "export" link that
  * downloads the run so far as JSON (log/runLog.ts). Each click writes every
@@ -51,6 +66,8 @@ export function mountApp(root: HTMLElement): void {
   let playback: Playback | null = null;
   // The player's squad-mix pick for the round about to be played.
   let pendingFieldedIds: string[] = [];
+  // The squad on the round screen before Fight (null until the round screen first draws it).
+  let roundPick: string[] | null = null;
 
   // The round 1 reward (2026-10-01): pick a relic. No row is pre-selected.
   function showRelicScreen(): void {
@@ -64,21 +81,41 @@ export function mountApp(root: HTMLElement): void {
   function startNewRun(): void {
     const seed = pinnedSeed !== null && pinnedSeed !== "" ? Number(pinnedSeed) : Math.floor(Math.random() * 1_000_000_000);
     session = new RunSession(cfg, seed);
+    if (jumpToRound > 1 || jumpToRunOver) fastForward();
+    if (fallCount > 0) {
+      const byId = new Map(session.currentRoster.heroes.map((h) => [h.id, h]));
+      for (const id of session.lastFielded.slice(-fallCount)) {
+        const h = byId.get(id);
+        if (h) h.alive = false;
+      }
+    }
+    if (session.status === "over") {
+      showRunOver();
+      return;
+    }
     // A run opens straight on its first fight (2026-10-01); the relic pick is that
     // fight's reward.
     showRoundScreen();
   }
 
+  /** Plays rounds with the accept-default pick (the same loop as checks/runLog.ts playSession). */
+  function fastForward(): void {
+    while (session.status === "in-progress" && (jumpToRunOver || session.currentRoundIndex < jumpToRound - 1)) {
+      session.playNextRound();
+      if (session.status !== "in-progress") break;
+      if (session.awaitingRelic) {
+        session.pickRelic(session.relicChoices[0]!);
+      } else if (session.pendingOffers.length === 0) {
+        session.resolveOffer(null);
+      } else {
+        const offer = session.pendingOffers[0]!;
+        session.resolveOffer(offer, defaultCardDrop(session.progress, session.currentRoster, offer, cfg));
+      }
+    }
+  }
+
   function showRunOver(): void {
-    renderRunOverScreen(
-      root,
-      session.rounds.length,
-      session.overReason,
-      session.lastFightResult,
-      session.lastProjection,
-      startNewRun,
-      testMode,
-    );
+    renderRunOverScreen(root, cfg, session, startNewRun, testMode);
     appendSeedBadge(root, session);
   }
 
@@ -88,6 +125,9 @@ export function mountApp(root: HTMLElement): void {
   }
 
   function showRoundScreen(): void {
+    // The squad so far: last round's living squad, with an empty slot where a unit died. It survives a trip
+    // to the squad screen and back, and starts over each round.
+    roundPick ??= session.defaultPickWithGaps;
     renderRoundScreen(
       root,
       cfg,
@@ -98,12 +138,23 @@ export function mountApp(root: HTMLElement): void {
       session.currentEncounterName,
       session.currentEncounterBlurb,
       session.currentRoundKind,
-      session.defaultFielding,
+      roundPick,
+      session.lastFielded,
       (fieldedIds) => {
         pendingFieldedIds = fieldedIds;
+        roundPick = null;
         playCurrentFight();
       },
+      { onChangeSquad: showSquadScreen },
     );
+    appendSeedBadge(root, session);
+  }
+
+  function showSquadScreen(pick: string[]): void {
+    renderSquadScreen(root, cfg, session.currentRoundIndex + 1, session.currentRoster, session.progress.slots, pick, (newPick) => {
+      roundPick = newPick;
+      showRoundScreen();
+    });
     appendSeedBadge(root, session);
   }
 
@@ -112,57 +163,99 @@ export function mountApp(root: HTMLElement): void {
     const fightContainer = document.createElement("div");
     root.appendChild(fightContainer);
 
-    const controls = document.createElement("div");
-    controls.className = "controls";
-    root.appendChild(controls);
-
     const view = new FightView(fightContainer, cfg.fight);
     const result = session.playNextRound(pendingFieldedIds);
+    view.setBestMoment(bestMoment(result));
+    // Continue is the only way off the result overlay: it shows how the fight ended and the best moment, then waits.
+    view.onContinue(() => {
+      if (session.status === "over") {
+        showRunOver();
+        return;
+      }
+      renderRoundRecap(root, session.currentRoundIndex, result, session.lastProjection, showReward, testMode);
+      appendSeedBadge(root, session);
+    });
+
+    let ended = false;
+    // A paused fight stops everything: the playback clock, every fight timer and every CSS animation (FightView.pause).
+    let pausedByButton = false;
+    let pausedByPopup = false;
+    const syncPause = (): void => {
+      const stop = pausedByButton || pausedByPopup;
+      pauseBtn.classList.toggle("on", pausedByButton);
+      pauseBtn.setAttribute("aria-label", pausedByButton ? "Resume" : "Pause");
+      pauseBtn.innerHTML = pausedByButton ? ICON_PLAY_SMALL : ICON_PAUSE;
+      if (ended) return;
+      if (stop) {
+        playback?.pause();
+        view.pause();
+      } else {
+        view.resume();
+        playback?.play();
+      }
+    };
 
     playback = new Playback(
       result,
       (snapshot, events) => view.render(snapshot, events),
-      () => onFightEnd(result, view),
+      () => {
+        ended = true;
+        pauseBtn.remove();
+      },
       cfg.fight.chainFullTellThreshold,
       (simT) => view.renderFrame(simT),
     );
 
+    // The round ⏸ button in the card's top-right corner replaces the Pause and Step buttons under the arena.
     const pauseBtn = document.createElement("button");
-    pauseBtn.textContent = "Pause";
+    pauseBtn.type = "button";
+    pauseBtn.className = "ft-pause";
+    pauseBtn.innerHTML = ICON_PAUSE;
+    pauseBtn.setAttribute("aria-label", "Pause");
     pauseBtn.addEventListener("click", () => {
-      if (!playback) return;
-      if (playback.isPaused) {
-        playback.play();
-        pauseBtn.textContent = "Pause";
-      } else {
-        playback.pause();
-        pauseBtn.textContent = "Resume";
-      }
+      pausedByButton = !pausedByButton;
+      syncPause();
     });
-    const stepBtn = document.createElement("button");
-    stepBtn.textContent = "Step";
-    stepBtn.addEventListener("click", () => playback?.step());
+    fightContainer.appendChild(pauseBtn);
 
-    controls.appendChild(pauseBtn);
-    controls.appendChild(stepBtn);
+    // A tap on any fighter pauses the fight and opens its popup (frames 2.1 to 2.6); closing it resumes.
+    let closePopup: (() => void) | null = null;
+    view.setFighterTapHandler((id) => {
+      if (closePopup) return;
+      const snap = view.currentSnapshot;
+      if (!snap) return;
+      const squadBase = new Map(session.currentPlayerSide.heroes.map((h) => [h.id, h]));
+      const enemyBase = new Map(roundEnemySide(cfg, session.currentRoundIndex, session.currentEncounterIndex).heroes.map((h) => [h.id, h]));
+      const toFighter = (h: (typeof snap.playerHeroes)[number], base: Map<string, { damage: number; healPerBeat?: number }>): PopupFighter => ({
+        id: h.id,
+        name: h.name,
+        role: h.role,
+        hp: h.hp,
+        maxHp: h.maxHp,
+        alive: h.alive,
+        damage: base.get(h.id)?.damage ?? 0,
+        healPerBeat: base.get(h.id)?.healPerBeat,
+        fatigue: h.fatigue,
+      });
+      pausedByPopup = true;
+      syncPause();
+      closePopup = openFighterPopup({
+        cfg,
+        squad: snap.playerHeroes.map((h) => toFighter(h, squadBase)),
+        enemies: snap.enemyHeroes.map((h) => toFighter(h, enemyBase)),
+        openId: id,
+        progress: session.progress,
+        fierceEnemies: fierceScowl(session.currentRoundKind, session.currentEncounterName),
+        onClose: () => {
+          closePopup = null;
+          pausedByPopup = false;
+          syncPause();
+        },
+      });
+    });
 
     playback.play();
     appendSeedBadge(root, session);
-  }
-
-  function onFightEnd(result: ReturnType<RunSession["playNextRound"]>, view: FightView): void {
-    // The overlay (VICTORY/DEFEAT) only shows after the last hit lands and the
-    // last body falls, so the pause starts from when it appears, not from now.
-    view.onResolveShown(() => {
-      setTimeout(() => {
-        if (session.status === "over") {
-          showRunOver();
-          return;
-        }
-        renderRoundRecap(root, session.currentRoundIndex, result, session.lastProjection, showReward, testMode);
-        appendSeedBadge(root, session);
-      }, 900);
-    });
   }
 
   // After a win's recap: the relic pick on the relic round, the normal offers on

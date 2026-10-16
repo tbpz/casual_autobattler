@@ -10,6 +10,71 @@
 
 ---
 
+## [2026-10-16] Units have names of their own, drawn from a fixed pool by the run seed
+
+- **Decision:**
+  - Each unit gets a short name from a fixed pool when it is made, such as Bram, Ivy or Sol.
+  - The draw is seeded from the run seed and the unit's index, so a seed replays the same names.
+  - A name already in the roster is skipped.
+  - The draw uses its own stream, never the fight RNG.
+  - Lab, batch and check squads keep role labels.
+- **Why:**
+  - The canvas frames name every fighter, and a player has to tell units apart to link a skill to the unit that used it.
+  - The seeded draw keeps a seed's run reproducible, which the determinism check relies on.
+  - Tu chose the seeded pool over fixed-by-order and player-typed names.
+- **Replaces:**
+  - The open question "where do unit names come from" in STATE.
+  - Units named from the role label and an ordinal ("Tank 2"), set in `sim/roles.ts`.
+
+## [2026-10-16] A dead unit's slot stays empty, and Fight waits for the player to fill it
+
+- **Decision:**
+  - When a fielded unit dies, its slot is empty on the next round screen, drawn as a dashed "Empty / Tap to fill" ring.
+  - Fight is disabled and reads "Pick N from the bench" until every slot is filled.
+  - The fill is one tap on a bench unit on the squad screen.
+  - A slot that appears from a reward still fills itself.
+  - The headless sim and the batch bot keep auto-filling (`defaultFieldPick`).
+- **Why:**
+  - Tu asked for frame 1.5 to be built as drawn.
+  - A silent swap hides that a unit fell and who replaced it.
+- **Replaces:**
+  - 2026-10-02 "The pick screen keeps last round's squad", for the dead-unit case only.
+  - Fight is no longer accept-default in that one case.
+  - Not settled: two units dead at once is not drawn; with no living bench unit the run already ends (`canFieldSquad`).
+
+## [2026-10-16] The fight announces a skill with a tag on the unit that uses it; tapping a fighter pauses
+
+- **Decision:**
+  - A speech-bubble tag on the performer replaces the top chain banner, its pips and its running total.
+  - The tag is small on a first use and shows a ×N count from the first repeat.
+  - The tag is bigger from five, and reads MAX at the cap; a backfire has a red border.
+  - Fight text never says "chain"; that word stays on the cards and popups.
+  - Tapping a fighter mid-fight pauses the fight and opens its popup.
+  - A round ⏸ button replaces the Pause and Step buttons, and Step is removed.
+  - Pausing stops every fight timer, not only the playback clock.
+- **Why:**
+  - A playtest friend could not tell what "chain" meant or which unit caused it, because the banner sat far from the performer.
+  - Tu asked for the announcement to sit near the performer.
+- **Replaces:**
+  - "No tapping during a fight".
+  - The fight HUD and end card in `render/fightView.ts`.
+  - Not settled: whether the tag alone teaches ×N; ask the playtest friend.
+
+## [2026-10-16] Same-kind enemies share one popup chip with a count, and the chip row scrolls past seven
+
+- **Decision:**
+  - In the fighter popup's switcher, enemies of one kind share a single chip with a ×N badge.
+  - Units group by name prefix, so "Acolyte 1" and "Acolyte 2" share a chip.
+  - The ‹ › arrows still step through each unit, each with its own HP.
+  - Past seven chips the row scrolls sideways on one line, with a fade on a hidden side.
+  - The open chip is scrolled into view.
+- **Why:**
+  - Tu asked for the header to hold many heroes and enemies without tiny chips or a second row.
+  - Seven chips is the real maximum today, so the scroll only matters if the squad cap grows.
+- **Replaces:**
+  - A chip per enemy body.
+  - The squad cap is `maxSlots` in `sim/config.ts`; not restated here.
+
 ## [2026-10-16] A fallen fighter has a popup: grey face, greyed skill, the way back in place of Fatigue
 
 - **Decision:**

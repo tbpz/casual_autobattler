@@ -1,0 +1,44 @@
+import { TERM_CARD_DATA } from "./termCardData.js";
+import type { TermId } from "./terms.js";
+
+/**
+ * The term explainer card (canvas 3.1–3.11, DECISIONS.md 2026-10-11): a tap on an underlined word opens a card with a small looping
+ * scene, the term's name and a short meaning. Closes on ✕, "Got it" or a tap outside. Words inside a card are coloured but not
+ * tappable, so the depth is screen → popup → card and a card never links on. The scenes and their CSS are generated from the canvas
+ * (design/tools/port-term-cards.js → termCardData.ts, termCards.css).
+ */
+let openCard: HTMLElement | null = null;
+
+/** Opens the card for `term` over everything else. Returns a function that closes it. `onClose` runs once, whichever way it closes. */
+export function openTermCard(term: TermId, onClose?: () => void): () => void {
+  openCard?.remove();
+  const data = TERM_CARD_DATA[term];
+  const overlay = document.createElement("div");
+  overlay.className = "tc-overlay";
+  if (!data) {
+    // A term with no card yet: nothing to show, so do not trap the player behind an empty overlay.
+    onClose?.();
+    return () => {};
+  }
+  overlay.innerHTML = `<div class="tc-card tc-${term}"><div class="tc-x" data-close>✕</div>${data.scene}${data.text}<button type="button" class="tc-got" data-close>Got it</button></div>`;
+  let closed = false;
+  const close = (): void => {
+    if (closed) return;
+    closed = true;
+    overlay.remove();
+    if (openCard === overlay) openCard = null;
+    document.removeEventListener("keydown", onKey);
+    onClose?.();
+  };
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key === "Escape") close();
+  };
+  overlay.addEventListener("click", (e) => {
+    const t = e.target as HTMLElement;
+    if (t === overlay || t.closest("[data-close]")) close();
+  });
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(overlay);
+  openCard = overlay;
+  return close;
+}

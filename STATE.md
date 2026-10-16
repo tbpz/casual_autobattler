@@ -22,15 +22,15 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 ## Where it stands
 
-A run grows over 20 rounds through a relic, reward cards, role upgrades and duo cards, and the squad pick starts as last round's squad. The work now is making the game explain itself to a first-time player, drawn on the canvas in play order (frames 1.1 to 7.1): a face-off round screen, a fighter popup for living and fallen units, underlined terms with animated cards, a squad screen, a bare fight screen and a run-over screen. The fight screen puts a tag on the unit that uses a skill, never says "chain", and shows every status across frames 5.1 to 5.7. Frames 1.1 to 5.7 and 7.1 are not built in the prototype, and every frame on the canvas awaits Tu's approval.
+A run grows over 20 rounds through a relic, reward cards, role upgrades and duo cards. The screens drawn on the canvas to make the game explain itself to a first-time player are now built in the prototype: a face-off round screen, a squad screen, a fighter popup, underlined terms with animated cards, a bare fight screen with a tag on the unit that uses a skill, and a run-over screen. None has been played by a first-time player, and every canvas frame still awaits Tu's approval. Fight, card and relic mechanics are batch-verified and unchanged.
 
 ## Next up
 
-1. **Finish the self-explaining screens on canvas:** get frames 1.1–7.1 approved (open calls 8–12 and 10b in `design/HANDOFF.md`), then carry the underline marks and the skill rename onto the reward-pick frame 6.1 (call 12).
-2. **Build it:** the face-off screen in `render/roundScreen.ts`, a squad screen route in `render/app.ts`, unit names in `sim/roles.ts`, the fighter popup (fallen state included) and term cards, the run-over screen in `render/runScreens.ts`, and in `render/fightView.ts` the bare arena, the tag on the performer and the pause button.
+1. **Play it:** run `npm run dev` on a phone with a different build each time, then put it in front of the playtest friend and ask whether the tag on the unit alone explains the skill and its count, and whether they find the underlines, the icons and the popup unprompted.
+2. **Fix what that shows, then get the frames approved** (open calls 8–12 and 10b in `design/HANDOFF.md`); carry the underline marks and the skill rename onto the reward pick 6.1 (call 12) and the post-win recap, which still says "chained ×N for 0".
 3. **Fix the cards that rarely fire:** Glass fires only when a freeze ends; Overflow, Ember heart, Cold snap, Bulwark and Deep freeze fire in under half their held fights (the "rarely fires" line of `npm run batch -- --offers build`).
 4. **Rebalance outliers** from the synergy block (Punish is the weakest card by a wide margin; recheck whether Exposed's cards still trail Burn's) and **pick a target for chains' share of damage** (about 44% of player damage now).
-5. **Play more runs** (`npm run dev`) with a different build each time and send the `export` file, then run a second outside playtest on the new round and fight screens and ask the playtest friend whether the tag on the unit alone explains the skill and its count; the healer-only stalemate and the two recap wording bugs ("for 0" on a guard/stun save; the guard's repeated "against" line) wait behind this.
+5. **Send the `export` file from each play**; the healer-only stalemate and the guard's repeated "against" recap line wait behind #1.
 
 ---
 
@@ -42,18 +42,15 @@ A run grows over 20 rounds through a relic, reward cards, role upgrades and duo 
 | Chain frequency — per-fight reset, time trickle, tougher enemies | batch-verified | `sim/roster.ts`, `sim/config.ts`, `checks/runShape.ts` |
 | Fatigue — per-unit, sets backfire odds and chain size | batch-verified | `sim/roster.ts`, `sim/config.ts`, `checks/fatigue.ts` |
 | Chain abilities — 12; each role has 3 upgrade options, 2 drawn per run | batch-verified | `sim/roles.ts`, `sim/progress.ts`, `checks/abilities.ts` |
-| Chain legibility — pacing, HUD, pips, end card, cascade popups | built | `render/playback.ts`, `render/fightView.ts` |
+| Fight screen — bare arena, a tag on the unit that uses a skill, thin charge bar, ⏸ and tap to pause, result overlay with best moment | built | `render/fightView.ts`, `render/app.ts`, `render/pauseClock.ts`, `design/HANDOFF.md` |
 | Shield on the HP bar — segment, ghosts, break flash | built | `render/hpBar.ts`, `render/fightView.ts`, `checks/hpBar.ts` |
-| Round screen — squad pick starts as last round's squad, fatigue, relic and card chips, duo hints | built | `render/roundScreen.ts`, `sim/roster.ts`, `design/HANDOFF.md` |
-| Face-off round screen, enemy lineups, bench shelf and squad screen — frames 1.1–1.5 and 4.1 drawn, not approved | not started | `design/canvas/RoundFaceOff*.dc.html`, `design/canvas/SquadScreen.dc.html`, `design/HANDOFF.md` |
-| Fighter popup — frames 2.1–2.5 drawn, not approved; 2.4 is the Warden, an enemy with a heal and a slam | not started | `design/canvas/FighterPopup*.dc.html`, `design/HANDOFF.md` |
-| Fallen fighter popup — frame 2.6 drawn: grey face, greyed skill, the way back in place of Fatigue; not approved | not started | `design/canvas/FighterPopupFallen.dc.html`, `design/HANDOFF.md` |
-| Term marks and explainer cards — 11 cards, 3.1–3.11; underlined on frame 1.1, drawn, not approved | not started | `design/canvas/Term*.dc.html`, `design/canvas/RoundFaceOff.dc.html`, `design/HANDOFF.md` |
-| Fight screen — bare arena, a tag on the unit that uses a skill, every status, defeat result; frames 5.1–5.7 drawn, not approved | not started | `design/canvas/Fight*.dc.html`, `design/HANDOFF.md` |
-| Run over screen — frame 7.1 drawn, replaces the built text screen; not approved | not started | `design/canvas/RunOver.dc.html`, `render/runScreens.ts` |
-| Face style — fatigue eyes, villain eyes, charge bar, guard pips above the body; drawn on the canvas, not approved | not started | `design/HANDOFF.md`, `design/tools/faces.js` |
-| Skill naming — a unit's move is a skill, chain is its repeat; done on the popups, cards 3.9–3.11 and the fight frames, not on 6.1 or in the code | not started | `design/HANDOFF.md` (call 12) |
-| Unit names — names of their own are decided; units are named from the role label today | not started | `sim/roles.ts` |
+| Round screen — face-off, enemy badges, bench shelf, empty slot when a unit falls, squad screen | built | `render/roundScreen.ts`, `render/squadScreen.ts`, `render/roundParts.ts` |
+| Fighter popup — switcher, skill tile, fatigue card; fallen units open it from the fight only | built | `render/fighterPopup.ts` |
+| Term marks and explainer cards — 11 cards, scenes generated from the canvas | built | `render/termCards.ts`, `design/tools/port-term-cards.js` |
+| Run over screen — how close it was, best moment of the run, build, squad | built | `render/runOverScreen.ts`, `render/fightSummary.ts` |
+| Face style — fatigue eyes, villain eyes, charge bar, guard pips above the body | built | `render/faces.ts`, `design/tools/faces.js` |
+| Skill naming — on popups, cards and the fight tag; not on the reward pick, the recap or in `sim/` | built | `design/HANDOFF.md` (call 12) |
+| Unit names — seeded draw from a pool | built | `sim/roles.ts`, `render/runSession.ts` |
 | Marks — each chain ability leaves one | batch-verified | `sim/fight.ts`, `checks/marks.ts` |
 | Card engine — hooks, cascades, depth cap | batch-verified | `sim/cards/engine.ts`, `checks/cards.ts` |
 | Card pool — 34 cards incl. 6 duos | batch-verified | `sim/cards/defs/`, `checks/cardpool.ts` |
@@ -75,18 +72,18 @@ A run grows over 20 rounds through a relic, reward cards, role upgrades and duo 
 ## Unverified bets
 
 - Chains every fight still feel unpredictable, rather than averaging out into a steady trade.
-- Push or rest stays a real choice, and players bench a tired hero by hand and notice the bench shelf (the batch bot rotates; the pick screen keeps last round's squad).
+- Push or rest stays a real choice, and players bench a tired hero by hand and notice the bench shelf.
 - Cards, duos and relics give a run an identity and a combo worth chasing.
-- A cascade stays readable on a phone screen.
-- A first-time player finds the underlined terms, the stat icons and the enemy badges, taps a fighter for its popup, reads the eyes as fatigue and enemy, and links a skill to the unit that did it from the tag on its head, without being told.
+- A cascade stays readable on a phone screen, and a tap on a fighter that pauses the fight feels natural.
+- A first-time player finds the underlined terms, the stat icons and the enemy badges, opens a fighter's popup, reads the eyes as fatigue and enemy, and links a skill to the unit that did it from the tag on its head, without being told.
 
 ## Open questions
 
-- Does the face-off round screen, with its stat icons, enemy badges, eyes, fighter popup and term cards, let a first-time player say who fights whom and what each side can do, and does the fight's tag name who did what? Answered by Next up #1 and #5.
-- Where do unit names come from: a fixed pool, random, or picked by the player? Gates the build in Next up #2.
+- Does the face-off round screen, with its stat icons, enemy badges, eyes, popup and term cards, let a first-time player say who fights whom and what each side can do, and does the fight's tag name who did what? Answered by Next up #1.
+- Does an empty slot that blocks Fight until it is filled feel clear, or does it break accept-default? Answered by Next up #1.
 - Does the Exposed build still win less than Burn or Frozen, and is that its cards or a multiplier on a flat damage number? Gates Next up #4.
 - What fire rate is healthy for a card that fires only on a moment (Lay bare, Second wind)? Gates Next up #3.
-- Do today's relics set a run's identity, and do eased fatigue and common Recruit feel survivable by hand? Answered by Next up #5.
+- Do today's relics set a run's identity, and do eased fatigue and common Recruit feel survivable by hand? Answered by Next up #1.
 
 ## How to work here
 
@@ -94,7 +91,7 @@ A run grows over 20 rounds through a relic, reward cards, role upgrades and duo 
   loop) → [DECISIONS.md](DECISIONS.md) **by grep only**, never top-to-bottom; entries below its archive rule predate the 2026-07-18 pivot.
 - Decisions are proposed, never silently logged — on a confirmed yes, append via the `decision-log` skill.
 - This file is regenerated only when asked, via the `state-sync` skill; `REFERENCE.md` is not.
-- Commands: `npm run dev` to play (the corner `export` link saves the run as JSON; `?test=1&seed=N` runs the `archive/ATTRIBUTION_TEST.md` protocol),
+- Commands: `npm run dev` to play (the corner `export` link saves the run as JSON; `?test=1&seed=N` runs the `archive/ATTRIBUTION_TEST.md` protocol; `?round=N`, `?runover=1` and `?fall=N` jump to a screen for screenshots),
   `npm run check` for regressions, `npm run batch -- --n 1000 --offers build` (add `--set key=number,...` to sweep a value, `--cards a,b` to restrict the pool) — full list in `prototype/COMMANDS.md`.
 - Code: `prototype/src/sim/` (`config.ts` holds every tunable, `rounds.ts` the round plan, `cards/` the card engine and definitions), `src/render/`, `src/batch/`, `src/checks/`, `src/log/` (the export).
-- Design: canvas at https://claude.ai/artifact/73dix2PGsz2Y7BBDMNbzny, sources in `design/canvas/`; frames, open calls and the publish recipe are in [design/HANDOFF.md](design/HANDOFF.md), which also maps the old frame numbers that `DECISIONS.md` still uses to the new ones.
+- Design: canvas at https://claude.ai/artifact/73dix2PGsz2Y7BBDMNbzny, sources in `design/canvas/`; what is built where, the open calls and the publish recipe are in [design/HANDOFF.md](design/HANDOFF.md), which also maps the old frame numbers that `DECISIONS.md` still uses to the new ones.

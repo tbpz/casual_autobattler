@@ -26,6 +26,32 @@ Units, HP and fatigue values are made up for the picture, not read from a run.
 | 7.1, 7.2 (2026-10-14 only) | dropped 2026-10-15 | FatigueOptions and FightFaces: what they showed now lives on the round and fight screens and in "Face style" |
 | 1, 2, 3, 5, 8, 10, 11 | dropped 2026-10-11 | see "Dropped frames" below |
 
+## Built in the prototype (2026-10-16)
+
+Every frame below marked "not built" was built this day, in `prototype/src/`. The frames still await Tu's approval; this is a first build to play on, not a sign-off. Where each frame lives:
+
+| Frames | Built in |
+|---|---|
+| 1.1–1.5 round screen, bench shelf | `render/roundScreen.ts`, pieces in `render/roundParts.ts`, CSS `.fo-*` in `screens.css` |
+| 4.1 squad screen, and 1.5's right phone | `render/squadScreen.ts` (CSS `.sq-*`) |
+| 2.1–2.6 fighter popup | `render/fighterPopup.ts` (CSS `.pp-*`) |
+| 3.1–3.11 term cards | `render/termCards.ts`; the scenes are generated from the canvas by `design/tools/port-term-cards.js` into `render/termCardData.ts` and `termCards.css` (re-run it after a canvas edit) |
+| 5.1–5.7 fight screen | `render/fightView.ts` (the performer tag, faces, the thin charge bar, the result overlay), `render/app.ts` (the ⏸ button, tap to pause), `render/pauseClock.ts`, CSS at the end of `style.css` |
+| 7.1 run over | `render/runOverScreen.ts` (CSS `.ro-*`), best moment from `render/fightSummary.ts` |
+| Face style | `render/faces.ts`, a port of `design/tools/faces.js` plus the fallen face |
+| Unit names | `sim/roles.ts` `UNIT_NAMES` and `nameUnits`, applied by `render/runSession.ts` |
+
+**Where the build differs from the canvas (decided with Tu on 2026-10-16 unless noted):**
+- **A relic and cards row** sits under YOUR SQUAD on the round screen (tap a card to read it, with its duo hints). It is not drawn on 1.1–1.5; it is the old row, restyled, kept so the cards stay readable before a fight.
+- **Upgrade abilities** (Stun, Brace, Scorch and the rest) appear on a skill tile as one extra chip each. The canvas draws only the three base skills.
+- **No "Fell to the Vanguard's slam" line** on the fallen popup (2.6): the killer is not recorded.
+- **Step is gone**, not hidden. Pausing (the ⏸ button or a tap on a fighter) stops every fight timer, animation frame and CSS animation through `fightClock`, not only the playback clock.
+- **An empty slot (1.5) is real**: `sim/roster.ts` `carryOverWithGaps`, `RunSession.defaultPickWithGaps`. The headless sim and batch bot still use `defaultFieldPick`, which always fills.
+- **A fallen fighter is not offered by the round screen.** 2.6 opens from a tap on a dead unit in a fight; on the round screen a dead unit sits on the bench shelf and does not open a popup (the open point under 2.6 stands).
+- **Best moment** counts runs of two or more hits, and a Guard shows no damage figure (it moves no HP).
+- **The recap and the "chained ×N for 0" wording** on the round-recap screen after a win are unchanged: they still say "chained" (call 12c), and that screen was never on the canvas.
+- Dev-only URL params for screenshots: `?round=N` (play headless to round N), `?runover=1` (play to the end), `?fall=N` (mark the last N fielded units dead). All are no-ops when absent.
+
 ### 1 · Round screen — before every fight
 
 **1.1 RoundFaceOff** — **proposal, drawn 2026-10-09, not built, awaiting Tu's approval.** Round 1 of the face-off round screen. It replaces the role-band round screen the game has today (old frames 1–3, dropped).

@@ -69,6 +69,20 @@ export function carryOverFieldPick(roster: RosterState, fieldSize: number, previ
   return pickSquad(roster, fieldSize, previous);
 }
 
+/** The pre-ticked squad on the round screen once an empty slot is allowed (DECISIONS.md
+ * 2026-10-16): last round's living squad stays, a slot that has just appeared from a reward
+ * fills the way defaultFieldPick fills it, and a slot whose unit DIED stays empty for the
+ * player to fill. The result is shorter than fieldSize exactly when a unit fell. With no
+ * history (round 1) it is the full default pick. The batch bot and the headless sim keep
+ * using defaultFieldPick, which always fills. */
+export function carryOverWithGaps(roster: RosterState, fieldSize: number, previous: string[]): string[] {
+  if (previous.length === 0) return pickSquad(roster, fieldSize, []);
+  const living = new Set(livingRosterHeroes(roster).map((h) => h.id));
+  const kept = [...new Set(previous)].filter((id) => living.has(id)).slice(0, fieldSize);
+  const newSlots = Math.max(0, fieldSize - previous.length);
+  return newSlots === 0 ? kept : pickSquad(roster, kept.length + newSlots, kept);
+}
+
 function pickSquad(roster: RosterState, fieldSize: number, keep: string[]): string[] {
   const living = livingRosterHeroes(roster);
   const hpFrac = (h: HeroState) => (h.maxHp > 0 ? h.hp / h.maxHp : 0) - h.fatigue * FATIGUE_PICK_WEIGHT;

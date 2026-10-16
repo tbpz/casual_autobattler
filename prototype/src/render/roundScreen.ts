@@ -1,72 +1,47 @@
-import { backfireChanceFor, fatigueTier, type RunConfig } from "../sim/config.js";
-import type { HeroState } from "../sim/types.js";
-import { PLAYER_ROLES, ROLE_LABEL, type PlayerRole } from "../sim/roles.js";
+import type { RunConfig } from "../sim/config.js";
+import { type PlayerRole } from "../sim/roles.js";
 import type { RunProgress } from "../sim/progress.js";
 import { CARD_DEFS, DUO_IDS, cardConnects, duoUnlocked } from "../sim/cards/index.js";
 import { squadChainEffects } from "../sim/offers.js";
-import { chainStrongerCount, heldCards } from "../sim/progress.js";
+import { heldCards } from "../sim/progress.js";
 import type { RosterState } from "../sim/roster.js";
-import { roundEnemySide, ROUND_PLAN } from "../sim/rounds.js";
+import { roundEnemySide } from "../sim/rounds.js";
 import type { EncounterKind } from "../sim/encounters.js";
+import { markWordsHtml } from "./heroPickShared.js";
+import { ICON_SKULL_MINI } from "./icons.js";
 import {
-  chainAnswersSlam,
-  chainEffectChip,
-  chainEffectLines,
-  chainVsEncounterLine,
-  fatiguePipsHtml,
-  markWordsHtml,
-} from "./heroPickShared.js";
+  benchUnitHtml,
+  emptySlotHtml,
+  enemyBodyHtml,
+  esc,
+  fierceScowl,
+  rankOrder,
+  roundStripHtml,
+  squadBodyHtml,
+} from "./roundParts.js";
+import { openFighterPopup } from "./fighterPopup.js";
+import { openTermCard } from "./termCards.js";
+import { termFromTarget, termifyText } from "./terms.js";
 
-/** HP fractions where a round token's bar changes how loudly it reads —
- * carried over unchanged from the old fieldPickScreen.ts. */
-const HP_HURT_FRACTION = 0.75;
-const HP_CRITICAL_FRACTION = 0.4;
-
-function hpSeverity(h: HeroState): "ok" | "hurt" | "critical" {
-  const frac = h.maxHp > 0 ? h.hp / h.maxHp : 0;
-  if (frac < HP_CRITICAL_FRACTION) return "critical";
-  if (frac < HP_HURT_FRACTION) return "hurt";
-  return "ok";
-}
-
-const ROLE_ICON: Record<PlayerRole, string> = { tank: "🛡", damage: "⚔", support: "✚" };
-/** The FIGHTING strip's per-unit code ("T1", "D1", "H1") — first letter of
- * ROLE_LABEL, same convention design/canvas/RoundGrown.dc.html uses. */
-const ROLE_CODE: Record<PlayerRole, string> = { tank: "T", damage: "D", support: "H" };
 export const ROLE_CSS_VAR: Record<PlayerRole, string> = { tank: "--role-tank", damage: "--role-damage", support: "--role-healer" };
 
-/** A unit's own number within its role, read off the end of its display
- * name ("Tank 2" -> 2) — makeUnitState (sim/roles.ts) bakes it in at
- * creation and never recomputes it, so this is a display-only re-read, not
- * a second source of truth. */
-function unitOrdinal(name: string): string {
-  const m = /(\d+)\s*$/.exec(name);
-  return m ? m[1]! : "?";
-}
+/** The goal line ("your squad fights theirs on its own") is shown only on the first rounds. */
+const GOAL_LINE_ROUNDS = 3;
 
-function strongerCountWord(n: number): string {
-  if (n === 1) return "once";
-  if (n === 2) return "twice";
-  return `${n} times`;
+export interface RoundScreenOpts {
+  /** A tap on the shelf, `Change squad ›` or an empty slot: opens the squad screen with the pick so far. */
+  onChangeSquad?: (pick: string[]) => void;
 }
 
 /**
- * 2026-09-29 round-screen rebuild (see design/HANDOFF.md "Round screen" and
- * DECISIONS.md's 2026-09-23 entries — this replaces the old one-text-row-
- * per-unit list wholesale, drawn from design/canvas/RoundStart/RoundGrown/
- * RoundPress.dc.html). One band per ROLE (icon, ability chips, a +N
- * "stronger" badge, a ✓-vs-slam tag) with that role's units drawn underneath
- * as round tokens — an HP bar, a number, a stack of fatigue-tier pips beside
- * the circle, and the tier word once a unit is no longer Fresh (DECISIONS.md
- * 2026-09-30). Tapping a band header (or a held payoff card) toggles
- * a floating popover with the full sentences the header only hints at — same
- * words the old row always showed, just one tap away instead of always on
- * screen. It floats rather than sitting inline so opening it never moves the
- * layout (supersedes DECISIONS.md's 2026-09-23 "opens on press-and-hold").
+ * The face-off round screen (canvas 1.1–1.5, DECISIONS.md 2026-10-09 to 2026-10-16): two squads about to fight.
+ * A round strip with skull markers, a goal line on the first rounds, a hint line, a tinted ENEMY zone (bodies with villain eyes,
+ * HP and damage as icons, a badge for a slam or a heal, the encounter blurb), a VS line, a tinted YOUR SQUAD zone (named fighters
+ * in ranks, their eyes showing fatigue), a bench shelf, a compact relic and cards row (not on the canvas: it keeps the cards
+ * readable before a fight), and a Fight button.
  *
- * Chain identity is still shown ONCE PER ROLE, not once per unit — every
- * unit of a role shares the same chain ability list/level (roster.ts's
- * stampProgressOntoSquad).
+ * The squad is read-only here. Swapping happens on the squad screen. `pick` is the squad so far: shorter than the slot count
+ * when a unit died last round, in which case each empty slot is drawn as a ring and Fight is disabled until it is filled.
  */
 export function renderRoundScreen(
   container: HTMLElement,
@@ -76,26 +51,87 @@ export function renderRoundScreen(
   roster: RosterState,
   progress: RunProgress,
   encounterName: string,
-  // No longer shown (2026-09-29 rebuild) — the enemy row + role bands
-  // replace the old text blurb. Kept in the signature so app.ts's call site
-  // doesn't need to change.
-  _encounterBlurb: string,
-  // Not read directly (2026-09-29 rebuild) — the mini-boss/boss ticks below
-  // are drawn straight from ROUND_PLAN instead, which already carries this
-  // round's own kind. Kept in the signature so app.ts's call site doesn't
-  // need to change.
-  _roundKind: EncounterKind,
-  preticked: string[],
-  onPlay: (fieldedIds: string[]) => void,
+  encounterBlurb: string,
+  roundKind: EncounterKind,
+  pick: string[],
+  lastFielded: string[],
+  onFight: (fieldedIds: string[]) => void,
+  opts: RoundScreenOpts = {},
 ): void {
   container.innerHTML = "";
   const panel = document.createElement("div");
-  panel.className = "round-panel";
+  panel.className = "fo-card";
 
-  // ---------- detail popover (shared by role bands and held cards) ----------
-  // One floating box, position: fixed, so opening it never reflows the page
-  // (the old inline hold-card shifted the whole centred panel). Appended to
-  // `container`, not `panel` — the panel clips its overflow.
+  const slots = progress.slots;
+  const byId = new Map(roster.heroes.map((h) => [h.id, h]));
+  const fielded = pick.map((id) => byId.get(id)).filter((h): h is NonNullable<typeof h> => !!h && h.alive);
+  const emptyCount = Math.max(0, slots - fielded.length);
+  const bench = roster.heroes.filter((h) => !fielded.some((f) => f.id === h.id));
+  const enemy = roundEnemySide(cfg, roundIndex, encounterIndex);
+  const fierce = fierceScowl(roundKind, encounterName);
+
+  // ---------- enemy zone ----------
+  const alone = enemy.heroes.length === 1;
+  const tag =
+    roundKind === "miniboss" || roundKind === "boss"
+      ? `<span class="fo-kind-tag">${ICON_SKULL_MINI}${roundKind === "boss" ? "BOSS" : "MINI-BOSS"}</span>`
+      : "";
+  const enemyBodies = enemy.heroes
+    .map((h) => enemyBodyHtml(h, { alone, fierce: fierce && h.role === "bruiser" }, Math.round(h.damage * cfg.fight.windupDamageMultiplier)))
+    .join("");
+
+  // ---------- squad zone ----------
+  const layout = { slots };
+  type Cell = { kind: "unit"; unit: (typeof fielded)[number] } | { kind: "empty" };
+  const cells: Cell[] = [
+    ...fielded.map((unit): Cell => ({ kind: "unit", unit })),
+    ...Array.from({ length: emptyCount }, (): Cell => ({ kind: "empty" })),
+  ];
+  const ranked = rankOrder(cells, (c) => c.kind === "unit" && c.unit.role === "tank");
+  const squadBodies = ranked
+    .map(({ item, back }) => (item.kind === "unit" ? squadBodyHtml(item.unit, cfg, back, layout) : emptySlotHtml(layout)))
+    .join("");
+  const count = emptyCount > 0 ? `<span class="fo-count">${fielded.length} of ${slots}</span>` : "";
+
+  const shelfHasContent = bench.length > 0;
+  const shelf = shelfHasContent
+    ? `<div class="fo-shelf tap"><div class="fo-shelfhead"><span class="fo-shelfname">BENCH</span><span class="fo-change">Change squad ›</span></div><div class="fo-shelfrow">${bench.map(benchUnitHtml).join("")}</div></div>`
+    : `<div class="fo-shelf"><div class="fo-shelfhead"><span class="fo-shelfname">BENCH</span></div><div class="fo-shelf-empty">Empty. New recruits wait here.</div></div>`;
+
+  // ---------- the fallen line and the button ----------
+  const fallen = lastFielded.map((id) => byId.get(id)).filter((h): h is NonNullable<typeof h> => !!h && !h.alive);
+  const fallenLine =
+    emptyCount > 0
+      ? `<div class="fo-fallen-line">${
+          fallen.length > 0 ? `${esc(fallen.map((h) => h.name).join(" and "))} fell last round. ` : ""
+        }Fill the empty slot${emptyCount > 1 ? "s" : ""} to fight.</div>`
+      : "";
+
+  panel.innerHTML = `
+    ${roundStripHtml(cfg, roundIndex + 1)}
+    ${roundIndex < GOAL_LINE_ROUNDS ? `<div class="fo-goal">Your squad fights theirs on its own. Wipe out the enemy squad to win the round.</div>` : ""}
+    <div class="fo-hint">Tap any fighter to see what it does</div>
+    <div class="fo-zone enemy">
+      <div class="fo-zonehead"><span class="fo-pill enemy">ENEMY</span><span class="fo-zonename">${esc(encounterName)}</span>${tag}</div>
+      <div class="fo-enemies">${enemyBodies}</div>
+      <div class="fo-blurb">${termifyText(esc(encounterBlurb))}</div>
+    </div>
+    <div class="fo-vs"><span></span><b>VS</b><span></span></div>
+    <div class="fo-zone squad">
+      <div class="fo-zonehead"><span class="fo-pill squad">YOUR SQUAD</span>${count}</div>
+      <div class="fo-squadrow">${squadBodies}</div>
+      ${shelf}
+    </div>
+    <div class="fo-cards-slot"></div>
+    ${fallenLine}
+    <button class="fo-fight" type="button"></button>
+  `;
+
+  const fightBtn = panel.querySelector(".fo-fight") as HTMLButtonElement;
+  fightBtn.disabled = emptyCount > 0;
+  fightBtn.textContent = emptyCount > 0 ? `Pick ${emptyCount} from the bench` : "Fight!";
+
+  // ---------- relic and held cards (kept from the old screen; not on the canvas) ----------
   const popover = document.createElement("div");
   popover.className = "round-popover";
   popover.style.display = "none";
@@ -105,17 +141,6 @@ export function renderRoundScreen(
     popover.style.display = "none";
     popoverAnchor?.classList.remove("open");
     popoverAnchor = null;
-  }
-
-  function placePopover(anchor: HTMLElement): void {
-    const margin = 8;
-    const a = anchor.getBoundingClientRect();
-    const p = popover.getBoundingClientRect();
-    const fitsBelow = a.bottom + 6 + p.height <= window.innerHeight - margin;
-    const top = fitsBelow ? a.bottom + 6 : Math.max(margin, a.top - 6 - p.height);
-    const left = Math.min(Math.max(margin, a.left), Math.max(margin, window.innerWidth - p.width - margin));
-    popover.style.top = `${top}px`;
-    popover.style.left = `${left}px`;
   }
 
   function togglePopover(anchor: HTMLElement, content: HTMLElement[]): void {
@@ -128,11 +153,15 @@ export function renderRoundScreen(
     popover.style.display = "block";
     popoverAnchor = anchor;
     anchor.classList.add("open");
-    placePopover(anchor);
+    const margin = 8;
+    const a = anchor.getBoundingClientRect();
+    const p = popover.getBoundingClientRect();
+    const fitsBelow = a.bottom + 6 + p.height <= window.innerHeight - margin;
+    popover.style.top = `${fitsBelow ? a.bottom + 6 : Math.max(margin, a.top - 6 - p.height)}px`;
+    popover.style.left = `${Math.min(Math.max(margin, a.left), Math.max(margin, window.innerWidth - p.width - margin))}px`;
   }
 
-  // Document-level listeners outlive this render; each one drops itself the
-  // first time it fires after the screen has been replaced.
+  // Document-level listeners outlive this render; each drops itself the first time it fires after the screen was replaced.
   function whileMounted(handler: (e: Event) => void): (e: Event) => void {
     const wrapped = (e: Event): void => {
       if (!popover.isConnected) {
@@ -155,228 +184,6 @@ export function renderRoundScreen(
   window.addEventListener("scroll", onMove, true);
   window.addEventListener("resize", onMove);
 
-  const enemyPreview = roundEnemySide(cfg, roundIndex, encounterIndex);
-  const fieldSize = progress.slots;
-  const selected = new Set<string>(preticked);
-
-  // ---------- header: round counter + progress bar ----------
-  const header = document.createElement("div");
-  header.className = "round-header";
-  const headerLabel = document.createElement("div");
-  headerLabel.className = "round-header-label";
-  headerLabel.textContent = `ROUND ${roundIndex + 1}/${cfg.roundsPerRun}`;
-  header.appendChild(headerLabel);
-
-  const track = document.createElement("div");
-  track.className = "round-progress-track";
-  const fill = document.createElement("div");
-  fill.className = "round-progress-fill";
-  fill.style.width = `${((roundIndex + 1) / cfg.roundsPerRun) * 100}%`;
-  track.appendChild(fill);
-  const plan = ROUND_PLAN.slice(0, cfg.roundsPerRun);
-  plan.forEach((r, i) => {
-    if (r.kind !== "miniboss" && r.kind !== "boss") return;
-    const roundNumber = i + 1;
-    const tick = document.createElement("div");
-    tick.className = `round-progress-tick${r.kind === "boss" ? " boss" : ""}${roundIndex + 1 >= roundNumber ? " lit" : ""}`;
-    tick.style.left = `${(roundNumber / cfg.roundsPerRun) * 100}%`;
-    track.appendChild(tick);
-  });
-  header.appendChild(track);
-  panel.appendChild(header);
-
-  // ---------- enemy row ----------
-  const enemyName = document.createElement("div");
-  enemyName.className = "round-enemy-name";
-  enemyName.textContent = encounterName;
-  panel.appendChild(enemyName);
-
-  const enemyRow = document.createElement("div");
-  enemyRow.className = "round-enemy-row";
-  for (const e of enemyPreview.heroes) {
-    const isBruiser = e.role === "bruiser";
-    const enemyEl = document.createElement("div");
-    enemyEl.className = `round-enemy${isBruiser ? " bruiser" : ""}`;
-    const body = document.createElement("div");
-    body.className = "round-enemy-body";
-    enemyEl.appendChild(body);
-    if (isBruiser) {
-      const mark = document.createElement("div");
-      mark.className = "round-enemy-slam-mark";
-      mark.textContent = "💥";
-      enemyEl.appendChild(mark);
-    }
-    const hp = document.createElement("div");
-    hp.className = "round-enemy-hp";
-    hp.textContent = `${Math.round(e.hp)}/${Math.round(e.maxHp)}`;
-    enemyEl.appendChild(hp);
-    enemyRow.appendChild(enemyEl);
-  }
-  panel.appendChild(enemyRow);
-  panel.appendChild(divider());
-
-  // ---------- role bands ----------
-  const tokenRefs = new Map<string, { wrap: HTMLElement; badge: HTMLElement }>();
-  const playBtn = document.createElement("button");
-  playBtn.className = "play-btn";
-
-  function refreshPlayState(): void {
-    const ready = selected.size === fieldSize;
-    playBtn.disabled = !ready;
-    playBtn.textContent = ready ? "Play" : `Pick ${fieldSize - selected.size} more`;
-  }
-
-  function refreshTokens(): void {
-    for (const [id, refs] of tokenRefs) {
-      const isSelected = selected.has(id);
-      refs.wrap.classList.toggle("not-picked", !isSelected);
-      refs.badge.classList.toggle("unpicked", !isSelected);
-      refs.badge.textContent = isSelected ? "✓" : "";
-    }
-    refreshFightingStrip();
-  }
-
-  function toggle(id: string): void {
-    if (selected.has(id)) {
-      selected.delete(id);
-    } else {
-      if (selected.size >= fieldSize) {
-        const oldest = selected.values().next().value;
-        if (oldest) selected.delete(oldest);
-      }
-      selected.add(id);
-    }
-    refreshTokens();
-    refreshPlayState();
-  }
-
-  for (const role of PLAYER_ROLES) {
-    const roleUnits = roster.heroes.filter((h) => h.role === role);
-    if (roleUnits.length === 0) continue;
-    const roleProgress = progress.chain[role];
-    const answersSlam = chainAnswersSlam(roleProgress.effects, enemyPreview);
-    const strongerCount = chainStrongerCount(progress, role);
-
-    const band = document.createElement("div");
-    band.className = "round-band";
-
-    const bandHeader = document.createElement("div");
-    bandHeader.className = "round-band-header";
-
-    const icon = document.createElement("span");
-    icon.className = "round-band-icon";
-    icon.textContent = ROLE_ICON[role];
-    bandHeader.appendChild(icon);
-
-    const label = document.createElement("span");
-    label.className = "round-band-label";
-    label.textContent = ROLE_LABEL[role].toUpperCase();
-    bandHeader.appendChild(label);
-
-    for (const effect of roleProgress.effects) {
-      const { icon: chipIcon, word } = chainEffectChip(effect);
-      const chip = document.createElement("span");
-      chip.className = "round-chip";
-      chip.innerHTML = `<span class="round-chip-icon">${chipIcon}</span><span class="round-chip-word">${word}</span>`;
-      bandHeader.appendChild(chip);
-    }
-
-    if (strongerCount > 0) {
-      const badge = document.createElement("span");
-      badge.className = "round-stronger-badge";
-      badge.textContent = `+${strongerCount}`;
-      bandHeader.appendChild(badge);
-    }
-
-    if (answersSlam) {
-      const tag = document.createElement("span");
-      tag.className = "round-answer-tag";
-      tag.textContent = "✓ vs 💥";
-      bandHeader.appendChild(tag);
-    }
-
-    band.appendChild(bandHeader);
-
-    // The detail popover (tap to toggle) — floats over the page, so opening
-    // it never moves the layout. Lines are built on open; cheap, and it keeps
-    // them out of the DOM until asked for.
-    bandHeader.addEventListener("click", () => {
-      const lines: HTMLElement[] = [];
-      for (const effect of roleProgress.effects) {
-        const { icon: chipIcon, word } = chainEffectChip(effect);
-        const name = word.charAt(0).toUpperCase() + word.slice(1);
-        const line = document.createElement("div");
-        line.innerHTML = `<strong>${chipIcon} ${name}.</strong> ${chainEffectLines(effect).does}`;
-        lines.push(line);
-      }
-      const answerLine = document.createElement("div");
-      answerLine.className = "round-popover-answer";
-      answerLine.textContent = chainVsEncounterLine(roleProgress.effects, enemyPreview);
-      lines.push(answerLine);
-      if (strongerCount > 0) {
-        lines.push(popoverMeta(`Made stronger ${strongerCountWord(strongerCount)}.`));
-      }
-      // Backfire risk is per unit now (DECISIONS.md 2026-09-30): each living
-      // unit's own fatigue tier and the chance its next chain goes wrong.
-      for (const u of roleUnits) {
-        if (!u.alive) continue;
-        const chance = Math.round(backfireChanceFor(cfg.fight, u.fatigue) * 100);
-        lines.push(popoverMeta(`${u.name}: ${fatigueTier(cfg.fight, u.fatigue)} — ${chance}% backfire.`));
-      }
-      togglePopover(bandHeader, lines);
-    });
-    bandHeader.addEventListener("contextmenu", (e) => e.preventDefault());
-
-    // ---------- unit tokens ----------
-    const tokenRow = document.createElement("div");
-    tokenRow.className = "round-token-row";
-    for (const h of roleUnits) {
-      const ordinal = unitOrdinal(h.name);
-      if (!h.alive) {
-        const wrap = document.createElement("div");
-        wrap.className = "round-token fallen";
-        wrap.innerHTML = `
-          <div class="round-token-body-wrap">
-            <div class="round-token-body">${ordinal}</div>
-            <div class="round-token-badge fallen">✕</div>
-          </div>
-          <div class="round-token-hp"></div>
-        `;
-        tokenRow.appendChild(wrap);
-        continue;
-      }
-
-      const isSelected = selected.has(h.id);
-      const severity = hpSeverity(h);
-      const hpFrac = h.maxHp > 0 ? Math.max(h.hp, 0) / h.maxHp : 0;
-      const tier = fatigueTier(cfg.fight, h.fatigue);
-      const backfirePct = Math.round(backfireChanceFor(cfg.fight, h.fatigue) * 100);
-
-      const wrap = document.createElement("button");
-      wrap.type = "button";
-      wrap.className = `round-token${isSelected ? "" : " not-picked"}`;
-      wrap.title = `${h.name}: ${tier}, ${backfirePct}% backfire`;
-      wrap.innerHTML = `
-        <div class="round-token-main">
-          <div class="round-token-body-wrap">
-            <div class="round-token-body" style="background: var(${ROLE_CSS_VAR[role]})">${ordinal}</div>
-            <div class="round-token-badge${isSelected ? "" : " unpicked"}" style="background: var(${ROLE_CSS_VAR[role]})">${isSelected ? "✓" : ""}</div>
-          </div>
-          ${fatiguePipsHtml(tier)}
-        </div>
-        <div class="round-token-hp"><div class="round-token-hp-fill${severity === "ok" ? "" : ` ${severity}`}" style="width: ${(hpFrac * 100).toFixed(1)}%"></div></div>
-        <div class="round-token-tier tier-${tier}">${tier === "fresh" ? "&nbsp;" : tier}</div>
-      `;
-      wrap.addEventListener("click", () => toggle(h.id));
-      const badge = wrap.querySelector(".round-token-badge") as HTMLElement;
-      tokenRefs.set(h.id, { wrap, badge });
-      tokenRow.appendChild(wrap);
-    }
-    band.appendChild(tokenRow);
-    panel.appendChild(band);
-  }
-
-  // ---------- relic and held cards (2026-09-30, relic 2026-10-01) ----------
   if (progress.cards.length > 0 || progress.relic) {
     const payoffRow = document.createElement("div");
     payoffRow.className = "round-payoff-row";
@@ -423,48 +230,36 @@ export function renderRoundScreen(
       });
       payoffRow.appendChild(chip);
     }
-    panel.appendChild(payoffRow);
+    panel.querySelector(".fo-cards-slot")!.appendChild(payoffRow);
   }
 
-  panel.appendChild(divider());
-
-  // ---------- FIGHTING strip ----------
-  const strip = document.createElement("div");
-  strip.className = "round-fighting-strip";
-  const stripLabel = document.createElement("span");
-  stripLabel.className = "round-fighting-label";
-  stripLabel.textContent = "FIGHTING";
-  strip.appendChild(stripLabel);
-  const chips = document.createElement("div");
-  chips.className = "round-fighting-chips";
-  strip.appendChild(chips);
-  const count = document.createElement("span");
-  count.className = "round-fighting-count";
-  strip.appendChild(count);
-  panel.appendChild(strip);
-
-  function refreshFightingStrip(): void {
-    chips.innerHTML = "";
-    for (const id of selected) {
-      const h = roster.heroes.find((u) => u.id === id);
-      if (!h || h.role === "bruiser" || h.role === "grunt") continue;
-      const chip = document.createElement("div");
-      chip.className = "round-fighting-chip";
-      chip.style.background = `var(${ROLE_CSS_VAR[h.role]})`;
-      chip.textContent = `${ROLE_CODE[h.role]}${unitOrdinal(h.name)}`;
-      chips.appendChild(chip);
+  // ---------- taps ----------
+  panel.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const term = termFromTarget(target);
+    if (term) {
+      closePopover();
+      openTermCard(term);
+      return;
     }
-    count.textContent = `${selected.size}/${fieldSize}`;
-  }
-
-  panel.appendChild(playBtn);
-  playBtn.addEventListener("click", () => {
-    closePopover();
-    onPlay([...selected]);
+    if (target.closest(".fo-fight")) {
+      if (emptyCount === 0) {
+        closePopover();
+        onFight(fielded.map((h) => h.id));
+      }
+      return;
+    }
+    if (target.closest("[data-slot=empty]") || target.closest(".fo-shelf.tap")) {
+      closePopover();
+      opts.onChangeSquad?.(fielded.map((h) => h.id));
+      return;
+    }
+    const fighter = target.closest("[data-fighter]") as HTMLElement | null;
+    if (fighter) {
+      closePopover();
+      openFighterPopup({ cfg, squad: fielded, enemies: enemy.heroes, openId: fighter.dataset.fighter!, progress, fierceEnemies: fierce });
+    }
   });
-
-  refreshTokens();
-  refreshPlayState();
 
   container.appendChild(panel);
   container.appendChild(popover);
@@ -474,11 +269,5 @@ function popoverMeta(text: string): HTMLElement {
   const el = document.createElement("div");
   el.className = "round-popover-meta";
   el.textContent = text;
-  return el;
-}
-
-function divider(): HTMLElement {
-  const el = document.createElement("div");
-  el.className = "round-divider";
   return el;
 }
