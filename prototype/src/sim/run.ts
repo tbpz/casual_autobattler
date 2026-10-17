@@ -213,7 +213,7 @@ export function runRun(
 ): RunResult {
   const fieldPick = opts?.fieldPick ?? defaultFieldPick;
   let progress = makeInitialProgress(cfg, upgradeRngFor(seed));
-  let roster: RosterState = makeStartingRoster(progress.bonus);
+  let roster: RosterState = makeStartingRoster(progress.bonus, cfg.startingPerRole);
 
   const rounds: RoundSummary[] = [];
   const fightResults: FightResult[] = [];
@@ -250,7 +250,7 @@ export function runRun(
         const relicRng = relicRngFor(seed);
         const choices = drawRelicChoices(relicRng);
         relicTaken = (opts?.relicPick ?? ((c) => c[0]!))(choices);
-        const applied = applyRelic(progress, roster, relicTaken, relicRng);
+        const applied = applyRelic(progress, roster, relicTaken, cfg);
         progress = applied.progress;
         roster = applied.roster;
       }

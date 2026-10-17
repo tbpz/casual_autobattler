@@ -1,6 +1,7 @@
 import { SynergyTracker, formatSynergy, type SynergyReport } from "./synergy.js";
 import { fatigueTier, type FatigueTier, type RunConfig } from "../sim/config.js";
 import type { RunResult } from "../sim/run.js";
+import { PLAYER_ROLES } from "../sim/roles.js";
 import type { CardId } from "../sim/cards/index.js";
 
 /**
@@ -324,11 +325,11 @@ export class BatchAggregator {
 
     // Walk rounds in order, crediting each death to the round it happened
     // in rather than only reading the run's last entry. Baseline is
-    // startingSlots (the run's starting roster) — the roster can both
+    // the starting roster (one of each role, startingPerRole times) — the roster can both
     // shrink (a death) and grow (a "recruit"/"slot" offer) over a run now,
     // so this reads as "net change from the round before," not a strict
     // shrink-only count.
-    let livingBefore = this.cfg.startingSlots;
+    let livingBefore = PLAYER_ROLES.length * this.cfg.startingPerRole;
     for (const f of r.rounds) {
       const deathsThisFight = f.outcome === "win" ? Math.max(livingBefore - f.livingHeroesAfter, 0) : livingBefore;
       this.totalDeaths += deathsThisFight;

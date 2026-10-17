@@ -58,8 +58,7 @@ export type CardId =
   | "frostCrown"
   | "huntersEye"
   | "bastion"
-  | "restless"
-  | "mercenary";
+  | "restless";
 
 export type CardKind = "mark" | "general" | "duo" | "relic";
 
@@ -189,7 +188,7 @@ export interface CardDef {
   /** Duo cards only. */
   needs?: CardNeeds;
   /** True for a card that works as a standing rule and raises no cardTriggered
-   * of its own (Aegis, Mercenary), so the batch's fire-rate line leaves it out. */
+   * of its own (Aegis), so the batch's fire-rate line leaves it out. */
   passive?: true;
   hooks: CardHook[];
 }

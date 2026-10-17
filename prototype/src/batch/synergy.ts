@@ -66,7 +66,7 @@ export interface SynergyReport {
   pairs: PairScore[];
   /** How often each held card actually fires (2026-10-02), fewest first. A card
    * that is held often and almost never fires is dead weight to the player,
-   * however good its text reads. Passive cards (Aegis, Mercenary) raise no
+   * however good its text reads. Passive cards (Aegis) raise no
    * trigger by design and are left out. */
   fireRates: FireRate[];
   /** Per relic: runs that took it and how many were completed. */

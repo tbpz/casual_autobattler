@@ -5,7 +5,8 @@
  *  - A slot that has just appeared from a reward fills the way the default pick fills it.
  *  - With no history (round 1) the pick is the full default one.
  *  - The headless sim and the batch bot are unchanged: defaultFieldPick and carryOverFieldPick still always fill.
- *  - A recruit or the Mercenary is named the moment it joins, from the run seed, with no repeats.
+ *  - A run starts with two of each role (three fielded, three on the bench); a recruit is named the moment it joins, from the run seed, with no repeats.
+ *  - The round 1 pick adds neither a squad spot nor a unit.
  */
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
 import { makeInitialProgress } from "../sim/progress.js";
@@ -75,7 +76,7 @@ function rosterOf(extra: number) {
   check("a new slot and a death: the new slot fills, the dead unit's slot stays empty", both.length === 3 && !both.includes(roster.heroes[1]!.id));
 }
 
-// --- names: a recruit and the Mercenary are named from the run seed, never twice.
+// --- names: the starting units and a recruit are named from the run seed, never twice.
 {
   const run = (seed: number) => {
     const s = new RunSession(cfg, seed);
@@ -83,14 +84,32 @@ function rosterOf(extra: number) {
   };
   check("names: a session names its starting units from the pool", run(5).every((n) => UNIT_NAMES.includes(n)));
   check("names: a seed replays the same names", JSON.stringify(run(5)) === JSON.stringify(run(5)));
-  const s = new RunSession(cfg, 9);
-  s.playNextRound();
-  if (s.status === "in-progress" && s.awaitingRelic) {
-    const merc = s.relicChoices.find((id) => id === "mercenary");
-    if (merc) {
-      s.pickRelic(merc);
-      const names = s.currentRoster.heroes.map((h) => h.name);
-      check("names: the Mercenary gets a name of its own, with no repeat", names.every((n) => UNIT_NAMES.includes(n)) && new Set(names).size === names.length);
+  check("names: no starting unit shares a name", new Set(run(5)).size === run(5).length);
+}
+
+// --- a run starts with a bench: two of each role, three fielded, three waiting.
+{
+  const s = new RunSession(cfg, 5);
+  const heroes = s.currentRoster.heroes;
+  const count = (role: string) => heroes.filter((h) => h.role === role).length;
+  check("start: six units, two of each role", heroes.length === 6 && count("tank") === 2 && count("damage") === 2 && count("support") === 2);
+  check("start: every id is unique", new Set(heroes.map((h) => h.id)).size === heroes.length);
+  const pick = carryOverWithGaps(s.currentRoster, s.progress.slots, []);
+  const fielded = heroes.filter((h) => pick.includes(h.id));
+  check("start: round 1 fields one of each role", pick.length === 3 && new Set(fielded.map((h) => h.role)).size === 3);
+  check("start: three units wait on the bench", heroes.length - pick.length === 3);
+  check("start: a Tank-less squad can be fielded", defaultFieldPick({ ...s.currentRoster, heroes: heroes.filter((h) => h.role !== "tank") }, 3).length === 3);
+}
+
+// --- The round 1 pick never adds a squad spot or a unit (Wanderer, which did, is gone).
+{
+  for (const seed of [9, 10, 11, 12]) {
+    const s = new RunSession(cfg, seed);
+    s.playNextRound();
+    if (s.status === "in-progress" && s.awaitingRelic) {
+      const before = s.progress.slots;
+      s.pickRelic(s.relicChoices[0]!);
+      check(`round 1 pick (seed ${seed}): the squad spots and the roster are unchanged`, s.progress.slots === before && s.currentRoster.heroes.length === 6);
     }
   }
 }

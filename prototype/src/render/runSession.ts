@@ -115,14 +115,14 @@ export class RunSession {
     this.rng = new Rng(seed);
     this.offerRng = new Rng((seed ^ 0x51ed270b) >>> 0);
     this.progressValue = makeInitialProgress(cfg, upgradeRngFor(seed));
-    this.roster = this.withNames(makeStartingRoster(this.progressValue.bonus));
+    this.roster = this.withNames(makeStartingRoster(this.progressValue.bonus, cfg.startingPerRole));
     this.roundOrder = drawRoundEncounters(seed, cfg.roundsPerRun);
     this.relicRng = relicRngFor(seed);
     this.relicChoices = drawRelicChoices(this.relicRng);
   }
 
   /** Gives any unit that still has a role-label name a name of its own (sim/roles.ts nameUnits),
-   * drawn from the run seed, so a recruit or the Mercenary is named the moment it joins. */
+   * drawn from the run seed, so a recruit is named the moment it joins. */
   private withNames(roster: RosterState): RosterState {
     const heroes = nameUnits(roster.heroes, this.seedValue);
     return heroes === roster.heroes ? roster : { ...roster, heroes };
@@ -134,10 +134,10 @@ export class RunSession {
 
   /** Takes the relic that is the reward for the relic round's win, and ends
    * that round. Ignored unless a pick is pending, so a double-tap can't take
-   * a second one. Mercenary also adds its fourth unit to the roster. */
+   * a second one. */
   pickRelic(id: CardId): void {
     if (!this.awaitingRelic || !this.relicChoices.includes(id)) return;
-    const applied = applyRelic(this.progressValue, this.roster, id, this.relicRng);
+    const applied = applyRelic(this.progressValue, this.roster, id, this.cfg);
     this.progressValue = applied.progress;
     this.roster = this.withNames(applied.roster);
     this.awaitingRelic = false;

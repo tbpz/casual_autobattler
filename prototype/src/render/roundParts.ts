@@ -96,42 +96,52 @@ export interface SquadLayout {
   slots: number;
 }
 
-function squadSizes(slots: number): { tank: number; back: number; col: number; showTag: boolean; nameSize: number } {
-  if (slots >= 5) return { tank: 42, back: 28, col: 60, showTag: false, nameSize: 11 };
-  if (slots === 4) return { tank: 46, back: 30, col: 76, showTag: true, nameSize: 12 };
-  return { tank: 46, back: 33, col: 82, showTag: true, nameSize: 12 };
+/** Every squad body is this size, the Tank included, so size never says "boss" (canvas 1.6B). */
+const SQUAD_BODY_PX = 36;
+
+function squadSizes(slots: number): { col: number; showTag: boolean; nameSize: number } {
+  if (slots >= 5) return { col: 60, showTag: false, nameSize: 11 };
+  if (slots === 4) return { col: 76, showTag: true, nameSize: 12 };
+  return { col: 82, showTag: true, nameSize: 12 };
 }
 
-/** One squad member in its rank: face by fatigue tier, name, role tag, HP bar, stat line. */
-export function squadBodyHtml(h: HeroState, cfg: RunConfig, back: boolean, layout: SquadLayout): string {
+/** One squad member: face by fatigue tier, name, role tag, HP bar, stat line. Every body is one size and none is dimmed. */
+export function squadBodyHtml(h: HeroState, cfg: RunConfig, layout: SquadLayout): string {
   const role = squadRole(h);
   const z = squadSizes(layout.slots);
-  const size = role === "tank" ? z.tank : z.back;
+  const size = SQUAD_BODY_PX;
   const hex = ROLE_HEX[role];
   const tier = fatigueTier(cfg.fight, h.fatigue);
   const frac = h.maxHp > 0 ? Math.max(0, Math.min(1, h.hp / h.maxHp)) : 0;
-  const shade = back ? 0.24 : 0.4;
   const stat = statLineHtml(Math.round(h.hp), Math.round(h.damage), role === "support" ? h.healPerBeat : undefined);
-  return `<div class="fo-col${back ? " back" : ""}" data-fighter="${esc(h.id)}" data-side="squad" style="width:${z.col}px${back ? ";margin-top:" + (layout.slots >= 5 ? 40 : 48) + "px" : ""}"><div class="fo-eb" style="width:${size}px;height:${size}px"><div class="fo-sh" style="top:${Math.round(size * 0.85)}px;width:${Math.round(size * 0.82)}px;height:${Math.max(5, Math.round(size * 0.13))}px;opacity:${shade / 0.4}"></div><div class="fo-body" style="width:${size}px;height:${size}px;background:${hex}${back ? ";opacity:0.85" : ""}">${squadFace(hex, tier, size)}</div></div><div class="fo-nm" style="font-size:${z.nameSize}px">${esc(h.name)}</div>${z.showTag ? `<div class="fo-tag" style="color:${hex}">${ROLE_LABEL[role]}</div>` : ""}<div class="fo-hpbar"><div style="width:${(frac * 100).toFixed(0)}%"></div></div>${stat}</div>`;
+  return `<div class="fo-col" data-fighter="${esc(h.id)}" data-side="squad" style="width:${z.col}px"><div class="fo-eb" style="width:${size}px;height:${size}px"><div class="fo-sh" style="top:${Math.round(size * 0.85)}px;width:${Math.round(size * 0.82)}px;height:${Math.max(5, Math.round(size * 0.13))}px"></div><div class="fo-body" style="width:${size}px;height:${size}px;background:${hex}">${squadFace(hex, tier, size)}</div></div><div class="fo-nm" style="font-size:${z.nameSize}px">${esc(h.name)}</div>${z.showTag ? `<div class="fo-tag" style="color:${hex}">${ROLE_LABEL[role]}</div>` : ""}<div class="fo-hpbar"><div style="width:${(frac * 100).toFixed(0)}%"></div></div>${stat}</div>`;
 }
 
-/** An empty slot: a dashed ring with "Empty / Tap to fill" (frame 1.5). */
+/** An empty slot: a dashed ring with "Empty / Tap to fill" (frame 1.5). It sits in the back row. */
 export function emptySlotHtml(layout: SquadLayout): string {
   const z = squadSizes(layout.slots);
-  return `<div class="fo-col fo-slot" data-slot="empty" style="width:${z.col}px;margin-top:${layout.slots >= 5 ? 40 : 48}px"><div class="fo-slot-ring">+</div><div class="fo-slot-name">Empty</div><div class="fo-slot-hint">Tap to fill</div></div>`;
+  return `<div class="fo-col fo-slot" data-slot="empty" style="width:${z.col}px"><div class="fo-slot-ring">+</div><div class="fo-slot-name">Empty</div><div class="fo-slot-hint">Tap to fill</div></div>`;
 }
 
-/** Orders a squad the way the fight screen draws it: tanks in front and centred, everyone else behind, alternating left and right. */
-export function rankOrder<T>(items: T[], isFront: (t: T) => boolean): Array<{ item: T; back: boolean }> {
-  const front = items.filter(isFront);
-  const back = items.filter((t) => !isFront(t));
-  const lefts = back.filter((_, i) => i % 2 === 0).reverse();
-  const rights = back.filter((_, i) => i % 2 === 1);
-  return [
-    ...lefts.map((item) => ({ item, back: true })),
-    ...front.map((item) => ({ item, back: false })),
-    ...rights.map((item) => ({ item, back: true })),
-  ];
+/** Splits a squad into the two rows the fight screen draws: tanks in front, everyone else (and empty slots) in a row behind. */
+export function rankRows<T>(items: T[], isFront: (t: T) => boolean): { front: T[]; back: T[] } {
+  return { front: items.filter(isFront), back: items.filter((t) => !isFront(t)) };
+}
+
+/** The squad's rows as html: FRONT and BACK words and a dashed line between the rows when there are two rows, one flat row with no words when
+ * there is only one kind (no Tank, or only Tanks). `unitHtml` draws one cell. */
+export function squadRowsHtml<T>(items: T[], isFront: (t: T) => boolean, unitHtml: (t: T) => string): string {
+  const { front, back } = rankRows(items, isFront);
+  // A row of four (only a full 5-slot squad has one) would run under the word at its left end, so it moves right to make room for it.
+  const rowClass = (n: number): string => (n >= 4 ? "fo-rankrow crowded" : "fo-rankrow");
+  if (front.length === 0 || back.length === 0) {
+    return `<div class="fo-rankrow">${[...front, ...back].map(unitHtml).join("")}</div>`;
+  }
+  return (
+    `<div class="${rowClass(front.length)}"><span class="fo-ranklabel">FRONT</span>${front.map(unitHtml).join("")}</div>` +
+    `<div class="fo-rankgap"></div>` +
+    `<div class="${rowClass(back.length)}"><span class="fo-ranklabel">BACK</span>${back.map(unitHtml).join("")}</div>`
+  );
 }
 
 // ---------- bench shelf ----------

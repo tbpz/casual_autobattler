@@ -10,6 +10,104 @@
 
 ---
 
+## [2026-10-17] Wanderer is removed from the first picks, leaving five
+
+- **Decision:**
+  - The round 1 pick draws 3 of 5 runes: Pyre, Rime, Augur, Citadel, Frenzy.
+  - Wanderer is gone and nothing replaces it. The squad now grows only through the mid-run "Bigger squad" offer.
+  - The code is `sim/cards/defs/relic.ts`, `sim/relics.ts` (`applyRelic`) and `sim/cards/index.ts`.
+- **Why:**
+  - Measured 2026-10-17, n=3000, build bot: runs that took Wanderer completed 73% (361 of 492); the other five picks together 26% (647 of 2492).
+  - The "about 35%" for the other picks in the earlier entry on starting units was wrong; 26% is the figure.
+  - Haven (benched units heal and rest faster) was tried as a replacement: 10.6% of its runs completed, and the same with its effect switched off. A benched unit already heals fully and fatigue stays under 10, so no setting of its number could help.
+  - Tu chose dropping Wanderer over giving it a cost, and over swapping in a new rune.
+  - With five picks the bot completes 25.5% of runs, from Augur at 39% down to Pyre at 15%. Not rebalanced here.
+- **Replaces:**
+  - Wanderer's squad spot in "A run starts with two of each role, and Wanderer gives a squad spot" (2026-10-17).
+
+## [2026-10-17] A new player should win about 1 run in 4; the bot's target comes from real players
+
+- **Decision:**
+  - The aim is that a new player wins about 1 run in 4.
+  - The bot's run-completion number is not picked directly. It is set by comparing the bot with real players' runs.
+  - The comparison uses how far each run got (round reached), because a handful of real runs is too few to give a win rate.
+- **Why:**
+  - The bot picks offers by a fixed rule, so its completion rate only means something once we know how a human compares to it.
+  - Measured 2026-10-17, n=3000, same offers: bot completion was 33.6%, but runs that took Wanderer completed 73% against about 35% for the other first picks. One rune lifts the headline number.
+  - Tu picked 1 in 4 from three options: 1 in 2, 1 in 4, 1 in 10.
+- **Replaces:**
+  - The 17–22% bot completion target from September.
+  - STATE's open item "pick a target for run completion".
+
+## [2026-10-17] A run starts with two of each role, and Wanderer gives a squad spot
+
+- **Decision:**
+  - A run starts with six units: two Tank, two Damage, two Healer. Three are fielded, three wait on the bench from round 1.
+  - The first three keep their old ids, so a seed names them as before.
+  - Wanderer no longer adds a fourth unit. It adds one squad spot, so four units are fielded from the next round (capped at the squad cap).
+  - The code is `makeStartingRoster` in `prototype/src/sim/roles.ts`, `startingPerRole` in `sim/config.ts` and `applyRelic` in `sim/relics.ts`.
+  - The squad-mix choice is now open from round 1: any three-unit mix can be fielded, for example no Tank and two Damage.
+- **Why:**
+  - A playtest friend said the game feels like an idle game because there is too little choice.
+  - With three units and three spots there was nothing to swap until a Recruit offer came, so the squad pick was not a choice early.
+  - Wanderer's extra unit would be near-worthless on a bench of three, so it became a different kind of power.
+  - Measured at n=3000, the same offers: run completion went from 1.6% to 33.6%. Runs that took Wanderer completed 73% against about 35% for the other first picks.
+  - That jump is not retuned here. Tu decides whether it is acceptable.
+- **Replaces:**
+  - "A run starts from three units" in the 2026-09-23 entry on three roles.
+  - Wanderer's old text, "a fourth unit of a random role joins your squad".
+
+## [2026-10-17] Your squad stands in two rows of one size, named FRONT and BACK
+
+- **Decision:**
+  - A Tank stands alone in a front row. Everyone else stands in a row behind it.
+  - Every squad body is one size and none is dimmed, so the Tank is told by colour, name and tag, not size.
+  - The words FRONT and BACK sit at the left end of each row, on the round screen and the fight screen.
+  - The round screen also draws a dashed line between the rows.
+  - A squad with no Tank is one flat row with no words. An empty slot sits in the back row.
+  - The enemy side keeps its big boss and small minions.
+  - Your squad no longer pops forward when a back unit is struck. It keeps the attacker-coloured ring.
+  - The code is `buildSide` and `appendSquadRows` in `prototype/src/render/fightView.ts`, `squadRowsHtml` in `render/roundParts.ts`, and `.rank-row`, `.fo-rankrow` in the CSS.
+- **Why:**
+  - A playtest friend saw "a big one and several subordinates", not a front and back line, and Tu agreed.
+  - The Tank was drawn about twice the size of the others, dimmed them, and set them at its sides. That is the same look the enemy side uses for a boss and its minions.
+  - Tu picked B from five canvas frames (1.6A–E): A today, B words, C ground strips, D a tank line, E pads.
+  - Bubbles over a back unit would cover the Tank's name and HP, so the rows sit far apart.
+- **Replaces:**
+  - The big Tank with smaller, dimmer units flanking it. Squad frames on the canvas were redrawn to match.
+
+## [2026-10-17] Normal enemy hits lock on the tank until it dies; only three enemy groups slip past
+
+- **Decision:**
+  - A normal hit from an enemy goes to the first living Tank, with no dice, until that Tank dies.
+  - Ambush Raiders, Vanguard Outriders and Executioner Guards are the only exceptions (`reachesBackline`). Their normal hits keep the old weighted dice.
+  - Slams are unchanged and can land on anyone. The slam popup row and the slam card now say "even behind your Tank".
+  - A squad with no living Tank takes hits spread out, as before.
+  - The code is `firstAliveTankId` in `prototype/src/sim/fight.ts` and `gruntReachesBackline` in `sim/encounters.ts`. `checks/tankLock.ts` pins it.
+- **Why:**
+  - The playtest friend had a Tank, still saw the backline hit, and nothing told them why.
+  - Tu chose which enemies keep the reach, and chose "Tank until it dies" over spreading hits once the Tank is low.
+  - Measured 2026-10-17, n=3000 greedy: run completion 3.4% before, 1.6% after. Not rebalanced.
+- **Replaces:**
+  - The rule that every enemy's normal hit rolled tank 3-to-1 and spread once the Tank was low. That roll now serves slams, the three groups above, and Tankless squads.
+
+## [2026-10-17] On the squad screen a unit can be dragged to swap, alongside the two taps
+
+- **Decision:**
+  - A living row, fighting or benched, can be dragged. Dropping it on another row swaps them, and dropping a bench unit on an empty slot fills it.
+  - A fighter dropped on the bench area leaves an empty slot, so Done reads `Fill 1 empty slot`.
+  - The two-tap swap and the one-tap empty-slot fill stay.
+  - A fallen unit cannot be dragged.
+  - A drag starts after a few pixels of movement, so a tap stays a tap.
+  - On touch the drag starts from the ⋮⋮ grip only, so the rest of the row still scrolls the page.
+  - The code is in `prototype/src/render/squadScreen.ts` and `.sq-grip`, `.sq-ghost` in `screens.css`. Canvas 4.1 draws the grips and the hint line.
+- **Why:**
+  - Tu asked for drag and drop on the change squad screen.
+  - Tu picked D from four canvas frames: A today's taps, B drag the row, C drag the face, D drag both ways with grips.
+  - Checked 2026-10-17 with a mouse in a browser on a hand-built roster. Not tried on a phone.
+- **Replaces:**
+  - The "a swap is two taps" line under 4.1 in `design/HANDOFF.md`. The taps still work, but they are no longer the only way.
+
 ## [2026-10-16] In a fight, a tap on a status or the skill bubble pauses and opens its explainer card
 
 - **Decision:**

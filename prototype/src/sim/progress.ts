@@ -12,8 +12,7 @@ export function upgradeRngFor(seed: number): Rng {
   return new Rng((seed ^ 0x7c1a5d93) >>> 0);
 }
 
-/** The stream a run draws its relic choices from (and a Mercenary's role) —
- * its own, like upgradeRngFor, so offering relics moved neither the fight nor
+/** The stream a run draws its relic choices from — its own, like upgradeRngFor, so offering relics moved neither the fight nor
  * the offer sequence. */
 export function relicRngFor(seed: number): Rng {
   return new Rng((seed ^ 0x2f6b9d11) >>> 0);

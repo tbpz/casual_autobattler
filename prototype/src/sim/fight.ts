@@ -273,7 +273,16 @@ function frontMostAliveId(side: SideState): string | undefined {
   return side.heroes.find((h) => h.alive && h.hp > 0)?.id;
 }
 
-/** Weighted-random target among living heroes — the enemy's targeting rule.
+/** The first living tank in list order — where a normal enemy hit locks on
+ * (2026-10-17) unless that enemy has `reachesBackline`. Undefined when the
+ * side has no living tank, so hits fall back to the weighted dice. */
+function firstAliveTankId(side: SideState): string | undefined {
+  return side.heroes.find((h) => h.alive && h.hp > 0 && h.role === "tank")?.id;
+}
+
+/** Weighted-random target among living heroes — the enemy's targeting rule
+ * for slams, for enemies with `reachesBackline`, and for a squad with no
+ * living tank. Every other normal enemy hit goes through firstAliveTankId.
  * A tank draws more incoming attacks than a squishy ally (weight
  * cfg.tankTargetWeight vs. 1) while it's holding aggro; once it's broken
  * (2026-08-06 — see DECISIONS.md's "squad pick is the risk dial" entry) its
@@ -650,8 +659,10 @@ function performHeroAction(
     // the same beat, so a two-support comp is no longer an automatic loss.
     if (!hero.attacksWhileHealing) return;
   }
+  const lockedTankId = targeting === "weighted" && !hero.reachesBackline ? firstAliveTankId(defenderSide) : undefined;
   const targetId =
-    targeting === "front" ? frontMostAliveId(defenderSide) : pickEnemyTargetId(defenderSide, rng, cfg, enemyTargetTally);
+    lockedTankId ??
+    (targeting === "front" ? frontMostAliveId(defenderSide) : pickEnemyTargetId(defenderSide, rng, cfg, enemyTargetTally));
   if (!targetId) return;
   const base = (hero.damage + (isPlayerAttacker ? attackerSide.dpsBonus : 0)) * damageMultiplier;
   let damage = rollDamage(base, rng, cfg.damageVariance);

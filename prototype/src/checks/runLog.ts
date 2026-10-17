@@ -11,6 +11,7 @@ import { DEFAULT_RUN_CONFIG as cfg } from "../sim/config.js";
 import { heldCards } from "../sim/progress.js";
 import { defaultCardDrop } from "../sim/offers.js";
 import { makeOfferPolicy, runRun } from "../sim/run.js";
+import { carryOverFieldPick } from "../sim/roster.js";
 import { RunSession } from "../render/runSession.js";
 import { buildRunLog, RUN_LOG_SCHEMA_VERSION } from "../log/runLog.js";
 
@@ -43,7 +44,12 @@ for (const seed of [1, 2, 3, 7, 11, 42]) {
   const label = `seed ${seed}`;
   const session = playSession(seed);
   const offerRng = new Rng((seed ^ 0x51ed270b) >>> 0);
-  const headless = runRun(cfg, new Rng(seed), offerRng, makeOfferPolicy("first", offerRng), seed);
+  // The session's accept-default keeps last round's squad (carryOverFieldPick); with a bench
+  // the batch bot's defaultFieldPick would re-pick the freshest units each round and play a
+  // different run, so the headless side is given the session's own pick.
+  let lastSquad: string[] = [];
+  const keepSquad = (roster: Parameters<typeof carryOverFieldPick>[0], size: number): string[] => (lastSquad = carryOverFieldPick(roster, size, lastSquad));
+  const headless = runRun(cfg, new Rng(seed), offerRng, makeOfferPolicy("first", offerRng), seed, { fieldPick: keepSquad });
   const log = buildRunLog(session, cfg);
 
   check(`${label}: the session and the headless driver agree on how the run went`,

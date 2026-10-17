@@ -124,11 +124,16 @@ export function makeUnitState(role: PlayerRole, ordinal: number, instanceId: str
   };
 }
 
-/** Builds the starting 3-unit roster — one Tank, one Damage, one Healer,
- * sorted tank-first (same convention makePlayerSide used) so the tank draws
- * the front-row visual slot. */
-export function makeStartingRoster(bonus: Record<PlayerRole, { maxHp: number; damage: number }>): SideState {
-  const heroes = PLAYER_ROLES.map((role, i) => makeUnitState(role, 1, `u${i}_${role}`, bonus[role]));
+/** Builds the starting roster — one Tank, one Damage, one Healer first, then
+ * the same three again for each extra round of `perRole` (a run starts with 2 of
+ * each, cfg.startingPerRole; a bare call keeps the plain trio). The trio keeps
+ * the ids `u0_tank`, `u1_damage`, `u2_support`, and ids stay unique because
+ * every id starts with the unit's place in the list. */
+export function makeStartingRoster(bonus: Record<PlayerRole, { maxHp: number; damage: number }>, perRole = 1): SideState {
+  const heroes: HeroState[] = [];
+  for (let n = 1; n <= perRole; n++) {
+    for (const role of PLAYER_ROLES) heroes.push(makeUnitState(role, n, `u${heroes.length}_${role}`, bonus[role]));
+  }
   return { heroes, dpsBonus: 0 };
 }
 

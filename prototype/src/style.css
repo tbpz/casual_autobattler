@@ -325,6 +325,42 @@ body {
   padding: 0 3px;
 }
 
+/* Your squad in two rows (DECISIONS.md, front and back rows; canvas 1.6B): every body is one size (36px, the Tank too, so size never says
+   "boss"), none is dimmed, a Tank stands alone in the front row and everyone else in a row behind it with a clear gap, and the words FRONT and
+   BACK sit at the left end of each row. fightView.ts's buildSide/appendSquadRows build the rows; the player side never gets .rank-back. Placed
+   after the .hero-slot.role-* rules above because they have the same specificity. The enemy side keeps its own big-boss, back-rank look. */
+.player-side .hero-slot {
+  --role-size: 36px;
+}
+
+.player-side {
+  flex-direction: column;
+  align-items: stretch;
+  /* a skill bubble over a back-row unit rises about 42px: this gap keeps it off the Tank's name and HP bar */
+  gap: 40px;
+}
+
+.rank-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.rank-label {
+  position: absolute;
+  left: 0;
+  top: 13px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #6c7186;
+  pointer-events: none;
+}
+
 /* The body's own depth cell (2026-09-16 upright-field pass — see
    fightView.ts's makeHeroSlot/HeroSlot). status/body/freeze-ring live inside
    this instead of straight in .hero-slot, so ONE transform can move the
@@ -2405,7 +2441,7 @@ button:disabled {
 /* the strip over the head belongs to the skill bubble: the guard pips stand upright at the body's right edge, the
  * freeze countdown sits at its left edge (a child of .body-core, not of the masked .freeze-ring, which would clip it), and a status word
  * sits just above the bubble while its unit wears one, and keeps its old place over the head otherwise (higher, it would cover the enemy row's
- * HP labels). Beside a back-rank unit (48px lower) these never touch it. */
+ * HP labels). Only a Tank holds guard pips and it stands alone in the front row, so they never touch a neighbour. */
 .guard-pips { top: calc(var(--body-size, 40px) / 2); left: calc(50% + var(--body-size, 40px) / 2 + 8px); transform: translateY(-50%); flex-direction: column; padding: 4px 2px; }
 .freeze-secs { display: none; position: absolute; right: calc(100% + 6px); top: 50%; transform: translateY(-50%); z-index: 4; }
 .freeze-secs.show { display: block; }

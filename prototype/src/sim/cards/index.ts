@@ -4,7 +4,7 @@ import { CINDER_SHIELD, FORTRESS, GLASS, KILLING_FROST, PHOENIX, THERMAL_SHOCK }
 import { CRACK, EXECUTE, HUNTER_MARK, LAY_BARE, PUNISH, WEAK_SPOT } from "./defs/exposed.js";
 import { BRITTLE, COLD_SNAP, DEEP_FREEZE, FROSTBITE, PERMAFROST, SHATTER } from "./defs/frozen.js";
 import { BLOODLUST, IRON_HIDE, MOMENTUM, SECOND_WIND } from "./defs/general.js";
-import { BASTION, EMBER_HEART, FROST_CROWN, HUNTERS_EYE, MERCENARY, RESTLESS } from "./defs/relic.js";
+import { BASTION, EMBER_HEART, FROST_CROWN, HUNTERS_EYE, RESTLESS } from "./defs/relic.js";
 import { AEGIS, BULWARK, OVERFLOW, SHATTERGUARD, SHIELD_BASH, SPIKED_SHIELD } from "./defs/shield.js";
 import type { CardDef, CardId } from "./types.js";
 
@@ -62,7 +62,6 @@ export const CARD_DEFS: Record<CardId, CardDef> = {
   huntersEye: HUNTERS_EYE,
   bastion: BASTION,
   restless: RESTLESS,
-  mercenary: MERCENARY,
 };
 
 /** Every card id, in the registry's order. */

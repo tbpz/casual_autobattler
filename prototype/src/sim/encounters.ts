@@ -58,6 +58,8 @@ export interface EncounterDef {
   gruntMaxHp: number;
   gruntDamage: number;
   gruntAttackIntervalSec: number;
+  /** True lets this encounter's grunts slip past a living tank with normal hits (see HeroState.reachesBackline). */
+  gruntReachesBackline?: boolean;
 }
 
 export const ENCOUNTERS: EncounterDef[] = [
@@ -101,13 +103,14 @@ export const ENCOUNTERS: EncounterDef[] = [
   },
   {
     name: "Executioner",
-    blurb: "Its slam goes straight for your weakest unit, tank or no tank. Can they survive?",
+    blurb: "Its slam goes straight for your weakest unit, and its guards slip past your Tank. Can they survive?",
     kind: "normal",
     bruisers: [
       { namePrefix: "Executioner", maxHp: 190, damage: 11.6, attackIntervalSec: 1.1, windupTargeting: "lowestHp" },
     ],
     gruntCount: 2,
     gruntNamePrefix: "Guard",
+    gruntReachesBackline: true,
     gruntMaxHp: 55,
     gruntDamage: 5.2,
     gruntAttackIntervalSec: 1,
@@ -142,11 +145,12 @@ export const ENCOUNTERS: EncounterDef[] = [
   },
   {
     name: "Ambush",
-    blurb: "Four fast, fragile bodies. Can a squad with no line still hold?",
+    blurb: "Four fast, fragile bodies that slip past your Tank. Can your back line hold?",
     kind: "normal",
     bruisers: [],
     gruntCount: 4,
     gruntNamePrefix: "Raider",
+    gruntReachesBackline: true,
     gruntMaxHp: 40,
     gruntDamage: 5.8,
     gruntAttackIntervalSec: 0.6,
@@ -193,13 +197,14 @@ export const ENCOUNTERS: EncounterDef[] = [
   },
   {
     name: "Vanguard",
-    blurb: "A mini-boss. Its slam goes for your weakest unit — and small hits keep changing who that is.",
+    blurb: "A mini-boss. Its slam goes for your weakest unit — and small hits keep changing who that is. Its riders slip past your Tank.",
     kind: "miniboss",
     bruisers: [
       { namePrefix: "Vanguard", maxHp: 240, damage: 6.6, attackIntervalSec: 1, windupTargeting: "lowestHp" },
     ],
     gruntCount: 3,
     gruntNamePrefix: "Outrider",
+    gruntReachesBackline: true,
     gruntMaxHp: 50,
     gruntDamage: 3,
     gruntAttackIntervalSec: 0.7,
@@ -289,6 +294,7 @@ export function buildEnemySide(fightCfg: FightConfig, encounter: EncounterDef, r
       charge: 0,
       fatigue: 0,
       backfires: 0,
+      reachesBackline: encounter.gruntReachesBackline,
     });
   }
   return { heroes, dpsBonus: 0 };

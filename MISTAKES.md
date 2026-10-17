@@ -16,6 +16,33 @@
 
 ---
 
+### [2026-10-17 #2] Said the other first picks complete "about 35%" of runs, but they average 26%
+
+- **Said:** In the balance discussion, the plan, and the new DECISIONS.md entry I wrote that runs
+  with Wanderer complete 73% against about 35% for the other first picks.
+- **Actually:** The batch (n=3000, `--offers build`) gives the other five 647 completed in 2492 runs,
+  26%. They are far apart: Augur 37%, Rime 31%, Frenzy 23%, Citadel 23%, Pyre 15%. The 35% was
+  roughly the overall rate, Wanderer's runs included.
+- **Caught by:** me, reading the `relics` line of the baseline batch before changing anything.
+- **Why:** I copied the figure from the earlier 2026-10-17 DECISIONS entry and never worked it out
+  from the per-pick counts the batch prints.
+- **Tag:** eyeballed a number I could have computed
+
+---
+
+### [2026-10-17 #1] Said about 10 playtest runs would show how a human compares with the bot
+
+- **Said:** In the balance discussion I wrote that the playtest friend should play about 10 runs,
+  export each one, and compare their win rate with the bot's.
+- **Actually:** 10 runs is far too few for a win rate: 1 win and 4 wins both fit "1 in 4". Round
+  reached per run carries more information than win or lose.
+- **Caught by:** me, while writing the plan to log the 1-in-4 target.
+- **Why:** I reached for the same "play a few runs and compare" step I use for other checks without
+  working out how many runs a win rate needs.
+- **Tag:** eyeballed a number I could have computed
+
+---
+
 ### [2026-10-16 #4] Read "a skill silently disappears" as Claude's own skills, not the game's skill bubble
 
 - **Said:** After scanning session logs I wrote a plan saying no skill ever ended silently, and that

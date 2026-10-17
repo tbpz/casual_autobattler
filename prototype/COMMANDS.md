@@ -52,7 +52,7 @@ The batch report now ends with a **synergy** block (`src/batch/synergy.ts`): bes
 worst cards by win-over-expected per fight, the best card *pairs* by lift over the better
 card (a pair that wins far more together than either alone is a duo waiting to be
 named), a "rarely fires" line (cards that raised no trigger in over half the fights they
-were held for — Aegis and Mercenary are passive and left out), and per-relic mean rounds won.
+were held for — Aegis is passive and left out), and per-relic mean rounds won.
 Read it off `--offers build`; `greedy` rarely takes cards. "card triggers" replaces the old "payoff triggers" line.
 
 New checks, all part of `npm run check`: `check:cards` (the event engine: order,

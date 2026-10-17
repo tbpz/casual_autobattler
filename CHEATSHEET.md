@@ -1,5 +1,5 @@
 # Cheatsheet
-Last updated: 2026-10-16 22:38 (values from prototype/src/sim/config.ts). All marks last one fight.
+Last updated: 2026-10-17 17:10 (values from prototype/src/sim/config.ts). All marks last one fight.
 
 Effects:
 - Exposed: each stack makes the body take +12% damage from every hit, max 10 stacks.
@@ -15,7 +15,6 @@ Runes — the round 1 pick (choose 1 of 3):
 - Augur: at fight start, every enemy has 2 exposed.
 - Citadel: at fight start, every unit gets shield worth 8% of its max HP.
 - Frenzy: at fight start, every unit has 70% charge but +2 fatigue for that fight.
-- Wanderer: a 4th unit of a random role joins the squad (once, when picked).
 
 Runes — later picks:
 - Frozen:

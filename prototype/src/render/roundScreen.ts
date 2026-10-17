@@ -15,9 +15,9 @@ import {
   enemyBodyHtml,
   esc,
   fierceScowl,
-  rankOrder,
   roundStripHtml,
   squadBodyHtml,
+  squadRowsHtml,
 } from "./roundParts.js";
 import { openFighterPopup } from "./fighterPopup.js";
 import { openTermCard } from "./termCards.js";
@@ -88,10 +88,11 @@ export function renderRoundScreen(
     ...fielded.map((unit): Cell => ({ kind: "unit", unit })),
     ...Array.from({ length: emptyCount }, (): Cell => ({ kind: "empty" })),
   ];
-  const ranked = rankOrder(cells, (c) => c.kind === "unit" && c.unit.role === "tank");
-  const squadBodies = ranked
-    .map(({ item, back }) => (item.kind === "unit" ? squadBodyHtml(item.unit, cfg, back, layout) : emptySlotHtml(layout)))
-    .join("");
+  const squadBodies = squadRowsHtml(
+    cells,
+    (c) => c.kind === "unit" && c.unit.role === "tank",
+    (c) => (c.kind === "unit" ? squadBodyHtml(c.unit, cfg, layout) : emptySlotHtml(layout)),
+  );
   const count = emptyCount > 0 ? `<span class="fo-count">${fielded.length} of ${slots}</span>` : "";
 
   const shelfHasContent = bench.length > 0;
@@ -120,7 +121,7 @@ export function renderRoundScreen(
     <div class="fo-vs"><span></span><b>VS</b><span></span></div>
     <div class="fo-zone squad">
       <div class="fo-zonehead"><span class="fo-pill squad">YOUR SQUAD</span>${count}</div>
-      <div class="fo-squadrow">${squadBodies}</div>
+      <div class="fo-squadrows">${squadBodies}</div>
       ${shelf}
     </div>
     <div class="up-slot"></div>

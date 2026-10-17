@@ -122,7 +122,7 @@ const SCENARIOS: Partial<Record<CardId, Scenario>> = {
 // --- Every card in the registry has a scenario or a reason not to.
 {
   const already = new Set<CardId>(["execute", "punish", "shatter", "deepFreeze", "spread", "openWound", "spikedShield", "bulwark"]);
-  const missing = CARD_IDS.filter((id) => !SCENARIOS[id] && !already.has(id) && id !== "aegis" && id !== "mercenary");
+  const missing = CARD_IDS.filter((id) => !SCENARIOS[id] && !already.has(id) && id !== "aegis");
   check("every new card has a scenario here", missing.length === 0, missing.join(","));
 }
 
@@ -163,18 +163,14 @@ for (const [id, scenario] of Object.entries(SCENARIOS) as [CardId, Scenario][]) 
 
   const progress = makeInitialProgress(run);
   const roster = makeStartingRoster(progress.bonus);
-  const taken = applyRelic(progress, roster, "bastion", new RelicRng(1));
+  const taken = applyRelic(progress, roster, "bastion", run);
   check("relic: taking one sets progress.relic and leaves the card list empty", taken.progress.relic === "bastion" && taken.progress.cards.length === 0);
   check("relic: heldCards puts the relic first, ahead of the cards", heldCards({ ...taken.progress, cards: ["execute"] })[0] === "bastion");
-  check("relic: a non-Mercenary relic leaves the roster alone", taken.roster.heroes.length === roster.heroes.length);
-
-  const merc = applyRelic(progress, roster, "mercenary", new RelicRng(1));
-  check("relic: Mercenary adds a fourth unit", merc.roster.heroes.length === roster.heroes.length + 1);
-  const ids = merc.roster.heroes.map((h) => h.id);
-  check("relic: the Mercenary has an id of its own", new Set(ids).size === ids.length);
+  check("relic: taking one leaves the roster alone", taken.roster.heroes.length === roster.heroes.length);
+  check("relic: taking one leaves the squad spots alone", taken.progress.slots === progress.slots);
   let threw = false;
   try {
-    applyRelic(progress, roster, "execute", new RelicRng(1));
+    applyRelic(progress, roster, "execute", run);
   } catch {
     threw = true;
   }
@@ -185,8 +181,11 @@ for (const [id, scenario] of Object.entries(SCENARIOS) as [CardId, Scenario][]) 
 // fight, the win's reward is the relic and not offers, and a win that leaves too
 // few units to field gets nothing and ends the run.
 {
+  // A win can only strand the roster when the run starts with just the three fielded units,
+  // and a run now starts with a bench (startingPerRole 2), so this block runs on a 3-unit start.
+  const lean = { ...run, startingPerRole: 1 };
   const batchRun = (seed: number, opts?: Parameters<typeof runRun>[5]) =>
-    runRun(run, new Rng(seed), new Rng((seed ^ 0x51ed270b) >>> 0), makeOfferPolicy("build"), seed, opts);
+    runRun(lean, new Rng(seed), new Rng((seed ^ 0x51ed270b) >>> 0), makeOfferPolicy("build"), seed, opts);
   const SEEDS = 600;
   let fieldable: ReturnType<typeof batchRun> | undefined;
   let stranded: ReturnType<typeof batchRun> | undefined;
@@ -218,7 +217,7 @@ for (const [id, scenario] of Object.entries(SCENARIOS) as [CardId, Scenario][]) 
   let sawStranded = false;
   let parity = true;
   for (let seed = 1; seed <= SEEDS && !(sessionOk && sawStranded); seed++) {
-    const s = new RunSession(run, seed);
+    const s = new RunSession(lean, seed);
     const result = s.playNextRound();
     if (result.outcome !== "win") continue;
     if (s.awaitingRelic) {

@@ -75,7 +75,11 @@
 .fo-badges { position: absolute; top: -6px; display: flex; flex-direction: column; gap: 2px; }
 .fo-badge { width: 20px; height: 20px; border-radius: 50%; background: #14161c; border: 1px solid #3a3f4e; display: flex; align-items: center; justify-content: center; font-size: 11px; line-height: 1; }
 .fo-badge.heal { color: #6ee7a0; font-weight: 800; }
-.fo-squadrow { display: flex; justify-content: center; align-items: flex-start; gap: 8px; }
+/* your squad in two rows (canvas 1.6B): a Tank in front, everyone else behind, FRONT and BACK at the left end of each row, a dashed line between */
+.fo-rankrow { position: relative; display: flex; justify-content: center; align-items: flex-start; gap: 12px; }
+.fo-ranklabel { position: absolute; left: 0; top: 18px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; color: #8a8fa3; pointer-events: none; }
+.fo-rankrow.crowded { padding-left: 38px; gap: 4px; }
+.fo-rankgap { height: 12px; border-bottom: 1px dashed #3a3f4e; margin-bottom: 12px; }
 
 /* an empty slot (1.5) */
 .fo-slot-ring { width: 30px; height: 30px; border-radius: 50%; border: 1.5px dashed rgba(77,166,255,0.7); display: flex; align-items: center; justify-content: center; color: #4da6ff; font-size: 16px; font-weight: 600; line-height: 1; }
@@ -133,6 +137,13 @@
 .sq-ring { flex: none; width: 34px; height: 34px; font-size: 18px; }
 .sq-fillhint { font-size: 10px; color: #4da6ff; font-weight: 700; }
 .sq-banner { display: flex; align-items: center; margin-bottom: 10px; padding: 8px 10px; border-radius: 8px; background: rgba(77,166,255,0.12); border: 1px solid rgba(77,166,255,0.4); font-size: 12px; color: #e8e8ee; }
+.sq-hint { margin-bottom: 12px; font-size: 10.5px; color: #8a8fa3; }
+.sq-card { user-select: none; -webkit-user-select: none; }
+.sq-grip { flex: none; margin-right: -2px; color: #6b7086; font-size: 14px; letter-spacing: -2px; cursor: grab; touch-action: none; }
+.sq-row.dragging { opacity: 0.35; border: 1.5px dashed #3a3f4e; }
+.sq-row.drop, .sq-benchzone.drop { border: 1.5px dashed #4da6ff; box-shadow: 0 0 10px rgba(77,166,255,0.35); }
+.sq-benchzone { border-radius: 10px; border: 1.5px solid transparent; margin: 0 -4px; padding: 0 4px 4px; }
+.sq-ghost { position: fixed; z-index: 50; margin: 0; pointer-events: none; background: #262b38; border: 1px solid #4da6ff; box-shadow: 0 10px 24px rgba(0,0,0,0.55); transform: rotate(-1.5deg) scale(1.03); opacity: 0.97; }
 .sq-cancel { margin-left: auto; font-size: 11px; font-weight: 700; color: #4da6ff; cursor: pointer; }
 .sq-done { margin-top: 16px; }
 

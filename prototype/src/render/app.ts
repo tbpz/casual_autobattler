@@ -242,7 +242,7 @@ export function mountApp(root: HTMLElement): void {
       if (!snap) return;
       const squadBase = new Map(session.currentPlayerSide.heroes.map((h) => [h.id, h]));
       const enemyBase = new Map(roundEnemySide(cfg, session.currentRoundIndex, session.currentEncounterIndex).heroes.map((h) => [h.id, h]));
-      const toFighter = (h: (typeof snap.playerHeroes)[number], base: Map<string, { damage: number; healPerBeat?: number }>): PopupFighter => ({
+      const toFighter = (h: (typeof snap.playerHeroes)[number], base: Map<string, { damage: number; healPerBeat?: number; reachesBackline?: boolean }>): PopupFighter => ({
         id: h.id,
         name: h.name,
         role: h.role,
@@ -251,6 +251,7 @@ export function mountApp(root: HTMLElement): void {
         alive: h.alive,
         damage: base.get(h.id)?.damage ?? 0,
         healPerBeat: base.get(h.id)?.healPerBeat,
+        reachesBackline: base.get(h.id)?.reachesBackline,
         fatigue: h.fatigue,
       });
       pausedByPopup = true;

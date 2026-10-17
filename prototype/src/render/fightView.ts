@@ -196,8 +196,11 @@ const FLOW_JOG_PX = 14;
  * (style.css) plus a small buffer so teardown never clips it mid-animation. */
 const CHAIN_END_CARD_HOLD_MS = 1700;
 
-/** Body sizes by role, copied from style.css's --role-size (tank 52, damage and grunt 34, support 40, bruiser 68). */
+/** Body sizes by role, copied from style.css's --role-size (tank 52, damage and grunt 34, support 40, bruiser 68). Only the enemy side uses them now. */
 const ROLE_BODY_PX: Record<string, number> = { tank: 52, damage: 34, support: 40, bruiser: 68, grunt: 34 };
+
+/** Every body on your side is this size, the Tank included (style.css `.player-side .hero-slot --role-size`), so size never says "boss". */
+const SQUAD_BODY_PX = 36;
 
 /** How many guard pips to draw before collapsing to a bare "⛨ ×N" count
  * (2026-09-15 guard-visibility pass) — past this, individual pips stop being
@@ -246,16 +249,16 @@ const FINAL_DEATH_HOLD_MS = 800;
  * which only nudged .body-perch 32px apart while the name/HP bar stayed
  * pinned to one shared line per side, so a tank and its healer still read as
  * standing side by side). buildSide sets this as a margin on the slot
- * itself: margin-top for the player row (which hangs DOWN from the centre
- * line, so its back rank pushes further down), margin-bottom for the enemy
- * row (which hangs UP, so its back rank pushes further up). This is what
+ * itself, for the ENEMY row only: margin-bottom (the enemy row hangs UP from
+ * the centre line, so its back rank pushes further up). Your squad no longer
+ * uses it: its back rank is a second row (appendSquadRows). This is what
  * turns "back rank" into a second row instead of a shrunk neighbour on the
  * same line — the HP bars still never move relative to their OWN body,
  * which is what keeps the shared pixel-per-HP scale readable (style.css's
  * .side docstring). */
 const BACK_RANK_OFFSET_PX = 48;
 
-/** How much smaller a back-rank body draws than the same role in front, via
+/** (Enemy side only; your squad is one size, none dimmed.) How much smaller a back-rank body draws than the same role in front, via
  * style.css's .hero-slot.rank-back --rank-scale — smaller and quieter (see
  * the CSS rule's own comment for the dim/shadow numbers) so a hit reaching
  * it (pulseDepthForward, showAttack) reads as an event: the body visibly
@@ -957,6 +960,10 @@ export class FightView {
     // with no leader, not a false single body ahead of the rest.
     const frontRank = heroes.length > 0 ? ROLE_SORT_PRIORITY[(heroes[0] as HeroSnapshot).role] : 0;
     let stillFront = true;
+    // Your squad (DECISIONS.md, front and back rows): a Tank stands alone in front and everyone else in a second row behind it, every body one
+    // size and none dimmed, with the words FRONT and BACK at the left end of each row. With no Tank there is one flat row and no words.
+    const playerFront: HTMLElement[] = [];
+    const playerBack: HTMLElement[] = [];
     // Alternates a back-rank slot outward from centre as it's assigned — the
     // 1st back unit goes left of the front rank, the 2nd right, the 3rd
     // further left, and so on (2026-09-16 second back-row pass) — see the
@@ -965,14 +972,14 @@ export class FightView {
     let backCount = 0;
     heroes.forEach((hero, i) => {
       if (stillFront && ROLE_SORT_PRIORITY[hero.role] !== frontRank) stillFront = false;
-      const isFront = stillFront;
+      const isFront = side === "player" ? hero.role === "tank" : stillFront;
       this.heroIsFront.set(hero.id, isFront);
 
       const refs = makeHeroSlot(hero, side, accentForHero(hero, side, i), i);
       // The face style (DECISIONS.md 2026-10-14): a squad body's eyes show its fatigue tier, an enemy's are villain eyes. Drawn at the body's
       // real size, back rank included, which decides between the plain and the size-tuned eye.
       const baseSize = ROLE_BODY_PX[hero.role] ?? 40;
-      const faceSize = isFront ? baseSize : baseSize * BACK_RANK_SCALE;
+      const faceSize = side === "player" ? SQUAD_BODY_PX : isFront ? baseSize : baseSize * BACK_RANK_SCALE;
       const hex = hero.role === "tank" || hero.role === "damage" || hero.role === "support" ? ROLE_HEX[hero.role] : ROLE_HEX.damage;
       refs.liveFace =
         side === "player"
@@ -987,10 +994,14 @@ export class FightView {
       // now that a side's own flex-grow can no longer double as its width.
       refs.slot.style.width = `${((hero.maxHp / bothSidesMaxHp) * 100).toFixed(3)}%`;
       refs.slot.style.flex = "0 0 auto";
-      if (isFront) {
+      if (side === "player") {
+        // One size, no dimming: no rank-back class (it carries the smaller size, the dim and the smaller freeze pill). The rows below hold the depth.
+        refs.slot.classList.add(isFront ? "rank-front" : "squad-back");
+        (isFront ? playerFront : playerBack).push(refs.slot);
+      } else if (isFront) {
         refs.slot.classList.add("rank-front");
       } else {
-        // Depth (2026-09-16 second back-row pass, replacing the first
+        // Enemy side only. Depth (2026-09-16 second back-row pass, replacing the first
         // pass's --depth-y nudge) — the WHOLE slot moves, not just the
         // body, via a margin away from the centre line, plus a smaller
         // --body-size and a dimmer .body-perch (both declared once in
@@ -1001,16 +1012,39 @@ export class FightView {
         backCount += 1;
         const flank = Math.ceil(backCount / 2) * (backCount % 2 === 1 ? -1 : 1);
         refs.slot.style.order = String(flank);
-        if (side === "player") refs.slot.style.marginTop = `${BACK_RANK_OFFSET_PX}px`;
-        else refs.slot.style.marginBottom = `${BACK_RANK_OFFSET_PX}px`;
+        refs.slot.style.marginBottom = `${BACK_RANK_OFFSET_PX}px`;
       }
-      container.appendChild(refs.slot);
+      if (side === "enemy") container.appendChild(refs.slot);
       map.set(hero.id, refs);
       this.heroNames.set(hero.id, hero.name);
       this.heroRoles.set(hero.id, hero.role);
       this.heroMaxHp.set(hero.id, hero.maxHp);
       this.heroFatigue.set(hero.id, hero.fatigue);
     });
+    if (side === "player") this.appendSquadRows(container, playerFront, playerBack);
+  }
+
+  /** Puts your squad in its rows: the Tank in front, everyone else in a row behind, FRONT and BACK at the left end of each. With only one
+   * kind of row (no Tank, or only Tanks) it is one flat row and no words. */
+  private appendSquadRows(container: HTMLElement, front: HTMLElement[], back: HTMLElement[]): void {
+    const row = (kind: "front" | "back" | "flat", slots: HTMLElement[], label?: string): HTMLElement => {
+      const el = document.createElement("div");
+      el.className = `rank-row ${kind}`;
+      if (label) {
+        const word = document.createElement("span");
+        word.className = "rank-label";
+        word.textContent = label;
+        el.appendChild(word);
+      }
+      for (const s of slots) el.appendChild(s);
+      return el;
+    };
+    if (front.length > 0 && back.length > 0) {
+      container.appendChild(row("front", front, "FRONT"));
+      container.appendChild(row("back", back, "BACK"));
+    } else {
+      container.appendChild(row("flat", [...front, ...back]));
+    }
   }
 
   /** The skill's name for the tag: the chain's base effect (always listed first), in capitals ("EXPOSE", "GUARD", "MEND"). */
@@ -1857,8 +1891,8 @@ export class FightView {
         // direction (a struck body leans IN, not further out).
         target.body.style.setProperty("--hit-color", attacker.accent);
         pulseClass(target.body, "struck-back", 420);
-        const towardCentreY = defenderSide === "enemy" ? BACK_POP_LIFT_PX : -BACK_POP_LIFT_PX;
-        this.pulseDepthForward(target.perch, towardCentreY, BACK_HIT_POP_MS);
+        // Your squad is one size with no dimming, so it has no pop: it would grow a 36px body to about 50px.
+        if (defenderSide === "enemy") this.pulseDepthForward(target.perch, BACK_POP_LIFT_PX, BACK_HIT_POP_MS);
       }
     }, flightMs);
   }

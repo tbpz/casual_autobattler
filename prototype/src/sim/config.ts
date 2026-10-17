@@ -259,7 +259,10 @@ export interface FightConfig {
 
   /** Weight multiplier applied to a tank's chance of being the enemy's
    * chosen target while holding (HP above tankBreakFraction), relative to
-   * weight 1 for every other role. Also governs a wind-up's target pick. */
+   * weight 1 for every other role. Since 2026-10-17 this only governs a
+   * wind-up's target pick and the normal hits of enemies with
+   * `reachesBackline`; every other normal enemy hit locks on the first
+   * living tank (fight.ts's firstAliveTankId). */
   tankTargetWeight: number;
   /** Same, but for a tank that has broken — dropping this near 1 is what
    * makes damage splash onto the rest of the squad once the tank fails. */
@@ -750,6 +753,9 @@ export interface RunConfig {
    * of each) — grows over the run via the "slot" offer (sim/offers.ts),
    * capped at maxSlots below. Replaces the old fixed playerN. */
   startingSlots: number;
+  /** Units of EACH role in the starting roster (sim/roles.ts's makeStartingRoster).
+   * Only startingSlots of them are fielded, so the rest start on the bench. */
+  startingPerRole: number;
   /** Hard cap on `RunProgress.slots` — a "slot" offer above this is filtered
    * out by sim/offers.ts's drawOffers rather than left to overshoot. */
   maxSlots: number;
@@ -1090,6 +1096,7 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   roundsPerRun: 20,
   relicRound: 0,
   startingSlots: 3,
+  startingPerRole: 2,
   maxSlots: 5,
   maxRosterSize: 10,
 
@@ -1119,11 +1126,11 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
 
   // Raised from the pre-rebuild values (0.25 / 0.45): the old 5-fight run
   // always had a 5-unit roster (2 benched) to rotate from day one; this run
-  // starts at exactly 3 units with no bench at all until a "recruit"/"slot"
-  // offer shows up, so early rounds have no rotation to lean on and need
-  // more of their own HP back between rounds. See roster.ts's
-  // applyFightResultToRoster for why benched still recovers faster (the
-  // squad-mix pick's rotation pressure), once there is a bench to reward.
+  // began at exactly 3 units with no bench, so early rounds needed more of
+  // their own HP back between rounds. Since 2026-10-17 a run starts with 6
+  // units (startingPerRole) and a bench of 3, but the values stay. See
+  // roster.ts's applyFightResultToRoster for why benched still recovers faster
+  // (the squad-mix pick's rotation pressure).
   autoRecoverFraction: 0.4,
   benchedRecoverFraction: 0.6,
 

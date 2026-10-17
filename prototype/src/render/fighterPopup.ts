@@ -29,6 +29,8 @@ export interface PopupFighter {
   alive: boolean;
   damage: number;
   healPerBeat?: number;
+  /** Enemy only: its normal hits can slip past a living Tank (HeroState.reachesBackline). */
+  reachesBackline?: boolean;
   fatigue: number;
 }
 
@@ -239,15 +241,15 @@ export function openFighterPopup(opts: PopupOpts): () => void {
     const slam = Math.round(f.damage * fc.windupDamageMultiplier);
     const rows: string[] = [];
     if (heals) rows.push(`<div class="pp-txt"><span style="color:#6ee7a0;font-weight:800">✚</span> Heals its most hurt ally for ${Math.round(f.healPerBeat!)} on its beat, instead of attacking.</div>`);
-    if (bruiser) rows.push(`<div class="pp-txt"${rows.length ? ' style="margin-top:6px"' : ""}>💥 ${termSpan("slam", "Slam")}: charges up, then hits for ${slam}.</div>`);
-    if (rows.length === 0) rows.push(`<div class="pp-txt">Hits for ${Math.round(f.damage)} on every beat.</div>`);
+    if (bruiser) rows.push(`<div class="pp-txt"${rows.length ? ' style="margin-top:6px"' : ""}>💥 ${termSpan("slam", "Slam")}: charges up, then hits for ${slam}. It can land on anyone, even behind your Tank.</div>`);
+    if (rows.length === 0) rows.push(`<div class="pp-txt">Hits for ${Math.round(f.damage)} on every beat.${f.reachesBackline ? " Can slip past your Tank." : ""}</div>`);
     return `<div class="pp-sec"><div class="pp-lab">WHAT IT DOES</div>${rows.join("")}</div>`;
   }
 
   function enemyLine(f: PopupFighter): string {
     if (f.healPerBeat !== undefined && f.healPerBeat > 0) return "Heals its own side as fast as you can hurt it.";
     if (f.role === "bruiser") return "A big body that charges up a slam.";
-    return "A small body that hits on every beat.";
+    return f.reachesBackline ? "A quick body that slips past your Tank." : "A small body that hits on every beat.";
   }
 
   function bodyHtml(): string {

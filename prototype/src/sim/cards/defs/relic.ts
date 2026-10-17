@@ -117,17 +117,3 @@ export const RESTLESS: CardDef = {
     },
   ],
 };
-
-export const MERCENARY: CardDef = {
-  id: "mercenary",
-  title: "Wanderer",
-  detail: "A fourth unit of a random role joins your squad.",
-  icon: "⚔",
-  passive: true,
-  kind: "relic",
-  reads: [],
-  makes: [],
-  // Does its work once, when the relic is picked (sim/relics.ts's
-  // applyRelic) — nothing in a fight.
-  hooks: [],
-};

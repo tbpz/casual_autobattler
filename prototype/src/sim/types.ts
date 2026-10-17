@@ -166,6 +166,12 @@ export interface HeroState {
    * ("can your squishies survive"), deliberately bypassing tank aggro
    * entirely for this one threat. */
   windupTargeting?: "weighted" | "lowestHp";
+  /** Enemy only (2026-10-17, playtest: "I had a tank but the backline still got
+   * hit"): true lets this body's NORMAL hits slip past a living player tank
+   * (the weighted dice, tank 3-to-1). Unset, every normal hit locks on the
+   * first living tank until it dies. Slams ignore this — they keep their own
+   * targeting and can land on anyone. */
+  reachesBackline?: boolean;
   /** Enemy bruiser only: true while the CURRENT telegraph reserved a guard
    * charge at pick time (fight.ts's guardWindupAim/handleBruiserBeat,
    * 2026-09-15) — released back to SideState.guardClaims the instant this

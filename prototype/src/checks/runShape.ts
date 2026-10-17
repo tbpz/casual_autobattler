@@ -70,6 +70,14 @@ for (let i = 0; i < N; i++) {
   }
 }
 
+// rosterExhausted is rare (2 in 3000 greedy runs since Wanderer stopped adding a squad spot, 2026-10-17),
+// so a miss in the 300-seed sample keeps scanning further seeds, for this one question only.
+for (let i = N; i < 3000 && !sawRosterExhausted; i++) {
+  const seed = baseSeed + i;
+  const result = runRun(cfg, new Rng(seed), new Rng((seed ^ 0x51ed270b) >>> 0), makeOfferPolicy("greedy"), seed);
+  if (result.overReason === "rosterExhausted") sawRosterExhausted = true;
+}
+
 firstChainFractions.sort((a, b) => a - b);
 const medianFirstChain = firstChainFractions[Math.floor((firstChainFractions.length - 1) / 2)] ?? 1;
 const heroChainShare = heroFights > 0 ? heroFightsWithChain / heroFights : 0;
