@@ -2,7 +2,7 @@
 
 > **What this file is:** where the project stands right now, and what to do next. Present tense only.
 > **Read this first** in every session. Layer 1 ends at the rule — that's the 60-second read. Layer 2 is the working index.
-> **Last synced:** 2026-10-17
+> **Last synced:** 2026-10-19
 
 ## What this is
 
@@ -22,15 +22,15 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 ## Where it stands
 
-A run starts with six units (three fielded, three on the bench) and grows over 20 rounds through runes (a round 1 pick, later picks and duos, one pool of 39 short-named runes) and each role's ability options. The screens drawn on the canvas to make the game explain itself to a first-time player are built in the prototype: a face-off round screen with the runes in a box titled RUNES, a squad screen where a unit swaps by tap or by drag, a fighter popup, underlined terms with animated cards, a bare fight screen where a skill shows as one fixed-size bubble on its unit, a drawn line for every hit, a heavy finish on the slam, ✕ eyes on a fallen unit, runes drawn as round emblems with a full list that states the limit, and a run-over screen. Your squad stands in two rows on the round and fight screens, a Tank alone in front and the rest behind, every body one size, with the words FRONT and BACK; a Tank takes every normal enemy hit until it dies, except from Ambush Raiders, Vanguard Outriders and Executioner Guards, and slams still land on anyone. None has been played by a first-time player, every canvas frame still awaits Tu's approval, and the fight looks, the two rows and the runes box have not been seen on a phone.
+A run starts with six units (three fielded, three on the bench) and grows over 20 rounds through runes and each role's ability options; every screen and piece the prototype has is listed under Status by piece. Merge heroes, where three basic units become one hero out of ten recipes, are decided and drawn on canvas sections 8 and 9, and none of it is built. None has been played by a first-time player, every canvas frame still awaits Tu's approval, and the fight looks, the two rows and the runes box have not been seen on a phone.
 
 ## Next up
 
 1. **Play it:** run `npm run dev` on a phone with a different build each time, then put it in front of the playtest friend and ask whether the bubble on the unit alone explains the skill and its count, how its edge states (brighter glow from 5, MAX, STOPPED, BACKFIRE) read, whether they find the underlines, the icons and the popup unprompted, whether a slam reads as the biggest hit, whether a fallen unit reads as out of the fight, whether the names and the RUNES title row read as runes, whether the rune they pick reads as the same thing in the round screen's box, whether they now read the squad as a front row and a back row (not a big unit and helpers) and see why a back unit got hit with a Tank in front; also open the round 1 pick ("Choose a rune") and the drop step at the limit, neither seen in a browser yet, drag a unit by its grip on the squad screen, tried only with a mouse, check a full 5-unit squad's back row on a phone, and send the `export` file from each play.
 2. **Fix what that shows, then get the frames approved** (open calls 8–12 and 10b in `design/HANDOFF.md`, and 6.1 to 6.3); carry the underline marks and the skill rename onto the reward pick 6.1 (call 12); redraw frame 5.3 to the built slam.
-3. **Fix the runes that rarely fire:** Shard fires only when a freeze ends; Pyre, Gelid, Brim, Rampart, Vigil, Creep, Ram and Phoenix fire in under half their held fights (the "rarely fires" line of `npm run batch -- --offers build`).
-4. **Rebalance outliers** from the synergy block (first picks run from Augur at 39% of runs completed down to Pyre at 15%; Smite is the weakest later rune; recheck whether Exposed's runes still trail Burn's), **pick a target for chains' share of damage** (about 47% of player damage now), and **set the bot's run-completion target** by comparing it with the friend's runs on the same seeds (`?seed=N`), by rounds reached; a new player should win about 1 run in 4 (see "A new player should win about 1 run in 4" in `DECISIONS.md`).
-5. **Fix `check:offers`:** it fails because Rampart reads Shield but is offered with only Guard held; either Rampart reads nothing or it waits for Shield (Tu's call).
+3. **Judge the merge heroes:** look at canvas 8.1 to 9.10, call the open points listed under "8 · Hero popups and 9 · Hero skill cards" in `design/HANDOFF.md`, then plan the build.
+4. **Fix the rune pool's two known faults:** Shard, Pyre, Gelid, Brim, Rampart, Vigil, Creep, Ram and Phoenix fire in under half their held fights (the "rarely fires" line of `npm run batch -- --offers build`), and `check:offers` fails because Rampart reads Shield but is offered with only Guard held (either Rampart reads nothing or it waits for Shield: Tu's call).
+5. **Rebalance outliers** from the synergy block (first picks run from Augur at 39% of runs completed down to Pyre at 15%; Smite is the weakest later rune; recheck whether Exposed's runes still trail Burn's), **pick a target for chains' share of damage** (about 47% of player damage now), and **set the bot's run-completion target** by comparing it with the friend's runs on the same seeds (`?seed=N`), by rounds reached; a new player should win about 1 run in 4 (see "A new player should win about 1 run in 4" in `DECISIONS.md`).
 
 ---
 
@@ -75,22 +75,23 @@ A run starts with six units (three fielded, three on the bench) and grows over 2
 | 20-round plan — mini-bosses at 7/14, boss at 20 | batch-verified | `sim/rounds.ts`, `checks/runShape.ts` |
 | Enemy shapes — the encounter pool | batch-verified | `sim/encounters.ts` |
 | Difficulty — 25.5% run completion with the build bot, 22.0% greedy, n=3000, 2026-10-17 | batch-verified | `checks/runShape.ts`, `batch/cli.ts` |
+| Merge heroes — three units into one hero, ten recipes, a gift and a skill each | not started (drawn on canvas 8–9) | `design/HANDOFF.md`, `design/tools/gen-heroes.js`, `DECISIONS.md` (2026-10-19) |
 | Real game build | not started | — |
 
 ## Unverified bets
 
 - Chains every fight still feel unpredictable, rather than averaging out into a steady trade.
 - Push or rest stays a real choice, and players bench a tired hero by hand and notice the bench shelf.
-- Runes, first picks and duos included, give a run an identity and a combo worth chasing.
+- Runes, first picks, duos and merge heroes give a run an identity and a goal worth chasing.
 - A cascade stays readable on a phone screen, a slam reads as the biggest hit, and a tap on a fighter that pauses the fight feels natural.
 - A first-time player finds the underlined terms, the stat icons and the enemy badges, opens a fighter's popup, reads the eyes as fatigue, enemy and fallen, links a skill to the unit that did it from the bubble on its head, reads a picked rune as the same emblem in the round screen's box, reads the squad as a front row and a back row, and sees why a back unit got hit with a Tank in front, without being told.
 
 ## Open questions
 
-- Does the face-off round screen, with its stat icons, enemy badges, eyes, popup and term cards, let a first-time player say who fights whom and what each side can do, and does the fight's bubble name who did what? Answered by Next up #1.
-- Does an empty slot that blocks Fight until it is filled feel clear, or does it break accept-default? Answered by Next up #1.
-- Does the Exposed build still win less than Burn or Frozen, and is that its runes or a multiplier on a flat damage number? Gates Next up #4.
-- What fire rate is healthy for a rune that fires only on a moment (Heir, Vigil)? Gates Next up #3.
+- Does the face-off round screen let a first-time player say who fights whom and what each side can do, does the fight's bubble name who did what, and does an empty slot that blocks Fight break accept-default? Answered by Next up #1.
+- Does a visible recipe pull a player toward a hero, and does losing three units for one hero hurt enough to be a real choice? Needed for Next up #3.
+- Does the Exposed build still win less than Burn or Frozen, and is that its runes or a multiplier on a flat damage number? Needed for Next up #5.
+- What fire rate is healthy for a rune that fires only on a moment (Heir, Vigil)? Needed for Next up #4.
 - Do today's five first-pick runes set a run's identity, and do eased fatigue and common Recruit feel survivable by hand? Answered by Next up #1.
 
 ## How to work here

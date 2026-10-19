@@ -10,6 +10,30 @@
 
 ---
 
+## [2026-10-19] Run variety comes from merge heroes: three units become one hero
+
+- **Decision:**
+  - Three basic units (Tank, Damage, Healer) merge into one hero; the three leave the squad.
+  - Three roles in three pieces give ten recipes, all open and visible from round 1.
+  - A run is limited by which units the offers bring, not by hidden recipes.
+  - A hero stands in the front row when two or more pieces are Tanks, else in the back row.
+  - A hero has a gift that is always on and a skill that goes again like any skill.
+  - Working names: Golem, Berserker, Paladin, Assassin, Dragon, Necromancer, Priest, Treant, Vampire, Twin.
+  - Gifts, skills and numbers are a drawn proposal (canvas 8.1–9.10); nothing is built and the numbers are made up.
+  - Tu's later intent: introduce heroes gradually across runs; how is not decided.
+  - Not settled: the start squad of six already holds round 1 recipes; Prayer and Bloom are the same skill; Prayer hits the enemy three times.
+- **Why:**
+  - Status synergy alone bores Tu in under 10 rounds; runes never change how a run plays.
+  - Hades weapons and Slay the Spire heroes change how a run plays; shared upgrades then mean different things under each.
+  - Merging three into one is a familiar mobile pattern; each hero is one name that says what it does.
+  - Tank, Damage and Healer stay the core: they are the ingredients, and a hero costs three of them.
+  - A visible recipe is a goal to chase: "one more Damage and I get my Necromancer".
+  - Rejected: four leader ideas (Relay, Totems, Souls, Tag team), too hard to picture.
+  - Rejected: one hero picked at run start; the run is stuck with it and strength still came from the basic fighters.
+- **Replaces:**
+  - Nothing; the rune pool stays and heroes add to it.
+  - Rules live in `design/HANDOFF.md` sections 8–9; `design/tools/gen-heroes.js` redraws the frames.
+
 ## [2026-10-17] Wanderer is removed from the first picks, leaving five
 
 - **Decision:**
