@@ -2,6 +2,14 @@
 // A tappable term is bold, coloured and dotted-underlined (`.term.tap`); inside a card it stays coloured but is not tappable.
 // DOM-free: every export is data or a string.
 
+import type { HeroKind } from "../sim/types.js";
+import { HERO_ORDER } from "../sim/heroes.js";
+
+/** A merge hero's own card (2026-10-20, canvas 9.x): "hero-golem" and so on. Opened from the skill bubble and the popup's "See it in action". */
+export type HeroCardId = `hero-${HeroKind}`;
+
+export const HERO_CARD_IDS: HeroCardId[] = HERO_ORDER.map((k): HeroCardId => `hero-${k}`);
+
 export type TermId =
   | "slam"
   | "guard"
@@ -13,12 +21,13 @@ export type TermId =
   | "shield"
   | "chain"
   | "backfire"
-  | "fatigue";
+  | "fatigue"
+  | HeroCardId;
 
-export const TERM_IDS: TermId[] = ["slam", "guard", "mend", "expose", "exposed", "frozen", "burn", "shield", "chain", "backfire", "fatigue"];
+export const TERM_IDS: TermId[] = ["slam", "guard", "mend", "expose", "exposed", "frozen", "burn", "shield", "chain", "backfire", "fatigue", ...HERO_CARD_IDS];
 
 /** The colour class a term's word wears; `""` is the shared term green. Backfire and Fatigue use the warning orange. */
-const TERM_CLASS: Record<TermId, string> = {
+const TERM_CLASS: Partial<Record<TermId, string>> = {
   slam: "",
   guard: "",
   mend: "",
@@ -34,7 +43,7 @@ const TERM_CLASS: Record<TermId, string> = {
 
 /** One term word as markup. `tap` makes it a button-like target carrying `data-term`. */
 export function termSpan(id: TermId, text: string, tap = true): string {
-  const cls = ["term", TERM_CLASS[id], tap ? "tap" : ""].filter(Boolean).join(" ");
+  const cls = ["term", TERM_CLASS[id] ?? "", tap ? "tap" : ""].filter(Boolean).join(" ");
   return `<span class="${cls}"${tap ? ` data-term="${id}"` : ""}>${text}</span>`;
 }
 

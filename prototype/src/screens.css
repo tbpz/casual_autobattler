@@ -306,3 +306,14 @@ button.up-cell { cursor: pointer; }
 .offer-row.offer-drop .offer-headline { display: block; font-size: 14px; }
 .offer-row.offer-drop .offer-detail { margin-top: 1px; font-size: 11px; }
 .offer-drop-tag { flex: none; align-self: center; margin-right: 10px; font-size: 10px; font-weight: 800; letter-spacing: 0.04em; color: #ff7a7a; border: 1px solid rgba(255,122,122,0.5); border-radius: 10px; padding: 2px 8px; }
+
+/* ---------- merge heroes in the fighter popup (2026-10-20, canvas 8.x) ---------- */
+/* the crown on a switcher chip pokes above it: the row needs room over the chips */
+.pp-chips.has-hero { padding-top: 12px; }
+.pp-herotag { color: #14161c; background: #ffd76a; border-radius: 4px; padding: 1px 5px; letter-spacing: 0.12em; }
+.pp-made-note { font-weight: 600; letter-spacing: 0; color: #8a8fa3; }
+.pp-madeline { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 4px 0 2px; }
+.pp-ing { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.pp-ingbody { position: relative; width: 28px; height: 28px; border-radius: 50%; }
+.pp-ingword { font-size: 9px; font-weight: 800; letter-spacing: 0.04em; }
+.pp-op { font-size: 15px; font-weight: 800; color: #8a8fa3; margin-bottom: 12px; }

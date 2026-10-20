@@ -6,6 +6,8 @@ import { momentHtml, type BestMoment } from "./fightSummary.js";
 import { ROLE_HEX } from "./roundParts.js";
 import { hpBarLayout } from "./hpBar.js";
 import { termFromTarget, type TermId } from "./terms.js";
+import { isFrontRow } from "../sim/heroes.js";
+import { DRAGON_SCALE, crownOnBody, fangsHtml, unitAccentHex, unitBodyBg, unitMainHex } from "./heroLook.js";
 import { BUBBLE_H, BUBBLE_TAIL, BUBBLE_W, bubblePath, bubbleText, clampTailDx, type BubbleKind } from "./bubble.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
 import { ROLE_SORT_PRIORITY } from "../sim/roles.js";
@@ -358,6 +360,8 @@ const ROLE_ACCENT: Record<"tank" | "damage" | "support", string> = {
 };
 
 function accentForHero(hero: HeroSnapshot, side: "player" | "enemy", index: number): string {
+  // A merge hero's skill wears its main colour (gold for a Twin made of one of each).
+  if (side === "player" && hero.hero) return unitAccentHex(hero);
   if (side === "player" && (hero.role === "tank" || hero.role === "damage" || hero.role === "support")) {
     return ROLE_ACCENT[hero.role];
   }
@@ -399,6 +403,8 @@ export class FightView {
   private enemyHeroes: Map<string, HeroSlot> = new Map();
   private heroNames: Map<string, string> = new Map();
   private heroRoles: Map<string, string> = new Map();
+  /** Which merge hero each player unit is (2026-10-20), by id — the skill bubble opens that hero's own card. */
+  private heroKinds: Map<string, string> = new Map();
   /** Fixed for the whole fight (only current hp changes) — captured at
    * build time so a delayed impact (post-tracer-flight) can still scale its
    * flinch/flash by damage-as-a-fraction-of-maxHp. */
@@ -972,7 +978,7 @@ export class FightView {
     let backCount = 0;
     heroes.forEach((hero, i) => {
       if (stillFront && ROLE_SORT_PRIORITY[hero.role] !== frontRank) stillFront = false;
-      const isFront = side === "player" ? hero.role === "tank" : stillFront;
+      const isFront = side === "player" ? isFrontRow(hero) : stillFront;
       this.heroIsFront.set(hero.id, isFront);
 
       const refs = makeHeroSlot(hero, side, accentForHero(hero, side, i), i);
@@ -980,13 +986,26 @@ export class FightView {
       // real size, back rank included, which decides between the plain and the size-tuned eye.
       const baseSize = ROLE_BODY_PX[hero.role] ?? 40;
       const faceSize = side === "player" ? SQUAD_BODY_PX : isFront ? baseSize : baseSize * BACK_RANK_SCALE;
-      const hex = hero.role === "tank" || hero.role === "damage" || hero.role === "support" ? ROLE_HEX[hero.role] : ROLE_HEX.damage;
+      const hex =
+        side === "player" && hero.hero
+          ? unitMainHex(hero)
+          : hero.role === "tank" || hero.role === "damage" || hero.role === "support"
+            ? ROLE_HEX[hero.role]
+            : ROLE_HEX.damage;
       refs.liveFace =
         side === "player"
           ? squadFace(hex, fatigueTier(this.cfg, hero.fatigue), faceSize)
           : villainFace(faceSize, hero.role === "bruiser" ? 1.35 : 1);
       refs.body.insertAdjacentHTML("beforeend", refs.liveFace);
       refs.face = refs.body.lastElementChild;
+      if (side === "player" && hero.hero) {
+        // A merge hero wears its recipe and a crown (canvas 8.x); a Dragon grows with its stage.
+        const scale = hero.hero === "dragon" ? DRAGON_SCALE[Math.min(3, hero.stage ?? 0)]! : 1;
+        refs.body.style.background = unitBodyBg(hero);
+        refs.body.insertAdjacentHTML("beforeend", fangsHtml(hero) + crownOnBody(SQUAD_BODY_PX * scale));
+        if (scale !== 1) refs.slot.style.setProperty("--role-size", `${(SQUAD_BODY_PX * scale).toFixed(1)}px`);
+        this.heroKinds.set(hero.id, hero.hero);
+      }
       refs.slot.addEventListener("click", () => this.onFighterTap?.(hero.id));
       for (const el of refs.slot.querySelectorAll<HTMLElement>("[data-term]")) this.bindTermTap(el);
       // Direct fraction of the two sides' combined maxHp (see render()'s
@@ -994,6 +1013,12 @@ export class FightView {
       // now that a side's own flex-grow can no longer double as its width.
       refs.slot.style.width = `${((hero.maxHp / bothSidesMaxHp) * 100).toFixed(3)}%`;
       refs.slot.style.flex = "0 0 auto";
+      if (hero.skeleton) {
+        // A Necromancer's empty place: hidden until Raise fills it (updateSide), a fixed width since it has no HP to scale by.
+        refs.slot.style.width = "44px";
+        refs.slot.style.display = "none";
+        refs.body.style.background = "#d7dae3";
+      }
       if (side === "player") {
         // One size, no dimming: no rank-back class (it carries the smaller size, the dim and the smaller freeze pill). The rows below hold the depth.
         refs.slot.classList.add(isFront ? "rank-front" : "squad-back");
@@ -1102,7 +1127,14 @@ export class FightView {
     this.chainHud.style.setProperty("--skill", refs?.accent ?? "var(--chain)");
     // A tap on the bubble opens its card: Backfire while it reads a backfire, otherwise the skill's own (EXPOSE → expose).
     const skillTerm = skill.toLowerCase();
-    const term = t.backfire ? "backfire" : skillTerm === "guard" || skillTerm === "mend" || skillTerm === "expose" ? skillTerm : "";
+    const heroKind = this.heroKinds.get(heroId);
+    const term = t.backfire
+      ? "backfire"
+      : skillTerm === "guard" || skillTerm === "mend" || skillTerm === "expose"
+        ? skillTerm
+        : heroKind
+          ? `hero-${heroKind}`
+          : "";
     if (term) this.chainHud.dataset.term = term;
     else delete this.chainHud.dataset.term;
     this.ptName.textContent = t.name;
@@ -1170,6 +1202,12 @@ export class FightView {
     for (const hero of heroes) {
       const refs = map.get(hero.id);
       if (!refs) continue;
+      // An empty skeleton place stays hidden until it is filled (and again if the fight is rewound).
+      if (hero.skeleton) {
+        const filled = hero.maxHp > 0;
+        refs.slot.style.display = filled ? "" : "none";
+        if (!filled) continue;
+      }
       // HP and Shield share one bar (DECISIONS.md 2026-10-01): it keeps the
       // max-HP scale until HP + Shield no longer fits, then rescales so both do.
       const shield = hero.alive ? hero.marks.shield : 0;
@@ -1607,6 +1645,11 @@ export class FightView {
       case "windupHit":
         this.showWindupHit(e.sourceId, e.targetId, e.damage, e.originalTargetId, e.redirect);
         break;
+      case "raise": {
+        const refs = this.slotFor(e.heroId);
+        if (refs) pulseClass(refs.body, "raised", 700);
+        break;
+      }
       case "resolve":
         this.showResolve(e.outcome);
         break;

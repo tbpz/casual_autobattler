@@ -6,6 +6,7 @@ import { squadChainEffects } from "../sim/offers.js";
 import { heldCards } from "../sim/progress.js";
 import type { RosterState } from "../sim/roster.js";
 import { roundEnemySide } from "../sim/rounds.js";
+import { isFrontRow } from "../sim/heroes.js";
 import type { EncounterKind } from "../sim/encounters.js";
 import { markWordsHtml } from "./heroPickShared.js";
 import { ICON_SKULL_MINI } from "./icons.js";
@@ -90,7 +91,7 @@ export function renderRoundScreen(
   ];
   const squadBodies = squadRowsHtml(
     cells,
-    (c) => c.kind === "unit" && c.unit.role === "tank",
+    (c) => c.kind === "unit" && isFrontRow(c.unit),
     (c) => (c.kind === "unit" ? squadBodyHtml(c.unit, cfg, layout) : emptySlotHtml(layout)),
   );
   const count = emptyCount > 0 ? `<span class="fo-count">${fielded.length} of ${slots}</span>` : "";
@@ -250,7 +251,7 @@ export function renderRoundScreen(
     const fighter = target.closest("[data-fighter]") as HTMLElement | null;
     if (fighter) {
       closePopover();
-      openFighterPopup({ cfg, squad: fielded, enemies: enemy.heroes, openId: fighter.dataset.fighter!, progress, fierceEnemies: fierce });
+      openFighterPopup({ cfg, squad: fielded.map((h) => ({ ...h, stage: h.heroStage })), enemies: enemy.heroes, openId: fighter.dataset.fighter!, progress, fierceEnemies: fierce });
     }
   });
 

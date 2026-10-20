@@ -16,6 +16,8 @@ import { renderRoundScreen } from "./roundScreen.js";
 import { renderSquadScreen } from "./squadScreen.js";
 import { renderOfferScreen } from "./offerScreen.js";
 import { renderRelicScreen } from "./relicScreen.js";
+import { renderMergeScreen } from "./mergeScreen.js";
+import type { HeroKind } from "../sim/types.js";
 import { downloadRunLog } from "../log/download.js";
 
 const cfg = DEFAULT_RUN_CONFIG;
@@ -101,8 +103,7 @@ export function mountApp(root: HTMLElement): void {
         showRunOver();
         return;
       }
-      if (session.awaitingRelic) showRelicScreen();
-      else showOfferScreen();
+      showReward();
       return;
     }
     // A run opens straight on its first fight (2026-10-01); the relic pick is that
@@ -117,6 +118,9 @@ export function mountApp(root: HTMLElement): void {
       if (session.status !== "in-progress") break;
       if (session.awaitingRelic) {
         session.pickRelic(session.relicChoices[0]!);
+      } else if (session.awaitingMerge) {
+        // The accept-default merge: the first hero the roster can make (sim/run.ts's defaultMergePick).
+        session.resolveMerge(session.mergeChoices[0]!.kind);
       } else if (session.pendingOffers.length === 0) {
         session.resolveOffer(null);
       } else {
@@ -253,12 +257,17 @@ export function mountApp(root: HTMLElement): void {
         healPerBeat: base.get(h.id)?.healPerBeat,
         reachesBackline: base.get(h.id)?.reachesBackline,
         fatigue: h.fatigue,
+        hero: h.hero,
+        madeFrom: h.madeFrom,
+        stage: h.stage,
+        skeleton: h.skeleton,
       });
       pausedByPopup = true;
       syncPause();
       closePopup = openFighterPopup({
         cfg,
-        squad: snap.playerHeroes.map((h) => toFighter(h, squadBase)),
+        // A Necromancer's empty skeleton places are not fighters yet: they stay out of the switcher until Raise fills them.
+        squad: snap.playerHeroes.filter((h) => !(h.skeleton && h.maxHp === 0)).map((h) => toFighter(h, squadBase)),
         enemies: snap.enemyHeroes.map((h) => toFighter(h, enemyBase)),
         openId: id,
         progress: session.progress,
@@ -296,7 +305,18 @@ export function mountApp(root: HTMLElement): void {
   // falls through to the offer path with nothing to show, which ends the run.
   function showReward(): void {
     if (session.awaitingRelic) showRelicScreen();
+    else if (session.awaitingMerge) showMergeScreen();
     else showOfferScreen();
+  }
+
+  // A mini-boss win's reward (2026-10-20): make a hero, or "not now" for the round's usual offers.
+  function showMergeScreen(): void {
+    renderMergeScreen(root, session.currentRoster, session.mergeChoices, (kind: HeroKind | null) => {
+      session.resolveMerge(kind);
+      if (kind) afterRoundResolved();
+      else showOfferScreen();
+    });
+    appendSeedBadge(root, session);
   }
 
   function showOfferScreen(): void {
