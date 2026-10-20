@@ -10,6 +10,21 @@ export type HeroCardId = `hero-${HeroKind}`;
 
 export const HERO_CARD_IDS: HeroCardId[] = HERO_ORDER.map((k): HeroCardId => `hero-${k}`);
 
+/** An army's cards (2026-10-20, canvas 11.x): one per army skill and one per army rule. Opened from the skill bubble and from the popup's "See it in action". */
+export type ArmyCardId = `army-${"graveGuard" | "soulBolt" | "bloodRite" | "roar" | "packBite" | "herd" | "undead" | "beasts"}`;
+
+export const ARMY_CARD_IDS: ArmyCardId[] = ["army-graveGuard", "army-soulBolt", "army-bloodRite", "army-roar", "army-packBite", "army-herd", "army-undead", "army-beasts"];
+
+/** The card an army skill's name opens, by the name the bubble shows lowercased ("grave guard"). */
+export const ARMY_SKILL_CARD: Record<string, ArmyCardId> = {
+  "grave guard": "army-graveGuard",
+  "soul bolt": "army-soulBolt",
+  "blood rite": "army-bloodRite",
+  roar: "army-roar",
+  "pack bite": "army-packBite",
+  herd: "army-herd",
+};
+
 export type TermId =
   | "slam"
   | "guard"
@@ -22,9 +37,10 @@ export type TermId =
   | "chain"
   | "backfire"
   | "fatigue"
-  | HeroCardId;
+  | HeroCardId
+  | ArmyCardId;
 
-export const TERM_IDS: TermId[] = ["slam", "guard", "mend", "expose", "exposed", "frozen", "burn", "shield", "chain", "backfire", "fatigue", ...HERO_CARD_IDS];
+export const TERM_IDS: TermId[] = ["slam", "guard", "mend", "expose", "exposed", "frozen", "burn", "shield", "chain", "backfire", "fatigue", ...HERO_CARD_IDS, ...ARMY_CARD_IDS];
 
 /** The colour class a term's word wears; `""` is the shared term green. Backfire and Fatigue use the warning orange. */
 const TERM_CLASS: Partial<Record<TermId, string>> = {

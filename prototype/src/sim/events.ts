@@ -5,7 +5,7 @@
  * the old prototype's sim/engine.ts + render/playback.ts).
  */
 import type { ChainEffect } from "./config.js";
-import type { HeroKind, Marks, Role } from "./types.js";
+import type { ArmyKind, HeroKind, Marks, Role, UnitKind } from "./types.js";
 import type { CardId } from "./cards/index.js";
 
 export type Side = "player" | "enemy";
@@ -170,6 +170,9 @@ export type FightEvent =
   /** The Necromancer's Raise filled an empty place: skeleton `heroId` is now standing on the player side
    * (2026-10-20; fight.ts's raiseSkeleton). */
   | { type: "raise"; t: number; heroId: string }
+  /** An Undead unit got back up instead of falling (2026-10-20; fight.ts's tryRise): Undying, or a Bone Knight's Grave Guard
+   * (`byGuard`). `hp` is what it stands up with. */
+  | { type: "heroRose"; t: number; side: Side; heroId: string; hp: number; byGuard: boolean }
   | { type: "resolve"; t: number; outcome: "win" | "loss"; reason: "wipe" | "failsafe" };
 
 /** A per-hero HP reading at one instant, for body rendering. */
@@ -203,6 +206,11 @@ export interface HeroSnapshot {
   hero?: HeroKind;
   madeFrom?: ("tank" | "damage" | "support")[];
   stage?: number;
+  /** Army unit (2026-10-20): which army and which of its six units this is, and, Undead only, whether it has got back
+   * up this fight. Undefined on a plain unit. */
+  army?: ArmyKind;
+  kind?: UnitKind;
+  risen?: boolean;
   /** A Necromancer skeleton place. Not alive and `maxHp` 0 until Raise fills it, so the screen can draw
    * the places in advance and hide the empty ones. */
   skeleton?: boolean;

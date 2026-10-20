@@ -27,6 +27,8 @@ interface FightCtx {
   api: CardApi;
   player: SideState;
   enemy: SideState;
+  /** How many of the player's units have got back up so far this fight (Undying and Grave Guard both count): Soul Bolt reads it. */
+  risen: number;
 }
 let ctx: FightCtx | null = null;
 
@@ -121,6 +123,39 @@ function rootedHeal(cfg: FightConfig, t: number): number {
 /** Golem's Taunt: the living Golem on the side, when there is one. Every enemy hit on that side lands on it. */
 function tauntTargetId(side: SideState): string | undefined {
   return side.heroes.find((h) => h.hero === "golem" && h.alive && h.hp > 0)?.id;
+}
+
+// ---- The armies' rules (2026-10-20; sim/armies.ts) ----
+// Undying and Pack are read straight off `HeroState.army` where they matter, like the merge heroes' gifts, not routed
+// through the rune system: they must not take a rune slot or show in the runes box.
+
+/** Undead's Undying: a unit that has risen this fight hits harder, normal hits and skills alike. 1 for everyone else. */
+function risenMult(cfg: FightConfig, h: HeroState): number {
+  return h.risen ? cfg.undyingDamageMult : 1;
+}
+
+/** A player unit that just fell may get back up at once: a Bone Knight whose Grave Guard took the slam does (free, as often
+ * as it is guarded), and any Undead unit that has not risen yet this fight does (Undying, once). Returns whether it stood up;
+ * the caller then does not count it as fallen. */
+function tryRise(c: FightCtx, hero: HeroState, opts: DamageOpts | undefined): boolean {
+  if (hero.skeleton || hero.army !== "undead") return false;
+  const byGuard = !!opts?.guarded && hero.kind === "boneKnight" && (hero.chainPlan?.effects ?? hero.chainEffects ?? []).includes("graveGuard");
+  if (!byGuard && hero.risen) return false;
+  const frac = byGuard ? c.cfg.graveGuardReviveFrac : c.cfg.undyingReviveFrac;
+  hero.alive = true;
+  hero.hp = Math.max(1, Math.round(hero.maxHp * frac));
+  if (!byGuard) hero.risen = true;
+  c.risen += 1;
+  c.events.push({ type: "heroRose", t: c.t, side: "player", heroId: hero.id, hp: hero.hp, byGuard });
+  return true;
+}
+
+/** Pack: a hit a Beast lands on an enemy fills every other living Beast's skill bar a little. */
+function packFill(c: FightCtx, hitter: HeroState): void {
+  if (hitter.army !== "beasts" || !hitter.alive) return;
+  for (const ally of c.player.heroes) {
+    if (ally !== hitter && ally.army === "beasts" && ally.alive && ally.hp > 0 && !ally.skeleton) ally.charge += c.cfg.packChargePerHit;
+  }
 }
 
 /** Heals `target` for up to `amount` (not past full HP), announces it as a heal event and returns what went in. */
@@ -254,6 +289,8 @@ function makeCardApi(c: () => FightCtx): CardApi {
 interface DamageOpts {
   source?: HeroState;
   chain?: boolean;
+  /** An enemy slam that a Guard redirected onto its guardian: a Bone Knight's Grave Guard stands the guardian back up. */
+  guarded?: boolean;
 }
 
 /**
@@ -338,16 +375,22 @@ function applyDamageFrom(
     if (hero.hp <= 0) {
       hero.hp = 0;
       hero.alive = false;
-      died.push(hero.id);
-      if (c) {
-        runHook(c, "death", { side, hero, onEnemySide });
-        // A card may bring the body back (Phoenix): then it did not die.
-        if (hero.alive) died.pop();
-        else onBodyFell(c, hero, onEnemySide, opts?.source);
+      if (c && !onEnemySide && tryRise(c, hero, opts)) {
+        // An Undead unit got back up (Undying, or Grave Guard): it did not fall.
+      } else {
+        died.push(hero.id);
+        if (c) {
+          runHook(c, "death", { side, hero, onEnemySide });
+          // A card may bring the body back (Phoenix): then it did not die.
+          if (hero.alive) died.pop();
+          else onBodyFell(c, hero, onEnemySide, opts?.source);
+        }
       }
     }
     if (!spillOverkill) break;
   }
+  // Beasts' Pack: a hit a Beast lands on an enemy fills the other Beasts' skill bars a little.
+  if (c && opts?.source && applied > 0 && side === c.enemy) packFill(c, opts.source);
   // Vampire's Leech: each hit the player's squad lands heals the unit that landed it.
   if (c && opts?.source && applied > 0 && side === c.enemy && opts.source.alive && c.player.heroes.includes(opts.source)) {
     const vampire = c.player.heroes.find((h) => h.hero === "vampire" && h.alive && h.hp > 0);
@@ -672,6 +715,7 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
     fatigue: h.fatigue,
     backfires: h.backfires,
     ...(h.hero ? { hero: h.hero, madeFrom: h.madeFrom, ...(h.hero === "dragon" ? { stage: h.heroStage ?? 0 } : {}) } : {}),
+    ...(h.army ? { army: h.army, ...(h.kind ? { kind: h.kind } : {}), ...(h.risen ? { risen: true } : {}) } : {}),
     ...(h.skeleton ? { skeleton: true } : {}),
     windupFireT: h.windupFireT,
     windupTargetId: h.windupTargetId,
@@ -713,6 +757,7 @@ function cloneHeroes(heroes: HeroState[]): HeroState[] {
     marks: h.marks ? { ...h.marks } : { exposed: 0, burn: 0, shield: 0 },
     burnFrom: undefined,
     lastHitBy: undefined,
+    risen: false,
     thawSeenT: h.stunnedUntilT,
     chainPlan: resolveChainPlan(h),
   }));
@@ -785,7 +830,7 @@ function performHeroAction(
     lockedTankId ??
     (targeting === "front" ? frontMostAliveId(defenderSide) : pickEnemyTargetId(defenderSide, rng, cfg, enemyTargetTally));
   if (!targetId) return;
-  const base = (hero.damage + (isPlayerAttacker ? attackerSide.dpsBonus : 0)) * damageMultiplier * rageMult(cfg, hero);
+  const base = (hero.damage + (isPlayerAttacker ? attackerSide.dpsBonus : 0)) * damageMultiplier * rageMult(cfg, hero) * risenMult(cfg, hero);
   let damage = rollDamage(base, rng, cfg.damageVariance);
   // Cards that change a normal attack before it lands (Punish) listen here.
   if (ctx) {
@@ -913,7 +958,10 @@ function handleBruiserBeat(
     hero.nextAttackT = Math.max(t + hero.attackIntervalSec, frozenUntil);
     if (!targetId) return false;
     const damage = Math.max(1, Math.round(hero.damage * cfg.windupDamageMultiplier));
-    const { died, applied } = applyDamageFrom(player, targetId, damage, cfg.chargeWeightSoaked, true, { source: hero });
+    const { died, applied } = applyDamageFrom(player, targetId, damage, cfg.chargeWeightSoaked, true, {
+      source: hero,
+      guarded: redirect === "guard" || redirect === "guardHeld",
+    });
     hero.dealt += applied;
     events.push({ type: "windupHit", t, sourceId: hero.id, targetId, damage, originalTargetId, redirect });
     for (const id of died) events.push({ type: "heroDown", t, side: "player", heroId: id });
@@ -1014,9 +1062,23 @@ function aliveOnSide(side: SideState, id: string | undefined): HeroState | undef
  * front-most, same reasoning as a normal player attack — makeEncounterEnemySide
  * puts bruisers first, so this reliably freezes the boss on purpose. Backfire:
  * weighted-random own hero, the same rule an enemy's own attack uses against
- * the player — a freeze turned on yourself shouldn't be aimable. */
-function pickFreezeTarget(player: SideState, enemy: SideState, rng: Rng, cfg: FightConfig, backfire: boolean): HeroState | undefined {
-  const targetId = backfire ? pickWeightedTargetId(player, rng, cfg) : frontMostAliveId(enemy);
+ * the player — a freeze turned on yourself shouldn't be aimable.
+ *
+ * A backfire never picks the firing unit itself (2026-10-20). A frozen unit
+ * can't take the turn that ends its own skill, and the freeze hold keeps it
+ * frozen for as long as the skill runs — so a Tank that froze itself kept its
+ * skill open to the end of the fight and no other unit could ever fire. With
+ * nobody else left to pick, the freeze simply has no target. */
+function pickFreezeTarget(
+  player: SideState,
+  enemy: SideState,
+  rng: Rng,
+  cfg: FightConfig,
+  backfire: boolean,
+  hero: HeroState,
+): HeroState | undefined {
+  const others: SideState = { ...player, heroes: player.heroes.filter((h) => h.id !== hero.id) };
+  const targetId = backfire ? pickWeightedTargetId(others, rng, cfg) : frontMostAliveId(enemy);
   const lookupSide = backfire ? player : enemy;
   return targetId ? lookupSide.heroes.find((h) => h.id === targetId) : undefined;
 }
@@ -1109,7 +1171,8 @@ function resolveOneEffect(
   // Fatigue makes every escalated rung a little stronger (guard is a flat
   // charge count and ignores it). It scales a backfire equally — a frayed
   // unit's mistake is as big as its success.
-  let boost = fatigueMagnitudeMult(cfg, hero.fatigue);
+  // An Undead unit that has risen hits harder with its skills too (Undying).
+  let boost = fatigueMagnitudeMult(cfg, hero.fatigue) * risenMult(cfg, hero);
   // A damage effect's real payoff lands on the enemy, backfire on the
   // player's own side; a heal effect is the mirror of that (real payoff
   // heals the player's own side, backfire heals the enemy) — same asymmetry
@@ -1117,7 +1180,8 @@ function resolveOneEffect(
   // the player) and "stun" picks its own target per branch below, so neither
   // reads this.
   const isHealEffect =
-    effect === "ward" || effect === "mend" || effect === "bless" || effect === "prayer" || effect === "bloom";
+    effect === "ward" || effect === "mend" || effect === "bless" || effect === "prayer" || effect === "bloom" ||
+    effect === "bloodRite" || effect === "herd";
   const targetSide = isHealEffect ? (backfire ? enemy : player) : backfire ? player : enemy;
   // Marks are only in play inside runFight (ctx set); every branch below that
   // leaves one guards on this. Stacks per rung: 1, plus one per chain "+N".
@@ -1163,10 +1227,13 @@ function resolveOneEffect(
         };
       });
     }
-    case "expose": {
+    case "expose":
+    case "soulBolt": {
       const target = highestHpAliveHero(targetSide);
       if (!target) return null;
-      const damage = escalatedMagnitude(cfg, cfg.chainExposeBase, hitIndex, boost);
+      // Soul Bolt is Expose with a bigger base: its own plus a bit more for each of your units that has got back up this fight.
+      const exposeBase = effect === "soulBolt" ? cfg.soulBoltBase + cfg.soulBoltPerRisen * (c?.risen ?? 0) : cfg.chainExposeBase;
+      const damage = escalatedMagnitude(cfg, exposeBase, hitIndex, boost);
       const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false, dmgOpts);
       hero.dealt += applied;
       let marked = false;
@@ -1242,7 +1309,16 @@ function resolveOneEffect(
         },
       ];
     }
-    case "guard": {
+    case "guard":
+    case "graveGuard":
+    case "roar": {
+      // Grave Guard and Roar are Guard with a rider: a guarded slam that knocks a Bone Knight down stands it back up (fight.ts's
+      // tryRise reads it off the slam), and Roar fills every other Beast's skill bar the first time it goes.
+      if (effect === "roar" && hitIndex === 1 && !backfire) {
+        for (const ally of player.heroes) {
+          if (ally !== hero && ally.army === "beasts" && ally.alive && ally.hp > 0 && !ally.skeleton) ally.charge += cfg.chargeThreshold * cfg.roarChargeFrac;
+        }
+      }
       // Side-level, not aimed at a body — always writes to the PLAYER side,
       // since only the enemy ever winds up. A real payoff covers the squad
       // with the firing hero (Bracer); a backfire inverts the redirect onto
@@ -1283,7 +1359,7 @@ function resolveOneEffect(
       // reliably freezes the boss on purpose. Backfire: weighted-random own
       // hero, the same rule an enemy's own attack uses against the player —
       // a stun turned on yourself shouldn't be aimable.
-      const target = pickFreezeTarget(player, enemy, rng, cfg, backfire);
+      const target = pickFreezeTarget(player, enemy, rng, cfg, backfire, hero);
       if (!target) return null;
       const sec = escalatedDurationSec(cfg, cfg.chainStunBaseSec, hitIndex, level, boost);
       return [freezeBody(c, t, target, sec, backfire, stunHeld)];
@@ -1332,7 +1408,7 @@ function resolveOneEffect(
       });
     }
     case "frostbolt": {
-      const target = pickFreezeTarget(player, enemy, rng, cfg, backfire);
+      const target = pickFreezeTarget(player, enemy, rng, cfg, backfire, hero);
       if (!target) return null;
       const foe = backfire ? player : enemy;
       // Freeze first, then hit: the bolt lands on a body that is already
@@ -1419,8 +1495,10 @@ function resolveOneEffect(
       const friends = backfire ? enemy : player;
       // Whoever last hit the weakest friend; with no record, the front-most.
       const weakest = lowestFractionAliveHero(friends);
-      const target = aliveOnSide(foe, weakest?.lastHitBy) ?? foe.heroes.find((h) => h.alive && h.hp > 0);
-      if (!target) return null;
+      // Never the firing unit itself — see pickFreezeTarget.
+      const target =
+        aliveOnSide(foe, weakest?.lastHitBy) ?? foe.heroes.find((h) => h.alive && h.hp > 0 && h.id !== hero.id);
+      if (!target || target.id === hero.id) return null;
       const sec = escalatedDurationSec(cfg, cfg.chainChillSec, hitIndex, level, boost);
       return [freezeBody(c, t, target, sec, backfire, stunHeld)];
     }
@@ -1485,6 +1563,49 @@ function resolveOneEffect(
         out.push({ kind: "damage", targetId: target.id, amount: applied, intended: damage, died });
       }
       return out.length > 0 ? out : null;
+    }
+    case "bloodRite": {
+      // The Bone Priest pays its own HP first (Undying makes that safe: if it falls, it gets up), then heals every other unit.
+      const out: ChainHitEntry[] = [];
+      const paid = applyDamageFrom(player, hero.id, cfg.bloodRiteCost, 0, false, { chain: true });
+      out.push({ kind: "damage", targetId: hero.id, amount: paid.applied, intended: cfg.bloodRiteCost, died: paid.died });
+      if (!hero.alive) return out;
+      const allies = targetSide.heroes.filter((h) => h.alive && h.hp > 0 && h !== hero && !h.skeleton);
+      const raw = escalatedMagnitude(cfg, cfg.bloodRiteHeal, hitIndex, boost);
+      for (const target of allies) {
+        const room = target.maxHp - target.hp;
+        const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
+        const amount = room > 0 ? Math.max(1, Math.min(raw, cap, room)) : 0;
+        target.hp += amount;
+        if (!backfire) hero.restored += amount;
+        out.push({ kind: "heal", targetId: target.id, amount, intended: raw, died: [] });
+      }
+      return out;
+    }
+    case "packBite": {
+      // One bite for itself and one for every other living Wolf, as a single hit on the front enemy.
+      const target = aliveOnSide(targetSide, frontMostAliveId(targetSide));
+      if (!target) return null;
+      const bites = 1 + player.heroes.filter((h) => h !== hero && h.kind === "wolf" && h.alive && h.hp > 0).length;
+      const damage = escalatedMagnitude(cfg, cfg.packBiteDamage * bites, hitIndex, boost);
+      const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false, dmgOpts);
+      hero.dealt += applied;
+      return [{ kind: "damage" as const, targetId: target.id, amount: applied, intended: damage, died }];
+    }
+    case "herd": {
+      // Heals every unit, 1 for every living Beast in the squad.
+      const allies = targetSide.heroes.filter((h) => h.alive && h.hp > 0 && !h.skeleton);
+      if (allies.length === 0) return null;
+      const beasts = Math.max(1, player.heroes.filter((h) => h.army === "beasts" && h.alive && h.hp > 0).length);
+      const raw = escalatedMagnitude(cfg, cfg.herdHealPerBeast * beasts, hitIndex, boost);
+      return allies.map((target) => {
+        const room = target.maxHp - target.hp;
+        const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
+        const amount = room > 0 ? Math.max(1, Math.min(raw, cap, room)) : 0;
+        target.hp += amount;
+        if (!backfire) hero.restored += amount;
+        return { kind: "heal" as const, targetId: target.id, amount, intended: raw, died: [] as string[] };
+      });
     }
     case "bless": {
       const allies = targetSide.heroes.filter((h) => h.alive && h.hp > 0);
@@ -1616,6 +1737,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
     api: makeCardApi(() => ctx!),
     player,
     enemy,
+    risen: 0,
   };
   try {
     return runFightLoop(events, player, enemy, cfg, rng, seed);

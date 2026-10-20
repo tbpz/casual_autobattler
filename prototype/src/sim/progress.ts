@@ -1,7 +1,9 @@
 import type { ChainEffect, RunConfig } from "./config.js";
 import type { CardId } from "./cards/index.js";
 import type { PlayerRole } from "./roles.js";
-import { PLAYER_ROLES, ROLE_POOL, ROLE_UPGRADE_POOL } from "./roles.js";
+import { PLAYER_ROLES, ROLE_UPGRADE_POOL } from "./roles.js";
+import { baseChainFor } from "./armies.js";
+import type { ArmyKind } from "./types.js";
 import { Rng } from "./rng.js";
 
 /** The stream a run draws its role upgrade options from — derived from the run
@@ -74,6 +76,9 @@ export interface RunProgress {
    * (heldCount) and can be dropped for a new card like any other. Undefined until
    * the pick is made, or after it is dropped. */
   relic?: CardId;
+  /** The army picked before round 1 (sim/armies.ts); undefined for a plain run (the lab, the batch `fight`
+   * command, most checks, and any dev link without `?army=`). Merge heroes are off while it is set. */
+  army?: ArmyKind;
 }
 
 /** Every card the run holds that a fight or a "what makes this mark" question
@@ -110,23 +115,25 @@ export function drawUpgradeOptions(rng: Rng, cfg: RunConfig): Record<PlayerRole,
  * drawn from it; without one (the lab, the batch `fight` command and most
  * checks, which have no run to vary) each role simply gets the first
  * `cfg.upgradeOptionsPerRole` entries of its pool. */
-export function makeInitialProgress(cfg: RunConfig, upgradeRng?: Rng): RunProgress {
+export function makeInitialProgress(cfg: RunConfig, upgradeRng?: Rng, army?: ArmyKind): RunProgress {
   const chain = {} as Record<PlayerRole, RoleProgress>;
   const bonus = {} as Record<PlayerRole, StatBonus>;
   const upgradeOptions = {} as Record<PlayerRole, ChainEffect[]>;
   const drawn = upgradeRng ? drawUpgradeOptions(upgradeRng, cfg) : undefined;
   for (const role of PLAYER_ROLES) {
-    chain[role] = { effects: [ROLE_POOL[role].baseChain], level: 1 };
+    chain[role] = { effects: [baseChainFor(role, army)], level: 1 };
     bonus[role] = { maxHp: 0, damage: 0 };
     upgradeOptions[role] = drawn ? drawn[role] : ROLE_UPGRADE_POOL[role].slice(0, cfg.upgradeOptionsPerRole);
   }
   return {
-    slots: cfg.startingSlots,
+    // Beasts' Pack: five fielded from the start (sim/armies.ts), still capped at cfg.maxSlots.
+    slots: army === "beasts" ? Math.min(cfg.packSlots, cfg.maxSlots) : cfg.startingSlots,
     chain,
     bonus,
     cards: [],
-    introduced: PLAYER_ROLES.map((r) => ROLE_POOL[r].baseChain),
+    introduced: PLAYER_ROLES.map((r) => baseChainFor(r, army)),
     upgradeOptions,
+    ...(army ? { army } : {}),
   };
 }
 

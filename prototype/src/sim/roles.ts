@@ -161,8 +161,9 @@ export const UNIT_NAMES: readonly string[] = [
   "Finn", "Tamsin", "Orin", "Lark", "Brix", "Nell", "Cato", "Vesper", "Hale", "Odette", "Rook", "Sable",
 ];
 
-/** A role-label name as makeUnitState builds it ("Tank 2"), i.e. not yet given a name of its own. */
-const ROLE_LABEL_NAME = /^(Tank|Damage|Healer) \d+$/;
+/** A role-label name as makeUnitState builds it ("Tank 2"), i.e. not yet given a name of its own. The army titles
+ * (sim/armies.ts, "Wolf 2") are spelled out here too: armies.ts imports this file, so this one cannot import them. */
+const ROLE_LABEL_NAME = /^(Tank|Damage|Healer|Bone Knight|Wraith|Bone Priest|Bear|Wolf|Stag) \d+$/;
 
 function nameHash(seed: number, index: number): number {
   let h = (Math.imul(seed >>> 0, 0x9e3779b1) ^ Math.imul(index + 1, 0x85ebca6b)) >>> 0;

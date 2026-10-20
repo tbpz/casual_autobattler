@@ -1,5 +1,5 @@
 # Cheatsheet
-Last updated: 2026-10-20 21:57 (values from prototype/src/sim/config.ts). All marks last one fight.
+Last updated: 2026-10-21 00:30 (values from prototype/src/sim/config.ts). All marks last one fight.
 
 Effects:
 - Exposed: each stack makes the body take +12% damage from every hit, max 10 stacks.
@@ -87,5 +87,17 @@ Merge heroes (branch dev/merge-heroes; made-up numbers, one of each kind per run
 - Treant (2 Healer + Tank; 300 HP, heals up to 10) — Rooted: its heals grow from 3 to 10 over 25s of the fight. Bloom: heals every unit for what Rooted has grown to, per hit.
 - Vampire (2 Healer + Damage; 180 HP, 12 damage) — Leech: each hit your squad lands heals the unit that landed it 1. Bite: 2x its damage on the strongest enemy, the squad healed for what it dealt, shared out.
 - Twin (Tank + Damage + Healer; 190 HP, 8 damage) — Mirror: copies the skill of the first back-row unit (the front unit if alone in the back) each fight. Echo: that skill.
-- A hero's skill is a chain like any other: up to 7 hits, later hits up to 2.8x, backfire aims it at the wrong side. Only Fortify and Bless leave a mark (shield).
+- A hero's skill is a chain like any other: up to 7 hits, later hits up to 2.8x, backfire aims it at the wrong side (a backfired freeze never picks the unit using it). Only Fortify and Bless leave a mark (shield).
 - A Recruit offer names the hero it would make possible ("Completes Golem"). A hero has no Fatigue card in its popup, but fatigue still counts.
+
+Armies (branch dev/merge-heroes; made-up numbers; a run picks one before round 1, every unit is re-skinned, and merge heroes are off):
+- Every army unit keeps its role (Tank, Damage or Healer), so rows, the tank lock, offers and role runes work as before. Its base skill takes the place of Guard, Expose or Mend; runes that need Guard or Mend count Grave Guard, Roar and Blood Rite, Herd.
+- Undead — Undying: each unit gets back up once per fight at 50% of its max HP, then hits 50% harder (normal hits and skills).
+- Bone Knight (Tank; 145 HP, 7 damage) — Grave Guard: takes the next slam, 1 per hit; if that slam knocks it down it stands up at 50% HP and Undying stays ready. Leaves Exposed on the slammer like Guard.
+- Wraith (Damage; 60 HP, 8 damage) — Soul Bolt: 17 damage to the highest-HP enemy plus 9 for each of your units that has got back up this fight, and 1 exposed.
+- Bone Priest (Healer; 76 HP, heals 4 a beat) — Blood Rite: loses 20 HP, then heals every other unit 12, per hit.
+- Beasts — Pack: 5 units fielded (start with 7: 2 Bear, 3 Wolf, 2 Stag); every hit a Beast lands on an enemy gives every other Beast 1.5 charge.
+- Bear (Tank; 140 HP, 5 damage) — Roar: takes the next slam like Guard; on its first hit, every other Beast gets 25% of a full skill bar.
+- Wolf (Damage; 60 HP, 6 damage) — Pack Bite: 6 damage to the front enemy, once more for each other living Wolf (3 Wolves: 18), in one hit.
+- Stag (Healer; 72 HP, heals 3 a beat) — Herd: heals every unit 1 per living Beast per hit (5 Beasts: 5).
+- Each army skill is a chain like any other: up to 7 hits, later hits up to 2.8x; the same marks as the skill it replaces (Pack Bite, Blood Rite and Herd leave none).

@@ -1,4 +1,5 @@
 import type { ChainEffect, MarkId } from "../config.js";
+import { abilityFamily } from "../config.js";
 import { INFERNO, KINDLING, OPEN_WOUND, SMOKE, SPREAD, WILDFIRE } from "./defs/burn.js";
 import { CINDER_SHIELD, FORTRESS, GLASS, KILLING_FROST, PHOENIX, THERMAL_SHOCK } from "./defs/duo.js";
 import { CRACK, EXECUTE, HUNTER_MARK, LAY_BARE, PUNISH, WEAK_SPOT } from "./defs/exposed.js";
@@ -107,7 +108,21 @@ export const ABILITY_MARKS: Record<ChainEffect, MarkId[]> = {
   prayer: [],
   bloom: [],
   bite: [],
+  // The armies' base skills (2026-10-20) leave the marks of the skill they stand in for, so a run with an army still
+  // meets Exposed from its Tank and Damage unit; Pack Bite leaves none (a Beast gets its marks from an upgrade).
+  graveGuard: ["exposed"],
+  soulBolt: ["exposed"],
+  bloodRite: [],
+  roar: ["exposed"],
+  packBite: [],
+  herd: [],
 };
+
+/** `effects` plus the base skill each army skill stands in for, so a rune that needs "guard" or "mend" counts Grave Guard,
+ * Roar, Blood Rite and Herd as it counts Guard and Mend (config.ts's abilityFamily). */
+export function withFamilies(effects: readonly ChainEffect[]): ChainEffect[] {
+  return effects.flatMap((e) => (abilityFamily(e) === e ? [e] : [e, abilityFamily(e)]));
+}
 
 /** The set of marks a squad can currently make: the marks its abilities leave,
  * plus the marks a held card's effect lays (`makes`) — but a card only counts
@@ -143,7 +158,7 @@ export function duoUnlocked(id: CardId, effects: readonly ChainEffect[], held: r
   const needs = CARD_DEFS[id].needs;
   if (!needs) return false;
   if (needs.cards && !needs.cards.every((c) => held.includes(c))) return false;
-  if (needs.effects && !needs.effects.some((e) => effects.includes(e))) return false;
+  if (needs.effects && !needs.effects.some((e) => withFamilies(effects).includes(e))) return false;
   if (needs.marks) {
     const made = marksMadeBy(effects, held);
     if (!needs.marks.every((m) => made.has(m))) return false;
@@ -160,7 +175,7 @@ export function duoUnlocked(id: CardId, effects: readonly ChainEffect[], held: r
 export function cardConnects(id: CardId, effects: readonly ChainEffect[], held: readonly CardId[] = []): boolean {
   const def = CARD_DEFS[id];
   if (def.needs) return duoUnlocked(id, effects, held);
-  if (def.needsEffects) return def.needsEffects.some((e) => effects.includes(e));
+  if (def.needsEffects) return def.needsEffects.some((e) => withFamilies(effects).includes(e));
   const made = marksMadeBy(effects, held);
   return def.reads.every((mark) => made.has(mark));
 }

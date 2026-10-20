@@ -49,8 +49,13 @@ function darken(hex: string, f: number): string {
 const SVG_OPEN =
   '<svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;">';
 
-/** The squad's eye. `style` is "plain" or "tuned"; `realSize` is the body's size in px (keeps tuned strokes a true pixel wide). */
-export function eyeSvg(role: string, tier: FaceTier, realSize: number, style: "plain" | "tuned"): string {
+/** The glow of an Undead unit's hollow eye (render/armyLook.ts). */
+export const GHOST_GLOW = "#9ff0e0";
+
+/** The squad's eye. `style` is "plain" or "tuned"; `realSize` is the body's size in px (keeps tuned strokes a true pixel wide).
+ * `hollow` (Undead, 2026-10-20) swaps the white and the dark pupil: a dark socket with a glowing pupil, lids and rims unchanged,
+ * so a tired Undead unit still shows it. */
+export function eyeSvg(role: string, tier: FaceTier, realSize: number, style: "plain" | "tuned", hollow = false): string {
   const p = (style === "tuned" ? TUNED : PLAIN)[tier];
   if (!p) throw new Error("unknown fatigue tier: " + tier);
   const id = nextId("e");
@@ -83,9 +88,13 @@ export function eyeSvg(role: string, tier: FaceTier, realSize: number, style: "p
     const stroke = p.rim
       ? `stroke="${p.rim}" stroke-width="${rimW.toFixed(2)}"`
       : `stroke="#14161c" stroke-width="${(tuned ? Math.max(0.8 * px1, 0.8) : 0.8).toFixed(2)}" stroke-opacity="0.5"`;
+    const socket = hollow ? "#14161c" : p.white;
+    const pupil = hollow
+      ? `<circle cx="${cx}" cy="${cy + 2}" r="${p.pupil + 3.6}" fill="${GHOST_GLOW}" opacity="0.28"/><circle cx="${cx}" cy="${cy + 2}" r="${p.pupil - 0.6}" fill="${GHOST_GLOW}"/>`
+      : `<circle cx="${cx}" cy="${cy + 2}" r="${p.pupil}" fill="#14161c"/>${p.glint ? `<circle cx="${cx + 1.8}" cy="${cy + 0.8}" r="1.3" fill="#fff"/>` : ""}`;
     return (
-      `${clip}${bags}<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${p.white}" ${stroke}/>` +
-      `<g clip-path="url(#${id}${side})"><circle cx="${cx}" cy="${cy + 2}" r="${p.pupil}" fill="#14161c"/>${p.glint ? `<circle cx="${cx + 1.8}" cy="${cy + 0.8}" r="1.3" fill="#fff"/>` : ""}</g>${lidShape}`
+      `${clip}${bags}<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${socket}" ${stroke}/>` +
+      `<g clip-path="url(#${id}${side})">${pupil}</g>${lidShape}`
     );
   };
   return `${SVG_OPEN}${eye(xs[0]!, -1)}${eye(xs[1]!, 1)}</svg>`;
@@ -128,6 +137,10 @@ export function villainSvg(variant: 1 | 2 | 3, realSize: number, scowl = 1): str
 /** A squad face, plain or size-tuned by the body's drawn size. `role` is the role's hex colour. */
 export const squadFace = (role: string, tier: FaceTier, size: number): string =>
   eyeSvg(role, tier, size, size < TUNED_UNDER ? "tuned" : "plain");
+
+/** An Undead unit's face: hollow sockets with a glowing pupil (2026-10-20, canvas 10.x). Fatigue still shows in the lids. */
+export const hollowFace = (role: string, tier: FaceTier, size: number): string =>
+  eyeSvg(role, tier, size, size < TUNED_UNDER ? "tuned" : "plain", true);
 
 export const villainFace = (size: number, scowl = 1, variant: 1 | 2 | 3 = 1): string => villainSvg(variant, size, scowl);
 

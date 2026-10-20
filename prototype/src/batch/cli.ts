@@ -7,6 +7,7 @@ import { makeStartingRoster, PLAYER_ROLES, type PlayerRole } from "../sim/roles.
 import type { FightEvent, FightResult } from "../sim/events.js";
 import { makeEnemySide, makeOfferPolicy, runRun, type OfferPolicyName, type RunResult } from "../sim/run.js";
 import { BatchAggregator, formatReport } from "./report.js";
+import type { ArmyKind } from "../sim/types.js";
 import { parseLabExtras, runLabFight, type LabSetup } from "../lab/labFight.js";
 
 function parseArgs(argv: string[]): Record<string, string> {
@@ -60,6 +61,8 @@ function formatEvent(e: FightEvent): string {
       return `[t=${t}] ${e.side} ${e.targetId} shield absorbs ${e.amount.toFixed(1)}`;
     case "raise":
       return `[t=${t}] skeleton ${e.heroId} rises`;
+    case "heroRose":
+      return `[t=${t}] ${e.side} ${e.heroId} gets back up at ${e.hp} HP${e.byGuard ? " (Grave Guard)" : " (Undying)"}`;
     case "resolve":
       return `[t=${t}] RESOLVE: ${e.outcome.toUpperCase()} (${e.reason})`;
   }
@@ -94,19 +97,22 @@ function printRunSummary(result: RunResult): void {
   );
 }
 
-function runBatch(cfg: RunConfig, offerPolicyName: OfferPolicyName, n: number, baseSeed: number): void {
+function runBatch(cfg: RunConfig, offerPolicyName: OfferPolicyName, n: number, baseSeed: number, army?: ArmyKind): void {
   const agg = new BatchAggregator(cfg);
   for (let i = 0; i < n; i++) {
     const seed = baseSeed + i;
     const offerRng = new Rng((seed ^ 0x51ed270b) >>> 0);
-    agg.add(runRun(cfg, new Rng(seed), offerRng, makeOfferPolicy(offerPolicyName, offerRng), seed));
+    agg.add(runRun(cfg, new Rng(seed), offerRng, makeOfferPolicy(offerPolicyName, offerRng), seed, army ? { army } : undefined));
   }
-  console.log(formatReport(agg.finalize(), `offerPolicy=${offerPolicyName}`));
+  console.log(formatReport(agg.finalize(), `offerPolicy=${offerPolicyName} army=${army ?? "none"}`));
 }
 
 const [, , cmd, ...rest] = process.argv;
 const args = parseArgs(rest);
 const seed = args.seed ? Number(args.seed) : 1;
+/** `--army undead|beasts` plays the run as that army (sim/armies.ts); `none` or no flag is the plain squad. */
+const army: ArmyKind | undefined = args.army === "undead" || args.army === "beasts" ? args.army : undefined;
+if (args.army && args.army !== "none" && !army) throw new Error(`--army: "${args.army}" is not undead, beasts or none`);
 const n = args.n ? Number(args.n) : 1000;
 /** `--set chargeThreshold=120,enemyHpScale=1.3`: overrides numeric fields of
  * the fight config (or the run config, if the key lives there) for this
@@ -180,13 +186,13 @@ switch (cmd) {
     // policy: "first" (always the first drawn offer) or "random".
     const offerPolicyName = (args.offers as OfferPolicyName) ?? "first";
     const offerRng = new Rng((seed ^ 0x51ed270b) >>> 0);
-    const result = runRun(cfg, new Rng(seed), offerRng, makeOfferPolicy(offerPolicyName, offerRng), seed);
+    const result = runRun(cfg, new Rng(seed), offerRng, makeOfferPolicy(offerPolicyName, offerRng), seed, army ? { army } : undefined);
     printRunSummary(result);
     break;
   }
   case "batch": {
     const offerPolicyName = (args.offers as OfferPolicyName) ?? "first";
-    runBatch(cfg, offerPolicyName, n, seed);
+    runBatch(cfg, offerPolicyName, n, seed, army);
     break;
   }
   default:

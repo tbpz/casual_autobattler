@@ -1,9 +1,12 @@
 import { backfireChanceFor, chainContinuationChance, chainEffectChip, fatigueTier, type ChainEffect, type FatigueTier, type RunConfig } from "../sim/config.js";
 import type { RunProgress } from "../sim/progress.js";
 import { ROLE_LABEL, type PlayerRole } from "../sim/roles.js";
-import type { HeroKind, Role } from "../sim/types.js";
+import type { ArmyKind, HeroKind, Role, UnitKind } from "../sim/types.js";
+import { ARMY_TEXT, ARMY_UNITS, UNIT_TEXT, unitTitle } from "../sim/armies.js";
 import { DRAGON_STAGE_NAMES, HERO_POOL, HERO_TEXT, isFrontRow } from "../sim/heroes.js";
 import { DEAD_BODY, deadFace, squadFace, villainFace } from "./faces.js";
+import { ARMY_ACCENT } from "./armyLook.js";
+import { RULE_ICON, SKILL_ICON, armyIconSvg, type ArmyGlyph } from "./armyIcons.js";
 import {
   ICON_EXPOSED,
   ICON_EYES,
@@ -18,8 +21,8 @@ import {
 } from "./icons.js";
 import { ROLE_HEX, TIER_HEX, esc } from "./roundParts.js";
 import { openTermCard } from "./termCards.js";
-import { termFromTarget, termSpan, type TermId } from "./terms.js";
-import { GOLD, GOLD_RGB, crownOnBody, fangsHtml, unitAccentHex, unitBodyBg, unitMainHex } from "./heroLook.js";
+import { termFromTarget, termSpan, termifyText, type TermId } from "./terms.js";
+import { GOLD, GOLD_RGB, crownOnBody, fangsHtml, unitAccentHex, unitBodyBg, unitBodyStyle, unitFaceHtml, unitMainHex, unitUnderHtml } from "./heroLook.js";
 import { HERO_ICONS, heroIconSvg } from "./heroIcons.js";
 import { heroTermsHtml } from "./heroText.js";
 
@@ -40,6 +43,9 @@ export interface PopupFighter {
   hero?: HeroKind;
   madeFrom?: ("tank" | "damage" | "support")[];
   stage?: number;
+  /** An army unit (2026-10-20; sim/armies.ts): which army and which of its six units. */
+  army?: ArmyKind;
+  kind?: UnitKind;
   /** A Necromancer's skeleton (a standing one; the empty places are filtered out by the caller). */
   skeleton?: boolean;
 }
@@ -103,8 +109,7 @@ export function openFighterPopup(opts: PopupOpts): () => void {
   function faceFor(f: PopupFighter, size: number): string {
     if (isEnemy(f.id)) return villainFace(size, opts.fierceEnemies && f.role === "bruiser" ? 1.35 : 1);
     if (!f.alive) return deadFace();
-    const hex = f.hero ? unitMainHex(f) : isPlayerRole(f.role) ? ROLE_HEX[f.role] : ROLE_HEX.damage;
-    return squadFace(hex, fatigueTier(fc, f.fatigue), size) + fangsHtml(f);
+    return unitFaceHtml(f, fatigueTier(fc, f.fatigue), size) + fangsHtml(f);
   }
 
   function bodyColor(f: PopupFighter): string {
@@ -121,7 +126,7 @@ export function openFighterPopup(opts: PopupOpts): () => void {
     const squadChips = opts.squad
       .map((f) => {
         const open = f.id === openId;
-        return `<div class="pp-chip${open ? " open" : ""}" data-pick="${esc(f.id)}"><div class="pp-chipface${open ? " ring" : ""}" style="background:${bodyColor(f)}">${faceFor(f, 28)}${f.hero && f.alive ? crownOnBody(28) : ""}${f.alive ? "" : deadBadge(11, 6)}</div><div class="pp-chipname">${esc(f.name)}</div></div>`;
+        return `<div class="pp-chip${open ? " open" : ""}" data-pick="${esc(f.id)}"><div class="pp-chipface${open ? " ring" : ""}" style="background:${bodyColor(f)};${f.alive ? unitBodyStyle(f) : ""}">${f.alive ? unitUnderHtml(f, 28) : ""}${faceFor(f, 28)}${f.hero && f.alive ? crownOnBody(28) : ""}${f.alive ? "" : deadBadge(11, 6)}</div><div class="pp-chipname">${esc(f.name)}</div></div>`;
       })
       .join("");
     // Same-kind enemies share one chip with a count; a tap jumps to the first of them (the ‹ › arrows step through each).
@@ -238,6 +243,45 @@ export function openFighterPopup(opts: PopupOpts): () => void {
     </div>`;
   }
 
+  // ---------- armies (2026-10-20; canvas 10.x) ----------
+
+  /** Plain army text with the usual term marks: {slam} becomes the word, and the slam, exposes and shield words are tappable. */
+  const armyTerms = (text: string): string => termifyText(text.replace(/{slam}/g, "slam"), true);
+
+  /** An army unit's ARMY tile (the rule, in the army colour) or SKILL tile (its own skill, in its role colour). Both open a card from their last row. */
+  function armyTileHtml(f: PopupFighter, which: "rule" | "skill", role: PlayerRole, lost: boolean): string {
+    const army = f.army!;
+    const kind = f.kind!;
+    const unit = UNIT_TEXT[kind];
+    const rule = ARMY_TEXT[army];
+    const baseEffect = ARMY_UNITS[army][role].baseChain;
+    const hex = which === "rule" ? ARMY_ACCENT[army].hex : ROLE_HEX[role];
+    const rgb = which === "rule" ? ARMY_ACCENT[army].rgb : SKILL_RGB[role];
+    const glyph: ArmyGlyph = which === "rule" ? RULE_ICON[army] : (SKILL_ICON[baseEffect] ?? "bullet");
+    const name = which === "rule" ? rule.ruleName : unit.skillName;
+    const head = which === "rule" ? rule.ruleHead : unit.skillHead;
+    const lines = which === "rule" ? rule.ruleLines : unit.skillLines;
+    const card = which === "rule" ? `army-${army}` : `army-${baseEffect}`;
+    const line = (g: ArmyGlyph, html: string): string => `<div class="pp-skline"><span class="pp-skli">${armyIconSvg(g, hex, 14)}</span><span>${html}</span></div>`;
+    const upgrades = which === "skill" ? progress.chain[role].effects.filter((e) => e !== baseEffect) : [];
+    const chips =
+      which === "skill"
+        ? `<div class="pp-skchips">${unit.skillChips.map((c) => `<span class="pp-skchip">${ICON_TARGET(11)}${esc(c)}</span>`).join("")}${upgrades
+            .map((e) => {
+              const c = chainEffectChip(e);
+              return `<span class="pp-skchip">${esc(c.icon)} ${esc(c.word.charAt(0).toUpperCase() + c.word.slice(1))}</span>`;
+            })
+            .join("")}</div>`
+        : "";
+    return `<div class="pp-sec pp-skill${lost ? " lost" : ""}" style="--r:${rgb}">
+      <div class="pp-sktop"><div class="pp-skem">${armyIconSvg(glyph, hex, 26)}</div><div class="pp-skmain"><div class="pp-skrow"><span class="pp-skname">${esc(name)}</span><span class="pp-sktag">${lost ? "LOST" : which === "rule" ? "ARMY" : "SKILL"}</span></div><div class="pp-skhead">${armyTerms(head)}</div></div></div>
+      ${chips}
+      <div class="pp-skdiv"></div>
+      ${line("bullet", armyTerms(lines[0]))}${line(which === "rule" ? "bullet" : "repeat", armyTerms(lines[1]))}
+      <div class="pp-skmore" data-term="${card}">${ICON_PLAY}<span>See ${esc(name)} in action</span><span class="chev">›</span></div>
+    </div>`;
+  }
+
   function fatigueHtml(f: PopupFighter, role: PlayerRole): string {
     const tier: FatigueTier = fatigueTier(fc, f.fatigue);
     const hex = TIER_HEX[tier];
@@ -255,7 +299,9 @@ export function openFighterPopup(opts: PopupOpts): () => void {
         ? `The chance to guard again after the first, up to ${pct(late)} later. Each repeat covers one more slam. Max ${max} in a row.`
         : base === "mend"
           ? `The chance to heal again after the first, up to ${pct(late)} later. Each heal is bigger. Max ${max} heals in a row.`
-          : `The chance to hit again after the first, up to ${pct(late)} later. Each hit is stronger and adds another ${termSpan("exposed", "exposed")} stack. Max ${max} hits in a row.`;
+          : f.kind === "wolf"
+            ? `The chance to bite again after the first, up to ${pct(late)} later. Each bite is stronger. Max ${max} bites in a row.`
+            : `The chance to hit again after the first, up to ${pct(late)} later. Each hit is stronger and adds another ${termSpan("exposed", "exposed")} stack. Max ${max} hits in a row.`;
     const backText =
       base === "guard"
         ? `${esc(f.name)} steps aside and the next slam hits your weakest ally instead.`
@@ -318,9 +364,11 @@ export function openFighterPopup(opts: PopupOpts): () => void {
         ? `<span class="pp-roletag" style="color:#d7dae3">SKELETON</span>`
         : kind
           ? `<span class="pp-roletag pp-herotag">HERO</span>${rowTag(isFrontRow(f) ? "FRONT" : "BACK")}`
-          : role
-            ? `<span class="pp-roletag" style="color:${ROLE_HEX[role]}">${ROLE_LABEL[role].toUpperCase()}</span>`
-            : "";
+          : role && f.army
+            ? `<span class="pp-roletag" style="color:#14161c;background:${ARMY_ACCENT[f.army].hex};border-radius:4px;padding:0 5px;font-weight:800">${ARMY_TEXT[f.army].name.toUpperCase()}</span>${rowTag(isFrontRow(f) ? "FRONT" : "BACK")}`
+            : role
+              ? `<span class="pp-roletag" style="color:${ROLE_HEX[role]}">${ROLE_LABEL[role].toUpperCase()}</span>`
+              : "";
     const stageLine =
       kind === "dragon" && f.stage !== undefined ? ` ${DRAGON_STAGE_NAMES[Math.min(3, f.stage)]}, stage ${Math.min(3, f.stage) + 1} of 4.` : "";
     const desc = enemy
@@ -329,9 +377,11 @@ export function openFighterPopup(opts: PopupOpts): () => void {
         ? "Rose from a fallen body. Fights for the Necromancer until the fight ends."
         : kind
           ? HERO_TEXT[kind].job + stageLine
-          : role && f.alive
-            ? JOB[role]
-            : "";
+          : role && f.army && f.kind && f.alive
+            ? `<b style="color:${ROLE_HEX[role]}">${esc(unitTitle(f))} · ${ROLE_LABEL[role]}</b><br>${UNIT_TEXT[f.kind].job}`
+            : role && f.alive
+              ? JOB[role]
+              : "";
     const heals = f.healPerBeat !== undefined && f.healPerBeat > 0 && (enemy || role === "support");
     const frac = f.maxHp > 0 ? Math.max(0, Math.min(1, f.hp / f.maxHp)) : 0;
     const second = heals ? `Heal ${Math.round(f.healPerBeat!)}` : `Damage ${Math.round(f.damage)}`;
@@ -342,13 +392,15 @@ export function openFighterPopup(opts: PopupOpts): () => void {
         ? ""
         : kind
           ? (f.alive ? madeFromHtml(f, kind) : "") + heroTileHtml(f, kind, "gift", !f.alive) + heroTileHtml(f, kind, "skill", !f.alive) + (f.alive ? "" : backCardHtml(f))
-          : role
-            ? skillHtml(f, role, !f.alive) + (f.alive ? fatigueHtml(f, role) : backCardHtml(f))
-            : "";
+          : role && f.army && f.kind
+            ? (f.alive ? armyTileHtml(f, "rule", role, false) : "") + armyTileHtml(f, "skill", role, !f.alive) + (f.alive ? fatigueHtml(f, role) : backCardHtml(f))
+            : role
+              ? skillHtml(f, role, !f.alive) + (f.alive ? fatigueHtml(f, role) : backCardHtml(f))
+              : "";
     return `<div class="pp-who">
       <div class="pp-arrow" data-step="-1">‹</div>
       <div class="pp-whomid">
-        <div class="pp-bigface" style="width:${size}px;height:${size}px"><div class="pp-sh" style="top:${Math.round(size * 0.85)}px;width:${Math.round(size * 0.8)}px"></div><div class="pp-bigbody" style="background:${color};width:${size}px;height:${size}px${glow}">${faceFor(f, size)}${kind && f.alive ? crownOnBody(size) : ""}</div>${enemy || f.alive ? "" : deadBadge(15, 9)}</div>
+        <div class="pp-bigface" style="width:${size}px;height:${size}px"><div class="pp-sh" style="top:${Math.round(size * 0.85)}px;width:${Math.round(size * 0.8)}px"></div>${!enemy && f.alive ? unitUnderHtml(f, size) : ""}<div class="pp-bigbody" style="background:${color};width:${size}px;height:${size}px${glow};${!enemy && f.alive ? unitBodyStyle(f) : ""}">${faceFor(f, size)}${kind && f.alive ? crownOnBody(size) : ""}</div>${enemy || f.alive ? "" : deadBadge(15, 9)}</div>
         <div class="pp-namerow"><span class="pp-name">${esc(f.name)}</span>${tag}</div>
         ${desc ? `<div class="pp-desc">${desc}</div>` : ""}
       </div>

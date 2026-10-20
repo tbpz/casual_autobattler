@@ -17,7 +17,8 @@ import { renderSquadScreen } from "./squadScreen.js";
 import { renderOfferScreen } from "./offerScreen.js";
 import { renderRelicScreen } from "./relicScreen.js";
 import { renderMergeScreen } from "./mergeScreen.js";
-import type { HeroKind } from "../sim/types.js";
+import { renderArmyScreen } from "./armyScreen.js";
+import type { ArmyKind, HeroKind } from "../sim/types.js";
 import { downloadRunLog } from "../log/download.js";
 
 const cfg = DEFAULT_RUN_CONFIG;
@@ -49,6 +50,10 @@ const jumpToOffer = Number(urlParams.get("offer")) || 0;
 const jumpMerge = urlParams.get("merge");
 /** ?fight=1 (with ?round=N): starts that round's fight at once with the default squad, to look at the fight screen. */
 const jumpToFight = urlParams.get("fight") === "1";
+/** ?army=undead|beasts starts the run as that army without the pick screen; ?army=none plays the plain squad (the game before armies). A dev link that jumps
+ * ahead (?round, ?offer, ?runover, ?fight, ?fall) also skips the pick and plays the plain squad unless it names an army. */
+const armyParam = urlParams.get("army");
+const jumpsAhead = jumpToRound > 1 || jumpToOffer > 1 || jumpToRunOver || jumpToFight || fallCount > 0;
 
 /** The seed corner badge, present on every screen, with an "export" link that
  * downloads the run so far as JSON (log/runLog.ts). Each click writes every
@@ -86,9 +91,16 @@ export function mountApp(root: HTMLElement): void {
     appendSeedBadge(root, session);
   }
 
+  /** The first screen of every run: the army pick (2026-10-20), unless a dev link names the army or jumps ahead. */
   function startNewRun(): void {
+    if (armyParam === "undead" || armyParam === "beasts") return beginRun(armyParam);
+    if (armyParam === "none" || jumpsAhead) return beginRun(undefined);
+    renderArmyScreen(root, (army) => beginRun(army));
+  }
+
+  function beginRun(army: ArmyKind | undefined): void {
     const seed = pinnedSeed !== null && pinnedSeed !== "" ? Number(pinnedSeed) : Math.floor(Math.random() * 1_000_000_000);
-    session = new RunSession(cfg, seed);
+    session = new RunSession(cfg, seed, army);
     if (jumpToRound > 1 || jumpToOffer > 1 || jumpToRunOver) fastForward();
     if (fallCount > 0) {
       const byId = new Map(session.currentRoster.heroes.map((h) => [h.id, h]));
@@ -269,6 +281,8 @@ export function mountApp(root: HTMLElement): void {
         hero: h.hero,
         madeFrom: h.madeFrom,
         stage: h.stage,
+        army: h.army,
+        kind: h.kind,
         skeleton: h.skeleton,
       });
       pausedByPopup = true;

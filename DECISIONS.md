@@ -10,6 +10,66 @@
 
 ---
 
+## [2026-10-21] An army picked before round 1 shapes the run; merge heroes stay off while one is picked
+
+- **Decision:**
+  - A run opens on a pick between two armies, Undead and Beasts, before round 1.
+  - An army changes every unit: its name, look, base skill, and one rule for the whole squad.
+  - Undead rule, Undying: each unit gets back up once per fight, then hits harder.
+  - Beasts rule, Pack: five units are fielded instead of three, and each time a Beast hits an enemy the other Beasts' skill bars fill a little.
+  - A unit keeps its role (Tank, Damage, Healer), so rows, the tank lock, offers and role runes work unchanged.
+  - Merge heroes are off in an army run; their code stays on `dev/merge-heroes`, not merged into `main`.
+  - Working choices, not confirmed: Soul Bolt also exposes; Pack Bite is one hit worth 6 per Wolf; Roar fills bars on its first hit only; Beasts start with 7 units.
+  - Built from canvas 10.0A (pick before round 1); 10.0B was not built. Numbers: `sim/armies.ts`, `sim/config.ts`; screens: `design/HANDOFF.md` sections 10 and 11.
+- **Why:**
+  - Tu's playtest: a merge hero arrives at round 7, needs lucky offers, leaves the first six rounds unchanged, and a new player never learns it exists.
+  - A choice before the first fight that changes every unit is the Hades-weapon shape Tu asked for.
+  - It differs from the rejected 2026-10-19 "one hero picked at run start": that hero joined five ordinary units; here the whole squad changes.
+  - Evidence, build bot, 2026-10-21: run completion about 31% Undead (n=600), 24% Beasts (n=800), 26% plain squad (n=300).
+  - Rejected: the pick after the round 1 win (10.0B), because the first fight would still be a plain squad.
+- **Replaces:**
+  - Merge heroes as what shapes a run (2026-10-19 and 2026-10-20 entries); those stay as history.
+
+## [2026-10-20] A backfired freeze skips the unit using it
+
+- **Decision:**
+  - A backfired freeze (Tank's Freeze, Damage's Frostbolt, Healer's Chill) never picks the unit using it.
+  - It lands on another of your units instead.
+  - With no other unit left, that freeze does nothing, and a skill where every part does nothing ends, as it already did.
+  - The fix is in `pickFreezeTarget` and the Chill case in `sim/fight.ts`; checks are in `checks/abilities.ts`.
+- **Why:**
+  - A skill ends only on its user's own turn, and a frozen unit never gets one.
+  - While a freeze skill runs, the fight keeps every unit it froze frozen, so a self-frozen unit could not end its own skill.
+  - Nobody else can start a skill while one is open, so the whole squad stopped chaining until the fight ended.
+  - The Tank was hit most because a backfire picks among your units with the Tank weighted highest.
+  - Evidence, forced backfires, 20 fights, 2026-10-20: the Tank froze itself in 13 and its skill ran to fight end in 19.
+  - Rejected: let it freeze itself and end the skill on the spot (a harsher punishment, but a larger rule to explain).
+- **Replaces:**
+  - Nothing; it narrows the 2026-08-14 backfire rule "a freeze turned on yourself" to "a freeze turned on a squadmate".
+  - Cheat sheet line updated; no canvas change.
+
+## [2026-10-20] A merge is the reward for a mini-boss win, and must leave a full squad
+
+- **Decision:**
+  - A win over a mini-boss (rounds 7 and 14) offers a merge in place of the usual three offers.
+  - "Not now" shows the round's usual offers instead.
+  - A merge is offered only for a recipe the roster can make, and only if enough living units remain to fill every fighting slot afterwards.
+  - A hero of each kind is made at most once per run, so a run makes at most two.
+  - Built on branch `dev/merge-heroes`, not merged into main; the rules are in `sim/heroes.ts`.
+  - Working choices, not confirmed: the game picks the most tired unit of each role; the hero joins fresh; a hero counts as its main role for stat offers; the Twin copies only the skill.
+  - Still open: whether role upgrades carry into a hero.
+- **Why:**
+  - Settles the 2026-10-19 open point that the start squad already holds recipes: nothing merges before round 7.
+  - Rounds 1 to 6 collect units, so the first hero is a choice among what the squad holds.
+  - A merge costs three units for one, so the full-squad rule makes the second hero something to recruit toward.
+  - A fixed moment is found by a player who only taps defaults; a squad-screen menu is not.
+  - Rejected: merging any time from round 7 on the squad screen (no fixed moment, no limit on heroes).
+  - Rejected: a merge as one of the three offers (it competes with runes for the pick).
+  - Evidence, build bot, n=1000, 2026-10-20: 31.7% of runs made a hero; completion 26.1% with merges, 25.6% without.
+- **Replaces:**
+  - Nothing; it adds to the 2026-10-19 entry and resolves its "start squad" point.
+  - Rules and screens: `design/HANDOFF.md` sections 8 and 9, frame 8.0.
+
 ## [2026-10-19] Run variety comes from merge heroes: three units become one hero
 
 - **Decision:**

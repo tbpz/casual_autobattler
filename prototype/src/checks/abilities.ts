@@ -149,6 +149,39 @@ const rungOne = (r: FightResult): Hit[] => {
   check("chill: in a live fight it freezes enemies, never the squad", stuns.length > 0 && stuns.every((e) => e.type === "chainHit" && !e.backfire));
 }
 
+// --- A backfired freeze never lands on the unit using it: a frozen user can't take the turn that ends its own skill,
+// so the skill (and every other unit's skill, which waits for it) would last until the fight ended.
+{
+  type End = Extract<FightResult["events"][number], { type: "chainEnd" }>;
+  const firstChainEnd = (r: FightResult): End | undefined => {
+    const start = r.events.findIndex((e) => e.type === "chainStart");
+    return r.events.slice(start).find((e): e is End => e.type === "chainEnd");
+  };
+  const cases: { role: PlayerRole; effect: ChainEffect; roles: PlayerRole[] }[] = [
+    { role: "tank", effect: "stun", roles: ["tank", "damage", "support"] },
+    { role: "damage", effect: "frostbolt", roles: ["damage", "tank", "support"] },
+    { role: "support", effect: "chill", roles: ["support", "tank", "damage"] },
+  ];
+  for (const { role, effect, roles } of cases) {
+    let onSelf = 0;
+    let hung = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const s = setup(roles, [effect], { calm: true });
+      const firingId = s.player.heroes.find((h) => h.role === role)!.id;
+      const result = fight(s, "always", seed);
+      onSelf += rungOne(result).filter((h) => h.kind === "stun" && h.targetId === firingId).length;
+      if (firstChainEnd(result)?.reason === "fightEnd") hung++;
+    }
+    check(`${effect}: a backfire never freezes the unit using it`, onSelf === 0, `${onSelf} self-freezes in 20 fights`);
+    check(`${effect}: a backfired skill still ends on its own`, hung === 0, `${hung} of 20 fights ran to the end`);
+  }
+
+  // Nobody else to freeze: the rung does nothing and the skill ends.
+  const alone = setup(["tank"], ["stun"], { calm: true });
+  const aloneEnd = firstChainEnd(fight(alone, "always"));
+  check("stun: a lone unit's backfire has no one to freeze, so the skill ends", aloneEnd !== undefined && aloneEnd.reason !== "fightEnd", `${aloneEnd?.reason}`);
+}
+
 // --- Pools and the per-run draw.
 {
   for (const role of PLAYER_ROLES) {

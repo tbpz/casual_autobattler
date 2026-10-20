@@ -22,6 +22,12 @@ export type HeroKind =
   | "vampire"
   | "twin";
 
+/** The two armies (2026-10-20; sim/armies.ts): a run picks one at the start and every unit is re-skinned into it. */
+export type ArmyKind = "undead" | "beasts";
+
+/** The six army units, two per role slot of an army: what a unit of that role is called, looks like and does. */
+export type UnitKind = "boneKnight" | "wraith" | "bonePriest" | "bear" | "wolf" | "stag";
+
 /** A hero's resolved chain plan for THIS fight (2026-09-13, "a hero's chain
  * names its own enemy" rebuild — replaces the old profile/targeting/
  * magnitude-scale ChainPlan). Resolved once per fight in fight.ts's
@@ -230,6 +236,14 @@ export interface HeroState {
   /** Assassin only, per fight: a kill landed during the chain now running, so its bar is full
    * again when that chain ends. */
   lustKill?: boolean;
+
+  /** Set on a unit of an army (sim/armies.ts). `role` stays tank / damage / support, so every rule and rune that
+   * reads a role keeps working; these two only change its name, look and skill. Undefined on a plain unit. */
+  army?: ArmyKind;
+  kind?: UnitKind;
+  /** Undead, per fight: this unit has already got back up once (Undying), so it hits harder and cannot do it again.
+   * Reset at fight start by fight.ts's cloneHeroes. */
+  risen?: boolean;
 }
 
 export interface Marks {

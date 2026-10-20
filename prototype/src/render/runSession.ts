@@ -1,6 +1,6 @@
 import { Rng } from "../sim/rng.js";
 import type { RunConfig } from "../sim/config.js";
-import type { FightSetup, HeroKind, SideState } from "../sim/types.js";
+import type { ArmyKind, FightSetup, HeroKind, SideState } from "../sim/types.js";
 import { sideHp, sideMaxHp } from "../sim/types.js";
 import { makeStartingRoster, nameUnits } from "../sim/roles.js";
 import { encounterAt } from "../sim/encounters.js";
@@ -23,6 +23,7 @@ import { applyOffer, drawOffers, noteIntroduced, type Offer } from "../sim/offer
 import type { CardId } from "../sim/cards/index.js";
 import { summarizeLoss, summarizeWin, type RoundSummary } from "../sim/run.js";
 import { applyMerge, mergeCandidates, type MergeOption } from "../sim/heroes.js";
+import { makeArmyRoster } from "../sim/armies.js";
 
 /** A fielded unit as it stood going into a round — the readings an export log
  * needs, not the fight's full HeroState (windup targeting and the like are
@@ -38,6 +39,8 @@ export interface UnitReading {
   chainLevel: number;
   /** Which merge hero this is (2026-10-20), null for a basic unit. */
   hero: string | null;
+  /** Which army unit this is (2026-10-20), null for a plain unit. */
+  unit: string | null;
 }
 
 /** Everything the export log (log/runLog.ts) needs to know about one round,
@@ -120,13 +123,14 @@ export class RunSession {
   mergeChoices: MergeOption[] = [];
   awaitingMerge = false;
 
-  constructor(cfg: RunConfig, seed: number) {
+  /** `army` is the army picked before round 1 (sim/armies.ts); undefined plays the plain squad (dev links, checks). */
+  constructor(cfg: RunConfig, seed: number, army?: ArmyKind) {
     this.cfg = cfg;
     this.seedValue = seed;
     this.rng = new Rng(seed);
     this.offerRng = new Rng((seed ^ 0x51ed270b) >>> 0);
-    this.progressValue = makeInitialProgress(cfg, upgradeRngFor(seed));
-    this.roster = this.withNames(makeStartingRoster(this.progressValue.bonus, cfg.startingPerRole));
+    this.progressValue = makeInitialProgress(cfg, upgradeRngFor(seed), army);
+    this.roster = this.withNames(army ? makeArmyRoster(army, this.progressValue.bonus) : makeStartingRoster(this.progressValue.bonus, cfg.startingPerRole));
     this.roundOrder = drawRoundEncounters(seed, cfg.roundsPerRun);
     this.relicRng = relicRngFor(seed);
     this.relicChoices = drawRelicChoices(this.relicRng);
@@ -260,6 +264,7 @@ export class RunSession {
       chainEffects: [...(h.chainEffects ?? [])],
       chainLevel: h.chainLevel ?? 1,
       hero: h.hero ?? null,
+      unit: h.kind ?? null,
     }));
     const progressBefore = structuredClone(this.progressValue);
     const setup: FightSetup = { player, enemy, cards: heldCards(this.progressValue) };

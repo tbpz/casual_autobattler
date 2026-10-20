@@ -183,6 +183,8 @@ export interface RunLogFile {
   about: { generatedAt: string; schemaVersion: number; runConfig: RunConfig };
   run: {
     seed: number;
+    /** The army picked before round 1 (2026-10-20), null for a plain squad. */
+    army: string | null;
     status: "in-progress" | "complete" | "over";
     overReason: "loss" | "rosterExhausted" | null;
     roundsWon: number;
@@ -221,6 +223,7 @@ export function buildRunLog(session: RunSession, cfg: RunConfig): RunLogFile {
     about: { generatedAt: new Date().toISOString(), schemaVersion: RUN_LOG_SCHEMA_VERSION, runConfig: cfg },
     run: {
       seed: session.seed,
+      army: session.progress.army ?? null,
       status: session.status,
       overReason: session.overReason,
       roundsWon: session.rounds.filter((r) => r.outcome === "win").length,

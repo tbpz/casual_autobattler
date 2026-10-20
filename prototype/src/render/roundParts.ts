@@ -8,9 +8,11 @@ import type { HeroState } from "../sim/types.js";
 import { ROLE_LABEL, type PlayerRole } from "../sim/roles.js";
 import { ROUND_PLAN } from "../sim/rounds.js";
 import type { EncounterKind } from "../sim/encounters.js";
-import { DEAD_BODY, squadFace, villainFace } from "./faces.js";
+import { DEAD_BODY, villainFace } from "./faces.js";
 import { ICON_SKULL_BOSS, ICON_SKULL_DONE, ICON_SKULL_MINI, statLineHtml } from "./icons.js";
-import { GOLD, crownOnBody, fangsHtml, unitBodyBg, unitMainHex } from "./heroLook.js";
+import { GOLD, crownOnBody, fangsHtml, unitBodyBg, unitBodyStyle, unitFaceHtml, unitUnderHtml } from "./heroLook.js";
+import { armyBodyPx } from "./armyLook.js";
+import { unitTitle } from "../sim/armies.js";
 
 export const ROLE_HEX: Record<PlayerRole, string> = { tank: "#ffb454", damage: "#b98cff", support: "#6ee7a0" };
 
@@ -110,15 +112,16 @@ function squadSizes(slots: number): { col: number; showTag: boolean; nameSize: n
 export function squadBodyHtml(h: HeroState, cfg: RunConfig, layout: SquadLayout): string {
   const role = squadRole(h);
   const z = squadSizes(layout.slots);
-  const size = SQUAD_BODY_PX;
+  // An army unit (2026-10-20): its own look, title and, in a Beasts squad, a smaller body (the Bear 36, the rest 30).
+  const size = armyBodyPx(h.kind, SQUAD_BODY_PX);
   // A merge hero (2026-10-20): its body wears the recipe and a crown, and its tag says HERO in gold.
-  const hex = unitMainHex(h);
+  const hex = ROLE_HEX[role];
   const tier = fatigueTier(cfg.fight, h.fatigue);
   const frac = h.maxHp > 0 ? Math.max(0, Math.min(1, h.hp / h.maxHp)) : 0;
   const stat = statLineHtml(Math.round(h.hp), Math.round(h.damage), role === "support" ? h.healPerBeat : undefined);
   const crown = h.hero ? crownOnBody(size) : "";
-  const tag = h.hero ? `<div class="fo-tag" style="color:${GOLD}">HERO</div>` : `<div class="fo-tag" style="color:${hex}">${ROLE_LABEL[role]}</div>`;
-  return `<div class="fo-col" data-fighter="${esc(h.id)}" data-side="squad" style="width:${z.col}px"><div class="fo-eb" style="width:${size}px;height:${size}px"><div class="fo-sh" style="top:${Math.round(size * 0.85)}px;width:${Math.round(size * 0.82)}px;height:${Math.max(5, Math.round(size * 0.13))}px"></div><div class="fo-body" style="width:${size}px;height:${size}px;background:${unitBodyBg(h)}">${squadFace(hex, tier, size)}${fangsHtml(h)}${crown}</div></div><div class="fo-nm" style="font-size:${z.nameSize}px">${esc(h.name)}</div>${z.showTag ? tag : ""}<div class="fo-hpbar"><div style="width:${(frac * 100).toFixed(0)}%"></div></div>${stat}</div>`;
+  const tag = h.hero ? `<div class="fo-tag" style="color:${GOLD}">HERO</div>` : `<div class="fo-tag" style="color:${hex}">${h.kind ? unitTitle(h) : ROLE_LABEL[role]}</div>`;
+  return `<div class="fo-col" data-fighter="${esc(h.id)}" data-side="squad" style="width:${z.col}px"><div class="fo-eb" style="width:${size}px;height:${size}px"><div class="fo-sh" style="top:${Math.round(size * 0.85)}px;width:${Math.round(size * 0.82)}px;height:${Math.max(5, Math.round(size * 0.13))}px"></div>${unitUnderHtml(h, size)}<div class="fo-body" style="width:${size}px;height:${size}px;background:${unitBodyBg(h)};${unitBodyStyle(h)}">${unitFaceHtml(h, tier, size)}${fangsHtml(h)}${crown}</div></div><div class="fo-nm" style="font-size:${z.nameSize}px">${esc(h.name)}</div>${z.showTag || h.kind ? tag : ""}<div class="fo-hpbar"><div style="width:${(frac * 100).toFixed(0)}%"></div></div>${stat}</div>`;
 }
 
 /** An empty slot: a dashed ring with "Empty / Tap to fill" (frame 1.5). It sits in the back row. */

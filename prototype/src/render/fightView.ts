@@ -1,13 +1,13 @@
 import type { ChainEffect, FightConfig } from "../sim/config.js";
 import { fightClock } from "./pauseClock.js";
 import { chainEffectChip, fatigueFraction, fatigueTier } from "../sim/config.js";
-import { deadFace, squadFace, villainFace } from "./faces.js";
+import { deadFace, villainFace } from "./faces.js";
 import { momentHtml, type BestMoment } from "./fightSummary.js";
-import { ROLE_HEX } from "./roundParts.js";
 import { hpBarLayout } from "./hpBar.js";
-import { termFromTarget, type TermId } from "./terms.js";
+import { ARMY_SKILL_CARD, termFromTarget, type TermId } from "./terms.js";
 import { isFrontRow } from "../sim/heroes.js";
-import { DRAGON_SCALE, crownOnBody, fangsHtml, unitAccentHex, unitBodyBg, unitMainHex } from "./heroLook.js";
+import { DRAGON_SCALE, crownOnBody, fangsHtml, unitAccentHex, unitBodyBg, unitBodyStyle, unitFaceHtml, unitUnderHtml } from "./heroLook.js";
+import { ARMY_ACCENT, armyBodyPx } from "./armyLook.js";
 import { BUBBLE_H, BUBBLE_TAIL, BUBBLE_W, bubblePath, bubbleText, clampTailDx, type BubbleKind } from "./bubble.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
 import { ROLE_SORT_PRIORITY } from "../sim/roles.js";
@@ -985,19 +985,23 @@ export class FightView {
       // The face style (DECISIONS.md 2026-10-14): a squad body's eyes show its fatigue tier, an enemy's are villain eyes. Drawn at the body's
       // real size, back rank included, which decides between the plain and the size-tuned eye.
       const baseSize = ROLE_BODY_PX[hero.role] ?? 40;
-      const faceSize = side === "player" ? SQUAD_BODY_PX : isFront ? baseSize : baseSize * BACK_RANK_SCALE;
-      const hex =
-        side === "player" && hero.hero
-          ? unitMainHex(hero)
-          : hero.role === "tank" || hero.role === "damage" || hero.role === "support"
-            ? ROLE_HEX[hero.role]
-            : ROLE_HEX.damage;
+      // An army unit (2026-10-20) has its own face and size: a Beast is smaller than a plain unit (the Bear 36, the rest 30).
+      const faceSize = side === "player" ? armyBodyPx(hero.kind, SQUAD_BODY_PX) : isFront ? baseSize : baseSize * BACK_RANK_SCALE;
       refs.liveFace =
         side === "player"
-          ? squadFace(hex, fatigueTier(this.cfg, hero.fatigue), faceSize)
+          ? unitFaceHtml(hero, fatigueTier(this.cfg, hero.fatigue), faceSize)
           : villainFace(faceSize, hero.role === "bruiser" ? 1.35 : 1);
       refs.body.insertAdjacentHTML("beforeend", refs.liveFace);
       refs.face = refs.body.lastElementChild;
+      if (side === "player" && hero.kind) {
+        // An army unit wears its own colour and art: ears, antlers or wisps behind the disc, a fade on the disc.
+        refs.body.style.background = unitBodyBg(hero);
+        const fade = unitBodyStyle(hero);
+        if (fade) refs.body.setAttribute("style", `${refs.body.getAttribute("style") ?? ""};${fade}`);
+        const under = unitUnderHtml(hero, faceSize);
+        if (under) refs.core.insertAdjacentHTML("afterbegin", under);
+        if (faceSize !== SQUAD_BODY_PX) refs.slot.style.setProperty("--role-size", `${faceSize}px`);
+      }
       if (side === "player" && hero.hero) {
         // A merge hero wears its recipe and a crown (canvas 8.x); a Dragon grows with its stage.
         const scale = hero.hero === "dragon" ? DRAGON_SCALE[Math.min(3, hero.stage ?? 0)]! : 1;
@@ -1057,7 +1061,7 @@ export class FightView {
   private appendSquadRows(container: HTMLElement, front: HTMLElement[], back: HTMLElement[]): void {
     const row = (kind: "front" | "back" | "flat", slots: HTMLElement[], label?: string): HTMLElement => {
       const el = document.createElement("div");
-      el.className = `rank-row ${kind}${slots.length >= 5 ? " crowded" : ""}`;
+      el.className = `rank-row ${kind}${slots.length >= 4 ? " crowded" : ""}`;
       if (label) {
         const word = document.createElement("span");
         word.className = "rank-label";
@@ -1135,9 +1139,7 @@ export class FightView {
       ? "backfire"
       : skillTerm === "guard" || skillTerm === "mend" || skillTerm === "expose"
         ? skillTerm
-        : heroKind
-          ? `hero-${heroKind}`
-          : "";
+        : (ARMY_SKILL_CARD[skillTerm] ?? (heroKind ? `hero-${heroKind}` : ""));
     if (term) this.chainHud.dataset.term = term;
     else delete this.chainHud.dataset.term;
     this.ptName.textContent = t.name;
@@ -1651,6 +1653,15 @@ export class FightView {
       case "raise": {
         const refs = this.slotFor(e.heroId);
         if (refs) pulseClass(refs.body, "raised", 700);
+        break;
+      }
+      case "heroRose": {
+        // An Undead unit got back up (Undying, or its Grave Guard): the body pulses and names what happened. The HP bar has already jumped.
+        const refs = this.slotFor(e.heroId);
+        if (!refs) break;
+        pulseClass(refs.body, "raised", 700);
+        const popup = this.showPopup(refs.body, e.byGuard ? "UP AGAIN" : "UNDYING", "normal", 0.8, 0, ARMY_ACCENT.undead.hex, 0);
+        popup.classList.add("mark-popup");
         break;
       }
       case "resolve":

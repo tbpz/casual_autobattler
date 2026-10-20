@@ -266,10 +266,11 @@ export function pickIngredients(roster: RosterState, recipe: readonly PlayerRole
  * Every hero the roster can merge right now (2026-10-20): the recipe's three pieces are living basic units,
  * that hero is not already in the roster (one of each kind per run), and the merge leaves enough living
  * units to fill every fighting slot (`progress.slots`) — three go, one comes, so a merge needs a spare unit
- * beyond the squad. Empty when cfg.mergeEnabled is 0. In HERO_ORDER.
+ * beyond the squad. Empty when cfg.mergeEnabled is 0, and while an army is picked (2026-10-20: merge heroes are
+ * off in an army run). In HERO_ORDER.
  */
 export function mergeCandidates(progress: RunProgress, roster: RosterState, cfg: RunConfig): MergeOption[] {
-  if (!cfg.mergeEnabled) return [];
+  if (!cfg.mergeEnabled || progress.army) return [];
   const living = roster.heroes.filter((h) => h.alive).length;
   if (living - 3 + 1 < progress.slots) return [];
   const out: MergeOption[] = [];

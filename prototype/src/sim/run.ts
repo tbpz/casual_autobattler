@@ -1,6 +1,7 @@
 import type { Rng } from "./rng.js";
 import type { RunConfig } from "./config.js";
-import type { FightSetup, HeroKind, SideState } from "./types.js";
+import type { ArmyKind, FightSetup, HeroKind, SideState } from "./types.js";
+import { makeArmyRoster } from "./armies.js";
 import { sideHp, sideMaxHp } from "./types.js";
 import { applyMerge, mergeCandidates, type MergeOption } from "./heroes.js";
 import { runFight } from "./fight.js";
@@ -205,6 +206,8 @@ export interface RunOptions {
    * the first candidate in HERO_ORDER (defaultMergePick) — the accept-default pick, which the UI's fast
    * forward and checks/runLog.ts's playSession repeat. `null` here turns merges off for the run. */
   mergePick?: MergePick | null;
+  /** The army the run picks before round 1 (sim/armies.ts). Undefined plays the plain squad, as before armies. */
+  army?: ArmyKind;
 }
 
 /** Decides a merge from the candidates the roster can make, or null for "not now". */
@@ -228,8 +231,8 @@ export function runRun(
   opts?: RunOptions,
 ): RunResult {
   const fieldPick = opts?.fieldPick ?? defaultFieldPick;
-  let progress = makeInitialProgress(cfg, upgradeRngFor(seed));
-  let roster: RosterState = makeStartingRoster(progress.bonus, cfg.startingPerRole);
+  let progress = makeInitialProgress(cfg, upgradeRngFor(seed), opts?.army);
+  let roster: RosterState = opts?.army ? makeArmyRoster(opts.army, progress.bonus) : makeStartingRoster(progress.bonus, cfg.startingPerRole);
 
   const rounds: RoundSummary[] = [];
   const fightResults: FightResult[] = [];

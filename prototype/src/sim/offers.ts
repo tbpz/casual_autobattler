@@ -2,10 +2,11 @@ import type { Rng } from "./rng.js";
 import type { ChainEffect, RunConfig } from "./config.js";
 import { chainEffectChip, chainEffectVerb } from "./config.js";
 import type { CardId } from "./cards/index.js";
-import { ABILITY_MARKS, MARK_CHIP, CARD_DEFS, CARD_IDS, cardConnects, duoUnlocked, marksMadeBy, pickCardToDrop } from "./cards/index.js";
+import { ABILITY_MARKS, MARK_CHIP, CARD_DEFS, CARD_IDS, cardConnects, duoUnlocked, marksMadeBy, pickCardToDrop, withFamilies } from "./cards/index.js";
 import type { SideState } from "./types.js";
 import type { PlayerRole } from "./roles.js";
-import { PLAYER_ROLES, ROLE_LABEL, ROLE_POOL, ROLE_UPGRADE_POOL, makeUnitState } from "./roles.js";
+import { PLAYER_ROLES, ROLE_LABEL, ROLE_UPGRADE_POOL } from "./roles.js";
+import { ARMY_ORDER, baseChainFor, makeUnitFor, roleLabelFor } from "./armies.js";
 import { heldCards, heldCount, type RunProgress } from "./progress.js";
 import { defaultFieldPick } from "./roster.js";
 import { HERO_POOL, recipesCompletedBy, resetDragon } from "./heroes.js";
@@ -89,13 +90,15 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
   const templates: OfferTemplate[] = [];
 
   for (const role of PLAYER_ROLES) {
-    const label = ROLE_LABEL[role];
+    // What the role is called in this run: its army title (Wolf) when an army is picked, else the plain word.
+    const labelFor = (progress: RunProgress): string => roleLabelFor(role, progress.army);
 
     templates.push({
       key: `chainLevel:${role}`,
       size: "small",
       eligible: (progress) => progress.chain[role].level < cfg.chainLevelCap,
       build: (progress) => {
+        const label = labelFor(progress);
         // Badge value after taking this offer (progress.ts's
         // chainStrongerCount: level - 1, since level 1 is the no-op default
         // and never shows a badge at all).
@@ -123,6 +126,7 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
           !progress.chain[role].effects.includes(upgrade) &&
           progress.chain[role].effects.length - 1 < cfg.maxUpgradesPerRole,
         build: (progress, roster) => {
+          const label = labelFor(progress);
           // The ability's own round-screen chip, so the offer names it the way
           // the player will see it once taken.
           const chip = chainEffectChip(upgrade);
@@ -154,41 +158,47 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
     // Borrow (2026-10-01): a role takes another role's BASE ability, counted
     // against the same cfg.maxUpgradesPerRole. Rare on purpose — it is how a
     // Tank ends up with Mend, the strangest builds in the game.
+    // One borrow template per army variant (plain, Undead, Beasts), since each has its own base skills; only the
+    // run's own variant is ever eligible.
     for (const other of PLAYER_ROLES) {
       if (other === role) continue;
-      const borrowed = ROLE_POOL[other].baseChain;
-      templates.push({
-        key: `borrow:${role}:${borrowed}`,
-        size: "big",
-        gainEffect: borrowed,
-        rare: true,
-        eligible: (progress, roster) =>
-          roster.heroes.some((h) => h.role === role) &&
-          !progress.chain[role].effects.includes(borrowed) &&
-          progress.chain[role].effects.length - 1 < cfg.maxUpgradesPerRole,
-        build: () => {
-          const chip = chainEffectChip(borrowed);
-          return {
-            kind: "chainGain",
-            role,
-            effect: borrowed,
-            headline: `Borrow: ${chip.icon} ${chip.word}`,
-            title: `${label} chain — borrows the ${ROLE_LABEL[other].toLowerCase()}'s ability`,
-            detail: `Also ${chainEffectVerb(borrowed)}.`,
-          };
-        },
-      });
+      for (const variant of [undefined, ...ARMY_ORDER]) {
+        const borrowed = baseChainFor(other, variant);
+        templates.push({
+          key: `borrow:${role}:${borrowed}`,
+          size: "big",
+          gainEffect: borrowed,
+          rare: true,
+          eligible: (progress, roster) =>
+            progress.army === variant &&
+            roster.heroes.some((h) => h.role === role) &&
+            !progress.chain[role].effects.includes(borrowed) &&
+            progress.chain[role].effects.length - 1 < cfg.maxUpgradesPerRole,
+          build: (progress) => {
+            const chip = chainEffectChip(borrowed);
+            return {
+              kind: "chainGain",
+              role,
+              effect: borrowed,
+              headline: `Borrow: ${chip.icon} ${chip.word}`,
+              title: `${labelFor(progress)} chain — borrows the ${roleLabelFor(other, progress.army).toLowerCase()}'s ability`,
+              detail: `Also ${chainEffectVerb(borrowed)}.`,
+            };
+          },
+        });
+      }
     }
 
     templates.push({
       key: `recruit:${role}`,
       size: "small",
       eligible: (_progress, roster) => roster.heroes.length < cfg.maxRosterSize,
-      build: (_progress, roster) => {
+      build: (progress, roster) => {
+        const label = labelFor(progress);
         // Merge heroes (2026-10-20): name the hero this unit would make possible, while a merge can still
-        // happen (the run makes at most two heroes).
+        // happen (the run makes at most two heroes; none while an army is picked).
         const completes =
-          cfg.mergeEnabled && roster.heroes.filter((h) => h.hero).length < 2
+          cfg.mergeEnabled && !progress.army && roster.heroes.filter((h) => h.hero).length < 2
             ? recipesCompletedBy(roster, role).map((k) => HERO_POOL[k].name)
             : [];
         return {
@@ -206,12 +216,12 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       key: `statHp:${role}`,
       size: "small",
       eligible: () => true,
-      build: () => ({
+      build: (progress) => ({
         kind: "statHp",
         role,
         headline: `+${cfg.statHpStep} HP`,
-        title: `${label} — tougher`,
-        detail: `+${cfg.statHpStep} max HP for every ${label.toLowerCase()}, now and future.`,
+        title: `${labelFor(progress)} — tougher`,
+        detail: `+${cfg.statHpStep} max HP for every ${labelFor(progress).toLowerCase()}, now and future.`,
       }),
     });
 
@@ -219,12 +229,12 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       key: `statDamage:${role}`,
       size: "small",
       eligible: () => true,
-      build: () => ({
+      build: (progress) => ({
         kind: "statDamage",
         role,
         headline: `+${cfg.statDamageStep} dmg`,
-        title: `${label} — harder-hitting`,
-        detail: `+${cfg.statDamageStep} damage for every ${label.toLowerCase()}, now and future.`,
+        title: `${labelFor(progress)} — harder-hitting`,
+        detail: `+${cfg.statDamageStep} damage for every ${labelFor(progress).toLowerCase()}, now and future.`,
       }),
     });
   }
@@ -339,14 +349,14 @@ function cardWorksWith(id: CardId, sources: readonly EffectSource[], held: reado
   if (def.needs) {
     const parts = [
       ...(def.needs.cards ?? []).map((c) => CARD_DEFS[c].title),
-      ...(def.needs.effects ?? []).filter((e) => squad.includes(e)).map((e) => chainEffectChip(e).word),
+      ...(def.needs.effects ?? []).filter((e) => withFamilies(squad).includes(e)).map((e) => chainEffectChip(e).word),
       ...(def.needs.marks ?? []).map(chip),
     ];
     return `Duo: you hold ${parts.join(" + ")}`;
   }
   if (def.reads.length === 0) return undefined;
   if (!cardConnects(id, squad, held)) return undefined;
-  if (def.needsEffects) return `Your squad has ${def.needsEffects.filter((e) => squad.includes(e)).map((e) => chainEffectChip(e).word).join(" + ")}`;
+  if (def.needsEffects) return `Your squad has ${def.needsEffects.filter((e) => withFamilies(squad).includes(e)).map((e) => chainEffectChip(e).word).join(" + ")}`;
   // One source per mark it reads: the squad ability that leaves it, or — for a
   // mark the abilities alone do not make — the held card that does.
   const byAbility = marksMadeBy(squad);
@@ -603,7 +613,7 @@ export function applyOffer(
       // The id's number is the next one past every id in use, not the roster's length: a merge takes three
       // units out and puts one in, so the length can fall back onto a number a living unit already has.
       const nextIndex = roster.heroes.reduce((max, h) => Math.max(max, Number(/^u(\d+)_/.exec(h.id)?.[1] ?? -1) + 1), roster.heroes.length);
-      const unit = makeUnitState(role, ordinal, `u${nextIndex}_${role}`, progress.bonus[role]);
+      const unit = makeUnitFor(progress.army, role, ordinal, `u${nextIndex}_${role}`, progress.bonus[role]);
       return { progress, roster: { ...roster, heroes: [...roster.heroes, unit] } };
     }
     case "heal": {

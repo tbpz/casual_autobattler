@@ -2,7 +2,9 @@
 // design/tools/gen-heroes.js). A hero's body wears its recipe: solid for three of a kind, a diagonal split for two and one, three
 // wedges for one of each, with a gold crown tilted on its head. DOM-free: every export is data or a string.
 
-import type { HeroKind, Role } from "../sim/types.js";
+import type { HeroKind, Role, UnitKind } from "../sim/types.js";
+import { ARMY_UNIT_HEX, armyLook } from "./armyLook.js";
+import { squadFace, type FaceTier } from "./faces.js";
 
 /** Role colours, copied from roundParts.ts's ROLE_HEX (this file cannot import it: roundParts draws bodies with this file). */
 const PIECE_HEX = { tank: "#ffb454", damage: "#b98cff", support: "#6ee7a0" } as const;
@@ -16,6 +18,12 @@ export interface LookSource {
   role: Role | string;
   hero?: HeroKind | string;
   madeFrom?: Piece[];
+  /** Set on an army unit (2026-10-20; render/armyLook.ts): its body colour, face and art come from the army, not the role. */
+  kind?: UnitKind | string;
+}
+
+function isArmyKind(k: string | undefined): k is UnitKind {
+  return !!k && k in ARMY_UNIT_HEX;
 }
 
 function isPiece(r: string): r is Piece {
@@ -29,6 +37,7 @@ export function isHeroLook(u: LookSource): u is LookSource & { madeFrom: Piece[]
 
 /** The colour that most of a hero's pieces had (the Twin: the first piece); a basic unit's role colour. This is the face's lid colour. */
 export function unitMainHex(u: LookSource): string {
+  if (isArmyKind(u.kind)) return ARMY_UNIT_HEX[u.kind];
   if (isHeroLook(u)) {
     const counts = new Map<Piece, number>();
     for (const p of u.madeFrom) counts.set(p, (counts.get(p) ?? 0) + 1);
@@ -87,3 +96,18 @@ export const DRAGON_SCALE = [1, 1.12, 1.26, 1.4] as const;
 
 /** The skill name a hero goes by, by hero id, for bubbles and popups: filled in by sim/heroes.ts's HERO_TEXT at the call sites. */
 export const HERO_TERM_PREFIX = "hero-";
+
+/** The face on a unit's body, `size` px, with the eyes of fatigue `tier`: an army unit's own face (one element), else the plain squad face. */
+export function unitFaceHtml(u: LookSource, tier: FaceTier, size: number): string {
+  return isArmyKind(u.kind) ? armyLook(u.kind, tier, size).face : squadFace(unitMainHex(u), tier, size);
+}
+
+/** Art drawn behind a unit's disc (an army unit's ears, antlers or wisps); empty for everyone else. */
+export function unitUnderHtml(u: LookSource, size: number): string {
+  return isArmyKind(u.kind) ? armyLook(u.kind, "fresh", size).under : "";
+}
+
+/** Extra CSS for a unit's disc (the Wraith's fade); empty for everyone else. */
+export function unitBodyStyle(u: LookSource): string {
+  return isArmyKind(u.kind) ? armyLook(u.kind, "fresh", 36).bodyStyle : "";
+}

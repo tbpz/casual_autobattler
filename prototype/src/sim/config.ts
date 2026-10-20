@@ -630,6 +630,28 @@ export interface FightConfig {
   heroLeechHeal: number;
   /** Vampire's Bite: multiple of its damage, aimed at the strongest enemy; the squad heals what it dealt. */
   heroBiteMult: number;
+
+  // Armies (2026-10-20; sim/armies.ts). Made-up first numbers, meant to move by playing.
+  /** Undead's Undying: the share of max HP a unit stands up with, the first time it falls in a fight. */
+  undyingReviveFrac: number;
+  /** Undead's Undying: how much harder a unit that has risen hits (normal hits and skills). */
+  undyingDamageMult: number;
+  /** Grave Guard: the share of max HP the Bone Knight stands up with when a slam it took for the squad knocks it down. */
+  graveGuardReviveFrac: number;
+  /** Soul Bolt: its damage, plus `soulBoltPerRisen` for each of your units that has risen this fight. */
+  soulBoltBase: number;
+  soulBoltPerRisen: number;
+  /** Blood Rite: the HP its user pays, and what every other unit gets back, per rung. */
+  bloodRiteCost: number;
+  bloodRiteHeal: number;
+  /** Roar: the share of a full skill bar it gives every other Beast (first rung only). */
+  roarChargeFrac: number;
+  /** Pack Bite: damage per bite; the bite counts once for itself and once for every other living Wolf. */
+  packBiteDamage: number;
+  /** Herd: HP each unit gets per rung, for every living Beast in the squad. */
+  herdHealPerBeast: number;
+  /** Beasts' Pack: charge every other Beast gains each time a Beast lands a hit on an enemy. */
+  packChargePerHit: number;
 }
 
 /**
@@ -692,7 +714,32 @@ export type ChainEffect =
   | "horde"
   | "prayer"
   | "bloom"
-  | "bite";
+  | "bite"
+  // The armies' base skills (2026-10-20; sim/armies.ts): one per role per army, in the place of Guard, Expose
+  // and Mend. Never offered as an upgrade. Each reads like the base skill of its role (see ABILITY_FAMILY).
+  | "graveGuard"
+  | "soulBolt"
+  | "bloodRite"
+  | "roar"
+  | "packBite"
+  | "herd";
+
+/** The base skill an army skill is a re-skin of, for every rule that asks "does this squad hold Guard / Mend /
+ * Expose" (a rune's need, a mark's source). A plain skill is its own family. */
+export function abilityFamily(effect: ChainEffect): ChainEffect {
+  switch (effect) {
+    case "graveGuard":
+    case "roar":
+      return "guard";
+    case "soulBolt":
+      return "expose";
+    case "bloodRite":
+    case "herd":
+      return "mend";
+    default:
+      return effect;
+  }
+}
 
 /** The four marks (2026-09-30). Exposed/Burn/Shield are stacks on a body
  * (types.ts's HeroState.marks); Frozen is the existing stun fields. All last
@@ -760,6 +807,18 @@ export function chainEffectLines(effect: ChainEffect): { does: string; against: 
       return { does: "Heals every unit, more the longer the fight.", against: "Good in a long fight." };
     case "bite":
       return { does: "Bites the strongest enemy and heals the squad.", against: "Good against one huge enemy." };
+    case "graveGuard":
+      return { does: "Takes the next slam; if it falls, it gets up.", against: "Good against slams." };
+    case "soulBolt":
+      return { does: "Hits the biggest enemy, harder for each unit that rose.", against: "Good against one huge enemy." };
+    case "bloodRite":
+      return { does: "Pays its own HP to heal every other unit.", against: "Good when units keep falling and rising." };
+    case "roar":
+      return { does: "Takes the next slam and fills the pack's bars.", against: "Good against slams." };
+    case "packBite":
+      return { does: "Bites the front enemy, once more per other Wolf.", against: "Good with several Wolves." };
+    case "herd":
+      return { does: "Heals every unit, more for a bigger pack.", against: "Good against lots of small hits." };
   }
 }
 
@@ -821,6 +880,18 @@ export function chainEffectChip(effect: ChainEffect): { icon: string; word: stri
       return { icon: "✿", word: "bloom" };
     case "bite":
       return { icon: "☍", word: "bite" };
+    case "graveGuard":
+      return { icon: "⛨", word: "grave guard" };
+    case "soulBolt":
+      return { icon: "◎", word: "soul bolt" };
+    case "bloodRite":
+      return { icon: "♥", word: "blood rite" };
+    case "roar":
+      return { icon: "⛨", word: "roar" };
+    case "packBite":
+      return { icon: "☍", word: "pack bite" };
+    case "herd":
+      return { icon: "♥", word: "herd" };
   }
 }
 
@@ -849,6 +920,8 @@ export interface RunConfig {
   /** Hard cap on `RunProgress.slots` — a "slot" offer above this is filtered
    * out by sim/offers.ts's drawOffers rather than left to overshoot. */
   maxSlots: number;
+  /** Beasts' Pack (sim/armies.ts): units fielded per round from the start of a Beasts run. */
+  packSlots: number;
   /** Hard cap on total roster size (living + fallen) — a "recruit" offer
    * above this is filtered out the same way. Generous: this is a ceiling
    * against unbounded growth, not a real constraint at 20 rounds x 3 offers. */
@@ -1207,6 +1280,18 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   heroRootedFullSec: 25,
   heroLeechHeal: 1,
   heroBiteMult: 2,
+
+  undyingReviveFrac: 0.5,
+  undyingDamageMult: 1.5,
+  graveGuardReviveFrac: 0.5,
+  soulBoltBase: 17,
+  soulBoltPerRisen: 9,
+  bloodRiteCost: 20,
+  bloodRiteHeal: 12,
+  roarChargeFrac: 0.25,
+  packBiteDamage: 6,
+  herdHealPerBeast: 1,
+  packChargePerHit: 1.5,
 };
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {
@@ -1222,6 +1307,7 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   startingSlots: 3,
   startingPerRole: 2,
   maxSlots: 5,
+  packSlots: 5,
   maxRosterSize: 10,
 
   offersPerWin: 3,

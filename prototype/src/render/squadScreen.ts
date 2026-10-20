@@ -2,9 +2,10 @@ import { fatigueTier, type RunConfig } from "../sim/config.js";
 import { ROLE_LABEL } from "../sim/roles.js";
 import type { HeroState } from "../sim/types.js";
 import type { RosterState } from "../sim/roster.js";
-import { DEAD_BODY, deadFace, squadFace } from "./faces.js";
-import { TIER_HEX, esc, squadRole } from "./roundParts.js";
-import { GOLD, crownOnBody, fangsHtml, unitBodyBg, unitMainHex } from "./heroLook.js";
+import { DEAD_BODY, deadFace } from "./faces.js";
+import { ROLE_HEX, TIER_HEX, esc, squadRole } from "./roundParts.js";
+import { GOLD, crownOnBody, fangsHtml, unitBodyBg, unitBodyStyle, unitFaceHtml, unitUnderHtml } from "./heroLook.js";
+import { unitTitle } from "../sim/armies.js";
 
 /**
  * The squad screen (canvas 4.1 and the right phone of 1.5): the bench on its own screen, reached from the round screen's bench
@@ -35,8 +36,8 @@ export function renderSquadScreen(
   const rowHtml = (h: HeroState, attrs: string, cls: string): string => {
     const role = squadRole(h);
     // A merge hero (2026-10-20) wears its recipe and a crown, and its word is HERO in gold.
-    const hex = unitMainHex(h);
-    const word = h.hero ? "HERO" : ROLE_LABEL[role];
+    const hex = ROLE_HEX[role];
+    const word = h.hero ? "HERO" : h.kind ? unitTitle(h) : ROLE_LABEL[role];
     const wordHex = h.hero ? GOLD : hex;
     const tier = fatigueTier(cfg.fight, h.fatigue);
     if (!h.alive) {
@@ -45,7 +46,7 @@ export function renderSquadScreen(
     const hp = h.hp >= h.maxHp ? `HP ${Math.round(h.hp)}` : `HP ${Math.round(h.hp)}/${Math.round(h.maxHp)}`;
     const frac = h.maxHp > 0 ? Math.max(0, Math.min(1, h.hp / h.maxHp)) : 0;
     const hurt = frac < 0.75 ? "#e8913c" : "#4da6ff";
-    return `<div class="sq-row ${cls}" ${attrs}><span class="sq-grip" aria-hidden="true">⋮⋮</span><div class="sq-av" style="background:${unitBodyBg(h)}">${squadFace(hex, tier, 34)}${fangsHtml(h)}${h.hero ? crownOnBody(34) : ""}</div><div class="sq-who"><div class="sq-name">${esc(h.name)}</div><div class="sq-role" style="color:${wordHex}">${word} <span class="sq-tier" style="color:${TIER_HEX[tier]}">· ${tier}</span></div></div><div class="sq-hp"><div class="sq-hpbar"><div style="width:${(frac * 100).toFixed(0)}%;background:${hurt}"></div></div><div class="sq-hptext">${hp}</div></div></div>`;
+    return `<div class="sq-row ${cls}" ${attrs}><span class="sq-grip" aria-hidden="true">⋮⋮</span><div class="sq-av" style="background:${unitBodyBg(h)};${unitBodyStyle(h)}">${unitUnderHtml(h, 34)}${unitFaceHtml(h, tier, 34)}${fangsHtml(h)}${h.hero ? crownOnBody(34) : ""}</div><div class="sq-who"><div class="sq-name">${esc(h.name)}</div><div class="sq-role" style="color:${wordHex}">${word} <span class="sq-tier" style="color:${TIER_HEX[tier]}">· ${tier}</span></div></div><div class="sq-hp"><div class="sq-hpbar"><div style="width:${(frac * 100).toFixed(0)}%;background:${hurt}"></div></div><div class="sq-hptext">${hp}</div></div></div>`;
   };
 
   function draw(): void {

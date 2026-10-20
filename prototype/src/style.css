@@ -2593,3 +2593,99 @@ button:disabled {
 .hero-slot.is-skeleton .body-name {
   font-size: 8px;
 }
+
+/* The army pick (2026-10-20; render/armyScreen.ts, canvas 10.0A): two cards in the army's own colour. */
+.army-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.army-card {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+  background: rgba(var(--army-rgb), 0.08);
+  border: 1px solid rgba(var(--army-rgb), 0.5);
+  border-radius: 12px;
+}
+
+.army-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.army-name {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.army-pitch {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--army);
+}
+
+.army-bodies {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  margin-top: 6px;
+}
+
+.army-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding-top: 12px;
+}
+
+.army-unit-title {
+  font-size: 9px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.army-rule,
+.army-skills {
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #c7cad6;
+}
+
+.army-skills {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.army-label {
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--army);
+}
+
+.army-label-plain {
+  color: var(--text);
+}
+
+.army-pick {
+  display: block;
+  margin-top: 10px;
+  padding: 10px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #14161c;
+  background: var(--army);
+  border-radius: 8px;
+}
