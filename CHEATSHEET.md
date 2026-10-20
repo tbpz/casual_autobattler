@@ -1,5 +1,5 @@
 # Cheatsheet
-Last updated: 2026-10-17 17:10 (values from prototype/src/sim/config.ts). All marks last one fight.
+Last updated: 2026-10-20 21:57 (values from prototype/src/sim/config.ts). All marks last one fight.
 
 Effects:
 - Exposed: each stack makes the body take +12% damage from every hit, max 10 stacks.
@@ -73,3 +73,19 @@ Runes — later picks:
 - Each run offers 2 of a role's 3 ability options; a role holds at most 2.
 - Cards are offered only after you've met the marks they read; Mend does not count as a Shield source.
 - A unit's charge is held full while its own skill plays and restarts at zero when it ends; charge gained meanwhile (Vigil, Thirst, Frenzy included) is lost. The screen drains the bar as the skill fires and shows it empty meanwhile.
+
+Merge heroes (branch dev/merge-heroes; made-up numbers, one of each kind per run, at most one merge per mini-boss win):
+- A win over a mini-boss (rounds 7 and 14) offers a merge in place of the 3 offers, if you hold a recipe and the merge leaves enough living units to fill every slot; "Not now" gives the offers. The three units used are the most tired of each role; they leave, the hero joins fresh. Recipes: Tank/Damage/Healer, three pieces, any mix.
+- A hero's row: front with 2 or more Tank pieces (Golem, Berserker, Paladin), else back. Its role is the one most pieces had (Twin: Damage), so role-wide HP and damage offers reach it.
+- Golem (3 Tank; 480 HP, 9 damage) — Taunt: every enemy hit and slam lands on it. Fortify: shields itself for 40% of its max HP per hit.
+- Berserker (2 Tank + Damage; 330 HP, 14 damage) — Rage: +1% damage per 1% of its HP missing. Cleave: 2.5x its damage on the front enemy per hit.
+- Paladin (2 Tank + Healer; 350 HP, 8 damage) — Martyr: each hit it takes heals every other unit 3. Bless: shields every unit for 8% of its max HP per hit.
+- Assassin (3 Damage; 170 HP, 20 damage) — Bloodlust: a kill fills its bar at once (a kill during its skill keeps the bar full when it ends). Execute: 3x its damage on the weakest enemy per hit.
+- Dragon (2 Damage + Tank; 120 HP, 10 damage) — Growth: each 4 fielded wins is a stage (Baby, Young, Adult, Elder, max 3 stages): +70 max HP and +5 damage per stage; a revive makes it a Baby. Breath: 2x its damage (Elder 3x); front enemy until Adult, then every enemy.
+- Necromancer (2 Damage + Healer; 150 HP, 6 damage) — Raise: anyone who dies, either side, becomes a skeleton (25 HP, 4 damage), max 4 at once, gone after the fight. Horde: every skeleton hits the front enemy for 8 per hit (nothing happens with none standing).
+- Priest (3 Healer; 230 HP, heals 14) — Radiance: each heal also hits the front enemy for the same amount. Prayer: heals every unit 14 per hit, and the front enemy is hit once per unit healed.
+- Treant (2 Healer + Tank; 300 HP, heals up to 10) — Rooted: its heals grow from 3 to 10 over 25s of the fight. Bloom: heals every unit for what Rooted has grown to, per hit.
+- Vampire (2 Healer + Damage; 180 HP, 12 damage) — Leech: each hit your squad lands heals the unit that landed it 1. Bite: 2x its damage on the strongest enemy, the squad healed for what it dealt, shared out.
+- Twin (Tank + Damage + Healer; 190 HP, 8 damage) — Mirror: copies the skill of the first back-row unit (the front unit if alone in the back) each fight. Echo: that skill.
+- A hero's skill is a chain like any other: up to 7 hits, later hits up to 2.8x, backfire aims it at the wrong side. Only Fortify and Bless leave a mark (shield).
+- A Recruit offer names the hero it would make possible ("Completes Golem"). A hero has no Fatigue card in its popup, but fatigue still counts.

@@ -40,6 +40,7 @@
     { "file": "UpgradeDrop.dc.html", "x": 2470, "y": 6500, "w": 390, "h": 860 },
 
     { "file": "RunOver.dc.html", "x": 0, "y": 7800, "w": 390, "h": 780 },
+    { "file": "HeroMergePick.dc.html", "x": 550, "y": 7800, "w": 390, "h": 860 },
 
     { "file": "HeroPopupGolem.dc.html", "x": 0, "y": 9100, "w": 390, "h": 900 },
     { "file": "HeroPopupBerserker.dc.html", "x": 550, "y": 9100, "w": 390, "h": 900 },
@@ -104,6 +105,7 @@
     { "id": "label-upgradedrop", "x": 2470, "y": 6440, "w": 390, "text": "6.3 At the cap — pick, then drop one (proposal)" },
     { "id": "section-runover", "x": 0, "y": 7660, "w": 390, "text": "7 · RUN OVER — after a lost fight" },
     { "id": "label-runover", "x": 0, "y": 7740, "w": 390, "text": "7.1 Run over — how close, best moment, build, Try again (proposal)" },
+    { "id": "label-hero-merge", "x": 550, "y": 7740, "w": 390, "text": "8.0 Merge pick — the reward for a mini-boss win (proposal, built on dev/merge-heroes)" },
     { "id": "section-heroes-popup", "x": 0, "y": 8960, "w": 5890, "text": "8 · HERO POPUPS — three units merge into one hero: its recipe, a gift that is always on, and a skill (proposal, design only, not built)" },
     { "id": "label-hero-popup-golem", "x": 0, "y": 9040, "w": 390, "text": "8.1 Golem — Tank + Tank + Tank, front row (proposal)" },
     { "id": "label-hero-popup-berserker", "x": 550, "y": 9040, "w": 390, "text": "8.2 Berserker — Tank + Tank + Damage, front row (proposal)" },
