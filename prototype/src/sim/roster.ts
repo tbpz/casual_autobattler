@@ -80,7 +80,11 @@ export function carryOverWithGaps(roster: RosterState, fieldSize: number, previo
   if (previous.length === 0) return pickSquad(roster, fieldSize, []);
   const living = new Set(livingRosterHeroes(roster).map((h) => h.id));
   const kept = [...new Set(previous)].filter((id) => living.has(id)).slice(0, fieldSize);
-  const newSlots = Math.max(0, fieldSize - previous.length);
+  // A unit that is no longer in the roster at all was merged into a hero (2026-10-20): its slot is not a death, so it fills
+  // by default like a slot that has just appeared.
+  const inRoster = new Set(roster.heroes.map((h) => h.id));
+  const merged = previous.filter((id) => !inRoster.has(id)).length;
+  const newSlots = Math.max(0, fieldSize - previous.length) + merged;
   return newSlots === 0 ? kept : pickSquad(roster, kept.length + newSlots, kept);
 }
 

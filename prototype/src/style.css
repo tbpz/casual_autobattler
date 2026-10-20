@@ -2582,3 +2582,14 @@ button:disabled {
   letter-spacing: 0.05em;
   color: var(--text);
 }
+
+/* A row of five or more (a Necromancer's four skeleton places, hidden until they rise, count) packs tighter and starts clear of the row's word. */
+.rank-row.crowded {
+  gap: 4px;
+  padding-left: 30px;
+  box-sizing: border-box;
+}
+
+.hero-slot.is-skeleton .body-name {
+  font-size: 8px;
+}

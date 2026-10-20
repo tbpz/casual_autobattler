@@ -45,6 +45,10 @@ const jumpToRunOver = urlParams.get("runover") === "1";
 const fallCount = Number(urlParams.get("fall")) || 0;
 /** ?offer=N: plays to round N, wins it if it can, and opens that win's reward pick (the upgrades screen). A no-op when absent. */
 const jumpToOffer = Number(urlParams.get("offer")) || 0;
+/** ?merge=berserker (with ?round=N or ?offer=N): the hero the skipped mini-boss rewards take, when the roster can make it; otherwise the first it can make. */
+const jumpMerge = urlParams.get("merge");
+/** ?fight=1 (with ?round=N): starts that round's fight at once with the default squad, to look at the fight screen. */
+const jumpToFight = urlParams.get("fight") === "1";
 
 /** The seed corner badge, present on every screen, with an "export" link that
  * downloads the run so far as JSON (log/runLog.ts). Each click writes every
@@ -108,6 +112,11 @@ export function mountApp(root: HTMLElement): void {
     }
     // A run opens straight on its first fight (2026-10-01); the relic pick is that
     // fight's reward.
+    if (jumpToFight) {
+      pendingFieldedIds = session.defaultFielding;
+      playCurrentFight();
+      return;
+    }
     showRoundScreen();
   }
 
@@ -120,7 +129,7 @@ export function mountApp(root: HTMLElement): void {
         session.pickRelic(session.relicChoices[0]!);
       } else if (session.awaitingMerge) {
         // The accept-default merge: the first hero the roster can make (sim/run.ts's defaultMergePick).
-        session.resolveMerge(session.mergeChoices[0]!.kind);
+        session.resolveMerge((session.mergeChoices.find((c) => c.kind === jumpMerge) ?? session.mergeChoices[0]!).kind);
       } else if (session.pendingOffers.length === 0) {
         session.resolveOffer(null);
       } else {

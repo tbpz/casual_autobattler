@@ -1005,6 +1005,8 @@ export class FightView {
         refs.body.insertAdjacentHTML("beforeend", fangsHtml(hero) + crownOnBody(SQUAD_BODY_PX * scale));
         if (scale !== 1) refs.slot.style.setProperty("--role-size", `${(SQUAD_BODY_PX * scale).toFixed(1)}px`);
         this.heroKinds.set(hero.id, hero.hero);
+        // A hero's name is longer than a role's: its slot keeps enough width to read it.
+        refs.slot.style.minWidth = "58px";
       }
       refs.slot.addEventListener("click", () => this.onFighterTap?.(hero.id));
       for (const el of refs.slot.querySelectorAll<HTMLElement>("[data-term]")) this.bindTermTap(el);
@@ -1017,6 +1019,7 @@ export class FightView {
         // A Necromancer's empty place: hidden until Raise fills it (updateSide), a fixed width since it has no HP to scale by.
         refs.slot.style.width = "44px";
         refs.slot.style.display = "none";
+        refs.slot.classList.add("is-skeleton");
         refs.body.style.background = "#d7dae3";
       }
       if (side === "player") {
@@ -1054,7 +1057,7 @@ export class FightView {
   private appendSquadRows(container: HTMLElement, front: HTMLElement[], back: HTMLElement[]): void {
     const row = (kind: "front" | "back" | "flat", slots: HTMLElement[], label?: string): HTMLElement => {
       const el = document.createElement("div");
-      el.className = `rank-row ${kind}`;
+      el.className = `rank-row ${kind}${slots.length >= 5 ? " crowded" : ""}`;
       if (label) {
         const word = document.createElement("span");
         word.className = "rank-label";
