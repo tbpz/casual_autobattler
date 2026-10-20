@@ -58,6 +58,8 @@ function formatEvent(e: FightEvent): string {
       return `[t=${t}] ${e.side} ${e.targetId} burns: ${e.amount.toFixed(1)}`;
     case "shieldAbsorb":
       return `[t=${t}] ${e.side} ${e.targetId} shield absorbs ${e.amount.toFixed(1)}`;
+    case "raise":
+      return `[t=${t}] skeleton ${e.heroId} rises`;
     case "resolve":
       return `[t=${t}] RESOLVE: ${e.outcome.toUpperCase()} (${e.reason})`;
   }

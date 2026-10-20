@@ -9,6 +9,19 @@ import type { CardId } from "./cards/index.js";
 
 export type Role = "tank" | "damage" | "support" | "bruiser" | "grunt";
 
+/** The ten merge heroes (DECISIONS.md 2026-10-19): three basic units become one hero. */
+export type HeroKind =
+  | "golem"
+  | "berserker"
+  | "paladin"
+  | "assassin"
+  | "dragon"
+  | "necromancer"
+  | "priest"
+  | "treant"
+  | "vampire"
+  | "twin";
+
 /** A hero's resolved chain plan for THIS fight (2026-09-13, "a hero's chain
  * names its own enemy" rebuild — replaces the old profile/targeting/
  * magnitude-scale ChainPlan). Resolved once per fight in fight.ts's
@@ -197,6 +210,26 @@ export interface HeroState {
    * (2026-10-01) — fight.ts starts it at the hero's current value so a stale
    * freeze from an earlier fight never reads as a fresh thaw. */
   thawSeenT?: number;
+
+  /** Set on a merge hero (sim/heroes.ts). Its gift is read off this field in fight.ts; its skill is its
+   * own `chainEffects`. `role` is the hero's main role (the one most of its pieces had), so role-wide
+   * stat offers and the Tank rules reach it. Undefined on a basic unit. */
+  hero?: HeroKind;
+  /** The three roles this hero was merged from, in recipe order. Decides its row: two or more Tanks
+   * stand in front (sim/heroes.ts's isFrontRow). */
+  madeFrom?: ("tank" | "damage" | "support")[];
+  /** Dragon only: fights it has been fielded in and won. Four wins make a stage (roster.ts). */
+  heroWins?: number;
+  /** Dragon only: its growth stage from `heroWins` — 0 Baby, 1 Young, 2 Adult, 3 Elder (sim/heroes.ts's
+   * dragonStage). Breath reads it. */
+  heroStage?: number;
+  /** A skeleton the Necromancer's Raise fills in mid-fight. Every fight with a fielded Necromancer starts
+   * with a few empty places (maxHp 0, not alive) so the screen can draw them in advance. Never part of the
+   * roster, never charges a chain, and not counted as a unit when a side is wiped. */
+  skeleton?: boolean;
+  /** Assassin only, per fight: a kill landed during the chain now running, so its bar is full
+   * again when that chain ends. */
+  lustKill?: boolean;
 }
 
 export interface Marks {
@@ -240,15 +273,15 @@ export interface SideState {
 }
 
 export function sideMaxHp(side: SideState): number {
-  return side.heroes.reduce((sum, h) => sum + h.maxHp, 0);
+  return side.heroes.reduce((sum, h) => (h.skeleton ? sum : sum + h.maxHp), 0);
 }
 
 export function sideHp(side: SideState): number {
-  return side.heroes.reduce((sum, h) => sum + h.hp, 0);
+  return side.heroes.reduce((sum, h) => (h.skeleton ? sum : sum + h.hp), 0);
 }
 
 export function sideLivingCount(side: SideState): number {
-  return side.heroes.filter((h) => h.alive).length;
+  return side.heroes.filter((h) => h.alive && !h.skeleton).length;
 }
 
 /** A fight's starting setup. Both sides carry whatever HP/deaths attrition

@@ -5,7 +5,7 @@
  * the old prototype's sim/engine.ts + render/playback.ts).
  */
 import type { ChainEffect } from "./config.js";
-import type { Marks, Role } from "./types.js";
+import type { HeroKind, Marks, Role } from "./types.js";
 import type { CardId } from "./cards/index.js";
 
 export type Side = "player" | "enemy";
@@ -167,6 +167,9 @@ export type FightEvent =
   | { type: "burnTick"; t: number; side: Side; targetId: string; amount: number }
   /** A Shield absorbed part or all of a hit (2026-09-30). */
   | { type: "shieldAbsorb"; t: number; side: Side; targetId: string; amount: number }
+  /** The Necromancer's Raise filled an empty place: skeleton `heroId` is now standing on the player side
+   * (2026-10-20; fight.ts's raiseSkeleton). */
+  | { type: "raise"; t: number; heroId: string }
   | { type: "resolve"; t: number; outcome: "win" | "loss"; reason: "wipe" | "failsafe" };
 
 /** A per-hero HP reading at one instant, for body rendering. */
@@ -195,6 +198,14 @@ export interface HeroSnapshot {
   /** How many of this hero's chains backfired this fight — the roster folds it
    * into fatigue (sim/roster.ts's applyFightResultToRoster). */
   backfires: number;
+  /** Merge hero (2026-10-20): which one, the roles it was made from (its look and row), and — Dragon only —
+   * its growth stage. Undefined on a basic unit. */
+  hero?: HeroKind;
+  madeFrom?: ("tank" | "damage" | "support")[];
+  stage?: number;
+  /** A Necromancer skeleton place. Not alive and `maxHp` 0 until Raise fills it, so the screen can draw
+   * the places in advance and hide the empty ones. */
+  skeleton?: boolean;
   /** Enemy bruiser only (2026-09-13 slam-visibility pass) — mirrors
    * types.ts's HeroState fields of the same name, render-facing so the slam
    * bar/aim line/attacker-glow can be driven per-hero, per-frame, straight

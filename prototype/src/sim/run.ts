@@ -1,7 +1,8 @@
 import type { Rng } from "./rng.js";
 import type { RunConfig } from "./config.js";
-import type { FightSetup, SideState } from "./types.js";
+import type { FightSetup, HeroKind, SideState } from "./types.js";
 import { sideHp, sideMaxHp } from "./types.js";
+import { applyMerge, mergeCandidates, type MergeOption } from "./heroes.js";
 import { runFight } from "./fight.js";
 import type { FightResult } from "./events.js";
 import {
@@ -12,7 +13,7 @@ import {
   type FieldPick,
   type RosterState,
 } from "./roster.js";
-import { drawRoundEncounters, roundEnemySide } from "./rounds.js";
+import { drawRoundEncounters, roundDef, roundEnemySide } from "./rounds.js";
 import { makeStartingRoster } from "./roles.js";
 import { heldCards, makeInitialProgress, relicRngFor, upgradeRngFor, type RunProgress } from "./progress.js";
 import { applyRelic, drawRelicChoices } from "./relics.js";
@@ -111,6 +112,9 @@ export interface RoundSummary {
   /** The relic taken as this round's reward, on the round that hands one out
    * (cfg.relicRound) — that round's reward is the relic, so offerTaken is null. */
   relicTaken?: CardId;
+  /** The hero merged as this round's reward, on a mini-boss win that offered a merge and took it; that round's
+   * reward is the merge, so offerTaken is null. */
+  mergeTaken?: HeroKind;
   /** Living ROSTER units after this round (out of the full roster, not just
    * this round's fielded squad) — the run-wide "how much of my roster is
    * left" figure. */
@@ -170,6 +174,7 @@ export function summarizeWin(
   roster: RosterState,
   fieldedIds: string[],
   relicTaken?: CardId,
+  mergeTaken?: HeroKind,
 ): RoundSummary {
   return {
     roundIndex,
@@ -178,6 +183,7 @@ export function summarizeWin(
     chainLength: result.chainLength,
     offerTaken,
     ...(relicTaken ? { relicTaken } : {}),
+    ...(mergeTaken ? { mergeTaken } : {}),
     livingHeroesAfter: roster.heroes.filter((h) => h.alive).length,
     playerHpAfter: sideHp(roster),
     playerMaxHpAfter: sideMaxHp(roster),
@@ -195,7 +201,17 @@ export interface RunOptions {
    * seeded random draw. `null` gives the run no relic at all — for checks that
    * want to isolate the rest. Either way that round's reward is not an offer. */
   relicPick?: ((choices: CardId[]) => CardId) | null;
+  /** Picks the merge on a mini-boss win (sim/heroes.ts's mergeCandidates), or null for "not now". Default:
+   * the first candidate in HERO_ORDER (defaultMergePick) — the accept-default pick, which the UI's fast
+   * forward and checks/runLog.ts's playSession repeat. `null` here turns merges off for the run. */
+  mergePick?: MergePick | null;
 }
+
+/** Decides a merge from the candidates the roster can make, or null for "not now". */
+export type MergePick = (candidates: MergeOption[], progress: RunProgress, roster: SideState) => HeroKind | null;
+
+/** The accept-default merge: the first candidate (the order of HERO_ORDER, Golem first, Twin last). */
+export const defaultMergePick: MergePick = (candidates) => candidates[0]?.kind ?? null;
 
 /** Runs one full `cfg.roundsPerRun`-round run to completion. Pure given
  * (cfg, rng, offerRng, offerPolicy, seed, opts). Each round fields the
@@ -264,7 +280,24 @@ export function runRun(
       continue;
     }
 
+    // The offers are always drawn, so a seed keeps its offer stream whether or not a merge is taken.
     const offers = drawOffers(offerRng, progress, roster, cfg, i);
+
+    // A mini-boss win offers a merge instead of the offers (2026-10-20): when the roster holds a recipe and
+    // can still fill every slot afterwards. "Not now" (a null pick) falls through to the offers below.
+    if (roundDef(i).kind === "miniboss" && opts?.mergePick !== null) {
+      const candidates = mergeCandidates(progress, roster, cfg);
+      if (candidates.length > 0) {
+        const kind = (opts?.mergePick ?? defaultMergePick)(candidates, progress, roster);
+        const chosen = candidates.find((c) => c.kind === kind);
+        if (chosen) {
+          roster = applyMerge(progress, roster, chosen);
+          rounds.push(summarizeWin(i, result, null, roster, fieldedIds, undefined, chosen.kind));
+          continue;
+        }
+      }
+    }
+
     progress = noteIntroduced(progress, offers);
     let offerTaken: Offer | null = null;
     if (offers.length > 0) {

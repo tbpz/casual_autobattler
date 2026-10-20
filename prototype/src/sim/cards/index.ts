@@ -96,6 +96,17 @@ export const ABILITY_MARKS: Record<ChainEffect, MarkId[]> = {
   siphon: ["shield"],
   cauterize: ["burn"],
   chill: ["frozen"],
+  // Merge heroes' skills: only the two that put a shield on a body leave a mark; the rest leave none, so a
+  // rune that reads Exposed, Burn or Frozen still has to be fed by a basic unit's ability.
+  fortify: ["shield"],
+  cleave: [],
+  bless: ["shield"],
+  execute: [],
+  breath: [],
+  horde: [],
+  prayer: [],
+  bloom: [],
+  bite: [],
 };
 
 /** The set of marks a squad can currently make: the marks its abilities leave,

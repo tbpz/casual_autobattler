@@ -587,6 +587,49 @@ export interface FightConfig {
    * still varies normally. Never set outside batch/checks code.
    */
   forceBackfire?: "always" | "never";
+
+  // --- Merge heroes (2026-10-20, branch dev/merge-heroes; DECISIONS.md 2026-10-19). Every number below
+  // starts from the made-up figure drawn on canvas 8.x/9.x (design/tools/gen-heroes.js) and is a strawman
+  // meant to move by playing. A hero's own stat block lives in sim/heroes.ts's HERO_POOL. ---
+  /** Berserker's Rage: extra damage per 1% of its HP missing (1 = +1% per 1%). Applies to its normal
+   * hits and to Cleave. */
+  heroRagePerMissing: number;
+  /** Paladin's Martyr: HP given to every OTHER living unit each time the Paladin takes a hit. */
+  heroMartyrHeal: number;
+  /** Golem's Fortify: shield size as a fraction of its own max HP (grows with each rung like any chain). */
+  heroFortifyShieldFraction: number;
+  /** Berserker's Cleave: multiple of its damage, aimed at the front enemy. */
+  heroCleaveMult: number;
+  /** Paladin's Bless: shield on every unit as a fraction of that unit's max HP. */
+  heroBlessShieldFraction: number;
+  /** Assassin's Execute: multiple of its damage, aimed at the weakest enemy. */
+  heroExecuteMult: number;
+  /** Dragon's Breath: multiple of its damage; hits the front enemy, or every enemy from Adult. */
+  heroBreathMult: number;
+  /** Extra Breath multiple at Elder, on top of heroBreathMult. */
+  heroElderBreathMult: number;
+  /** The Dragon's first stage that breathes on every enemy (0 Baby, 1 Young, 2 Adult, 3 Elder). */
+  heroBreathAllStage: number;
+  /** Necromancer's Raise: most skeletons standing at once (also how many empty places a fight starts with). */
+  heroSkeletonMax: number;
+  heroSkeletonHp: number;
+  /** A skeleton's normal hit. */
+  heroSkeletonDamage: number;
+  heroSkeletonIntervalSec: number;
+  /** Necromancer's Horde: each skeleton's strike on the front enemy (grows with each rung like any chain). */
+  heroHordeBase: number;
+  /** Priest's Prayer: heal on every unit. */
+  heroPrayerHeal: number;
+  /** Priest's Radiance: the share of each heal that also hits the front enemy (1 = the same amount). */
+  heroRadianceFraction: number;
+  /** Treant's Rooted: its heal at the start of a fight, and what it has grown to after `heroRootedFullSec`. */
+  heroRootedStartHeal: number;
+  heroRootedFullHeal: number;
+  heroRootedFullSec: number;
+  /** Vampire's Leech: HP the hitter gets back for each hit the squad lands. */
+  heroLeechHeal: number;
+  /** Vampire's Bite: multiple of its damage, aimed at the strongest enemy; the squad heals what it dealt. */
+  heroBiteMult: number;
 }
 
 /**
@@ -638,7 +681,18 @@ export type ChainEffect =
   | "frostbolt"
   | "siphon"
   | "cauterize"
-  | "chill";
+  | "chill"
+  // The merge heroes' skills (2026-10-20; sim/heroes.ts). A hero's own `chainEffects`, never offered as an
+  // upgrade. The Twin has none of its own: its Echo is a copy of the neighbour's list (sim/roster.ts).
+  | "fortify"
+  | "cleave"
+  | "bless"
+  | "execute"
+  | "breath"
+  | "horde"
+  | "prayer"
+  | "bloom"
+  | "bite";
 
 /** The four marks (2026-09-30). Exposed/Burn/Shield are stacks on a body
  * (types.ts's HeroState.marks); Frozen is the existing stun fields. All last
@@ -688,6 +742,24 @@ export function chainEffectLines(effect: ChainEffect): { does: string; against: 
       return { does: "Heals the hurt hero and burns their attacker.", against: "Good when one enemy hunts one hero." };
     case "chill":
       return { does: "Freezes whoever hit your weakest hero.", against: "Good against a hunter." };
+    case "fortify":
+      return { does: "Wraps itself in a big shield.", against: "Good for a wall that soaks." };
+    case "cleave":
+      return { does: "A big swing at the front enemy.", against: "Good against one huge enemy." };
+    case "bless":
+      return { does: "Gives every unit a shield.", against: "Good against lots of small hits." };
+    case "execute":
+      return { does: "A heavy strike on the weakest enemy.", against: "Good against a crowd." };
+    case "breath":
+      return { does: "Breathes on the front enemy, then on all.", against: "Good once it has grown." };
+    case "horde":
+      return { does: "Every skeleton strikes the front enemy.", against: "Good after a few kills." };
+    case "prayer":
+      return { does: "Heals every unit.", against: "Good against lots of small hits." };
+    case "bloom":
+      return { does: "Heals every unit, more the longer the fight.", against: "Good in a long fight." };
+    case "bite":
+      return { does: "Bites the strongest enemy and heals the squad.", against: "Good against one huge enemy." };
   }
 }
 
@@ -731,6 +803,24 @@ export function chainEffectChip(effect: ChainEffect): { icon: string; word: stri
       return { icon: "♨", word: "cauterize" };
     case "chill":
       return { icon: "❅", word: "chill" };
+    case "fortify":
+      return { icon: "⛨", word: "fortify" };
+    case "cleave":
+      return { icon: "⚔", word: "cleave" };
+    case "bless":
+      return { icon: "✚", word: "bless" };
+    case "execute":
+      return { icon: "🗡", word: "execute" };
+    case "breath":
+      return { icon: "♨", word: "breath" };
+    case "horde":
+      return { icon: "☠", word: "horde" };
+    case "prayer":
+      return { icon: "✚", word: "prayer" };
+    case "bloom":
+      return { icon: "✿", word: "bloom" };
+    case "bite":
+      return { icon: "☍", word: "bite" };
   }
 }
 
@@ -856,6 +946,17 @@ export interface RunConfig {
   fatiguePerBackfire: number;
   fatigueBenchRest: number;
   restFatigueCut: number;
+
+  /** Merge heroes (2026-10-20, DECISIONS.md 2026-10-19). 1 = a win over a mini-boss (round kind "miniboss")
+   * is rewarded with a merge pick, when the roster holds a recipe and can still fill every slot afterwards
+   * (sim/heroes.ts's mergeCandidates); 0 = off, for comparing against a run without heroes. A number, not a
+   * boolean, so the batch CLI's `--set mergeEnabled=0` can flip it. */
+  mergeEnabled: number;
+  /** How many wins a Dragon needs per growth stage (it stops at Elder, stage 3). */
+  heroDragonWinsPerStage: number;
+  /** What each Dragon stage adds to its max HP and damage. */
+  heroDragonHpPerStage: number;
+  heroDragonDamagePerStage: number;
 }
 
 export const DEFAULT_FIGHT_CONFIG: FightConfig = {
@@ -1083,6 +1184,29 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // See this field's own docstring above — default "weighted" is today's
   // shipped behaviour (pickWeightedTargetId's dice roll), not a change.
   enemyTargetMode: "weighted",
+
+  // Merge heroes — see the docstrings on the fields above.
+  heroRagePerMissing: 1,
+  heroMartyrHeal: 3,
+  heroFortifyShieldFraction: 0.4,
+  heroCleaveMult: 2.5,
+  heroBlessShieldFraction: 0.08,
+  heroExecuteMult: 3,
+  heroBreathMult: 2,
+  heroElderBreathMult: 1.5,
+  heroBreathAllStage: 2,
+  heroSkeletonMax: 4,
+  heroSkeletonHp: 25,
+  heroSkeletonDamage: 4,
+  heroSkeletonIntervalSec: 1.4,
+  heroHordeBase: 8,
+  heroPrayerHeal: 14,
+  heroRadianceFraction: 1,
+  heroRootedStartHeal: 3,
+  heroRootedFullHeal: 10,
+  heroRootedFullSec: 25,
+  heroLeechHeal: 1,
+  heroBiteMult: 2,
 };
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {
@@ -1146,6 +1270,10 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   fatiguePerBackfire: 4,
   fatigueBenchRest: 20,
   restFatigueCut: 45,
+  mergeEnabled: 1,
+  heroDragonWinsPerStage: 4,
+  heroDragonHpPerStage: 70,
+  heroDragonDamagePerStage: 5,
 };
 
 /** Look up a PRD-style table: index by count, clamp to the last (capped) entry. */

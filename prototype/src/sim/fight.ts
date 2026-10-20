@@ -101,6 +101,94 @@ function isFrozen(h: HeroState, t: number): boolean {
   return (h.stunnedUntilT ?? 0) > t;
 }
 
+// ---- Merge heroes' gifts (2026-10-20; sim/heroes.ts, DECISIONS.md 2026-10-19) ----
+// A gift is read straight off `HeroState.hero` at the few places it matters, not routed through the rune
+// system: Taunt in the enemy's target pick, Martyr / Leech / Bloodlust / Raise inside applyDamageFrom, Rage
+// and Radiance and Rooted in a unit's normal beat, Mirror and Growth in roster.ts.
+
+/** Berserker's Rage: 1 + the share of its HP it is missing, scaled by heroRagePerMissing. 1 for everyone else. */
+function rageMult(cfg: FightConfig, h: HeroState): number {
+  if (h.hero !== "berserker" || h.maxHp <= 0) return 1;
+  return 1 + Math.max(0, 1 - h.hp / h.maxHp) * cfg.heroRagePerMissing;
+}
+
+/** Treant's Rooted: the heal it has grown to by fight time `t`, from heroRootedStartHeal up to heroRootedFullHeal. */
+function rootedHeal(cfg: FightConfig, t: number): number {
+  const grown = Math.min(1, Math.max(0, t / cfg.heroRootedFullSec));
+  return cfg.heroRootedStartHeal + (cfg.heroRootedFullHeal - cfg.heroRootedStartHeal) * grown;
+}
+
+/** Golem's Taunt: the living Golem on the side, when there is one. Every enemy hit on that side lands on it. */
+function tauntTargetId(side: SideState): string | undefined {
+  return side.heroes.find((h) => h.hero === "golem" && h.alive && h.hp > 0)?.id;
+}
+
+/** Heals `target` for up to `amount` (not past full HP), announces it as a heal event and returns what went in. */
+function healFlat(c: FightCtx, side: SideState, healer: HeroState, target: HeroState, amount: number): number {
+  const applied = Math.max(0, Math.min(amount, target.maxHp - target.hp));
+  if (applied <= 0) return 0;
+  target.hp += applied;
+  c.events.push({ type: "heal", t: c.t, side: sideLabelOf(c, side), healerId: healer.id, targetId: target.id, amount: applied });
+  return applied;
+}
+
+/** The Necromancer's empty places: `cfg.heroSkeletonMax` dormant bodies (not alive, max HP 0) added to the
+ * player side at fight start so the screen can draw them in advance. Raise fills one. */
+function makeSkeletonSlots(cfg: FightConfig): HeroState[] {
+  return Array.from({ length: cfg.heroSkeletonMax }, (_, i) => ({
+    id: `skeleton_${i + 1}`,
+    name: "Skeleton",
+    role: "damage" as const,
+    maxHp: 0,
+    hp: 0,
+    alive: false,
+    damage: 0,
+    attackIntervalSec: cfg.heroSkeletonIntervalSec,
+    nextAttackT: Infinity,
+    fatigue: 0,
+    backfires: 0,
+    chainEffects: [],
+    dealt: 0,
+    soaked: 0,
+    restored: 0,
+    hitsTaken: 0,
+    holding: false,
+    charge: 0,
+    skeleton: true,
+    marks: { exposed: 0, burn: 0, shield: 0 },
+  }));
+}
+
+/** Necromancer's Raise: anyone who dies, yours or theirs, rises as a skeleton on the player side while a
+ * living Necromancer stands — up to heroSkeletonMax at once. A never-used place is filled first, then a
+ * fallen skeleton's. */
+function raiseSkeleton(c: FightCtx): void {
+  if (!c.player.heroes.some((h) => h.hero === "necromancer" && h.alive && h.hp > 0)) return;
+  const skeletons = c.player.heroes.filter((h) => h.skeleton);
+  if (skeletons.filter((h) => h.alive).length >= c.cfg.heroSkeletonMax) return;
+  const slot = skeletons.find((h) => !h.alive && h.maxHp === 0) ?? skeletons.find((h) => !h.alive);
+  if (!slot) return;
+  slot.alive = true;
+  slot.maxHp = c.cfg.heroSkeletonHp;
+  slot.hp = c.cfg.heroSkeletonHp;
+  slot.damage = c.cfg.heroSkeletonDamage;
+  slot.nextAttackT = c.t + c.cfg.heroSkeletonIntervalSec;
+  slot.marks = { exposed: 0, burn: 0, shield: 0 };
+  slot.stunnedUntilT = undefined;
+  slot.stunnedFromT = undefined;
+  c.events.push({ type: "raise", t: c.t, heroId: slot.id });
+}
+
+/** What a body falling does to the heroes' gifts: an Assassin that landed the kill has its bar filled again
+ * (Bloodlust), and a living Necromancer raises a skeleton (Raise). Skeletons never raise skeletons. */
+function onBodyFell(c: FightCtx, fallen: HeroState, onEnemySide: boolean, source: HeroState | undefined): void {
+  if (onEnemySide && source?.hero === "assassin" && source.alive) {
+    source.charge = Math.max(source.charge, c.cfg.chargeThreshold);
+    source.lustKill = true;
+  }
+  if (!fallen.skeleton) raiseSkeleton(c);
+}
+
 /** Raises one hook: every held card listening on it runs now, in held order
  * (cards/engine.ts). Modify hooks hand back their changed payload field, so the
  * caller reads it again afterwards. */
@@ -233,6 +321,12 @@ function applyDamageFrom(
       const hit = { target: hero, onEnemySide, taken };
       runHook(c, "afterHit", hit);
       taken = hit.taken;
+      // Paladin's Martyr: every hit it takes heals each other unit on its side a little.
+      if (hero.hero === "paladin" && !onEnemySide && taken > 0) {
+        for (const ally of side.heroes) {
+          if (ally !== hero && ally.alive && ally.hp > 0 && !ally.skeleton) healFlat(c, side, hero, ally, c.cfg.heroMartyrHeal);
+        }
+      }
     }
     hero.soaked += taken;
     hero.charge += taken * chargeWeightSoaked;
@@ -249,9 +343,15 @@ function applyDamageFrom(
         runHook(c, "death", { side, hero, onEnemySide });
         // A card may bring the body back (Phoenix): then it did not die.
         if (hero.alive) died.pop();
+        else onBodyFell(c, hero, onEnemySide, opts?.source);
       }
     }
     if (!spillOverkill) break;
+  }
+  // Vampire's Leech: each hit the player's squad lands heals the unit that landed it.
+  if (c && opts?.source && applied > 0 && side === c.enemy && opts.source.alive && c.player.heroes.includes(opts.source)) {
+    const vampire = c.player.heroes.find((h) => h.hero === "vampire" && h.alive && h.hp > 0);
+    if (vampire) healFlat(c, c.player, vampire, opts.source, c.cfg.heroLeechHeal);
   }
   // A dead guardian stops covering anything (2026-09-15 guard-visibility
   // pass) — otherwise the pool only tears down on the enemy's NEXT wind-up
@@ -436,6 +536,9 @@ function pickWindupTargetId(
     const forced = player.heroes.find((h) => h.id === aim.forceId && h.alive && h.hp > 0);
     if (forced) return forced.id;
   }
+  // A living Golem takes every slam too (its Taunt) — unless a guard is stepping around it.
+  const taunting = tauntTargetId(player);
+  if (taunting && taunting !== aim?.excludeId) return taunting;
   const pool: SideState =
     aim?.excludeId && player.heroes.some((h) => h.id === aim.excludeId)
       ? { ...player, heroes: player.heroes.filter((h) => h.id !== aim.excludeId) }
@@ -538,7 +641,8 @@ function highestHpAliveHero(side: SideState): HeroState | undefined {
 }
 
 function isWiped(side: SideState): boolean {
-  return side.heroes.every((h) => !h.alive || h.hp <= 0);
+  // A living skeleton is not a unit: a squad whose last real unit has fallen is wiped.
+  return side.heroes.every((h) => h.skeleton || !h.alive || h.hp <= 0);
 }
 
 /** Rolls a normal attack's damage within +/-variance of base. Chain bonus
@@ -567,6 +671,8 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
     charge: h.charge,
     fatigue: h.fatigue,
     backfires: h.backfires,
+    ...(h.hero ? { hero: h.hero, madeFrom: h.madeFrom, ...(h.hero === "dragon" ? { stage: h.heroStage ?? 0 } : {}) } : {}),
+    ...(h.skeleton ? { skeleton: true } : {}),
     windupFireT: h.windupFireT,
     windupTargetId: h.windupTargetId,
     nextWindupT: h.nextWindupT,
@@ -638,19 +744,31 @@ function performHeroAction(
   if (hero.healPerBeat) {
     const target = mostWoundedAliveHero(attackerSide);
     if (target) {
+      // A Treant's beat heal is what Rooted has grown to by now; everyone else's is the flat number.
+      const beat = hero.hero === "treant" ? rootedHeal(cfg, t) : hero.healPerBeat;
       // Capped against the TARGET's own maxHp (2026-08-08 root-cause pass —
       // see config.ts's healMaxFractionOfTargetMaxHp docstring): flat healing
       // silently over-rewarded small HP pools, erasing a squishy attacker's
       // fragility for free.
       const cap = target.maxHp * cfg.healMaxFractionOfTargetMaxHp;
-      const amount = Math.min(hero.healPerBeat, cap, target.maxHp - target.hp);
+      const amount = Math.min(beat, cap, target.maxHp - target.hp);
       if (amount > 0) {
         target.hp += amount;
         hero.restored += amount;
         hero.charge += amount * cfg.chargeWeightRestored;
         events.push({ type: "heal", t, side: attackerSideLabel, healerId: hero.id, targetId: target.id, amount });
+        // Priest's Radiance: the heal also hits the front enemy for the same amount.
+        if (hero.hero === "priest") {
+          const foeId = frontMostAliveId(defenderSide);
+          if (foeId) {
+            const radiant = applyDamageFrom(defenderSide, foeId, amount * cfg.heroRadianceFraction, 0, false, { source: hero });
+            hero.dealt += radiant.applied;
+            events.push({ type: "attack", t, side: attackerSideLabel, attackerId: hero.id, targetId: foeId, damage: radiant.applied });
+            for (const id of radiant.died) events.push({ type: "heroDown", t, side: defenderSideLabel, heroId: id });
+          }
+        }
         // Part of the beat's heal may have had nowhere to go (Overflow reads it).
-        const wasted = Math.min(hero.healPerBeat, cap) - amount;
+        const wasted = Math.min(beat, cap) - amount;
         if (ctx && wasted > 0) runHook(ctx, "overheal", { target, amount: wasted, onEnemySide: attackerSideLabel === "enemy" });
       }
     }
@@ -659,12 +777,15 @@ function performHeroAction(
     // the same beat, so a two-support comp is no longer an automatic loss.
     if (!hero.attacksWhileHealing) return;
   }
+  // A living Golem takes every normal hit, even from an enemy that reaches the back row (its Taunt).
+  const taunting = targeting === "weighted" ? tauntTargetId(defenderSide) : undefined;
   const lockedTankId = targeting === "weighted" && !hero.reachesBackline ? firstAliveTankId(defenderSide) : undefined;
   const targetId =
+    taunting ??
     lockedTankId ??
     (targeting === "front" ? frontMostAliveId(defenderSide) : pickEnemyTargetId(defenderSide, rng, cfg, enemyTargetTally));
   if (!targetId) return;
-  const base = (hero.damage + (isPlayerAttacker ? attackerSide.dpsBonus : 0)) * damageMultiplier;
+  const base = (hero.damage + (isPlayerAttacker ? attackerSide.dpsBonus : 0)) * damageMultiplier * rageMult(cfg, hero);
   let damage = rollDamage(base, rng, cfg.damageVariance);
   // Cards that change a normal attack before it lands (Punish) listen here.
   if (ctx) {
@@ -995,7 +1116,8 @@ function resolveOneEffect(
   // every version of this mechanic has used. "guard" is side-level (always
   // the player) and "stun" picks its own target per branch below, so neither
   // reads this.
-  const isHealEffect = effect === "ward" || effect === "mend";
+  const isHealEffect =
+    effect === "ward" || effect === "mend" || effect === "bless" || effect === "prayer" || effect === "bloom";
   const targetSide = isHealEffect ? (backfire ? enemy : player) : backfire ? player : enemy;
   // Marks are only in play inside runFight (ctx set); every branch below that
   // leaves one guards on this. Stacks per rung: 1, plus one per chain "+N".
@@ -1302,6 +1424,133 @@ function resolveOneEffect(
       const sec = escalatedDurationSec(cfg, cfg.chainChillSec, hitIndex, level, boost);
       return [freezeBody(c, t, target, sec, backfire, stunHeld)];
     }
+    // ---- Merge heroes' skills (2026-10-20). Same rules as every chain: escalated per rung, backfire aims the
+    // same effect at the wrong side. ----
+    case "fortify": {
+      // Brace with a bigger number: the firing hero shields itself, a backfire shields the biggest enemy.
+      const target = backfire ? highestHpAliveHero(enemy) : hero;
+      if (!target) return null;
+      const raw =
+        escalatedMagnitude(cfg, hero.maxHp * cfg.heroFortifyShieldFraction, hitIndex, boost) + (level - 1) * cfg.chainShieldPerLevel;
+      const shield = c ? addShield(c, target, raw) : 0;
+      return [
+        {
+          kind: "heal" as const,
+          targetId: target.id,
+          amount: 0,
+          intended: raw,
+          died: [] as string[],
+          ...(shield > 0 ? { mark: "shield" as const, markStacks: shield } : {}),
+        },
+      ];
+    }
+    case "cleave":
+    case "execute": {
+      // Cleave: a big swing at the front enemy (Rage adds to it). Execute: a heavier one at the weakest.
+      const target = effect === "cleave" ? aliveOnSide(targetSide, frontMostAliveId(targetSide)) : lowestHpAliveHero(targetSide);
+      if (!target) return null;
+      const mult = effect === "cleave" ? cfg.heroCleaveMult * rageMult(cfg, hero) : cfg.heroExecuteMult;
+      const damage = escalatedMagnitude(cfg, hero.damage * mult, hitIndex, boost);
+      const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false, dmgOpts);
+      hero.dealt += applied;
+      return [{ kind: "damage" as const, targetId: target.id, amount: applied, intended: damage, died }];
+    }
+    case "breath": {
+      // A Baby or Young Dragon breathes on the front enemy; from heroBreathAllStage on, on every enemy.
+      const stage = hero.heroStage ?? 0;
+      const targets =
+        stage >= cfg.heroBreathAllStage
+          ? targetSide.heroes.filter((h) => h.alive && h.hp > 0)
+          : [aliveOnSide(targetSide, frontMostAliveId(targetSide))].filter((h): h is HeroState => !!h);
+      if (targets.length === 0) return null;
+      const elder = stage >= 3 ? cfg.heroElderBreathMult : 1;
+      const damage = escalatedMagnitude(cfg, hero.damage * cfg.heroBreathMult * elder, hitIndex, boost);
+      return targets.map((target) => {
+        const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false, dmgOpts);
+        hero.dealt += applied;
+        return { kind: "damage" as const, targetId: target.id, amount: applied, intended: damage, died };
+      });
+    }
+    case "horde": {
+      // Every standing skeleton strikes the front enemy. No skeleton, nothing to do: the chain ends.
+      const skeletons = player.heroes.filter((h) => h.skeleton && h.alive && h.hp > 0);
+      if (skeletons.length === 0) return null;
+      const damage = escalatedMagnitude(cfg, cfg.heroHordeBase, hitIndex, boost);
+      const out: ChainHitEntry[] = [];
+      for (const _skeleton of skeletons) {
+        const target = aliveOnSide(targetSide, frontMostAliveId(targetSide));
+        if (!target) break;
+        const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false, dmgOpts);
+        hero.dealt += applied;
+        out.push({ kind: "damage", targetId: target.id, amount: applied, intended: damage, died });
+      }
+      return out.length > 0 ? out : null;
+    }
+    case "bless": {
+      const allies = targetSide.heroes.filter((h) => h.alive && h.hp > 0);
+      if (allies.length === 0) return null;
+      return allies.map((target) => {
+        const raw = escalatedMagnitude(cfg, target.maxHp * cfg.heroBlessShieldFraction, hitIndex, boost) + (level - 1) * cfg.chainShieldPerLevel;
+        const shield = c ? addShield(c, target, raw) : 0;
+        return {
+          kind: "heal" as const,
+          targetId: target.id,
+          amount: 0,
+          intended: raw,
+          died: [] as string[],
+          ...(shield > 0 ? { mark: "shield" as const, markStacks: shield } : {}),
+        };
+      });
+    }
+    case "prayer":
+    case "bloom": {
+      // Heal every unit. Prayer heals a flat number and, with Radiance, hits the front enemy once for each unit
+      // healed; Bloom heals what Rooted has grown to by now.
+      const allies = targetSide.heroes.filter((h) => h.alive && h.hp > 0);
+      if (allies.length === 0) return null;
+      const base = effect === "prayer" ? cfg.heroPrayerHeal : rootedHeal(cfg, t);
+      const raw = escalatedMagnitude(cfg, base, hitIndex, boost);
+      const radiant = hero.hero === "priest" && effect === "prayer" && !backfire;
+      const out: ChainHitEntry[] = [];
+      for (const target of allies) {
+        const room = target.maxHp - target.hp;
+        const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
+        const amount = room > 0 ? Math.max(1, Math.min(raw, cap, room)) : 0;
+        target.hp += amount;
+        if (!backfire) hero.restored += amount;
+        out.push({ kind: "heal", targetId: target.id, amount, intended: raw, died: [] });
+        if (radiant && amount > 0) {
+          const foe = aliveOnSide(enemy, frontMostAliveId(enemy));
+          if (foe) {
+            const hit = applyDamageFrom(enemy, foe.id, amount * cfg.heroRadianceFraction, 0, false, dmgOpts);
+            hero.dealt += hit.applied;
+            out.push({ kind: "damage", targetId: foe.id, amount: hit.applied, intended: amount, died: hit.died });
+          }
+        }
+      }
+      return out;
+    }
+    case "bite": {
+      // The strongest enemy takes a bite; the squad is healed, shared out, for what it dealt.
+      const foe = backfire ? player : enemy;
+      const friends = backfire ? enemy : player;
+      const victim = highestHpAliveHero(foe);
+      if (!victim) return null;
+      const damage = escalatedMagnitude(cfg, hero.damage * cfg.heroBiteMult, hitIndex, boost);
+      const { died, applied } = applyDamageFrom(foe, victim.id, damage, 0, false, dmgOpts);
+      hero.dealt += applied;
+      const out: ChainHitEntry[] = [{ kind: "damage", targetId: victim.id, amount: applied, intended: damage, died }];
+      const patients = friends.heroes.filter((h) => h.alive && h.hp > 0);
+      const share = patients.length > 0 ? applied / patients.length : 0;
+      for (const patient of patients) {
+        const room = patient.maxHp - patient.hp;
+        const amount = Math.max(0, Math.min(share, patient.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp, room));
+        patient.hp += amount;
+        if (!backfire) hero.restored += amount;
+        if (amount > 0) out.push({ kind: "heal", targetId: patient.id, amount, intended: share, died: [] });
+      }
+      return out;
+    }
   }
 }
 
@@ -1353,6 +1602,8 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   // Work on private copies so the caller's setup objects aren't mutated.
   const player: SideState = { heroes: cloneHeroes(setup.player.heroes), dpsBonus: setup.player.dpsBonus };
   const enemy: SideState = { heroes: cloneHeroes(setup.enemy.heroes), dpsBonus: setup.enemy.dpsBonus };
+  // A fielded Necromancer brings its empty skeleton places with it (see makeSkeletonSlots).
+  if (player.heroes.some((h) => h.hero === "necromancer" && h.alive)) player.heroes.push(...makeSkeletonSlots(cfg));
   const events: FightEvent[] = [];
 
   // The marks/card context (see FightCtx's docstring) is live only for the
@@ -1494,7 +1745,10 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
   // reset it), and any charge the unit gained meanwhile is thrown away, so the bar visibly ends with the skill.
   function restartCharge(heroId: string): void {
     const hero = player.heroes.find((h) => h.id === heroId);
-    if (hero) hero.charge = 0;
+    if (!hero) return;
+    // An Assassin that landed a kill during the skill that just ended keeps its bar full (Bloodlust).
+    hero.charge = hero.lustKill && hero.alive ? cfg.chargeThreshold : 0;
+    hero.lustKill = false;
   }
 
   // Cards that set a fight up (starting marks, shields) listen here.
@@ -1686,19 +1940,20 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
     // its bar stays full while its skill plays and restarts at zero when the skill ends (restartCharge).
     if (!outcome && cfg.chargeTricklePerSec > 0) {
       for (const h of player.heroes) {
-        if (h.alive && h.id !== hotHeroId) h.charge += cfg.chargeTricklePerSec * dt;
+        if (h.alive && !h.skeleton && h.id !== hotHeroId) h.charge += cfg.chargeTricklePerSec * dt;
       }
     }
 
     if (!outcome && hotHeroId === null) {
       let ready: HeroState | undefined;
       for (const h of player.heroes) {
-        if (!h.alive || h.charge < cfg.chargeThreshold) continue;
+        if (!h.alive || h.skeleton || h.charge < cfg.chargeThreshold) continue;
         if (!ready || h.charge > ready.charge) ready = h;
       }
       if (ready) {
         ignited = true;
         hotHeroId = ready.id;
+        ready.lustKill = false;
         // The roll always happens, whether or not cfg.forceBackfire overrides
         // what it decides — see that field's own docstring (config.ts) for
         // why this keeps the RNG stream identical to today's game.
@@ -1821,7 +2076,8 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
     ignited,
     chainLength: finalChainLength,
     durationSec: endT,
-    finalPlayerHeroes: snapshotHeroes(player),
+    // Skeletons are not units of the squad: the roster, the reports and the export log never see them.
+    finalPlayerHeroes: snapshotHeroes({ ...player, heroes: player.heroes.filter((h) => !h.skeleton) }),
     dipOccurred,
   };
 }
