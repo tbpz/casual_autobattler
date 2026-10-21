@@ -22,11 +22,11 @@ export type HeroKind =
   | "vampire"
   | "twin";
 
-/** The two armies (2026-10-20; sim/armies.ts): a run picks one at the start and every unit is re-skinned into it. */
-export type ArmyKind = "undead" | "beasts";
+/** The three armies (2026-10-20; Mages 2026-10-21; sim/armies.ts): a run picks one at the start and every unit is re-skinned into it. */
+export type ArmyKind = "undead" | "beasts" | "mages";
 
-/** The six army units, two per role slot of an army: what a unit of that role is called, looks like and does. */
-export type UnitKind = "boneKnight" | "wraith" | "bonePriest" | "bear" | "wolf" | "stag";
+/** The nine army units, one per role slot of an army: what a unit of that role is called, looks like and does. */
+export type UnitKind = "boneKnight" | "wraith" | "bonePriest" | "bear" | "wolf" | "stag" | "frostMage" | "stormMage" | "lifeMage";
 
 /** A hero's resolved chain plan for THIS fight (2026-09-13, "a hero's chain
  * names its own enemy" rebuild — replaces the old profile/targeting/
@@ -244,6 +244,12 @@ export interface HeroState {
   /** Undead army skeleton (2026-10-21; fight.ts's raiseArmySkeleton): which kind this place holds once it is filled. A warrior
    * (Raise) hits; a shield (Bone Wall) soaks the enemy's normal hits first. Undefined on a Necromancer's skeleton. */
   skeletonKind?: SkeletonKind;
+  /** Mages army (2026-10-21; fight.ts's orb code): the loose orbs this mage has now, 0 to `mageOrbMax`. They stay between skills and work
+   * on a shared beat. Undefined on anyone else. */
+  orbs?: number;
+  /** Mages army: the step of the merged orb, 0 or undefined when there is none. It exists from the skill hit that finds `mageOrbMax`
+   * orbs already out until the skill ends, and grows a step with every skill hit after that. */
+  orbBig?: number;
 }
 
 /** The two kinds of Undead army skeleton. */

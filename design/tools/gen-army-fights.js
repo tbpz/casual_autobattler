@@ -2,7 +2,7 @@
 //   12.0A  FightArmyPlain    today: a line from one unit to one enemy
 //   12.0B  FightArmyUndead   every skill hit raises a skeleton (5 at most, then it upgrades them); enemy hits go shields, warriors, Bram; slams hit anyone
 //   12.0C  FightArmyBeasts   one shared pack bar; when it fills, the whole pack jumps on one enemy
-//   12.0D  FightArmyMages    every skill hit adds an orb that works on its own every 2 seconds
+//   12.0D  FightArmyMages    every skill hit adds an orb (3 at most) that works on its own every 2 seconds; a 4th merges them into one orb that strikes, grows with each hit, and is gone when the skill ends
 // Run:  node design/tools/gen-army-fights.js     (writes the four frames and patches canvas.json)
 // Toolkit (scene helpers, bubble, beam, floater) is cut from gen-armies.js; unit looks from there too. Every number (HP, damage) is made up
 // for the picture; the play style is what is being judged. Every animated part keeps its key moment as its plain (animation off) style,
@@ -341,44 +341,110 @@ function sceneC(C) {
 // =====================================================================================================
 // D — Mages: every skill hit adds an orb that works on its own every 2 seconds
 // =====================================================================================================
-// a ring of orbs around a unit: the ring turns slowly. `items` = [[angle in degrees, appears at %]]. Plain style = all shown.
-function orbRing(C, { cx, cy, r, color, items, spin = 3.4 }) {
-  const orbs = items.map(([ang, at], i) => {
-    const x = r - 5 + r * Math.cos(ang * Math.PI / 180), y = r - 5 + r * Math.sin(ang * Math.PI / 180);
-    const anim = C.kf([[0, "opacity:0;transform:scale(0.2)"], [at - 0.1, "opacity:0;transform:scale(0.2)"], [at + 0.8, "opacity:1;transform:scale(1.6)"], [at + 2, "opacity:1;transform:scale(1)"], [97, "opacity:1;transform:scale(1)"], [100, "opacity:0;transform:scale(0.2)"]]);
-    return `<div style="position:absolute;left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;width:10px;height:10px;border-radius:50%;background:${color};box-shadow:0 0 7px 2px ${color};border:1px solid #fff8;${anim}"></div>`;
+// where an orb sits on a ring, in arena pixels
+const orbAt = (cx, cy, r, ang) => [cx + r * Math.cos(ang * Math.PI / 180), cy + r * Math.sin(ang * Math.PI / 180)];
+// a ring of orbs around a unit. `items` = [[angle in degrees, appears at %]]. Plain style = all shown, unless `shownInStill` is false.
+// `pulses` = the % at which the orbs do their job (each swells once). `mergeAt` + `mergeTo`: from that % every orb flies to that
+// point (arena pixels) and is gone, to become the merged orb. `spin` > 0 turns the ring slowly (seconds per turn); 0 keeps the orbs still.
+function orbRing(C, { cx, cy, r, color, items, spin = 0, pulses = [], mergeAt = null, mergeTo = null, shownInStill = true }) {
+  const T = (x, y, s) => `transform:translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${s})`;
+  const orbs = items.map(([ang, at]) => {
+    const [px, py] = orbAt(cx, cy, r, ang);
+    const x = px - (cx - r) - 5, y = py - (cy - r) - 5;
+    const [dx, dy] = mergeTo ? [mergeTo[0] - px, mergeTo[1] - py] : [0, 0];
+    const stops = [[0, `opacity:0;${T(0, 0, 0.2)}`], [at - 0.1, `opacity:0;${T(0, 0, 0.2)}`], [at + 0.8, `opacity:1;${T(0, 0, 1.6)}`], [at + 2, `opacity:1;${T(0, 0, 1)}`]];
+    pulses.filter((t) => t > at + 3 && (mergeAt === null || t < mergeAt)).forEach((t) => stops.push([t - 0.3, `opacity:1;${T(0, 0, 1)}`], [t + 0.4, `opacity:1;${T(0, 0, 2)}`], [t + 1.6, `opacity:1;${T(0, 0, 1)}`]));
+    if (mergeAt !== null) stops.push([mergeAt, `opacity:1;${T(0, 0, 1)}`], [mergeAt + 2.6, `opacity:1;${T(dx, dy, 0.5)}`], [mergeAt + 2.8, `opacity:0;${T(dx, dy, 0.5)}`], [100, `opacity:0;${T(dx, dy, 0.5)}`]);
+    else stops.push([97, `opacity:1;${T(0, 0, 1)}`], [100, `opacity:0;${T(0, 0, 0.2)}`]);
+    return `<div style="position:absolute;left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;width:10px;height:10px;border-radius:50%;background:${color};box-shadow:0 0 7px 2px ${color};border:1px solid #fff8;${shownInStill ? "" : "opacity:0;"}${C.kf(stops)}"></div>`;
   }).join("");
-  return abs(`left:${cx - r}px;top:${cy - r}px;width:${2 * r}px;height:${2 * r}px;z-index:4;animation:orbSpin ${spin}s linear infinite;`, orbs);
+  return abs(`left:${cx - r}px;top:${cy - r}px;width:${2 * r}px;height:${2 * r}px;z-index:4;${spin ? `animation:orbSpin ${spin}s linear infinite;` : ""}`, orbs);
+}
+// a real lightning bolt: a jagged line with a white core and a coloured glow, flickering for about 0.4 s. The zig-zag is a fixed
+// pseudo-random sequence, so every run of the generator draws the same bolt. A thick bolt also forks once. `show: false` hides it in the still.
+let boltN = 0;
+function bolt(C, { x1, y1, x2, y2, color, at, w = 1.6, show = false }) {
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+  const n = Math.max(4, Math.round(len / 16)), k = boltN++;
+  const jig = (i) => { const v = Math.sin((i + 1) * 12.9898 + k * 78.233) * 43758.5453; return (v - Math.floor(v)) * 2 - 1; };
+  const pts = [[x1, y1]];
+  for (let i = 1; i < n; i++) { const t = i / n, j = jig(i) * (5 + w * 1.6); pts.push([x1 + dx * t + nx * j, y1 + dy * t + ny * j]); }
+  pts.push([x2, y2]);
+  const path = (p) => p.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  let d = path(pts);
+  if (w >= 3) { const m = pts[Math.floor(n / 2)], s = jig(n) > 0 ? 1 : -1; d += ` ${path([m, [m[0] + ux * 12 + nx * 14 * s, m[1] + uy * 12 + ny * 14 * s], [m[0] + ux * 24 + nx * 10 * s, m[1] + uy * 24 + ny * 10 * s]])}`; }
+  const anim = C.kf([[0, "opacity:0"], [at - 0.05, "opacity:0"], [at, "opacity:1"], [at + 0.7, "opacity:0.15"], [at + 1.3, "opacity:1"], [at + 2, "opacity:0.2"], [at + 2.6, "opacity:0.9"], [at + 3.6, "opacity:0"], [100, "opacity:0"]]);
+  return `<svg width="326" height="392" viewBox="0 0 326 392" style="position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:4;filter:drop-shadow(0 0 ${2 + w}px ${color});opacity:${show ? 1 : 0};${anim}"><path d="${d}" fill="none" stroke="${color}" stroke-width="${(w * 2).toFixed(1)}" stroke-opacity="0.55" stroke-linejoin="round" stroke-linecap="round"/><path d="${d}" fill="none" stroke="#fff" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+// the one big sparkling orb the others merge into. Appears at `at` %, grows at each % in `grows` (one step each) and fades at `end` %.
+// The still (animation off) shows it at its largest.
+function mergedOrb(C, { cx, cy, at, grows, end, color }) {
+  const sizes = [1.0, 1.0 + 0.4, 1.0 + 0.8];
+  const S = (s, a) => `opacity:${a};transform:scale(${s});box-shadow:0 0 ${6 + s * 8}px ${1 + s * 3}px ${color},0 0 ${2 + s * 4}px ${s * 2}px #fff8;`;
+  const stops = [[0, S(0.3, 0)], [at - 0.1, S(0.3, 0)], [at + 0.6, S(1.6, 1)], [at + 2, S(sizes[0], 1)]];
+  grows.forEach((g, i) => stops.push([g - 0.1, S(sizes[i], 1)], [g + 0.6, S(sizes[i + 1] + 0.25, 1)], [g + 1.5, S(sizes[i + 1], 1)]));
+  stops.push([end, S(sizes[grows.length], 1)], [end + 1.8, S(0.4, 0)], [100, S(0.3, 0)]);
+  const sparks = [[-4, -4, 9], [32, -2, 7], [34, 32, 9], [-2, 34, 7]].map(([x, y, fs]) => `<span style="position:absolute;left:${x}px;top:${y}px;font-size:${fs}px;line-height:1;color:#fffbd0;text-shadow:0 0 4px ${color};">✦</span>`).join("");
+  const core = `radial-gradient(circle at 40% 38%,#fff 0%,#fff6b0 30%,${color} 68%,#ff9f1c 100%)`;
+  return abs(`left:${cx - 14}px;top:${cy - 14}px;width:28px;height:28px;border-radius:50%;background:${core};z-index:4;${S(sizes[grows.length], 1)}${C.kf(stops)}`,
+    abs("left:-2px;top:-2px;width:32px;height:32px;animation:orbSpin 2.4s linear infinite;", sparks));
 }
 function sceneD(C) {
   let h = frontLine() + outriders(C);
-  h += vanguard(C, [[0, 100], [33, 100], [34, 98], [57, 98], [58, 96], [66, 96], [67, 80], [100, 80]], 80, "559/699");
+  // the Vanguard's HP: a 4 from Ivy's second zap, then the merged orb's 38, 46 and 56 (of 699)
+  h += vanguard(C, [[0, 100], [45, 100], [46, 99.4], [61, 99.4], [62, 94], [64.5, 94], [65.5, 87.4], [68.5, 87.4], [69.5, 79.4], [100, 79.4]], 79.4, "555/699");
   // Bram (Frost Mage) in front, Storm Mage and Life Mage behind
-  h += ally(C, "frost", { cx: 163, top: 174, size: 38, name: "Bram", hpW: 40, chargePct: 40, cycles: [{ s: 22 }], hpPct: 100 });
-  h += ally(C, "storm", { cx: 100, top: 298, size: 36, name: "Ivy", cycles: [{ s: 2 }] });
-  h += ally(C, "life", { cx: 226, top: 298, size: 36, name: "Sol", cycles: [{ s: 38 }] });
-  const FC = [163, 193], SC = [100, 316], LC = [226, 316];
-  // orbs sit at the sides and upper corners, clear of the bubble above and the name below
-  h += orbRing(C, { cx: SC[0], cy: SC[1], r: 29, color: "#ffe36a", items: [[-150, 8], [-30, 13], [180, 18]] });
-  h += orbRing(C, { cx: FC[0], cy: FC[1], r: 30, color: "#8fd3ff", items: [[-150, 28], [-30, 33]] });
-  h += orbRing(C, { cx: LC[0], cy: LC[1], r: 29, color: "#6ee7a0", items: [[-30, 44]] });
-  // every 2 seconds (25%) each orb does its small thing: Storm zaps three enemies, Frost shields Bram, Life heals him; the still keeps the first tick
-  [32, 57, 82].forEach((t, k) => {
-    [[60, 98, "−4"], [122, 98, "−4"], [266, 98, "−4"]].forEach(([x, y, txt], i) => {
-      h += beam(C, { x1: SC[0], y1: SC[1] - 29, x2: x, y2: y, color: "#ffe36a", at: t + i * 0.4, w: 1.4, dur: 4, show: k === 0 }) + floater(C, { x, y: y - 6, text: txt, color: "#fff4b0", at: t + i * 0.4 + 0.6, size: 9, glow: "#ffe36a", show: k === 0 });
+  h += ally(C, "frost", { cx: 163, top: 174, size: 38, name: "Bram", hpW: 40, chargePct: 40, cycles: [{ s: 10 }], hpPct: 100 });
+  h += ally(C, "storm", { cx: 100, top: 298, size: 36, name: "Ivy", cycles: [{ s: 2 }, { s: 50 }] });
+  h += ally(C, "life", { cx: 226, top: 298, size: 36, name: "Sol", cycles: [{ s: 18 }] });
+  const FC = [163, 193], SC = [100, 316], LC = [226, 316], MP = [54, 318];
+  const GOLD = "#ffe36a", FROST = "#8fd3ff", LIFE = "#6ee7a0";
+  const TICKS = [28, 45, 62, 79];
+  // Ivy's orbs stand still (so each zap leaves its own orb); the 3rd and 4th come with the second skill, then all four fly to MP and merge.
+  // Orbs sit at the sides and upper corners, clear of the bubble above and the name below.
+  h += orbRing(C, { cx: SC[0], cy: SC[1], r: 29, color: GOLD, items: [[-150, 8], [-30, 13], [180, 53], [0, 56]], pulses: [28, 45], mergeAt: 58, mergeTo: MP, shownInStill: false });
+  h += orbRing(C, { cx: FC[0], cy: FC[1], r: 30, color: FROST, items: [[-150, 16], [-30, 21]], spin: 3.4, pulses: TICKS });
+  h += orbRing(C, { cx: LC[0], cy: LC[1], r: 29, color: LIFE, items: [[-30, 24]], spin: 3.4, pulses: TICKS });
+  // the enemies' centres, for the bolts
+  const O1c = [60, 84], O2c = [122, 84], VANc = [194, 76];
+  const orbA = orbAt(SC[0], SC[1], 29, -150), orbB = orbAt(SC[0], SC[1], 29, -30);
+  // every 2 seconds each orb does its small job, on its own: Ivy's two orbs each throw lightning at one enemy (the same one is fine),
+  // Frost shields Bram, Life heals him. The still keeps the shield and heal numbers of the first beat.
+  [[28, O2c, O2c], [45, O1c, VANc]].forEach(([t, ta, tb]) => {
+    [[orbA, ta, -7], [orbB, tb, 7]].forEach(([o, tg, ox], i) => {
+      h += bolt(C, { x1: o[0], y1: o[1], x2: tg[0], y2: tg[1], color: GOLD, at: t + i * 0.5, w: 1.6, show: false });
+      h += floater(C, { x: tg[0] + ox, y: 62, text: "−4", color: "#fff4b0", at: t + i * 0.5 + 1, size: 9, glow: GOLD, show: false });
     });
-    h += floater(C, { x: 163, y: 168, text: "⛊+4", color: "#8fd3ff", at: t, size: 10, glow: "#4da6ff", show: k === 0 });
-    h += floater(C, { x: 196, y: 190, text: "+3", color: ROLE.healer.hex, at: t + 0.5, size: 10, glow: "#1b8a55", show: k === 0 });
   });
-  h += ring(C, { cx: FC[0], cy: FC[1], r: 30, color: "#8fd3ff", at: 32 }) + ring(C, { cx: FC[0], cy: FC[1], r: 30, color: "#8fd3ff", at: 57 });
-  // a 4th Storm orb pushes the oldest out and it bursts on the Vanguard
-  h += beam(C, { x1: SC[0], y1: SC[1] - 29, x2: 194, y2: 80, color: "#ffe36a", at: 66, w: 4.5, dur: 9, show: false }) + floater(C, { x: 232, y: 40, text: "−38", color: "#fff", at: 67, size: 19, glow: "#ffe36a", show: false });
-  h += ring(C, { cx: 194, cy: 68, r: 36, color: "#ffe36a", at: 67, dur: 10 });
-  h += chip(C, { x: 4, y: 232, text: "3 ORBS ZAP ON THEIR OWN", color: "#ffe36a", stops: win(30, 46, 1.5) });
-  h += chip(C, { x: 4, y: 252, text: "A 4TH ORB: THE OLDEST BURSTS", color: "#ffe36a", stops: win(64, 82, 1.5), base: 0 });
-  h += bubble(C, { cx: 100, top: 298, size: 36, text: "STORM ORB ×3", color: UNIT_HEX.storm, s: 2, w: 84 });
-  h += bubble(C, { cx: 163, top: 174, size: 38, text: "FROST ORB ×2", color: UNIT_HEX.frost, s: 22, w: 80, barW: 40, show: false });
-  h += bubble(C, { cx: 226, top: 298, size: 36, text: "LIFE ORB", color: UNIT_HEX.life, s: 38, w: 60, show: false });
+  TICKS.forEach((t, k) => {
+    h += floater(C, { x: 150, y: 168, text: "⛊+4", color: FROST, at: t, size: 10, glow: "#4da6ff", show: k === 0 });
+    h += floater(C, { x: 176, y: 168, text: "⛊+4", color: FROST, at: t + 0.6, size: 10, glow: "#4da6ff", show: k === 0 });
+    h += floater(C, { x: 196, y: 190, text: "+3", color: ROLE.healer.hex, at: t + 0.5, size: 10, glow: "#1b8a55", show: k === 0 });
+    h += ring(C, { cx: FC[0], cy: FC[1], r: 30, color: FROST, at: t }) + ring(C, { cx: FC[0], cy: FC[1], r: 34, color: LIFE, at: t + 0.5 });
+  });
+  // the 4th orb: all four merge into one sparkling orb, which strikes at once, then grows with every skill hit after and strikes harder
+  h += ring(C, { cx: MP[0], cy: MP[1], r: 26, color: "#fff", at: 60.3, dur: 8 });
+  h += mergedOrb(C, { cx: MP[0], cy: MP[1], at: 60.5, grows: [64, 68], end: 72, color: GOLD });
+  [[60.8, 3.2, "−38", 19, 36, 240, 52], [64.6, 4, "−46", 22, 40, 146, 52], [68.6, 5, "−56", 25, 44, 240, 26]].forEach(([t, w, txt, fs, rr, fx, fy], i) => {
+    h += bolt(C, { x1: MP[0], y1: MP[1] - 6, x2: VANc[0], y2: VANc[1], color: GOLD, at: t, w, show: i === 2 });
+    h += floater(C, { x: fx, y: fy, text: txt, color: "#fff", at: t + 0.8, size: fs, glow: GOLD, show: i === 2 });
+    h += ring(C, { cx: VANc[0], cy: 68, r: rr, color: GOLD, at: t + 0.4, dur: 10 });
+  });
+  // what is happening now (plays in the loop only)
+  h += chip(C, { x: 4, y: 232, text: "EACH ORB ZAPS ONE ENEMY", color: GOLD, stops: win(27, 46, 1.5), base: 0 });
+  h += chip(C, { x: 4, y: 252, text: "THE SAME ENEMY TWICE IS FINE", color: GOLD, stops: win(27, 40, 1.5), base: 0 });
+  h += chip(C, { x: 4, y: 232, text: "4TH ORB: ALL MERGE AND STRIKE", color: GOLD, stops: win(56, 66, 1.5), base: 0 });
+  h += chip(C, { x: 4, y: 252, text: "EVERY HIT AFTER: BIGGER", color: GOLD, stops: win(64, 72, 1.5), base: 0 });
+  h += chip(C, { x: 4, y: 232, text: "SKILL ENDS: START FROM 0", color: "#e8e8ee", stops: win(72, 92, 1.5), base: 0 });
+  // the two rules, always shown at the foot of the arena
+  [[GOLD, 362, "EVERY 2 S EACH ORB WORKS ALONE · 3 AT MOST"], [FROST, 377, "MERGED: ZAP BIG · FROST SHIELDS ALL · LIFE HEALS ALL"]].forEach(([color, y, text]) => {
+    h += chip(C, { x: 4, y, text, color, stops: [[0, "opacity:1"], [100, "opacity:1"]], base: 1 });
+  });
+  // bubbles: Ivy, Bram and Sol each use a skill early (2 to 3 orbs in all), then Ivy again; the still shows the last
+  h += bubble(C, { cx: 100, top: 298, size: 36, text: "STORM ORB ×2", color: UNIT_HEX.storm, s: 2, w: 84, show: false });
+  h += bubble(C, { cx: 163, top: 174, size: 38, text: "FROST ORB ×2", color: UNIT_HEX.frost, s: 10, w: 80, barW: 40, show: false });
+  h += bubble(C, { cx: 226, top: 298, size: 36, text: "LIFE ORB", color: UNIT_HEX.life, s: 18, w: 60, show: false });
+  h += bubble(C, { cx: 100, top: 298, size: 36, text: "STORM ORB ×4", color: UNIT_HEX.storm, s: 50, w: 84 });
   h += rowLabels();
   return h;
 }
@@ -397,9 +463,9 @@ const OPTIONS = [
   { file: "FightArmyBeasts.dc.html", id: "12.0C", scene: sceneC, tag: "C", title: "C · Beasts: one pack bar, one big pounce",
     text: "No beast has a skill of its own. Every bite fills one bar shared by the pack. When it is full, all five jump on one enemy: the Bear lands first and holds it, the Wolves bite, the Stag heals. A chain means they jump again.",
     feel: "Feels like: wait, BOOM, wait, BOOM." },
-  { file: "FightArmyMages.dc.html", id: "12.0D", scene: sceneD, tag: "D", title: "D · Mages: every skill hit adds an orb",
-    text: "Skill hits put orbs around the mage, three at most. Each orb does its small job by itself every 2 seconds: zaps for Ivy, shields for Bram, heals for Sol. A fourth orb pushes the oldest out, and it bursts.",
-    feel: "Feels like: a machine that builds up, then runs itself." },
+  { file: "FightArmyMages.dc.html", id: "12.0D", scene: sceneD, tag: "D", T: 12, title: "D · Mages: orbs that merge and strike",
+    text: "Skill hits add orbs, three at most. Every 2 seconds each orb works alone: Ivy's throw lightning at one enemy, Bram's shield him, Sol's heal him. A 4th orb pulls them all into one sparkling orb that strikes at once (Frost shields the team, Life heals it) and grows with every hit after. When the skill ends, the orbs are gone.",
+    feel: "Feels like: build it up, then it all goes off." },
 ];
 function frame(o, n) {
   const C = makeCtx(`fa${n}k`);
@@ -444,7 +510,7 @@ ${scene}
 }
 
 // ---------- write the files and patch canvas.json ----------
-const Y = 17700, FRAMES = [];
+const Y = 19000, FRAMES = [];
 OPTIONS.forEach((o, i) => {
   fs.writeFileSync(path.join(CANVAS, o.file), frame(o, i));
   FRAMES.push({ file: o.file, x: 550 * i, y: Y, w: 390, h: 600, label: `${o.id} ${o.title.slice(4)} (${o.tag === "A" ? "today, kept for comparison" : "picked 2026-10-21, to build"})` });

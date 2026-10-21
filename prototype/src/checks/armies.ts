@@ -2,7 +2,8 @@
  * The armies (2026-10-20; sim/armies.ts, canvas 10.x and 11.x). Each assertion runs a small hand-built fight (or a roster step)
  * and pins one rule: the two starting squads, merge heroes off, the Undead's horde (Raise and Bone Wall raise a skeleton per hit,
  * five at most, then upgrade; the enemy's normal hits go to shields, then warriors, then the Bone Knight; Command; both backfires),
- * Roar, Pack Bite, Herd, Pack's charge, and that a whole run plays and replays the same for both armies.
+ * Roar, Pack Bite, Herd, Pack's charge, the Mages' orbs (add, merge, grow, clear, the 2 s beat, backfire), and that a whole run plays and
+ * replays the same for every army.
  *
  * Fights force a chain at tick 1 by starting the firing unit at full charge and pin the backfire coin and the damage variance,
  * so nothing here depends on a lucky roll.
@@ -12,7 +13,7 @@ import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
 import { runFight } from "../sim/fight.js";
 import { ROLE_SORT_PRIORITY, type PlayerRole } from "../sim/roles.js";
 import { makeEnemySide, makeOfferPolicy, runRun } from "../sim/run.js";
-import type { FightResult } from "../sim/events.js";
+import type { FightEvent, FightResult } from "../sim/events.js";
 import type { ArmyKind, FightSetup, HeroState, SideState } from "../sim/types.js";
 import { makeInitialProgress } from "../sim/progress.js";
 import { mergeCandidates } from "../sim/heroes.js";
@@ -64,8 +65,10 @@ const chargeAt = (r: FightResult, id: string, t: number): number => {
   const progress = (army: ArmyKind) => makeInitialProgress(run, undefined, army);
   const u = makeArmyRoster("undead", progress("undead").bonus).heroes;
   const b = makeArmyRoster("beasts", progress("beasts").bonus).heroes;
+  const m = makeArmyRoster("mages", progress("mages").bonus).heroes;
   const count = (hs: HeroState[], role: PlayerRole) => hs.filter((h) => h.role === role).length;
   check("undead start with six units, two of each role", u.length === 6 && count(u, "tank") === 2 && count(u, "damage") === 2 && count(u, "support") === 2);
+  check("mages start with six units, two of each role, and field three", m.length === 6 && count(m, "tank") === 2 && count(m, "damage") === 2 && count(m, "support") === 2 && progress("mages").slots === 3);
   check("beasts start with seven units: two Bears, three Wolves, two Stags", b.length === 7 && count(b, "tank") === 2 && count(b, "damage") === 3 && count(b, "support") === 2);
   check("undead field three, beasts field five", progress("undead").slots === 3 && progress("beasts").slots === 5 && progress("beasts").slots <= run.maxSlots);
   check("a plain run is unchanged: three slots, no army", makeInitialProgress(run).slots === 3 && makeInitialProgress(run).army === undefined);
@@ -76,7 +79,7 @@ const chargeAt = (r: FightResult, id: string, t: number): number => {
   check("the unit title replaces the role word", unitTitle(unit("undead", "tank")) === "Bone Knight" && unitTitle(unit("beasts", "damage")) === "Wolf" && unitTitle({ role: "tank" }) === "Tank");
   const start = makeArmyRoster("undead", progress("undead").bonus);
   check("merge heroes are off while an army is picked", mergeCandidates(progress("undead"), start, run).length === 0 && mergeCandidates(makeInitialProgress(run), start, run).length > 0);
-  check("a run's first skills are the army's", progress("beasts").chain.tank.effects[0] === "roar" && progress("undead").chain.support.effects[0] === "raise" && progress("undead").chain.tank.effects[0] === "boneWall" && progress("undead").chain.damage.effects[0] === "command");
+  check("a run's first skills are the army's", progress("beasts").chain.tank.effects[0] === "roar" && progress("undead").chain.support.effects[0] === "raise" && progress("undead").chain.tank.effects[0] === "boneWall" && progress("undead").chain.damage.effects[0] === "command" && progress("mages").chain.tank.effects[0] === "frostOrb" && progress("mages").chain.damage.effects[0] === "stormOrb" && progress("mages").chain.support.effects[0] === "lifeOrb");
 }
 
 // --- The Undead's horde (2026-10-21): Raise and Bone Wall raise one skeleton per hit, five at most, then upgrade; Command sends them all in.
@@ -253,6 +256,126 @@ const solo = (s: FightSetup, seed = 7, over: Partial<typeof run.fight> = {}): Fi
   const bearId = withPack[0]!.id;
   const extra = chargeAt(a, bearId, 6) - chargeAt(b, bearId, 6);
   check("pack: every hit another Beast lands adds charge to the Bear", extra >= 4 * run.fight.packChargePerHit, extra.toFixed(1));
+}
+
+// --- The Mages' orbs (2026-10-21; canvas 12.0D): every skill hit adds an orb (3 at most), orbs work alone on a shared 2 s beat, a 4th hit
+// merges them into one orb that strikes at once and harder with every hit after, and the skill's end clears them. Every fight below has an
+// enemy with 1e6 HP that never acts, so nothing ends early and nothing dies.
+type EventOf<T extends FightEvent["type"]> = Extract<FightEvent, { type: T }>;
+const eventsOf = <T extends FightEvent["type"]>(r: FightResult, type: T): EventOf<T>[] => r.events.filter((e): e is EventOf<T> => e.type === type);
+const calmBig = (enemy: SideState): void => {
+  calm(enemy);
+  enemy.heroes.forEach((h) => (h.maxHp = h.hp = 1e6));
+};
+const mageIn = (r: FightResult, id: string, t = Infinity) => (r.snapshots.find((s) => s.t >= t) ?? r.snapshots[r.snapshots.length - 1]!).playerHeroes.find((h) => h.id === id)!;
+const strikeSize = (base: number, step: number): number => Math.round(base * Math.pow(run.fight.mageMergeGrowth, step - 1) * run.fight.chainHitMultiplier);
+{
+  const storm = charged(unit("mages", "damage"));
+  const r = solo(setup([storm, unit("mages", "tank")], calmBig), 7, { chainMaxHits: 3 });
+  const adds = eventsOf(r, "orbAdd");
+  check("storm orb: three hits add three orbs, one each", adds.length === 3 && adds.every((e, i) => e.orbs === i + 1 && e.heroId === storm.id), adds.map((e) => e.orbs).join(","));
+  check("storm orb: a hit that adds an orb is a chain hit of kind orb with no damage", r.events.filter((e) => e.type === "chainHit" && e.kind === "orb").length === 3 && r.events.every((e) => e.type !== "chainHit" || e.kind !== "orb" || (e.damage === 0 && e.mark === undefined)));
+  check("storm orb: the snapshot carries the three orbs", mageIn(r, storm.id).orbs === 3 && mageIn(r, storm.id).orbBig === 0);
+}
+{
+  const storm = charged(unit("mages", "damage"));
+  const r = solo(setup([storm, unit("mages", "tank")], calmBig), 7, { chainMaxHits: 6 });
+  const merges = eventsOf(r, "orbMerge");
+  const strikes = eventsOf(r, "orbStrike");
+  check("merge: the 4th hit merges the orbs, once", merges.length === 1 && merges[0]!.step === 1 && eventsOf(r, "orbAdd").length === 3, `${merges.length} merges`);
+  check("merge: it strikes at once and on every hit after (steps 1, 2, 3)", strikes.map((e) => e.step).join(",") === "1,2,3");
+  const zaps = r.events.filter((e) => e.type === "chainHit" && e.sourceId === storm.id && e.kind === "damage");
+  const want = [1, 2, 3].map((s) => strikeSize(run.fight.mageStormMergeDamage, s));
+  check(`merge: the strikes grow by ${run.fight.mageMergeGrowth} a step (${want.join(", ")}) on the front enemy, leaving no mark`, zaps.length === 3 && zaps.every((e, i) => e.type === "chainHit" && e.intended === want[i] && e.mark === undefined && e.targetId === r.snapshots[0]!.enemyHeroes[0]!.id), zaps.map((e) => (e.type === "chainHit" ? e.intended : 0)).join(","));
+  const clears = eventsOf(r, "orbClear");
+  check("skill end: a skill that merged clears every orb, and the mage starts from none", clears.length === 1 && clears[0]!.heroId === storm.id && mageIn(r, storm.id).orbs === 0 && mageIn(r, storm.id).orbBig === 0);
+}
+{
+  const r = solo(setup([charged(unit("mages", "damage")), unit("mages", "tank")], calmBig), 7, { chainMaxHits: 2 });
+  check("skill end: a skill that never merged keeps its orbs", eventsOf(r, "orbClear").length === 0 && eventsOf(r, "orbMerge").length === 0 && mageIn(r, r.snapshots[0]!.playerHeroes.find((h) => h.kind === "stormMage")!.id).orbs === 2);
+}
+{
+  // The beat: three Storm orbs, loose from the start of the fight, work together every 2 s, each on one enemy picked at random.
+  let sameTwice = 0, allApart = 0, wrong = 0;
+  for (let seed = 1; seed <= 30; seed++) {
+    const storm = unit("mages", "damage");
+    storm.orbs = 3;
+    const three = (enemy: SideState): void => {
+      calmBig(enemy);
+      const base = enemy.heroes[0]!;
+      enemy.heroes.push({ ...base, id: "e2", name: "e2" }, { ...base, id: "e3", name: "e3" });
+    };
+    const r = solo(setup([storm, unit("mages", "tank")], three), seed);
+    const first = eventsOf(r, "orbTick").filter((e) => e.t < 2.2);
+    const ids = first.map((e) => e.targetId);
+    if (first.length !== 3 || first.some((e) => e.orbKind !== "storm" || e.amount !== run.fight.mageStormOrbDamage || e.heroId !== storm.id || Math.abs(e.t - run.fight.mageOrbBeatSec) > 0.1)) wrong++;
+    if (new Set(ids).size < 3) sameTwice++;
+    else allApart++;
+  }
+  check("beat: three Storm orbs zap together on the 2 s beat for their damage each", wrong === 0, `${wrong} seeds off`);
+  check("beat: each orb picks its enemy alone, so two can pick the same one", sameTwice > 0 && allApart > 0, `${sameTwice} shared, ${allApart} apart`);
+  const big = unit("mages", "damage");
+  big.orbs = 2;
+  big.orbBig = 1;
+  const quiet = solo(setup([big, unit("mages", "tank")], calmBig), 7);
+  check("beat: loose orbs do not work while a merged orb stands", eventsOf(quiet, "orbTick").length === 0);
+}
+{
+  // Frost orbs shield their own mage; Life orbs heal the tank and say so through one orbTick, not also a heal event.
+  const frost = unit("mages", "tank");
+  frost.orbs = 2;
+  const r = solo(setup([frost, unit("mages", "support")], calmBig), 7);
+  const ticks = eventsOf(r, "orbTick").filter((e) => e.t < 2.2);
+  check("frost orb: two orbs shield their own mage on the first beat", ticks.length === 2 && ticks.every((e) => e.orbKind === "frost" && e.targetId === frost.id && e.amount === run.fight.mageFrostOrbShield) && mageIn(r, frost.id, 2.3).marks.shield === 2 * run.fight.mageFrostOrbShield, `${mageIn(r, frost.id, 2.3).marks.shield} shield`);
+  const tank = unit("mages", "tank");
+  tank.hp = tank.maxHp - 30;
+  const life = unit("mages", "support");
+  life.orbs = 3;
+  const lr = solo(setup([tank, life], calmBig), 7);
+  const lt = eventsOf(lr, "orbTick").filter((e) => e.t < 2.2);
+  check("life orb: three orbs heal the tank on the first beat", lt.length === 3 && lt.every((e) => e.orbKind === "life" && e.targetId === tank.id && e.amount === run.fight.mageLifeOrbHeal), lt.map((e) => `${e.targetId}:${e.amount}`).join(" "));
+  check("life orb: the heal is not announced a second time as a heal event", !lr.events.some((e) => e.type === "heal" && Math.abs(e.t - lt[0]!.t) < 0.01));
+}
+{
+  // Merged Frost and Life orbs reach the whole squad.
+  const frost = charged(unit("mages", "tank"));
+  const storm = unit("mages", "damage");
+  const r = solo(setup([frost, storm], calmBig), 7, { chainMaxHits: 4 });
+  const shields = r.events.filter((e) => e.type === "chainHit" && e.sourceId === frost.id && e.kind === "heal" && e.mark === "shield");
+  check("frost merge: the 4th hit shields every unit, up to half its HP", shields.length === 2 && shields.every((e) => e.type === "chainHit" && Math.abs((e.markStacks ?? 0) - Math.min(run.fight.mageFrostMergeShield, (e.targetId === frost.id ? frost.maxHp : storm.maxHp) * run.fight.shieldCapFractionOfMaxHp)) < 0.01) && new Set(shields.map((e) => (e.type === "chainHit" ? e.targetId : ""))).size === 2);
+  const tank = unit("mages", "tank");
+  tank.hp = tank.maxHp - 60;
+  const hurt = unit("mages", "damage");
+  hurt.hp = hurt.maxHp - 40;
+  const life = charged(unit("mages", "support"));
+  const lr = solo(setup([tank, hurt, life], calmBig), 7, { chainMaxHits: 4 });
+  const heals = lr.events.filter((e) => e.type === "chainHit" && e.sourceId === life.id && e.kind === "heal");
+  const room = (h: HeroState): number => Math.max(1, Math.min(run.fight.mageLifeMergeHeal, h.maxHp * run.fight.chainHealMaxFractionOfTargetMaxHp, h.maxHp - h.hp));
+  const healedTank = heals.find((e) => e.type === "chainHit" && e.targetId === tank.id);
+  const healedHurt = heals.find((e) => e.type === "chainHit" && e.targetId === hurt.id);
+  check("life merge: the 4th hit heals the whole squad (capped per unit)", heals.length >= 2 && healedTank?.type === "chainHit" && Math.abs(healedTank.damage - room(tank)) < 0.01 && healedHurt?.type === "chainHit" && Math.abs(healedHurt.damage - room(hurt)) < 0.01, `${healedTank?.type === "chainHit" ? healedTank.damage : "-"} / ${healedHurt?.type === "chainHit" ? healedHurt.damage : "-"}`);
+}
+{
+  // Backfire pops one orb, or drops the merged orb a step; with nothing to pop the skill ends.
+  const storm = charged(unit("mages", "damage"));
+  storm.orbs = 2;
+  const r = solo(setup([storm, unit("mages", "tank")], calmBig), 7, { chainMaxHits: 5, forceBackfire: "always" });
+  const pops = eventsOf(r, "orbPop");
+  const end = r.events.find((e) => e.type === "chainEnd");
+  check("backfire: each backfired hit pops one loose orb (2, then 1, then none)", pops.length === 2 && pops[0]!.orbs === 1 && pops[1]!.orbs === 0 && eventsOf(r, "orbAdd").length === 0, pops.map((e) => e.orbs).join(","));
+  check("backfire: with nothing left to pop the skill ends", end?.type === "chainEnd" && end.backfire && end.reason === "noTarget", end?.type === "chainEnd" ? end.reason : "-");
+  const big = charged(unit("mages", "damage"));
+  big.orbBig = 2;
+  const br = solo(setup([big, unit("mages", "tank")], calmBig), 7, { chainMaxHits: 5, forceBackfire: "always" });
+  const dropped = eventsOf(br, "orbPop");
+  check("backfire: a merged orb drops back a step a hit (2, then 1, then gone)", dropped.length === 2 && dropped[0]!.orbBig === 1 && dropped[1]!.orbBig === 0, dropped.map((e) => e.orbBig).join(","));
+}
+{
+  const m = solo(setup([unit("mages", "tank")], calmBig), 7);
+  check("a Mage fight brings no skeleton places, and every Mage snapshot carries its orbs", !m.snapshots[0]!.playerHeroes.some((h) => h.skeleton) && m.snapshots[0]!.playerHeroes.every((h) => h.orbs === 0 && h.orbBig === 0));
+  const u = solo(setup([unit("undead", "tank")], calm), 7);
+  check("only Mages carry orbs in a snapshot", u.snapshots[0]!.playerHeroes.every((h) => h.orbs === undefined && h.orbBig === undefined));
+  check("no Mage skill leaves a mark a rune could read, and none is a family of guard or mend", cardConnects("bulwark", ["frostOrb"]) === false && !duoUnlocked("phoenix", ["lifeOrb"], ["secondWind"]) && !cardConnects("bulwark", ["stormOrb"]));
 }
 
 // --- Offers and runes keep working with army skills.

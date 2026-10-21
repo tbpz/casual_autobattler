@@ -11,9 +11,12 @@ export type HeroCardId = `hero-${HeroKind}`;
 export const HERO_CARD_IDS: HeroCardId[] = HERO_ORDER.map((k): HeroCardId => `hero-${k}`);
 
 /** An army's cards (2026-10-20, canvas 11.x): one per army skill and one per army rule. Opened from the skill bubble and from the popup's "See it in action". */
-export type ArmyCardId = `army-${"boneWall" | "command" | "raise" | "roar" | "packBite" | "herd" | "undead" | "beasts"}`;
+export type ArmyCardId = `army-${"boneWall" | "command" | "raise" | "roar" | "packBite" | "herd" | "stormOrb" | "frostOrb" | "lifeOrb" | "undead" | "beasts" | "mages"}`;
 
-export const ARMY_CARD_IDS: ArmyCardId[] = ["army-boneWall", "army-command", "army-raise", "army-roar", "army-packBite", "army-herd", "army-undead", "army-beasts"];
+export const ARMY_CARD_IDS: ArmyCardId[] = [
+  "army-boneWall", "army-command", "army-raise", "army-roar", "army-packBite", "army-herd", "army-stormOrb", "army-frostOrb", "army-lifeOrb",
+  "army-undead", "army-beasts", "army-mages",
+];
 
 /** The card an army skill's name opens, by the name the bubble shows lowercased ("bone wall"). */
 export const ARMY_SKILL_CARD: Record<string, ArmyCardId> = {
@@ -23,6 +26,9 @@ export const ARMY_SKILL_CARD: Record<string, ArmyCardId> = {
   roar: "army-roar",
   "pack bite": "army-packBite",
   herd: "army-herd",
+  "storm orb": "army-stormOrb",
+  "frost orb": "army-frostOrb",
+  "life orb": "army-lifeOrb",
 };
 
 export type TermId =

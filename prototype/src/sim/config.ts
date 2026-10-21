@@ -655,6 +655,21 @@ export interface FightConfig {
   herdHealPerBeast: number;
   /** Beasts' Pack: charge every other Beast gains each time a Beast lands a hit on an enemy. */
   packChargePerHit: number;
+  /** Mages orbs (2026-10-21; Storm Orb, Frost Orb, Life Orb; fight.ts's `mageOrbHit` and `tickOrbs`). Every skill hit puts one loose orb
+   * around the mage, `mageOrbMax` at most; a skill hit that finds that many out merges them into one big orb. Made-up first numbers. */
+  mageOrbMax: number;
+  /** Seconds between the shared beats on which every loose orb works. */
+  mageOrbBeatSec: number;
+  /** What one loose orb does on a beat: a Storm orb's damage to one random enemy, a Frost orb's shield on its mage, a Life orb's heal on the tank. */
+  mageStormOrbDamage: number;
+  mageFrostOrbShield: number;
+  mageLifeOrbHeal: number;
+  /** The merged orb's first strike: Storm's damage to the front enemy, Frost's shield and Life's heal on every unit. */
+  mageStormMergeDamage: number;
+  mageFrostMergeShield: number;
+  mageLifeMergeHeal: number;
+  /** Each skill hit after the merge makes the big orb one step bigger: its strike is this many times the one before. */
+  mageMergeGrowth: number;
 }
 
 /**
@@ -725,7 +740,10 @@ export type ChainEffect =
   | "command"
   | "roar"
   | "packBite"
-  | "herd";
+  | "herd"
+  | "stormOrb"
+  | "frostOrb"
+  | "lifeOrb";
 
 /** The base skill an army skill is a re-skin of, for every rule that asks "does this squad hold Guard / Mend /
  * Expose" (a rune's need, a mark's source). A plain skill is its own family. */
@@ -818,6 +836,12 @@ export function chainEffectLines(effect: ChainEffect): { does: string; against: 
       return { does: "Bites the front enemy, once more per other Wolf.", against: "Good with several Wolves." };
     case "herd":
       return { does: "Heals every unit, more for a bigger pack.", against: "Good against lots of small hits." };
+    case "stormOrb":
+      return { does: "Adds an orb that zaps an enemy; four merge.", against: "Good in a long fight." };
+    case "frostOrb":
+      return { does: "Adds an orb that shields it; four merge.", against: "Good against lots of small hits." };
+    case "lifeOrb":
+      return { does: "Adds an orb that heals the tank; four merge.", against: "Good when the tank takes the hits." };
   }
 }
 
@@ -891,6 +915,12 @@ export function chainEffectChip(effect: ChainEffect): { icon: string; word: stri
       return { icon: "☍", word: "pack bite" };
     case "herd":
       return { icon: "♥", word: "herd" };
+    case "stormOrb":
+      return { icon: "✦", word: "storm orb" };
+    case "frostOrb":
+      return { icon: "❄", word: "frost orb" };
+    case "lifeOrb":
+      return { icon: "✚", word: "life orb" };
   }
 }
 
@@ -1294,6 +1324,17 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   packBiteDamage: 6,
   herdHealPerBeast: 1,
   packChargePerHit: 1.5,
+  mageOrbMax: 3,
+  mageOrbBeatSec: 2,
+  // Tuned 2026-10-21 with `npm run batch -- --n 800 --offers build --army mages`: the first take (4 / 4 / 3 and 38 / 20 / 14, the numbers
+  // on canvas 12.0D) finished 2.5% of runs; these finish about 1 in 4, like the other armies.
+  mageStormOrbDamage: 10,
+  mageFrostOrbShield: 10,
+  mageLifeOrbHeal: 8,
+  mageStormMergeDamage: 80,
+  mageFrostMergeShield: 45,
+  mageLifeMergeHeal: 40,
+  mageMergeGrowth: 1.2,
 };
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {

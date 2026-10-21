@@ -63,6 +63,18 @@ function formatEvent(e: FightEvent): string {
       return `[t=${t}] ${e.kind ?? "skeleton"} skeleton ${e.heroId} rises`;
     case "skeletonUpgrade":
       return `[t=${t}] the horde is full: every ${e.kind} skeleton is upgraded (level ${e.level})`;
+    case "orbAdd":
+      return `[t=${t}] ${e.heroId} gains an orb (${e.orbs})`;
+    case "orbMerge":
+      return `[t=${t}] ${e.heroId}'s orbs merge into one (step ${e.step})`;
+    case "orbStrike":
+      return `[t=${t}] ${e.heroId}'s merged orb strikes (step ${e.step})`;
+    case "orbTick":
+      return `[t=${t}] ${e.heroId}'s ${e.orbKind} orb ${e.index + 1} works on ${e.targetId}: ${e.amount.toFixed(1)}`;
+    case "orbPop":
+      return `[t=${t}] ${e.heroId} loses an orb (${e.orbs} loose, big orb step ${e.orbBig})`;
+    case "orbClear":
+      return `[t=${t}] ${e.heroId}'s orbs are gone`;
     case "resolve":
       return `[t=${t}] RESOLVE: ${e.outcome.toUpperCase()} (${e.reason})`;
   }
@@ -110,9 +122,9 @@ function runBatch(cfg: RunConfig, offerPolicyName: OfferPolicyName, n: number, b
 const [, , cmd, ...rest] = process.argv;
 const args = parseArgs(rest);
 const seed = args.seed ? Number(args.seed) : 1;
-/** `--army undead|beasts` plays the run as that army (sim/armies.ts); `none` or no flag is the plain squad. */
-const army: ArmyKind | undefined = args.army === "undead" || args.army === "beasts" ? args.army : undefined;
-if (args.army && args.army !== "none" && !army) throw new Error(`--army: "${args.army}" is not undead, beasts or none`);
+/** `--army undead|beasts|mages` plays the run as that army (sim/armies.ts); `none` or no flag is the plain squad. */
+const army: ArmyKind | undefined = args.army === "undead" || args.army === "beasts" || args.army === "mages" ? args.army : undefined;
+if (args.army && args.army !== "none" && !army) throw new Error(`--army: "${args.army}" is not undead, beasts, mages or none`);
 const n = args.n ? Number(args.n) : 1000;
 /** `--set chargeThreshold=120,enemyHpScale=1.3`: overrides numeric fields of
  * the fight config (or the run config, if the key lives there) for this

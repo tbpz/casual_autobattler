@@ -51,7 +51,7 @@ const jumpToOffer = Number(urlParams.get("offer")) || 0;
 const jumpMerge = urlParams.get("merge");
 /** ?fight=1 (with ?round=N): starts that round's fight at once with the default squad, to look at the fight screen. */
 const jumpToFight = urlParams.get("fight") === "1";
-/** ?army=undead|beasts starts the run as that army without the pick screen; ?army=none plays the plain squad (the game before armies). A dev link that jumps
+/** ?army=undead|beasts|mages starts the run as that army without the pick screen; ?army=none plays the plain squad (the game before armies). A dev link that jumps
  * ahead (?round, ?offer, ?runover, ?fight, ?fall) also skips the pick and plays the plain squad unless it names an army. */
 const armyParam = urlParams.get("army");
 const jumpsAhead = jumpToRound > 1 || jumpToOffer > 1 || jumpToRunOver || jumpToFight || fallCount > 0;
@@ -94,7 +94,7 @@ export function mountApp(root: HTMLElement): void {
 
   /** The first screen of every run: the army pick (2026-10-20), unless a dev link names the army or jumps ahead. */
   function startNewRun(): void {
-    if (armyParam === "undead" || armyParam === "beasts") return beginRun(armyParam);
+    if (armyParam === "undead" || armyParam === "beasts" || armyParam === "mages") return beginRun(armyParam);
     if (armyParam === "none" || jumpsAhead) return beginRun(undefined);
     renderArmyScreen(root, (army) => beginRun(army));
   }

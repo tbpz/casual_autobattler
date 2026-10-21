@@ -1,10 +1,11 @@
-// Generates canvas sections 10 and 11: the armies Undead and Beasts (2026-10-20; the Undead are built since 2026-10-21 and the text below is
-// theirs now: Horde, Raise, Bone Wall, Command. The Beasts are still a proposal).
+// Generates canvas sections 10 and 11: the armies Undead, Beasts and Mages (2026-10-20; the Undead and the Mages are built since 2026-10-21 and
+// their text is the game's: Horde, Raise, Bone Wall, Command; Orbs, Frost Orb, Storm Orb, Life Orb. The Beasts are still a proposal).
 //   10.0A, 10.0B  ArmyPickA / ArmyPickB      where the army pick sits: before round 1, or after the round 1 win
-//   10.1, 10.5    ArmySquadUndead / Beasts   the round screen with an army's squad
+//   10.1, 10.5, 10.9  ArmySquad<Army>        the round screen with an army's squad
 //   10.2-10.4     ArmyPopup<Unit>            Undead popups (Bone Knight, Wraith, Bone Priest)
 //   10.6-10.8     ArmyPopup<Unit>            Beasts popups (Bear, Wolf, Stag)
-//   11.1-11.8     ArmyCard<Name>             the looping explain cards: six skills, then the two army rules
+//   10.10-10.12   ArmyPopup<Unit>            Mages popups (Frost Mage, Storm Mage, Life Mage)
+//   11.1-11.12    ArmyCard<Name>             the looping explain cards: six skills, the two army rules, then the Mages' three skills and rule
 // Run:  node design/tools/gen-armies.js     (writes the frames and patches canvas.json)
 // Toolkit (scene helpers, popup shell, card shell) is cut from gen-heroes.js; the popup shell and backdrop from
 // FighterPopupIvy.dc.html, the round screen from RoundFaceOff.dc.html, the card backdrop from TermExpose.dc.html.
@@ -54,6 +55,16 @@ const ARMIES = {
       card: "You field 5 beasts instead of 3. Each beast is smaller and weaker, but every hit one lands fills every other beast's skill bar a little, so skills go off all the time.",
     },
   },
+  mages: {
+    key: "mages", name: "Mages", hex: "#8fd3ff", rgb: "143,211,255", icon: "orbs",
+    pitch: "Every skill builds orbs that work alone.",
+    play: "You want a machine that builds up, then goes off.",
+    rule: {
+      name: "Orbs", head: "Every skill hit adds an orb.",
+      lines: ["Up to 3 circle the mage. Every 2 seconds each one works on its own.", "A 4th merges them into one orb that strikes at once, then grows with every hit."],
+      card: "Every skill hit adds an orb around the mage, up to 3. Every 2 seconds each orb works on its own: Storm orbs zap an enemy, Frost orbs shield the Frost Mage, Life orbs heal the tank. A 4th orb merges them into one big orb that strikes at once, and strikes harder with every skill hit after that. When the skill ends, the orbs are gone.",
+    },
+  },
 };
 
 // hp, stat: made-up numbers. skill: key of SKILLS.
@@ -70,6 +81,12 @@ const UNITS = {
     job: "The Beast Damage unit. Bites more with other Wolves beside it." },
   stag: { army: "beasts", role: "healer", title: "Stag", name: "Moss", hex: "#6bd69a", row: "BACK", hp: 72, stat: ["Heal", 3], skill: "herd",
     job: "The Beast Healer. Heals more the bigger the pack is." },
+  frost: { army: "mages", role: "tank", title: "Frost Mage", name: "Bram", hex: "#7fc8ff", row: "FRONT", hp: 135, stat: ["Damage", 5], skill: "frostOrb",
+    job: "The Mage Tank. Wraps itself in shield orbs." },
+  storm: { army: "mages", role: "damage", title: "Storm Mage", name: "Ivy", hex: "#c28cff", row: "BACK", hp: 58, stat: ["Damage", 6], skill: "stormOrb",
+    job: "The Mage Damage unit. Orbs zap on their own." },
+  life: { army: "mages", role: "healer", title: "Life Mage", name: "Sol", hex: "#8be9a8", row: "BACK", hp: 74, stat: ["Heal", 3], skill: "lifeOrb",
+    job: "The Mage Healer. Heals a little, and builds healing orbs." },
 };
 
 // skill words: head, chips, two lines (the second is what "goes again" does), card = the one-sentence version
@@ -92,6 +109,15 @@ const SKILLS = {
   herd: { name: "Herd", icon: "herd", head: "Heals every unit, more for a bigger pack.", chips: ["Whole squad"],
     lines: ["Heals each unit 1 for every beast in the squad: 5 beasts, 5 HP each.", "Each time it goes again, it heals again."],
     card: "Heals every unit 1 for every beast in the squad. With 5 beasts, each unit gets 5 HP." },
+  frostOrb: { name: "Frost Orb", icon: "frostorb", head: "Adds an orb that shields the Frost Mage.", chips: ["Shield orb", "Whole squad"],
+    lines: ["Each hit adds a shield orb: every 2 seconds it gives the Frost Mage 10 shield.", "A 4th orb merges them: the whole squad gets a shield, and each hit after it is bigger."],
+    card: "Adds an orb around the Frost Mage. Every 2 seconds each orb gives it 10 shield. A 4th orb merges them into one big orb that shields the whole squad at once, and every hit after that shields more." },
+  stormOrb: { name: "Storm Orb", icon: "bolt", head: "Adds an orb that zaps an enemy.", chips: ["One random enemy", "Front enemy"],
+    lines: ["Each hit adds a storm orb: every 2 seconds it zaps one enemy for 10.", "A 4th orb merges them into a big zap on the front enemy; each hit after it is bigger."],
+    card: "Adds an orb around the Storm Mage. Every 2 seconds each orb zaps one random enemy for 10; two orbs can pick the same one. A 4th orb merges them into one big orb that strikes the front enemy at once, and every hit after that strikes harder." },
+  lifeOrb: { name: "Life Orb", icon: "lifeorb", head: "Adds an orb that heals the tank.", chips: ["The tank", "Whole squad"],
+    lines: ["Each hit adds a life orb: every 2 seconds it heals the tank 8.", "A 4th orb merges them: the whole squad is healed, and each hit after it heals more."],
+    card: "Adds an orb around the Life Mage. Every 2 seconds each orb heals the tank for 8. A 4th orb merges them into one big orb that heals the whole squad at once, and every hit after that heals more." },
 };
 
 // ---------- unique svg ids ----------
@@ -114,6 +140,10 @@ const I = {
   target: (c) => `<circle cx="8" cy="8" r="6" fill="none" stroke="${c}" stroke-width="1.8"/><circle cx="8" cy="8" r="2" fill="${c}"/>`,
   repeat: (c) => `<path d="M5 9 A7 7 0 0 1 17.5 6.5 M19 15 A7 7 0 0 1 6.5 17.5" ${sw(c, 2)}/><path d="M17.5 2.5 V7 H13 M6.5 21.5 V17 H11" ${sw(c, 2)}/>`,
   bullet: (c) => `<circle cx="12" cy="12" r="4" fill="${c}"/>`,
+  orbs: (c) => `<circle cx="12" cy="5.5" r="3" fill="${c}"/><circle cx="5.5" cy="16.5" r="3" fill="${c}"/><circle cx="18.5" cy="16.5" r="3" fill="${c}"/><path d="M12 9 L7.5 14 M12 9 L16.5 14 M8.5 16.5 H15.5" ${sw(c, 1.2)} opacity="0.55"/>`,
+  bolt: (c) => `<path d="M13.5 2.5 L6 13 H11.5 L9.5 21.5 L18 10.5 H12.5 Z" fill="${c}33" ${sw(c, 1.7)}/>`,
+  frostorb: (c) => `<circle cx="12" cy="12" r="5.5" fill="${c}33" ${sw(c, 1.7)}/><path d="M12 3 V21 M4.2 7.5 L19.8 16.5 M4.2 16.5 L19.8 7.5" ${sw(c, 1.3)}/>`,
+  lifeorb: (c) => `<circle cx="12" cy="12" r="8" fill="${c}33" ${sw(c, 1.7)}/><path d="M12 7.5 V16.5 M7.5 12 H16.5" ${sw(c, 2)}/>`,
 };
 const svg = (inner, size, vb = 24) => `<svg width="${size}" height="${size}" viewBox="0 0 ${vb} ${vb}" style="flex:none;overflow:visible;">${inner}</svg>`;
 
@@ -157,6 +187,15 @@ function look(key, size) {
         inner: face(hex, size) + `${VB}<ellipse cx="50" cy="72" rx="6" ry="4.5" fill="#2a1a10"/></svg>`,
       };
     }
+    case "frost": case "storm": case "life": {
+      // a pointed hat behind the head with a star on it, a face on the disc (the same art as render/armyLook.ts)
+      const star = { frost: "#d8f1ff", storm: "#ffe36a", life: "#c9ffd9" }[key];
+      return {
+        under: `${VB}<polygon points="22,30 50,-46 78,30" fill="${dk}"/><ellipse cx="50" cy="26" rx="40" ry="9" fill="${dk}"/><path d="M50 -8 l3.4 8 8.6 .8 -6.6 5.8 2 8.4 -7.4 -4.6 -7.4 4.6 2 -8.4 -6.6 -5.8 8.6 -.8z" fill="${star}"/></svg>`,
+        bodyStyle: "",
+        inner: face(hex, size),
+      };
+    }
   }
 }
 // a body for the HTML frames (squad, popup, pick): shadow, art behind, disc with its face
@@ -173,14 +212,20 @@ const DMG_ICO = `<svg viewBox="0 0 12 12" aria-label="Damage"><path d="M4.4 7.6 
 const HEAL_ICO = `<svg viewBox="0 0 12 12" aria-label="Heal"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>`;
 const statLine = (u) => `<div class="stat"><span class="st">${HP_ICO}${u.hp}</span>${u.stat[0] === "Heal" ? `<span class="st heal">${HEAL_ICO}${u.stat[1]}</span>` : `<span class="st dmg">${DMG_ICO}${u.stat[1]}</span>`}</div>`;
 
+// the units each army shows on its card, in order, and the army's frame numbers on the canvas
+const SET = { undead: ["knight", "wraith", "priest"], beasts: ["bear", "wolf", "wolf", "wolf", "stag"], mages: ["frost", "storm", "life"] };
+const SQUAD_NUM = { undead: "10.1", beasts: "10.5", mages: "10.9" };
+const POPUP_RANGE = { undead: "10.2 to 10.4", beasts: "10.6 to 10.8", mages: "10.10 to 10.12" };
+
 // =====================================================================================================
 // 10.0A / 10.0B — where the army pick sits
 // =====================================================================================================
 function armyCard(a, withChange) {
-  const keys = a.key === "undead" ? ["knight", "wraith", "priest"] : ["bear", "wolf", "wolf", "wolf", "stag"];
-  const px = a.key === "undead" ? 40 : 32;
+  const keys = SET[a.key];
+  const three = keys.length <= 3;
+  const px = three ? 40 : 32;
   const plain = ["tank", "damage", "healer"];
-  const bodies = keys.map((k, i) => `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;width:${a.key === "undead" ? 78 : 56}px;">${unitBody(k, px, "margin-top:12px;")}<div style="font-size:9px;font-weight:700;color:${ROLE[UNITS[k].role].hex};margin-top:2px;">${UNITS[k].title}</div></div>`).join("");
+  const bodies = keys.map((k, i) => `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;width:${three ? 78 : 56}px;">${unitBody(k, px, "margin-top:12px;")}<div style="font-size:9px;font-weight:700;color:${ROLE[UNITS[k].role].hex};margin-top:2px;">${UNITS[k].title}</div></div>`).join("");
   const change = withChange
     ? `<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;font-size:9.5px;color:#8a8fa3;"><span style="display:flex;gap:4px;">${plain.map((r) => plainBody(r, 18)).join("")}</span><span style="font-weight:800;">→</span><span>your three units change into this</span></div>`
     : "";
@@ -238,9 +283,10 @@ function pickFile(opt) {
     <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px;">
       ${armyCard(ARMIES.undead, !A)}
       ${armyCard(ARMIES.beasts, !A)}
+      ${armyCard(ARMIES.mages, !A)}
     </div>
   </div>
-  <div style="margin-top:10px;font-size:10.5px;line-height:1.45;color:#8a8fa3;text-align:center;">${note} More armies, and how they are earned, are not decided.</div>
+  <div style="margin-top:10px;font-size:10.5px;line-height:1.45;color:#8a8fa3;text-align:center;">${note} Three armies are built (Mages 2026-10-21); more, and how they are earned, are not decided.</div>
 </div>
 ` + shellClose;
 }
@@ -258,25 +304,27 @@ function benchShelf(keys) {
   return `<div style="margin-top:12px;padding-top:8px;border-top:1px dashed #3a3f4e;"><div style="display:flex;align-items:center;margin-bottom:6px;"><span style="font-size:10px;font-weight:800;letter-spacing:.06em;color:#8a8fa3;">BENCH</span><span style="margin-left:auto;font-size:11px;font-weight:700;color:#4da6ff;">Change squad ›</span></div><div style="display:flex;gap:14px;padding-left:2px;">${items}</div></div>`;
 }
 function squadFile(armyKey) {
-  const a = ARMIES[armyKey], U = armyKey === "undead";
+  const a = ARMIES[armyKey], U = armyKey !== "beasts", M = armyKey === "mages";
   const enemy = rf.slice(rf.indexOf("<!-- ENEMY zone -->"), rf.indexOf("<!-- YOUR SQUAD zone -->"));
   const strip = STRIP.replace("ROUND 1/20", "ROUND 2/20").replace("width: 5%", "width: 10%");
-  const front = `<div style="position:relative;display:flex;justify-content:center;align-items:flex-start;gap:12px;">${rowLabel("FRONT")}${U ? squadCol("knight", "Bram", 82, 36, 54) : squadCol("bear", "Bruno", 82, 36, 54)}</div>`;
+  const front = `<div style="position:relative;display:flex;justify-content:center;align-items:flex-start;gap:12px;">${rowLabel("FRONT")}${M ? squadCol("frost", "Bram", 82, 36, 54) : U ? squadCol("knight", "Bram", 82, 36, 54) : squadCol("bear", "Bruno", 82, 36, 54)}</div>`;
   const back = U
-    ? `<div style="position:relative;display:flex;justify-content:center;align-items:flex-start;gap:12px;">${rowLabel("BACK")}${squadCol("wraith", "Ivy", 82, 36, 54)}${squadCol("priest", "Sol", 82, 36, 54)}</div>`
+    ? `<div style="position:relative;display:flex;justify-content:center;align-items:flex-start;gap:12px;">${rowLabel("BACK")}${M ? squadCol("storm", "Ivy", 82, 36, 54) + squadCol("life", "Sol", 82, 36, 54) : squadCol("wraith", "Ivy", 82, 36, 54) + squadCol("priest", "Sol", 82, 36, 54)}</div>`
     : `<div style="position:relative;display:flex;justify-content:flex-start;align-items:flex-start;gap:4px;padding-left:40px;">${rowLabel("BACK")}${squadCol("wolf", "Fang", 62, 30, 44)}${squadCol("wolf", "Ash", 62, 30, 44)}${squadCol("wolf", "Dusk", 62, 30, 44)}${squadCol("stag", "Moss", 62, 30, 44)}</div>`;
-  const armyChip = `<span style="font-size:10px;font-weight:800;letter-spacing:0.06em;background:${a.hex};color:#14161c;border-radius:6px;padding:2px 7px;">${a.name.toUpperCase()}</span><span style="font-size:11.5px;color:#c7cad6;"><b style="color:${a.hex};text-decoration:underline dotted;text-underline-offset:3px;">${a.rule.name}</b>${U ? ": rise once" : ": five fielded"}</span>`;
+  const armyChip = `<span style="font-size:10px;font-weight:800;letter-spacing:0.06em;background:${a.hex};color:#14161c;border-radius:6px;padding:2px 7px;">${a.name.toUpperCase()}</span><span style="font-size:11.5px;color:#c7cad6;"><b style="color:${a.hex};text-decoration:underline dotted;text-underline-offset:3px;">${a.rule.name}</b>${M ? ": orbs build up" : U ? ": rise once" : ": five fielded"}</span>`;
   const zone = `<!-- YOUR SQUAD zone -->
       <div style="background: rgba(77,166,255,0.07); border: 1px solid rgba(77,166,255,0.28); border-radius: 12px; padding: 10px 12px 12px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:10px;font-weight:800;letter-spacing:0.06em;background:#4da6ff;color:#0c1420;border-radius:6px;padding:2px 7px;white-space:nowrap;">YOUR SQUAD</span>${armyChip}</div>
         ${front}<div style="height: 12px; border-bottom: 1px dashed #3a3f4e; margin-bottom: 12px;"></div>${back}
-        ${benchShelf(U ? [["knight", "Kit"], ["wraith", "Wren"], ["priest", "Olo"]] : [["bear", "Kit"], ["wolf", "Rue"]])}
+        ${benchShelf(M ? [["frost", "Kit"], ["storm", "Wren"], ["life", "Olo"]] : U ? [["knight", "Kit"], ["wraith", "Wren"], ["priest", "Olo"]] : [["bear", "Kit"], ["wolf", "Rue"]])}
       </div>`;
-  const note = U
+  const note = M
+    ? `Round screen, round 2, Mages squad (built 2026-10-21): the same screen as 1.1 with the army's bodies. Bram, Ivy and Sol are the same three units, now a Frost Mage, a Storm Mage and a Life Mage, each with a pointed hat. The army chip names the rule and opens its card (11.12).`
+    : U
     ? `Round screen, round 2, Undead squad (proposal, design only, not built): the same screen as 1.1 with the army's bodies. Bram, Ivy and Sol are the same three units, now a Bone Knight, a Wraith and a Bone Priest. The army chip names the rule and opens its card (11.7).`
     : `Round screen, round 2, Beasts squad (proposal, design only, not built): five fielded, one Bear in front and four behind (three Wolves and a Stag), each one smaller. The bench holds two. The army chip names the rule and opens its card (11.8). Open: how many units a Beasts run starts with.`;
   return shellOpen(RF_CSS) + `
-<!-- Frame ${U ? "10.1" : "10.5"} (proposal): ${note} -->
+<!-- Frame ${SQUAD_NUM[armyKey]} (${M ? "built" : "proposal"}): ${note} -->
 <div style="background: #14161c; width: 390px; min-height: 780px; display: flex; justify-content: center; padding-top: 24px;">
   <div style="width: 100%; max-width: 640px; padding: 0 16px 24px; box-sizing: border-box;">
     <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 16px; box-sizing: border-box;">
@@ -320,12 +368,12 @@ function tile(rgb, hex, ico, name, tag, head, chipsHtml, lines, icons, footer) {
     </div>`;
 }
 const seeMore = (name) => `<div class="sk-more"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6.6 5.3 L11 8 L6.6 10.7 Z" fill="currentColor"/></svg><span>See ${name} in action</span><span class="chev">›</span></div>`;
-const POPUP_NUM = { knight: "10.2", wraith: "10.3", priest: "10.4", bear: "10.6", wolf: "10.7", stag: "10.8" };
-const CARD_NUM = { boneWall: "11.1", command: "11.2", raise: "11.3", roar: "11.4", packBite: "11.5", herd: "11.6", undead: "11.7", beasts: "11.8" };
+const POPUP_NUM = { knight: "10.2", wraith: "10.3", priest: "10.4", bear: "10.6", wolf: "10.7", stag: "10.8", frost: "10.10", storm: "10.11", life: "10.12" };
+const CARD_NUM = { boneWall: "11.1", command: "11.2", raise: "11.3", roar: "11.4", packBite: "11.5", herd: "11.6", undead: "11.7", beasts: "11.8", frostOrb: "11.9", stormOrb: "11.10", lifeOrb: "11.11", mages: "11.12" };
 function popupFile(key) {
   const u = UNITS[key], a = ARMIES[u.army], S = SKILLS[u.skill], role = ROLE[u.role];
-  const set = u.army === "undead" ? ["knight", "wraith", "priest"] : ["bear", "wolf", "wolf", "wolf", "stag"];
-  const names = { knight: "Bram", wraith: "Ivy", priest: "Sol", bear: "Bruno", stag: "Moss" };
+  const set = SET[u.army];
+  const names = { knight: "Bram", wraith: "Ivy", priest: "Sol", bear: "Bruno", stag: "Moss", frost: "Bram", storm: "Ivy", life: "Sol" };
   let wolfN = 0;
   const wolves = ["Fang", "Ash", "Dusk"];
   const switcher = set.map((k) => {
@@ -338,7 +386,7 @@ function popupFile(key) {
   const armyTile = tile(a.rgb, a.hex, a.icon, a.rule.name, "ARMY", terms(a.rule.head, true), "", a.rule.lines.map((l) => terms(l, true)), ["bullet", "bullet"], seeMore(a.rule.name));
   const skillTile = tile(role.rgb, role.hex, S.icon, S.name, "SKILL", terms(S.head, true), chips, S.lines.map((l) => terms(l, true)), ["bullet", "repeat"], seeMore(S.name));
   const hpPct = 100;
-  const note = `Popup, ${u.title} (proposal, design only, not built). Over a dimmed copy of 1.1 as a stand-in. The 2.3 popup with the army's body, an ARMY tile above the SKILL tile (both open a card: ${CARD_NUM[u.army]} and ${CARD_NUM[u.skill]}). Numbers are made up.`;
+  const note = `Popup, ${u.title} (${u.army === "mages" ? "built 2026-10-21" : "proposal, design only, not built"}). Over a dimmed copy of 1.1 as a stand-in. The 2.3 popup with the army's body, an ARMY tile above the SKILL tile (both open a card: ${CARD_NUM[u.army]} and ${CARD_NUM[u.skill]}). Numbers are made up.`;
   return shellOpen(POPUP_CSS) + `
 ${POPUP_BACKDROP}<div style="position: absolute; top: 40px; left: 20px; width: 350px; background: #1d2029; border: 1px solid #3a3f4e; border-radius: 14px; padding: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.55);">
     <div style="position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; background: #2a2e3a; color: #c7cad6; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;">✕</div>
@@ -435,8 +483,8 @@ function beam(C, { x1, y1, x2, y2, color, at, w = 2, dur = 10 }) {
   const anim = C.kf([[0, `opacity:0;${t(0)}`], [at - 0.05, `opacity:0;${t(0)}`], [at, `opacity:0.9;${t(0.1)}`], [at + dur * 0.6, `opacity:0.9;${t(1)}`], [at + dur, `opacity:0;${t(1)}`], [100, `opacity:0;${t(1)}`]]);
   return `<div style="position:absolute;left:${x1}px;top:${y1 - w / 2}px;width:${len.toFixed(1)}px;height:${w}px;background:${color};box-shadow:0 0 4px 1px ${color};transform-origin:0 50%;${t(1)};opacity:0.55;z-index:3;${anim}"></div>`;
 }
-function floater(C, { x, y, text, color, at, size = 14, glow = "#ff5252" }) {
-  return `<div style="position:absolute;left:${x}px;top:${y}px;font-size:${size}px;font-weight:800;color:${color};white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,0.6),0 0 8px ${glow};z-index:5;transform:translate(-50%,-10px);${C.kf(floatStops(at))}">${text}</div>`;
+function floater(C, { x, y, text, color, at, size = 14, glow = "#ff5252", show = true }) {
+  return `<div style="position:absolute;left:${x}px;top:${y}px;font-size:${size}px;font-weight:800;color:${color};white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,0.6),0 0 8px ${glow};z-index:5;transform:translate(-50%,-10px);${show ? "" : "opacity:0;"}${C.kf(floatStops(at))}">${text}</div>`;
 }
 function ring(C, { cx, cy, r, color, at, dur = 8 }) {
   const a = C.kf([[0, "opacity:0;transform:scale(0.4)"], [at, "opacity:0;transform:scale(0.4)"], [at + 0.1, "opacity:0.9;transform:scale(0.5)"], [at + dur, "opacity:0;transform:scale(1.5)"], [100, "opacity:0;transform:scale(1.5)"]]);
@@ -504,7 +552,133 @@ const lunge = (C, at, dx, dy) => C.kf([[0, "transform:translate(0,0)"], [at - 0.
 // the HORDE count at the left of the scene: [[n, from %, to %]], the last one stays
 const hordeCount = (C, list, full = 5) => list.map(([n, a, b], i) => abs(`left:12px;top:106px;font-size:8px;font-weight:800;letter-spacing:0.06em;color:${n >= full ? YEL : BONE};white-space:nowrap;opacity:${i === list.length - 1 ? 1 : 0};${C.kf(win(a, b, 0.5))}`, n >= full ? `☠ FULL ${n}/5` : `☠ HORDE ${n}/5`)).join("");
 
+// ---------- the Mages' orbs (the same picture as canvas 12.0D, in a card scene; the game draws them in render/fightView.ts) ----------
+const GOLD = "#ffe36a", FROSTC = "#8fd3ff", LIFEC = "#6ee7a0";
+const orbAt = (cx, cy, r, ang) => [cx + r * Math.cos(ang * Math.PI / 180), cy + r * Math.sin(ang * Math.PI / 180)];
+// a ring of orbs round a unit. items = [[angle, appears at %]]; `pulses` = the % at which each orb swells (its work); `mergeAt` + `mergeTo`: from that %
+// every orb flies to that point and is gone. Plain style = all shown, unless `shownInStill` is false.
+function orbRing(C, { cx, cy, r, color, items, pulses = [], mergeAt = null, mergeTo = null, shownInStill = true }) {
+  const T = (x, y, s) => `transform:translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${s})`;
+  const orbs = items.map(([ang, at]) => {
+    const [px, py] = orbAt(cx, cy, r, ang);
+    const x = px - (cx - r) - 5, y = py - (cy - r) - 5;
+    const [dx, dy] = mergeTo ? [mergeTo[0] - px, mergeTo[1] - py] : [0, 0];
+    const stops = [[0, `opacity:0;${T(0, 0, 0.2)}`], [at - 0.1, `opacity:0;${T(0, 0, 0.2)}`], [at + 0.8, `opacity:1;${T(0, 0, 1.6)}`], [at + 2, `opacity:1;${T(0, 0, 1)}`]];
+    pulses.filter((t) => t > at + 3 && (mergeAt === null || t < mergeAt)).forEach((t) => stops.push([t - 0.3, `opacity:1;${T(0, 0, 1)}`], [t + 0.4, `opacity:1;${T(0, 0, 2)}`], [t + 1.6, `opacity:1;${T(0, 0, 1)}`]));
+    if (mergeAt !== null) stops.push([mergeAt, `opacity:1;${T(0, 0, 1)}`], [mergeAt + 2.6, `opacity:1;${T(dx, dy, 0.5)}`], [mergeAt + 2.8, `opacity:0;${T(dx, dy, 0.5)}`], [100, `opacity:0;${T(dx, dy, 0.5)}`]);
+    else stops.push([97, `opacity:1;${T(0, 0, 1)}`], [100, `opacity:0;${T(0, 0, 0.2)}`]);
+    return `<div style="position:absolute;left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;width:10px;height:10px;border-radius:50%;background:${color};box-shadow:0 0 7px 2px ${color};border:1px solid #fff8;${shownInStill ? "" : "opacity:0;"}${C.kf(stops)}"></div>`;
+  }).join("");
+  return abs(`left:${cx - r}px;top:${cy - r}px;width:${2 * r}px;height:${2 * r}px;z-index:4;`, orbs);
+}
+// a real lightning bolt: a jagged line with a white core and a coloured glow, flickering for about 0.4 s. `base` 1 keeps it in the still.
+let boltN = 0;
+function bolt(C, { x1, y1, x2, y2, color, at, w = 1.6, base = 0 }) {
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+  const n = Math.max(4, Math.round(len / 16)), k = boltN++;
+  const jig = (i) => { const v = Math.sin((i + 1) * 12.9898 + k * 78.233) * 43758.5453; return (v - Math.floor(v)) * 2 - 1; };
+  const pts = [[x1, y1]];
+  for (let i = 1; i < n; i++) { const t = i / n, j = jig(i) * (5 + w * 1.6); pts.push([x1 + dx * t + nx * j, y1 + dy * t + ny * j]); }
+  pts.push([x2, y2]);
+  const path = (p) => p.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  let d = path(pts);
+  if (w >= 3) { const m = pts[Math.floor(n / 2)], s = jig(n) > 0 ? 1 : -1; d += ` ${path([m, [m[0] + ux * 12 + nx * 14 * s, m[1] + uy * 12 + ny * 14 * s], [m[0] + ux * 24 + nx * 10 * s, m[1] + uy * 24 + ny * 10 * s]])}`; }
+  const anim = C.kf([[0, "opacity:0"], [at - 0.05, "opacity:0"], [at, "opacity:1"], [at + 0.7, "opacity:0.15"], [at + 1.3, "opacity:1"], [at + 2, "opacity:0.2"], [at + 2.6, "opacity:0.9"], [at + 3.6, "opacity:0"], [100, "opacity:0"]]);
+  return `<svg width="322" height="210" viewBox="0 0 322 210" style="position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:4;filter:drop-shadow(0 0 ${2 + w}px ${color});opacity:${base};${anim}"><path d="${d}" fill="none" stroke="${color}" stroke-width="${(w * 2).toFixed(1)}" stroke-opacity="0.55" stroke-linejoin="round" stroke-linecap="round"/><path d="${d}" fill="none" stroke="#fff" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+// the one big sparkling orb the others merge into: appears at `at` %, grows at each % in `grows`, fades at `end` %. The still shows it at its largest.
+function mergedOrb(C, { cx, cy, at, grows, end, color }) {
+  const sizes = [1.0, 1.4, 1.8];
+  const S = (s, a) => `opacity:${a};transform:scale(${s});box-shadow:0 0 ${6 + s * 8}px ${1 + s * 3}px ${color},0 0 ${2 + s * 4}px ${s * 2}px #fff8;`;
+  const stops = [[0, S(0.3, 0)], [at - 0.1, S(0.3, 0)], [at + 0.6, S(1.6, 1)], [at + 2, S(sizes[0], 1)]];
+  grows.forEach((g, i) => stops.push([g - 0.1, S(sizes[i], 1)], [g + 0.6, S(sizes[i + 1] + 0.25, 1)], [g + 1.5, S(sizes[i + 1], 1)]));
+  stops.push([end, S(sizes[grows.length], 1)], [end + 1.8, S(0.4, 0)], [100, S(0.3, 0)]);
+  const sparks = [[-4, -4, 9], [32, -2, 7], [34, 32, 9], [-2, 34, 7]].map(([x, y, fs]) => `<span style="position:absolute;left:${x}px;top:${y}px;font-size:${fs}px;line-height:1;color:#fffbd0;text-shadow:0 0 4px ${color};">✦</span>`).join("");
+  const core = `radial-gradient(circle at 40% 38%,#fff 0%,#fff 28%,${color} 70%,${shade(color, -0.45)} 100%)`;
+  return abs(`left:${cx - 14}px;top:${cy - 14}px;width:28px;height:28px;border-radius:50%;background:${core};z-index:4;${S(sizes[grows.length], 1)}${C.kf(stops)}`,
+    abs("left:-2px;top:-2px;width:32px;height:32px;animation:orbSpin 2.4s linear infinite;", sparks));
+}
+// one card scene for a Mage skill (who = "storm" | "frost" | "life") or for the Orbs rule (rule = true, drawn on the Storm Mage with the other
+// two mages' orbs showing too). T = 9 s: 2 hits... three orbs build up (8-20%), the 2 s beat (33%), a second skill's 4th hit merges them (52%),
+// the merged orb strikes (55%) and grows with every hit after (64%, 73%), the skill ends (80%) and the mage starts from none.
+function mageScene(C, { who, rule = false }) {
+  const BEAT = 33, MERGE = 52, STRIKES = [55.5, 64.5, 73.5];
+  const G = { storm: { key: "storm", at: UW, color: GOLD, r: 24, mp: [34, 166], bubble: "STORM ORB", bw: 84, bb: 36 },
+    frost: { key: "frost", at: UK, color: FROSTC, r: 28, mp: [216, 122], bubble: "FROST ORB", bw: 80, bb: 40 },
+    life: { key: "life", at: UP, color: LIFEC, r: 24, mp: [276, 168], bubble: "LIFE ORB", bw: 72, bb: 36 } }[who];
+  const o = G.at, cx = o.cx, cy = o.top + o.size / 2, u = UNITS[G.key];
+  const SH = [[81, 43], [161, 34], [241, 43]];            // the enemies' centres: Acolyte, Warden, Acolyte
+  const allies = { frost: [161, 134], storm: [92, 166], life: [230, 166] };
+  // the Warden's HP: a zap from the orbs, then the merged orb's strikes (storm only)
+  const hpStops = who === "storm" ? [[0, 100], [BEAT + 1, 100], [BEAT + 3, 97.6], [STRIKES[0] + 1, 97.6], [STRIKES[0] + 2.5, 78.6], [STRIKES[1] + 1, 78.6], [STRIKES[1] + 2.5, 55.7], [STRIKES[2] + 1, 55.7], [STRIKES[2] + 2.5, 28.3], [100, 28.3]] : null;
+  let h = acoL(C) + wardenE(C, who === "storm" ? { hp: "HP 420", hpPct: 28.3, hpStops } : {}) + acoR(C);
+  // the squad; the casting mage runs two skills (its bar fills at 2 and at 46); the others wait
+  const cast = { cycles: [{ s: 2 }, { s: 46 }] };
+  const bars = { frost: { ...UK, hpW: 40, chargePct: 30 }, storm: { ...UW, chargePct: 30 }, life: { ...UP, chargePct: 35 } };
+  const hurt = who === "life"
+    ? { frost: { hpPct: 100, hpStops: [[0, 40], [BEAT, 40], [BEAT + 2, 52], [STRIKES[0], 52], [STRIKES[0] + 2, 88], [STRIKES[1] + 1, 88], [STRIKES[1] + 3, 100], [100, 100]] },
+        storm: { hpPct: 100, hpStops: [[0, 50], [STRIKES[0], 50], [STRIKES[0] + 2, 100], [100, 100]] },
+        life: { hpPct: 100, hpStops: [[0, 70], [STRIKES[0], 70], [STRIKES[0] + 2, 100], [100, 100]] } }
+    : { frost: {}, storm: {}, life: {} };
+  for (const k of ["frost", "storm", "life"]) h += ally(C, k, { ...bars[k], ...(k === G.key ? cast : {}), ...hurt[k], ...(k === "frost" ? { hpW: 40 } : {}) });
+  // orbs: three build up on the casting mage and persist until the merge; the rule scene also shows two Frost orbs and one Life orb
+  h += orbRing(C, { cx, cy, r: G.r, color: G.color, items: [[-150, 8], [-30, 14], [180, 20]], pulses: [BEAT], mergeAt: MERGE, mergeTo: G.mp, shownInStill: false });
+  if (rule) {
+    h += orbRing(C, { cx: 161, cy: 134, r: 28, color: FROSTC, items: [[-150, 26], [-30, 30]], pulses: [BEAT] });
+    h += orbRing(C, { cx: 230, cy: 166, r: 24, color: LIFEC, items: [[-30, 34]], pulses: [BEAT] });
+    h += ring(C, { cx: 161, cy: 134, r: 28, color: FROSTC, at: BEAT }) + ring(C, { cx: 230, cy: 166, r: 22, color: LIFEC, at: BEAT + 0.5 });
+    h += floater(C, { x: 161, y: 104, text: "⛊+10", color: FROSTC, at: BEAT, size: 9, glow: "#4da6ff", show: false });
+    h += floater(C, { x: 214, y: 140, text: "+8", color: LIFEC, at: BEAT + 0.5, size: 9, glow: "#1b8a55", show: false });
+  }
+  // the beat: what each orb does on its own
+  const orbPos = [-150, -30, 180].map((a) => orbAt(cx, cy, G.r, a));
+  if (who === "storm") {
+    orbPos.forEach(([x, y], i) => {
+      h += bolt(C, { x1: x, y1: y, x2: SH[i][0], y2: SH[i][1] + 10, color: GOLD, at: BEAT + i * 0.5, w: 1.6 });
+      h += floater(C, { x: SH[i][0] + (i === 1 ? 0 : 0), y: SH[i][1] + 22, text: "−10", color: "#fff4b0", at: BEAT + i * 0.5 + 1, size: 9, glow: GOLD, show: false });
+    });
+  } else if (who === "frost") {
+    h += ring(C, { cx, cy, r: 30, color: FROSTC, at: BEAT });
+    [140, 161, 182].forEach((x, i) => { h += floater(C, { x, y: 104, text: "⛊+10", color: FROSTC, at: BEAT + i * 0.6, size: 9, glow: "#4da6ff", show: false }); });
+  } else {
+    orbPos.forEach(([x, y], i) => {
+      h += beam(C, { x1: x, y1: y, x2: 161, y2: 134, color: LIFEC, at: BEAT + i * 0.5, w: 1.4, dur: 6 });
+      h += floater(C, { x: 150 + i * 11, y: 110, text: "+8", color: LIFEC, at: BEAT + i * 0.5 + 1, size: 9, glow: "#1b8a55", show: false });
+    });
+  }
+  // the merge: the orbs fly into one sparkling orb, which strikes at once and again on every hit after
+  h += ring(C, { cx: G.mp[0], cy: G.mp[1], r: 26, color: "#fff", at: MERGE + 3.4, dur: 8 });
+  h += mergedOrb(C, { cx: G.mp[0], cy: G.mp[1], at: MERGE + 3.6, grows: [STRIKES[1] - 0.5, STRIKES[2] - 0.5], end: 80, color: G.color });
+  STRIKES.forEach((t, i) => {
+    const last = i === STRIKES.length - 1;
+    if (who === "storm") {
+      h += bolt(C, { x1: G.mp[0], y1: G.mp[1] - 6, x2: SH[1][0], y2: SH[1][1] + 14, color: GOLD, at: t, w: 3 + i, base: last ? 1 : 0 });
+      h += floater(C, { x: 214 + (i % 2) * 14, y: 28 + i * 3, text: ["−80", "−96", "−115"][i], color: "#fff", at: t + 0.8, size: 14 + i * 2, glow: GOLD, show: last });
+    } else {
+      const rings = Object.values(allies);
+      rings.forEach(([ax, ay], j) => { h += ring(C, { cx: ax, cy: ay, r: j === 0 ? 30 : 22, color: G.color, at: t + 0.3, dur: 9 }); });
+      if (i === 0) {
+        const txt = who === "frost" ? [["⛊+45", 161, 104], ["⛊+29", 92, 140], ["⛊+37", 230, 140]] : [["+27", 161, 104], ["+12", 92, 140], ["+15", 230, 140]];
+        txt.forEach(([text, x, y]) => { h += floater(C, { x, y, text, color: G.color, at: t + 0.8, size: 11, glow: who === "frost" ? "#4da6ff" : "#1b8a55", show: true }); });
+      }
+    }
+  });
+  const flavour = who === "storm" ? "EACH ORB ZAPS ONE ENEMY" : who === "frost" ? "EACH ORB SHIELDS BRAM" : "EACH ORB HEALS THE TANK";
+  h += chip(C, { x: 150, y: 96, text: rule ? "EVERY 2 S EACH ORB WORKS ALONE" : flavour, color: G.color, stops: win(BEAT - 1, 48, 1.5), base: 0 });
+  h += chip(C, { x: 150, y: 96, text: "A 4TH HIT MERGES THEM", color: G.color, stops: win(49, 62, 1.5), base: 0 });
+  h += chip(C, { x: 150, y: 96, text: "EVERY HIT AFTER: BIGGER", color: G.color, stops: win(63, 79, 1.5), base: 0 });
+  h += chip(C, { x: 150, y: 96, text: "SKILL ENDS: START FROM 0", color: "#e8e8ee", stops: win(80, 96, 1.5), base: 0 });
+  h += bubble(C, { cx, top: o.top, size: o.size, text: `${G.bubble} ×3`, color: u.hex, s: 2, w: G.bw, barW: G.bb });
+  h += bubble(C, { cx, top: o.top, size: o.size, text: `${G.bubble} ×3`, color: u.hex, s: 46, w: G.bw, barW: G.bb });
+  h += caps(C, [{ side: "left", text: rule ? "EVERY SKILL HIT ADDS AN ORB" : `SKILL · ${G.bubble}`, color: rule ? ARMIES.mages.hex : u.hex, at: [4, 94] }]);
+  return h;
+}
+
 const SCENES = {
+  stormOrb: (C) => mageScene(C, { who: "storm" }),
+  frostOrb: (C) => mageScene(C, { who: "frost" }),
+  lifeOrb: (C) => mageScene(C, { who: "life" }),
+  mages: (C) => mageScene(C, { who: "storm", rule: true }),
   boneWall(C) {
     let h = acoL(C) + wardenE(C) + acoR(C);
     h += ally(C, "wraith", { ...UW, chargePct: 30 }) + ally(C, "priest", { ...UP });
@@ -629,8 +803,10 @@ const CARDS = [
   { n: 1, kind: "skill", unit: "knight" }, { n: 2, kind: "skill", unit: "wraith" }, { n: 3, kind: "skill", unit: "priest" },
   { n: 4, kind: "skill", unit: "bear" }, { n: 5, kind: "skill", unit: "wolf" }, { n: 6, kind: "skill", unit: "stag" },
   { n: 7, kind: "rule", army: "undead" }, { n: 8, kind: "rule", army: "beasts" },
+  { n: 9, kind: "skill", unit: "frost" }, { n: 10, kind: "skill", unit: "storm" }, { n: 11, kind: "skill", unit: "life" },
+  { n: 12, kind: "rule", army: "mages" },
 ];
-const NAMES = { 1: "BoneWall", 2: "Command", 3: "Raise", 4: "Roar", 5: "PackBite", 6: "Herd", 7: "Horde", 8: "Pack" };
+const NAMES = { 1: "BoneWall", 2: "Command", 3: "Raise", 4: "Roar", 5: "PackBite", 6: "Herd", 7: "Horde", 8: "Pack", 9: "FrostOrb", 10: "StormOrb", 11: "LifeOrb", 12: "Orbs" };
 // the parts of a card shared by the canvas frame and the game copy: its army, the scene, the header line, the ARMY / SKILL rows and the design note
 function cardPieces(c, C) {
   const sceneKey = c.kind === "skill" ? UNITS[c.unit].skill : c.army;
@@ -650,7 +826,7 @@ function cardPieces(c, C) {
   } else {
     header = `${svg(I[a.icon](a.hex), 14)}${a.name.toUpperCase()} · ARMY RULE`;
     rows = row(a.rgb, a.hex, a.icon, a.rule.name, "ARMY", terms(a.rule.card, false));
-    noteText = `Opened from the "See ${a.rule.name} in action" row on the ARMY tile of any ${a.name} popup (${a.key === "undead" ? "10.2 to 10.4" : "10.6 to 10.8"}) or from the army chip on ${a.key === "undead" ? "10.1" : "10.5"}; the screen behind is a stand-in. Closes on ✕, Got it, or a tap outside the card.`;
+    noteText = `Opened from the "See ${a.rule.name} in action" row on the ARMY tile of any ${a.name} popup (${POPUP_RANGE[a.key]}) or from the army chip on ${SQUAD_NUM[a.key]}; the screen behind is a stand-in. Closes on ✕, Got it, or a tap outside the card.`;
   }
   return { a, scene, header, rows, noteText };
 }
@@ -674,6 +850,7 @@ function cardFile(c) {
 <helmet>
 <style>${css}
   .scene { --T: 9s; }
+  @keyframes orbSpin { to { transform: rotate(360deg); } }
   ${C.rules.join("\n  ")}
 </style>
 </helmet>
@@ -709,17 +886,20 @@ ${rows}
 // =====================================================================================================
 const FRAMES = []; // { file, x, y, w, h, label }
 const w = (file, html, x, y, h, label, hh = h) => { fs.writeFileSync(path.join(CANVAS, file), html); FRAMES.push({ file, x, y, w: 390, h: hh, label }); };
-const Y_PICK = 11800, Y_UND = 13200, Y_BEA = 14700, Y_CARD = 16100;
-w("ArmyPickA.dc.html", pickFile("A"), 0, Y_PICK, 760, "10.0A Pick before round 1 (option, awaiting Tu's pick)");
-w("ArmyPickB.dc.html", pickFile("B"), 550, Y_PICK, 840, "10.0B Pick after the round 1 win, in place of the rune pick (option)");
+const Y_PICK = 11800, Y_UND = 13200, Y_BEA = 14700, Y_CARD = 16100, Y_MAG = 17500;
+w("ArmyPickA.dc.html", pickFile("A"), 0, Y_PICK, 1060, "10.0A Pick before round 1 (option, awaiting Tu's pick)");
+w("ArmyPickB.dc.html", pickFile("B"), 550, Y_PICK, 1140, "10.0B Pick after the round 1 win, in place of the rune pick (option)");
 w("ArmySquadUndead.dc.html", squadFile("undead"), 0, Y_UND, 880, "10.1 Undead squad — round screen (proposal)");
 ["knight", "wraith", "priest"].forEach((k, i) => w(`ArmyPopup${UNITS[k].title.replace(/ /g, "")}.dc.html`, popupFile(k), 550 * (i + 1), Y_UND, 900, `${POPUP_NUM[k]} ${UNITS[k].title} — Undead ${ROLE[UNITS[k].role].word} (proposal)`));
 w("ArmySquadBeasts.dc.html", squadFile("beasts"), 0, Y_BEA, 880,"10.5 Beasts squad — round screen, five fielded (proposal)");
 ["bear", "wolf", "stag"].forEach((k, i) => w(`ArmyPopup${UNITS[k].title}.dc.html`, popupFile(k), 550 * (i + 1), Y_BEA, 900, `${POPUP_NUM[k]} ${UNITS[k].title} — Beast ${ROLE[UNITS[k].role].word} (proposal)`));
+w("ArmySquadMages.dc.html", squadFile("mages"), 0, Y_MAG, 880, "10.9 Mages squad — round screen (built 2026-10-21)");
+["frost", "storm", "life"].forEach((k, i) => w(`ArmyPopup${UNITS[k].title.replace(/ /g, "")}.dc.html`, popupFile(k), 550 * (i + 1), Y_MAG, 900, `${POPUP_NUM[k]} ${UNITS[k].title} — Mage ${ROLE[UNITS[k].role].word} (built 2026-10-21)`));
 CARDS.forEach((c, i) => {
+  const built = c.kind === "skill" ? UNITS[c.unit].army === "mages" : c.army === "mages";
   const label = c.kind === "skill"
-    ? `11.${c.n} ${SKILLS[UNITS[c.unit].skill].name} — ${UNITS[c.unit].title}'s skill (proposal)`
-    : `11.${c.n} ${ARMIES[c.army].rule.name} — the ${ARMIES[c.army].name} rule (proposal)`;
+    ? `11.${c.n} ${SKILLS[UNITS[c.unit].skill].name} — ${UNITS[c.unit].title}'s skill (${built ? "built 2026-10-21" : "proposal"})`
+    : `11.${c.n} ${ARMIES[c.army].rule.name} — the ${ARMIES[c.army].name} rule (${built ? "built 2026-10-21" : "proposal"})`;
   w(`ArmyCard${NAMES[c.n]}.dc.html`, cardFile(c), 550 * i, Y_CARD, 900, label);
 });
 
@@ -731,7 +911,8 @@ const notes = [
   `    { "id": "section-army-pick", "x": 0, "y": ${Y_PICK - 140}, "w": 1000, "text": "10 · ARMIES — pick an army and every unit changes: its look, its skills and one rule (proposal, design only, not built). First, where the pick sits" },`,
   `    { "id": "section-army-undead", "x": 0, "y": ${Y_UND - 140}, "w": 2200, "text": "10 · UNDEAD — fall once, rise stronger: the round screen, then the three popups" },`,
   `    { "id": "section-army-beasts", "x": 0, "y": ${Y_BEA - 140}, "w": 2200, "text": "10 · BEASTS — five small units, skills all the time: the round screen, then the three popups" },`,
-  `    { "id": "section-army-cards", "x": 0, "y": ${Y_CARD - 140}, "w": 4300, "text": "11 · ARMY CARDS — opened from the 'See … in action' rows: six skills, then the two army rules" },`,
+  `    { "id": "section-army-cards", "x": 0, "y": ${Y_CARD - 140}, "w": 6600, "text": "11 · ARMY CARDS — opened from the 'See … in action' rows: six skills, then the two army rules, then the Mages' three skills and their rule" },`,
+  `    { "id": "section-army-mages", "x": 0, "y": ${Y_MAG - 140}, "w": 2200, "text": "10 · MAGES — orbs that work alone, then merge (built 2026-10-21): the round screen, then the three popups" },`,
 ];
 FRAMES.forEach((f, i) => notes.push(`    { "id": "label-army-${i}", "x": ${f.x}, "y": ${f.y - 60}, "w": 390, "text": ${JSON.stringify(f.label)} },`));
 const iArt = lines.findIndex((l) => l.includes('"annotations"'));
@@ -751,7 +932,7 @@ console.log("wrote", FRAMES.length, "frames and patched canvas.json");
 {
   const GAME = path.join(__dirname, "..", "..", "prototype", "src");
   const data = {};
-  const cssLines = ["/* Generated by design/tools/gen-armies.js from the army scenes (canvas 11.1 to 11.8). Do not edit by hand. */", ""];
+  const cssLines = ["/* Generated by design/tools/gen-armies.js from the army scenes (canvas 11.1 to 11.12). Do not edit by hand. */", "@keyframes orbSpin { to { transform: rotate(360deg); } }", ""];
   for (const c of CARDS) {
     const key = c.kind === "skill" ? UNITS[c.unit].skill : c.army;
     const id = "army-" + key;
@@ -765,7 +946,7 @@ console.log("wrote", FRAMES.length, "frames and patched canvas.json");
     cssLines.push(`/* ---------- ${key} ---------- */`, `.tc-${id} .scene { --T: 9s; }`, ...C.rules, "");
   }
   const ts =
-    "// Generated by design/tools/gen-armies.js from the army scenes (canvas 11.1 to 11.8). Do not edit by hand unless you stop running the script.\n" +
+    "// Generated by design/tools/gen-armies.js from the army scenes (canvas 11.1 to 11.12). Do not edit by hand unless you stop running the script.\n" +
     "// Each card: `scene` is the animated picture (with its army header), `text` is the army and skill rows. The shell (close, Got it) is render/termCards.ts.\n\n" +
     "export const ARMY_CARD_DATA: Record<string, { scene: string; text: string }> = " +
     JSON.stringify(data, null, 2) +

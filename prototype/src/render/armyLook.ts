@@ -16,17 +16,33 @@ export const ARMY_UNIT_HEX: Record<UnitKind, string> = {
   bear: "#d08a3c",
   wolf: "#b08cf5",
   stag: "#6bd69a",
+  frostMage: "#7fc8ff",
+  stormMage: "#c28cff",
+  lifeMage: "#8be9a8",
 };
 
 /** An army's own colour: its chip, rule tile and card headers. */
 export const ARMY_ACCENT: Record<ArmyKind, { hex: string; rgb: string }> = {
   undead: { hex: "#a9b7c9", rgb: "169,183,201" },
   beasts: { hex: "#d9a066", rgb: "217,160,102" },
+  mages: { hex: "#8fd3ff", rgb: "143,211,255" },
+};
+
+const ARMY_OF_KIND: Record<UnitKind, ArmyKind> = {
+  boneKnight: "undead",
+  wraith: "undead",
+  bonePriest: "undead",
+  bear: "beasts",
+  wolf: "beasts",
+  stag: "beasts",
+  frostMage: "mages",
+  stormMage: "mages",
+  lifeMage: "mages",
 };
 
 /** Which army a unit kind belongs to. */
 export function armyOfKind(kind: UnitKind): ArmyKind {
-  return kind === "bear" || kind === "wolf" || kind === "stag" ? "beasts" : "undead";
+  return ARMY_OF_KIND[kind];
 }
 
 /** A unit's body size in a Beasts squad (px): the Bear 36, everyone else 30. An Undead unit keeps the squad size. */
@@ -114,6 +130,18 @@ export function armyLook(kind: UnitKind, tier: FaceTier, size: number): ArmyLook
         under: `${VB}${antler}<g transform="translate(100 0) scale(-1 1)">${antler}</g><ellipse cx="5" cy="34" rx="11" ry="6" fill="${dk}" transform="rotate(-30 5 34)"/><ellipse cx="95" cy="34" rx="11" ry="6" fill="${dk}" transform="rotate(30 95 34)"/></svg>`,
         bodyStyle: "",
         face: wrap(squadFace(hex, tier, size) + `${VB}<ellipse cx="50" cy="72" rx="6" ry="4.5" fill="#2a1a10"/></svg>`),
+      };
+    }
+    case "frostMage":
+    case "stormMage":
+    case "lifeMage": {
+      // A pointed hat behind the head with a star on it, a face on the disc (canvas 12.0D, design/tools/gen-army-fights.js look()).
+      const star = { frostMage: "#d8f1ff", stormMage: "#ffe36a", lifeMage: "#c9ffd9" }[kind];
+      return {
+        bg: hex,
+        under: `${VB}<polygon points="22,30 50,-46 78,30" fill="${dk}"/><ellipse cx="50" cy="26" rx="40" ry="9" fill="${dk}"/><path d="M50 -8 l3.4 8 8.6 .8 -6.6 5.8 2 8.4 -7.4 -4.6 -7.4 4.6 2 -8.4 -6.6 -5.8 8.6 -.8z" fill="${star}"/></svg>`,
+        bodyStyle: "",
+        face: wrap(squadFace(hex, tier, size)),
       };
     }
   }

@@ -3,16 +3,18 @@ import type { ArmyKind, HeroState, SideState, UnitKind } from "./types.js";
 import { PLAYER_ROLES, ROLE_LABEL, ROLE_POOL, makeUnitState, type PlayerRole } from "./roles.js";
 
 /**
- * The armies (2026-10-20; canvas 10.x and 11.x, design/tools/gen-armies.js; DECISIONS.md once Tu confirms): a run picks Undead
- * or Beasts before round 1 and every unit is re-skinned into it. An army unit keeps its `role` (tank, damage or support), so the
+ * The armies (2026-10-20; canvas 10.x and 11.x, design/tools/gen-armies.js; DECISIONS.md once Tu confirms): a run picks Undead,
+ * Beasts or Mages before round 1 and every unit is re-skinned into it. An army unit keeps its `role` (tank, damage or support), so the
  * tank lock, the front and back rows, the offers and every rune that reads a role work as before. What the army changes is the
  * unit's name, look, stats and its base skill (in the place of Guard, Expose or Mend), plus one rule for the whole squad:
  *   Undead, Horde: every skill hit raises a skeleton that stays (fight.ts's raiseArmySkeleton), five at most, then it upgrades them.
  *   Beasts, Pack: five units are fielded instead of three, and every hit a Beast lands fills the others' skill bars a little.
+ *   Mages, Orbs: every skill hit puts an orb around the mage (3 at most); orbs work alone every 2 s; a 4th merges them into one orb
+ *   that strikes at once and grows with every hit after it (fight.ts's mageOrbHit, tickOrbs).
  * Merge heroes (sim/heroes.ts) are off while an army is picked. Every number is a made-up first take, like ROLE_POOL's.
  */
 
-export const ARMY_ORDER: ArmyKind[] = ["undead", "beasts"];
+export const ARMY_ORDER: ArmyKind[] = ["undead", "beasts", "mages"];
 
 export interface ArmyUnitDef {
   kind: UnitKind;
@@ -38,6 +40,11 @@ export const ARMY_UNITS: Record<ArmyKind, Record<PlayerRole, ArmyUnitDef>> = {
     damage: { kind: "wolf", role: "damage", title: "Wolf", maxHp: 60, damage: 6, attackIntervalSec: 1.1, baseChain: "packBite" },
     support: { kind: "stag", role: "support", title: "Stag", maxHp: 72, damage: 2, attackIntervalSec: 1.1, healPerBeat: 3, baseChain: "herd" },
   },
+  mages: {
+    tank: { kind: "frostMage", role: "tank", title: "Frost Mage", maxHp: 135, damage: 5, attackIntervalSec: 1.3, baseChain: "frostOrb" },
+    damage: { kind: "stormMage", role: "damage", title: "Storm Mage", maxHp: 58, damage: 6, attackIntervalSec: 1.1, baseChain: "stormOrb" },
+    support: { kind: "lifeMage", role: "support", title: "Life Mage", maxHp: 74, damage: 2, attackIntervalSec: 1.1, healPerBeat: 3, baseChain: "lifeOrb" },
+  },
 };
 
 /** The roles an army starts with, in roster order (Beasts: 7 units, five fielded and two on the bench). The default squad takes one of each role
@@ -45,6 +52,7 @@ export const ARMY_UNITS: Record<ArmyKind, Record<PlayerRole, ArmyUnitDef>> = {
 export const ARMY_START_ORDER: Record<ArmyKind, PlayerRole[]> = {
   undead: ["tank", "damage", "support", "tank", "damage", "support"],
   beasts: ["tank", "damage", "support", "damage", "damage", "tank", "support"],
+  mages: ["tank", "damage", "support", "tank", "damage", "support"],
 };
 
 export function armyUnitDef(army: ArmyKind, role: PlayerRole): ArmyUnitDef {
@@ -140,6 +148,14 @@ export const ARMY_TEXT: Record<ArmyKind, ArmyText> = {
     ruleLines: ["Each beast is smaller and weaker.", "Every hit one lands fills every other beast's skill bar a little."],
     ruleCard: "You field 5 beasts instead of 3. Each beast is smaller and weaker, but every hit one lands fills every other beast's skill bar a little, so skills go off all the time.",
   },
+  mages: {
+    name: "Mages",
+    pitch: "Every skill builds orbs that work alone.",
+    ruleName: "Orbs",
+    ruleHead: "Every skill hit adds an orb.",
+    ruleLines: ["Up to 3 circle the mage. Every 2 seconds each one works on its own.", "A 4th merges them into one orb that strikes at once, then grows with every hit."],
+    ruleCard: "Every skill hit adds an orb around the mage, up to 3. Every 2 seconds each orb works on its own: Storm orbs zap an enemy, Frost orbs shield the Frost Mage, Life orbs heal the tank. A 4th orb merges them into one big orb that strikes at once, and strikes harder with every skill hit after that. When the skill ends, the orbs are gone.",
+  },
 };
 
 export interface UnitText {
@@ -190,6 +206,24 @@ export const UNIT_TEXT: Record<UnitKind, UnitText> = {
     skillName: "Herd", skillHead: "Heals every unit, more for a bigger pack.", skillChips: ["Whole squad"],
     skillLines: ["Heals each unit 1 for every beast in the squad: 5 beasts, 5 HP each.", "Each time it goes again, it heals again."],
     skillCard: "Heals every unit 1 for every beast in the squad. With 5 beasts, each unit gets 5 HP.",
+  },
+  frostMage: {
+    title: "Frost Mage", job: "The Mage Tank. Wraps itself in shield orbs.",
+    skillName: "Frost Orb", skillHead: "Adds an orb that shields the Frost Mage.", skillChips: ["Shield orb", "Whole squad"],
+    skillLines: ["Each hit adds a shield orb: every 2 seconds it gives the Frost Mage 10 shield.", "A 4th orb merges them: the whole squad gets a shield, and each hit after it is bigger."],
+    skillCard: "Adds an orb around the Frost Mage. Every 2 seconds each orb gives it 10 shield. A 4th orb merges them into one big orb that shields the whole squad at once, and every hit after that shields more.",
+  },
+  stormMage: {
+    title: "Storm Mage", job: "The Mage Damage unit. Orbs zap on their own.",
+    skillName: "Storm Orb", skillHead: "Adds an orb that zaps an enemy.", skillChips: ["One random enemy", "Front enemy"],
+    skillLines: ["Each hit adds a storm orb: every 2 seconds it zaps one enemy for 10.", "A 4th orb merges them into a big zap on the front enemy; each hit after it is bigger."],
+    skillCard: "Adds an orb around the Storm Mage. Every 2 seconds each orb zaps one random enemy for 10; two orbs can pick the same one. A 4th orb merges them into one big orb that strikes the front enemy at once, and every hit after that strikes harder.",
+  },
+  lifeMage: {
+    title: "Life Mage", job: "The Mage Healer. Heals a little, and builds healing orbs.",
+    skillName: "Life Orb", skillHead: "Adds an orb that heals the tank.", skillChips: ["The tank", "Whole squad"],
+    skillLines: ["Each hit adds a life orb: every 2 seconds it heals the tank 8.", "A 4th orb merges them: the whole squad is healed, and each hit after it heals more."],
+    skillCard: "Adds an orb around the Life Mage. Every 2 seconds each orb heals the tank for 8. A 4th orb merges them into one big orb that heals the whole squad at once, and every hit after that heals more.",
   },
 };
 

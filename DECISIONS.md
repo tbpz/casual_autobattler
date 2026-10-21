@@ -10,6 +10,25 @@
 
 ---
 
+## [2026-10-22] Mages built: orbs that merge and strike
+
+- **Decision:**
+  - The Mages are the third army, built as frame 12.0D draws them: Frost Mage (Tank), Storm Mage (Damage), Life Mage (Healer), each with an orb skill.
+  - Every skill hit adds an orb round the mage, 3 at most. Orbs stay between skills.
+  - Every 2 seconds all loose orbs work on one beat: a Storm orb hits one random enemy (two can pick the same), a Frost orb shields its mage, a Life orb heals the tank.
+  - A hit that finds 3 orbs out merges them into one big orb that strikes at once: Storm hits the front enemy, Frost shields the whole squad, Life heals it.
+  - Each later hit of that skill grows the big orb a step and strikes again, harder.
+  - When a skill that merged ends, every orb is gone. A skill that never merged keeps its orbs.
+  - A backfired hit pops the newest orb, or drops the big orb a step; with nothing to pop it ends the skill (Tu, 2026-10-21).
+  - The skills leave no mark and count as no Guard, Mend or Expose.
+  - Working choices, not confirmed: the limit of 3, the 2 s beat, the growth and every number (`config.ts`, `mage*`).
+- **Why:**
+  - Tu approved frame 12.0D ("Looks good") and asked for it built.
+  - The picture's numbers finished 2.5% of runs (build bot, n=800); the tuned ones finish about 1 in 4 (22.6%, n=800), like the other armies.
+  - Tu rejects renamed marks, so the skills leave none, as the Undead's do.
+- **Replaces:**
+  - The Mages line of "Each army fights its own way" (an orb past the cap pushes the oldest out and bursts); its other lines stand.
+
 ## [2026-10-21] Undead built: what the build settled about skeletons
 
 - **Decision:**

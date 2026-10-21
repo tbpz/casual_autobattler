@@ -118,6 +118,11 @@ export const ABILITY_MARKS: Record<ChainEffect, MarkId[]> = {
   roar: ["exposed"],
   packBite: [],
   herd: [],
+  // The Mages' skills (2026-10-21) leave none either, for the same reason: a Mage gets its marks from an upgrade.
+  // A Frost orb's shield still goes through addShield, so a rune that reads a shield landing sees it.
+  stormOrb: [],
+  frostOrb: [],
+  lifeOrb: [],
 };
 
 /** `effects` plus the base skill each army skill stands in for, so a rune that needs "guard" or "mend" counts

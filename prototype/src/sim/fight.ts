@@ -245,6 +245,103 @@ function raiseArmySkeleton(c: FightCtx, kind: SkeletonKind): { slot?: HeroState;
   return { slot };
 }
 
+// ---- The Mages' orbs (2026-10-21; canvas 12.0D, DECISIONS.md 2026-10-21) ----
+// Every hit of a mage's skill puts a loose orb around it, `mageOrbMax` at most. Loose orbs stay between skills and work on one shared
+// beat (`tickOrbs`). A skill hit that finds the orbs full merges them into one big orb (step 1) that strikes at once; every skill hit
+// after it makes the big orb one step bigger and strikes again, harder. When a skill that merged ends, the orbs are gone
+// (runFightLoop's restartCharge). The three skills leave no mark.
+
+/** What the merged orb's strike at `step` is worth before fatigue and runes: the first strike's number, grown for every step after the first. */
+function mageStrikeBase(cfg: FightConfig, effect: ChainEffect, step: number): number {
+  const first = effect === "stormOrb" ? cfg.mageStormMergeDamage : effect === "frostOrb" ? cfg.mageFrostMergeShield : cfg.mageLifeMergeHeal;
+  return first * Math.pow(cfg.mageMergeGrowth, Math.max(0, step - 1));
+}
+
+/** One hit of a Mages skill. A backfire pops the newest orb, or drops the big orb back one step; with nothing to pop it returns null, which
+ * ends the skill. Otherwise the hit adds a loose orb, or merges full orbs, or (with a big orb out) grows it and strikes again. */
+function mageOrbHit(c: FightCtx, effect: ChainEffect, hero: HeroState, backfire: boolean, boost: number): ChainHitEntry[] | null {
+  const cfg = c.cfg;
+  const orbs = hero.orbs ?? 0;
+  const big = hero.orbBig ?? 0;
+  const orbEntry: ChainHitEntry = { kind: "orb", targetId: hero.id, amount: 0, intended: 0, died: [] };
+  if (backfire) {
+    if (big > 0) hero.orbBig = big - 1;
+    else if (orbs > 0) hero.orbs = orbs - 1;
+    else return null;
+    c.events.push({ type: "orbPop", t: c.t, heroId: hero.id, orbs: hero.orbs ?? 0, orbBig: hero.orbBig ?? 0 });
+    return [orbEntry];
+  }
+  if (big === 0 && orbs < cfg.mageOrbMax) {
+    hero.orbs = orbs + 1;
+    c.events.push({ type: "orbAdd", t: c.t, heroId: hero.id, orbs: hero.orbs });
+    return [orbEntry];
+  }
+  const step = big + 1;
+  if (big === 0) {
+    hero.orbs = 0;
+    c.events.push({ type: "orbMerge", t: c.t, heroId: hero.id, step });
+  }
+  hero.orbBig = step;
+  c.events.push({ type: "orbStrike", t: c.t, heroId: hero.id, step });
+  // Strikes go through escalatedMagnitude at hit 1, so fatigue and the size runes apply and the growth comes from the step alone.
+  const raw = escalatedMagnitude(cfg, mageStrikeBase(cfg, effect, step), 1, boost);
+  if (effect === "stormOrb") {
+    const target = aliveOnSide(c.enemy, frontMostAliveId(c.enemy));
+    if (!target) return null;
+    const { died, applied } = applyDamageFrom(c.enemy, target.id, raw, 0, false, { source: hero, chain: true });
+    hero.dealt += applied;
+    return [{ kind: "damage", targetId: target.id, amount: applied, intended: raw, died }];
+  }
+  const allies = c.player.heroes.filter((h) => h.alive && h.hp > 0 && !h.skeleton);
+  if (allies.length === 0) return null;
+  if (effect === "frostOrb") {
+    return allies.map((target) => {
+      const shield = addShield(c, target, raw);
+      return { kind: "heal" as const, targetId: target.id, amount: 0, intended: raw, died: [] as string[], ...(shield > 0 ? { mark: "shield" as const, markStacks: shield } : {}) };
+    });
+  }
+  return allies.map((target) => {
+    const room = target.maxHp - target.hp;
+    const amount = room > 0 ? Math.max(1, Math.min(raw, target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp, room)) : 0;
+    target.hp += amount;
+    hero.restored += amount;
+    return { kind: "heal" as const, targetId: target.id, amount, intended: raw, died: [] as string[] };
+  });
+}
+
+/** The shared orb beat: every loose orb of every living mage works once. A mage holding a big orb has no loose ones. Storm orbs hit one
+ * random living enemy each (two can pick the same), Frost orbs shield their own mage, Life orbs heal the tank (the mage itself with no
+ * tank standing). Returns the fight's outcome if a zap wiped the enemy. */
+function tickOrbs(c: FightCtx, rng: Rng): "win" | null {
+  for (const mage of c.player.heroes) {
+    if (mage.army !== "mages" || !mage.alive || mage.hp <= 0 || (mage.orbBig ?? 0) > 0) continue;
+    const n = mage.orbs ?? 0;
+    for (let index = 0; index < n; index++) {
+      if (mage.kind === "stormMage") {
+        const alive = c.enemy.heroes.filter((h) => h.alive && h.hp > 0);
+        if (alive.length === 0) break;
+        const target = alive[Math.floor(rng.next() * alive.length)]!;
+        const { died, applied } = applyDamageFrom(c.enemy, target.id, c.cfg.mageStormOrbDamage, 0, false, { source: mage });
+        mage.dealt += applied;
+        c.events.push({ type: "orbTick", t: c.t, heroId: mage.id, index, orbKind: "storm", targetId: target.id, amount: applied });
+        for (const id of died) c.events.push({ type: "heroDown", t: c.t, side: "enemy", heroId: id });
+        if (isWiped(c.enemy)) return "win";
+      } else if (mage.kind === "frostMage") {
+        const added = addShield(c, mage, c.cfg.mageFrostOrbShield);
+        c.events.push({ type: "orbTick", t: c.t, heroId: mage.id, index, orbKind: "frost", targetId: mage.id, amount: added });
+      } else {
+        // No `heal` event here: the orbTick below is what the screen draws, so the heal is not announced twice.
+        const target = aliveOnSide(c.player, firstAliveTankId(c.player)) ?? mage;
+        const healed = Math.max(0, Math.min(c.cfg.mageLifeOrbHeal, target.maxHp - target.hp));
+        target.hp += healed;
+        mage.restored += healed;
+        c.events.push({ type: "orbTick", t: c.t, heroId: mage.id, index, orbKind: "life", targetId: target.id, amount: healed });
+      }
+    }
+  }
+  return null;
+}
+
 /** What a body falling does to the heroes' gifts: an Assassin that landed the kill has its bar filled again
  * (Bloodlust), and a living Necromancer raises a skeleton (Raise). Skeletons never raise skeletons. */
 function onBodyFell(c: FightCtx, fallen: HeroState, onEnemySide: boolean, source: HeroState | undefined): void {
@@ -743,6 +840,7 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
     ...(h.army ? { army: h.army, ...(h.kind ? { kind: h.kind } : {}) } : {}),
     ...(h.skeleton ? { skeleton: true } : {}),
     ...(h.skeletonKind ? { skeletonKind: h.skeletonKind, skeletonLevel: side.skeletonLevel?.[h.skeletonKind] ?? 0 } : {}),
+    ...(h.army === "mages" ? { orbs: h.alive ? h.orbs ?? 0 : 0, orbBig: h.alive ? h.orbBig ?? 0 : 0 } : {}),
     windupFireT: h.windupFireT,
     windupTargetId: h.windupTargetId,
     nextWindupT: h.nextWindupT,
@@ -1055,7 +1153,7 @@ function escalatedDurationSec(cfg: FightConfig, baseSec: number, hitIndex: numbe
  * charges set; "stun" produces a single entry with the frozen body's id and
  * durationSec/durationTotalSec set. */
 interface ChainHitEntry {
-  kind: "damage" | "heal" | "guard" | "stun" | "raise";
+  kind: "damage" | "heal" | "guard" | "stun" | "raise" | "orb";
   /** Who struck, when it was not the unit that used the skill (Command: each skeleton). */
   sourceId?: string;
   targetId: string | null;
@@ -1620,6 +1718,11 @@ function resolveOneEffect(
       }
       return out.length > 0 ? out : null;
     }
+    case "stormOrb":
+    case "frostOrb":
+    case "lifeOrb":
+      // Only inside a Mages fight (the orb state lives on the unit and the beat runs in runFightLoop).
+      return c && hero.army === "mages" ? mageOrbHit(c, effect, hero, backfire, boost) : null;
     case "packBite": {
       // One bite for itself and one for every other living Wolf, as a single hit on the front enemy.
       const target = aliveOnSide(targetSide, frontMostAliveId(targetSide));
@@ -1826,6 +1929,8 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
   const snapshots: TickSnapshot[] = [];
   // Burn ticks on one fight-wide clock, not per body (cfg.burnTickSec).
   let nextBurnT = cfg.burnTickSec;
+  // Mages' orbs work on one fight-wide beat too (cfg.mageOrbBeatSec).
+  let nextOrbT = cfg.mageOrbBeatSec;
 
   const dt = 1 / cfg.tickRate;
   const maxTicks = Math.round(cfg.maxFightSec * cfg.tickRate);
@@ -1913,6 +2018,12 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
     // An Assassin that landed a kill during the skill that just ended keeps its bar full (Bloodlust).
     hero.charge = hero.lustKill && hero.alive ? cfg.chargeThreshold : 0;
     hero.lustKill = false;
+    // A Mage whose skill merged its orbs starts again from none when the skill ends; loose orbs of a skill that never merged stay.
+    if ((hero.orbBig ?? 0) > 0) {
+      hero.orbs = 0;
+      hero.orbBig = 0;
+      events.push({ type: "orbClear", t: ctx!.t, heroId: hero.id });
+    }
   }
 
   // Cards that set a fight up (starting marks, shields) listen here.
@@ -2043,6 +2154,12 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
     if (!outcome && t >= nextBurnT) {
       nextBurnT += cfg.burnTickSec;
       outcome = tickBurn(events, t, cfg, ctx!);
+    }
+
+    // Mages' orbs (2026-10-21): after the burn tick, on their own shared beat.
+    if (!outcome && t >= nextOrbT) {
+      nextOrbT += cfg.mageOrbBeatSec;
+      outcome = tickOrbs(ctx!, rng);
     }
 
     // A tank's line can break (or recover, if healed back up) on any beat

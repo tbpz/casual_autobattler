@@ -168,6 +168,9 @@ interface HeroSlot {
   liveFace: string;
   face: Element | null;
   fallen: boolean;
+  /** A Mages army unit's orbs (2026-10-21; canvas 12.0D), drawn in `core` from the snapshot's `orbs` and `orbBig`: up to `mageOrbMax` loose
+   * orbs round the body, and one merged orb to its upper left that grows a step at a time. Undefined on anyone else. */
+  orbs?: { color: string; loose: HTMLElement[]; big: HTMLElement; shownLoose: number; shownBig: number };
 }
 
 /** How long a tracer takes to fly from attacker to target, in ms. Impact
@@ -205,6 +208,25 @@ const ROLE_BODY_PX: Record<string, number> = { tank: 52, damage: 34, support: 40
 const SQUAD_BODY_PX = 36;
 /** An Undead army skeleton (2026-10-21; canvas 12.0B draws 22 to 24px): small, so five fit beside the Bone Knight. */
 const SKELETON_BODY_PX = 24;
+
+/** The colour of each Mage's orbs: gold for Storm, blue for Frost, green for Life (canvas 12.0D). */
+const ORB_COLOR: Record<string, string> = { stormMage: "#ffe36a", frostMage: "#8fd3ff", lifeMage: "#6ee7a0" };
+/** Where the loose orbs sit round a Mage's body, as degrees from the right, clockwise: upper left, upper right, left (clear of the skill bubble above and the name below). */
+const ORB_ANGLES = [-150, -30, 180];
+/** How far out from the body's centre an orb sits, as a share of the body's size. */
+const ORB_RADIUS = 0.62;
+/** The merged orb: its centre, as a share of the body's size from the body's top-left, and the time its loose orbs take to fly into it. */
+const BIG_ORB_AT = { x: -0.6, y: 0.05 };
+const ORB_FLY_MS = 420;
+/** How long a lightning bolt flickers before it is gone, and how soon after it appears the number and flinch land. */
+const BOLT_MS = 420;
+const ORB_BOLT_LAND_MS = 110;
+
+/** The offset of an orb at `deg` degrees round a body, as a share of the body's size from its centre. */
+function orbOffset(deg: number): [number, number] {
+  const rad = (deg * Math.PI) / 180;
+  return [Math.cos(rad) * ORB_RADIUS, Math.sin(rad) * ORB_RADIUS];
+}
 
 function htmlToElement(html: string): Element {
   const holder = document.createElement("template");
@@ -563,6 +585,10 @@ export class FightView {
    * "HORDE n/5" text beside the front row. */
   private skeletonLooks: Map<string, string> = new Map();
   private hordeCount: HTMLElement | null = null;
+  /** Counts bolts drawn, so each lightning zig-zag differs from the last without any random number (fireBolt). */
+  private boltSeq = 0;
+  /** Storm Mages whose merged orb has just struck: the next damage hit from them is drawn as a thick bolt from the orb, not a plain line. */
+  private bigStrike: Set<string> = new Set();
   /** True once any chain has fired this fight (2026-08-15) — gates the
    * near-miss beat so it never competes with a chain that actually landed;
    * "so close" only means something when nothing else already happened. */
@@ -1017,6 +1043,7 @@ export class FightView {
         if (under) refs.core.insertAdjacentHTML("afterbegin", under);
         if (faceSize !== SQUAD_BODY_PX) refs.slot.style.setProperty("--role-size", `${faceSize}px`);
       }
+      if (side === "player" && hero.army === "mages" && hero.kind) refs.orbs = this.buildOrbs(refs.core, hero.kind);
       if (side === "player" && hero.hero) {
         // A merge hero wears its recipe and a crown (canvas 8.x); a Dragon grows with its stage.
         const scale = hero.hero === "dragon" ? DRAGON_SCALE[Math.min(3, hero.stage ?? 0)]! : 1;
@@ -1263,6 +1290,147 @@ export class FightView {
     }
   }
 
+  /** A Mage's orbs (2026-10-21; canvas 12.0D): `mageOrbMax` loose orbs at fixed places round the body and one merged orb to its upper left, all hidden
+   * until the snapshot says they exist (`updateOrbs`). They live in the body's `core`, so they follow its lunge. */
+  private buildOrbs(core: HTMLElement, kind: string): NonNullable<HeroSlot["orbs"]> {
+    const color = ORB_COLOR[kind] ?? "#ffe36a";
+    const loose: HTMLElement[] = [];
+    for (let i = 0; i < this.cfg.mageOrbMax; i++) {
+      const [dx, dy] = orbOffset(ORB_ANGLES[i % ORB_ANGLES.length]!);
+      const orb = document.createElement("div");
+      orb.className = "orb";
+      orb.style.setProperty("--orb", color);
+      orb.style.left = `${(50 + dx * 100).toFixed(1)}%`;
+      orb.style.top = `${(50 + dy * 100).toFixed(1)}%`;
+      core.appendChild(orb);
+      loose.push(orb);
+    }
+    const big = document.createElement("div");
+    big.className = "orb-big";
+    big.style.setProperty("--orb", color);
+    big.style.left = `${(BIG_ORB_AT.x * 100).toFixed(1)}%`;
+    big.style.top = `${(BIG_ORB_AT.y * 100).toFixed(1)}%`;
+    big.innerHTML = '<span class="orb-spark"><i>✦</i><i>✦</i><i>✦</i><i>✦</i></span>';
+    core.appendChild(big);
+    return { color, loose, big, shownLoose: 0, shownBig: 0 };
+  }
+
+  /** Shows as many loose orbs as the snapshot says, and the merged orb at its step (nothing loose while it stands). */
+  private updateOrbs(refs: HeroSlot, hero: HeroSnapshot): void {
+    const orbs = refs.orbs;
+    if (!orbs) return;
+    const big = hero.alive ? hero.orbBig ?? 0 : 0;
+    const loose = hero.alive && big === 0 ? hero.orbs ?? 0 : 0;
+    if (loose !== orbs.shownLoose) {
+      orbs.loose.forEach((el, i) => el.classList.toggle("on", i < loose));
+      orbs.shownLoose = loose;
+    }
+    if (big !== orbs.shownBig) {
+      orbs.big.classList.toggle("on", big > 0);
+      if (big > 0) orbs.big.style.setProperty("--orb-step", String(big));
+      orbs.shownBig = big;
+    }
+  }
+
+  /** One lightning bolt from `from` to `to` (2026-10-21; canvas 12.0D): a jagged line with a white-hot core, flickering for BOLT_MS. A thick
+   * one forks once. The zig-zag is drawn once, so a paused fight holds it still; a CSS animation does the flicker. */
+  private fireBolt(from: HTMLElement, to: HTMLElement, color: string, thick: boolean): void {
+    const a = this.centerOf(from);
+    const b = this.centerOf(to);
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len;
+    const uy = dy / len;
+    const nx = -uy;
+    const ny = ux;
+    const w = thick ? 5 : 1.6;
+    const segments = Math.max(4, Math.round(len / 16));
+    const jig = (): number => {
+      this.boltSeq += 1;
+      const v = Math.sin(this.boltSeq * 12.9898) * 43758.5453;
+      return (v - Math.floor(v)) * 2 - 1;
+    };
+    const pts: Array<[number, number]> = [[a.x, a.y]];
+    for (let i = 1; i < segments; i++) {
+      const t = i / segments;
+      const j = jig() * (5 + w * 1.6);
+      pts.push([a.x + dx * t + nx * j, a.y + dy * t + ny * j]);
+    }
+    pts.push([b.x, b.y]);
+    const path = (p: Array<[number, number]>): string => p.map(([x, y], i) => `${i ? "L" : "M"} ${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+    let d = path(pts);
+    if (thick) {
+      const m = pts[Math.floor(segments / 2)]!;
+      const s = jig() > 0 ? 1 : -1;
+      d += ` ${path([m, [m[0] + ux * 12 + nx * 14 * s, m[1] + uy * 12 + ny * 14 * s], [m[0] + ux * 24 + nx * 10 * s, m[1] + uy * 24 + ny * 10 * s]])}`;
+    }
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "bolt");
+    svg.style.setProperty("--bolt-ms", `${BOLT_MS}ms`);
+    svg.style.setProperty("--bolt-color", color);
+    for (const cls of ["outer", "core"]) {
+      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      p.setAttribute("class", cls);
+      p.setAttribute("d", d);
+      p.setAttribute("stroke-width", cls === "outer" ? String(w * 2) : String(w));
+      svg.appendChild(p);
+    }
+    this.tracerLayer.appendChild(svg);
+    fightClock.setTimeout(() => svg.remove(), BOLT_MS + 60);
+  }
+
+  /** One loose orb did its work on the shared beat (canvas 12.0D): the orb swells; a Storm orb throws a thin bolt and a number at its enemy,
+   * a Frost orb rings its mage and shows the shield, a Life orb rings the tank and shows the heal. The HP and shield bars follow from the snapshot. */
+  private showOrbTick(heroId: string, index: number, orbKind: "storm" | "frost" | "life", targetId: string, amount: number): void {
+    const mage = this.playerHeroes.get(heroId);
+    const orbEl = mage?.orbs?.loose[index];
+    if (orbEl) pulseClass(orbEl, "work", 450);
+    const rounded = Math.round(amount);
+    if (orbKind === "storm") {
+      const target = this.enemyHeroes.get(targetId);
+      if (!target) return;
+      if (orbEl) this.fireBolt(orbEl, target.body, ORB_COLOR.stormMage!, false);
+      fightClock.setTimeout(() => {
+        pulseClass(target.core, "flinch", 300);
+        if (rounded > 0) this.showPopup(target.body, `-${rounded}`, "normal", 0.9, 0, ORB_COLOR.stormMage);
+      }, ORB_BOLT_LAND_MS);
+      return;
+    }
+    const target = this.playerHeroes.get(targetId);
+    if (!target) return;
+    if (orbKind === "frost") {
+      this.popRing(target.core, ORB_COLOR.frostMage!);
+      if (rounded > 0) this.showMarkPopup("player", targetId, `+${rounded} ${MARK_CHIP.shield.word.toUpperCase()}`, "shield", 0);
+    } else {
+      this.popRing(target.core, ORB_COLOR.lifeMage!);
+      pulseClass(target.body, "healed", 500);
+      if (rounded > 0) this.showPopup(target.body, `+${rounded}`, "heal", 1, 0, HEAL_ACCENT);
+    }
+  }
+
+  /** The loose orbs of a Mage fly into the merged orb: ghost copies leave where the orbs stood and arrive at its place, then are gone. */
+  private flyOrbsIntoBig(refs: HeroSlot, count: number): void {
+    const orbs = refs.orbs;
+    if (!orbs) return;
+    const target = this.centerOf(orbs.big);
+    for (let i = 0; i < count; i++) {
+      const src = orbs.loose[i];
+      if (!src) continue;
+      const from = this.centerOf(src);
+      const ghost = document.createElement("div");
+      ghost.className = "orb-ghost";
+      ghost.style.setProperty("--orb", orbs.color);
+      ghost.style.setProperty("--fly-x", `${(target.x - from.x).toFixed(1)}px`);
+      ghost.style.setProperty("--fly-y", `${(target.y - from.y).toFixed(1)}px`);
+      ghost.style.setProperty("--fly-ms", `${ORB_FLY_MS}ms`);
+      ghost.style.left = `${from.x.toFixed(1)}px`;
+      ghost.style.top = `${from.y.toFixed(1)}px`;
+      this.tracerLayer.appendChild(ghost);
+      fightClock.setTimeout(() => ghost.remove(), ORB_FLY_MS + 60);
+    }
+  }
+
   /** The count beside the front row: how many skeletons stand, and FULL at the limit. */
   private updateHorde(heroes: HeroSnapshot[]): void {
     if (!this.hordeCount) return;
@@ -1310,6 +1478,7 @@ export class FightView {
       refs.lastHpFrac = hpFrac;
       refs.lastEdgeFrac = edgeFrac;
       refs.hpLabelText.textContent = `${Math.round(Math.max(hero.hp, 0))}/${Math.round(hero.maxHp)}`;
+      this.updateOrbs(refs, hero);
       const shieldVisible = shield >= 0.5;
       refs.hpShieldLabel.classList.toggle("show", shieldVisible);
       if (shieldVisible) refs.hpShieldLabel.textContent = ` ${MARK_CHIP.shield.icon}${Math.round(shield)}`;
@@ -1738,6 +1907,33 @@ export class FightView {
         }
         break;
       }
+      // Mages' orbs (2026-10-21; canvas 12.0D). The orbs themselves are drawn from the snapshot (updateOrbs); these are the moments.
+      case "orbAdd":
+      case "orbPop": {
+        const refs = this.playerHeroes.get(e.heroId);
+        if (refs?.orbs) this.popRing(refs.core, e.type === "orbPop" ? "#ff5d5d" : refs.orbs.color);
+        break;
+      }
+      case "orbMerge": {
+        const refs = this.playerHeroes.get(e.heroId);
+        if (refs) this.flyOrbsIntoBig(refs, this.cfg.mageOrbMax);
+        break;
+      }
+      case "orbStrike": {
+        const refs = this.playerHeroes.get(e.heroId);
+        if (refs?.orbs) {
+          this.popRing(refs.core, refs.orbs.color);
+          pulseClass(refs.orbs.big, "strike", 500);
+          this.bigStrike.add(e.heroId);
+        }
+        break;
+      }
+      case "orbClear":
+        this.bigStrike.delete(e.heroId);
+        break;
+      case "orbTick":
+        this.showOrbTick(e.heroId, e.index, e.orbKind, e.targetId, e.amount);
+        break;
       case "resolve":
         this.showResolve(e.outcome);
         break;
@@ -2327,7 +2523,7 @@ export class FightView {
     hitIndex: number,
     amount: number,
     targetId: string | null,
-    kind: "damage" | "heal" | "guard" | "stun" | "raise",
+    kind: "damage" | "heal" | "guard" | "stun" | "raise" | "orb",
     backfire: boolean,
     sourceId: string,
     durationSec?: number,
@@ -2338,7 +2534,8 @@ export class FightView {
     markStacks?: number,
   ): void {
     // A Raise or Bone Wall hit (2026-10-21) draws nothing here: the skeleton's own `raise` or `skeletonUpgrade` event is what the screen shows.
-    if (kind === "raise") return;
+    // Same for a Mage's hit that only adds an orb (`orbAdd`).
+    if (kind === "raise" || kind === "orb") return;
     // targetId is null on a WHIFF (2026-09-02, Phase 1 of the chain-targeting
     // plan — see events.ts's chainHit docstring). This is the minimal
     // compile-safe handling — no popup, no flinch, no tracer.
@@ -2364,11 +2561,17 @@ export class FightView {
       targetId !== null && !this.heroIsFront.get(targetId) && this.frontGroupHasSurvivor(chainTargetSide)
         ? this.firstFrontSurvivor(chainTargetSide)
         : undefined;
-    const chainFlightMs = chainBlocker ? LOB_TRACER_MS : TRACER_MS;
+    // A Storm Mage's merged orb strikes with a thick lightning bolt from the orb itself (canvas 12.0D), not a plain line.
+    const strikeBolt = !!attacker?.orbs && kind === "damage" && !backfire && this.bigStrike.delete(sourceId);
+    const chainFlightMs = strikeBolt ? ORB_BOLT_LAND_MS : chainBlocker ? LOB_TRACER_MS : TRACER_MS;
 
     if (attacker && target) {
-      this.lungeToward(attacker.core, target.body, 14);
-      this.fireTracer(attacker.body, target.body, chainColor, 8, "chain-tracer", chainFlightMs, !!chainBlocker, chainBlocker?.body);
+      if (strikeBolt) {
+        this.fireBolt(attacker.orbs!.big, target.body, ORB_COLOR.stormMage!, true);
+      } else {
+        this.lungeToward(attacker.core, target.body, 14);
+        this.fireTracer(attacker.body, target.body, chainColor, 8, "chain-tracer", chainFlightMs, !!chainBlocker, chainBlocker?.body);
+      }
     }
 
     const land = () => {

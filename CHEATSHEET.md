@@ -1,5 +1,5 @@
 # Cheatsheet
-Last updated: 2026-10-21 22:40 (values from prototype/src/sim/config.ts). All marks last one fight.
+Last updated: 2026-10-22 00:08 (values from prototype/src/sim/config.ts). All marks last one fight.
 
 Effects:
 - Exposed: each stack makes the body take +12% damage from every hit, max 10 stacks.
@@ -101,4 +101,8 @@ Armies (branch dev/merge-heroes; made-up numbers; a run picks one before round 1
 - Bear (Tank; 140 HP, 5 damage) — Roar: takes the next slam like Guard; on its first hit, every other Beast gets 25% of a full skill bar.
 - Wolf (Damage; 60 HP, 6 damage) — Pack Bite: 6 damage to the front enemy, once more for each other living Wolf (3 Wolves: 18), in one hit.
 - Stag (Healer; 72 HP, heals 3 a beat) — Herd: heals every unit 1 per living Beast per hit (5 Beasts: 5).
-- Each army skill is a chain like any other: up to 7 hits, later hits up to 2.8x; the same marks as the skill it replaces (Roar leaves Exposed; Pack Bite, Herd, Raise, Bone Wall and Command leave none).
+- Mages — Orbs: every skill hit adds an orb round that mage, 3 at most; orbs stay between skills. Every 2s all orbs work on one shared beat. A hit that finds 3 orbs out merges them into one big orb (step 1) that strikes at once; each later hit of that skill grows it one step and strikes again, 1.2x the strike before. When a skill that merged ends, every orb is gone. A big orb has no loose orbs, so none work while it stands.
+- Frost Mage (Tank; 135 HP, 5 damage) — Frost Orb: each orb gives the Frost Mage that owns it 10 shield per beat. Merged: every unit gets 45 shield (the usual cap, half a unit's HP). Backfire: pops the newest orb, or drops the big orb one step; with nothing to pop the skill ends. Leaves no mark.
+- Storm Mage (Damage; 58 HP, 6 damage) — Storm Orb: each orb hits one random living enemy for 10 per beat (two orbs can pick the same one). Merged: 80 to the front enemy. Backfire as Frost Orb. Leaves no mark.
+- Life Mage (Healer; 74 HP, heals 3 a beat) — Life Orb: each orb heals the tank 8 per beat (the Life Mage itself with no tank standing). Merged: heals every unit 40, each capped at 20% of its max HP per hit. Backfire as Frost Orb. Leaves no mark.
+- Each army skill is a chain like any other: up to 7 hits, later hits up to 2.8x; the same marks as the skill it replaces (Roar leaves Exposed; Pack Bite, Herd, Raise, Bone Wall, Command and the three orb skills leave none). A Mage's merged strike does not use the later-hit multiplier; it grows only by orb step.

@@ -7,6 +7,7 @@ import { ARMY_ACCENT, armyBodyHtml } from "./armyLook.js";
 const CARD_UNITS: Record<ArmyKind, UnitKind[]> = {
   undead: ["boneKnight", "wraith", "bonePriest"],
   beasts: ["bear", "wolf", "wolf", "wolf", "stag"],
+  mages: ["frostMage", "stormMage", "lifeMage"],
 };
 
 const ROLE_OF: Record<UnitKind, "tank" | "damage" | "support"> = {
@@ -16,10 +17,13 @@ const ROLE_OF: Record<UnitKind, "tank" | "damage" | "support"> = {
   bear: "tank",
   wolf: "damage",
   stag: "support",
+  frostMage: "tank",
+  stormMage: "damage",
+  lifeMage: "support",
 };
 
 /**
- * The army pick (2026-10-20; canvas 10.0A, DECISIONS.md once Tu confirms): the first screen of a run. Two cards, each showing the army's
+ * The army pick (2026-10-20; canvas 10.0A, DECISIONS.md once Tu confirms): the first screen of a run. One card per army, each showing the army's
  * bodies, its rule in a line and its three skills; one tap picks it. Nothing is pre-selected. An army changes every unit in the squad:
  * how it looks, what its skill does, and one rule for every fight (sim/armies.ts).
  */
@@ -44,11 +48,13 @@ export function renderArmyScreen(container: HTMLElement, onChoose: (army: ArmyKi
     const text = ARMY_TEXT[army];
     const accent = ARMY_ACCENT[army];
     const units = CARD_UNITS[army];
-    const size = army === "undead" ? 40 : 32;
+    // Three big bodies (Undead, Mages) or a pack of five small ones (Beasts).
+    const wide = units.length <= 3;
+    const size = wide ? 40 : 32;
     const bodies = units
       .map((kind) => {
         const unit = UNIT_TEXT[kind];
-        return `<span class="army-unit" style="width:${army === "undead" ? 78 : 56}px">${armyBodyHtml(kind, size)}<span class="army-unit-title" style="color:${ROLE_HEX[ROLE_OF[kind]]}">${esc(unit.title)}</span></span>`;
+        return `<span class="army-unit" style="width:${wide ? 78 : 56}px">${armyBodyHtml(kind, size)}<span class="army-unit-title" style="color:${ROLE_HEX[ROLE_OF[kind]]}">${esc(unit.title)}</span></span>`;
       })
       .join("");
     const skills = [...new Set(units)].map((k) => UNIT_TEXT[k].skillName).join(" · ");

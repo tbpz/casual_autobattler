@@ -1,7 +1,7 @@
 // The icons on an army's popup tiles and cards (2026-10-20; ported from design/tools/gen-armies.js's `I`). Each is the inner markup of a 24-unit
 // viewBox, drawn in one colour. DOM-free: every export is data or a string.
 
-export type ArmyGlyph = "wall" | "command" | "skull" | "horde" | "roar" | "bite" | "herd" | "pack" | "bullet" | "repeat";
+export type ArmyGlyph = "wall" | "command" | "skull" | "horde" | "roar" | "bite" | "herd" | "pack" | "bullet" | "repeat" | "orbs" | "bolt" | "frostorb" | "lifeorb";
 
 const sw = (c: string, w = 1.8): string => `fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"`;
 
@@ -16,6 +16,10 @@ const GLYPHS: Record<ArmyGlyph, (c: string) => string> = {
   pack: (c) => `<circle cx="7" cy="9" r="2.2" fill="${c}"/><circle cx="12" cy="6.5" r="2.2" fill="${c}"/><circle cx="17" cy="9" r="2.2" fill="${c}"/><path d="M7 16 C7 13 17 13 17 16 C17 19 14 19.5 12 19.5 C10 19.5 7 19 7 16 Z" fill="${c}33" ${sw(c, 1.6)}/>`,
   bullet: (c) => `<circle cx="12" cy="12" r="4" fill="${c}"/>`,
   repeat: (c) => `<path d="M5 9 A7 7 0 0 1 17.5 6.5 M19 15 A7 7 0 0 1 6.5 17.5" ${sw(c, 2)}/><path d="M17.5 2.5 V7 H13 M6.5 21.5 V17 H11" ${sw(c, 2)}/>`,
+  orbs: (c) => `<circle cx="12" cy="5.5" r="3" fill="${c}"/><circle cx="5.5" cy="16.5" r="3" fill="${c}"/><circle cx="18.5" cy="16.5" r="3" fill="${c}"/><path d="M12 9 L7.5 14 M12 9 L16.5 14 M8.5 16.5 H15.5" ${sw(c, 1.2)} opacity="0.55"/>`,
+  bolt: (c) => `<path d="M13.5 2.5 L6 13 H11.5 L9.5 21.5 L18 10.5 H12.5 Z" fill="${c}33" ${sw(c, 1.7)}/>`,
+  frostorb: (c) => `<circle cx="12" cy="12" r="5.5" fill="${c}33" ${sw(c, 1.7)}/><path d="M12 3 V21 M4.2 7.5 L19.8 16.5 M4.2 16.5 L19.8 7.5" ${sw(c, 1.3)}/>`,
+  lifeorb: (c) => `<circle cx="12" cy="12" r="8" fill="${c}33" ${sw(c, 1.7)}/><path d="M12 7.5 V16.5 M7.5 12 H16.5" ${sw(c, 2)}/>`,
 };
 
 /** An icon as an inline svg, `size` px square, drawn in `hex`. */
@@ -31,7 +35,10 @@ export const SKILL_ICON: Record<string, ArmyGlyph> = {
   roar: "roar",
   packBite: "bite",
   herd: "herd",
+  stormOrb: "bolt",
+  frostOrb: "frostorb",
+  lifeOrb: "lifeorb",
 };
 
 /** The glyph each army's rule wears. */
-export const RULE_ICON = { undead: "horde", beasts: "pack" } as const;
+export const RULE_ICON = { undead: "horde", beasts: "pack", mages: "orbs" } as const;
