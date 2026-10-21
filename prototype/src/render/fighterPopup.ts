@@ -1,11 +1,11 @@
 import { backfireChanceFor, chainContinuationChance, chainEffectChip, fatigueTier, type ChainEffect, type FatigueTier, type RunConfig } from "../sim/config.js";
 import type { RunProgress } from "../sim/progress.js";
 import { ROLE_LABEL, type PlayerRole } from "../sim/roles.js";
-import type { ArmyKind, HeroKind, Role, UnitKind } from "../sim/types.js";
+import type { ArmyKind, HeroKind, Role, SkeletonKind, UnitKind } from "../sim/types.js";
 import { ARMY_TEXT, ARMY_UNITS, UNIT_TEXT, unitTitle } from "../sim/armies.js";
 import { DRAGON_STAGE_NAMES, HERO_POOL, HERO_TEXT, isFrontRow } from "../sim/heroes.js";
 import { DEAD_BODY, deadFace, squadFace, villainFace } from "./faces.js";
-import { ARMY_ACCENT } from "./armyLook.js";
+import { ARMY_ACCENT, skeletonLook } from "./armyLook.js";
 import { RULE_ICON, SKILL_ICON, armyIconSvg, type ArmyGlyph } from "./armyIcons.js";
 import {
   ICON_EXPOSED,
@@ -46,8 +46,10 @@ export interface PopupFighter {
   /** An army unit (2026-10-20; sim/armies.ts): which army and which of its six units. */
   army?: ArmyKind;
   kind?: UnitKind;
-  /** A Necromancer's skeleton (a standing one; the empty places are filtered out by the caller). */
+  /** A skeleton (a standing one; the empty places are filtered out by the caller). An Undead army's also has its kind and level. */
   skeleton?: boolean;
+  skeletonKind?: SkeletonKind;
+  skeletonLevel?: number;
 }
 
 export interface PopupOpts {
@@ -115,7 +117,7 @@ export function openFighterPopup(opts: PopupOpts): () => void {
   function bodyColor(f: PopupFighter): string {
     if (isEnemy(f.id)) return f.role === "bruiser" ? ENEMY_BRUISER : ENEMY_RED;
     if (!f.alive) return DEAD_BODY;
-    if (f.skeleton) return "#d7dae3";
+    if (f.skeleton) return f.skeletonKind ? skeletonLook(f.skeletonKind).bg : "#d7dae3";
     return isPlayerRole(f.role) ? unitBodyBg(f) : ROLE_HEX.damage;
   }
 
@@ -361,7 +363,7 @@ export function openFighterPopup(opts: PopupOpts): () => void {
     const tag = enemy
       ? `<span class="pp-enemytag">ENEMY</span>`
       : f.skeleton
-        ? `<span class="pp-roletag" style="color:#d7dae3">SKELETON</span>`
+        ? `<span class="pp-roletag" style="color:#d7dae3">${f.skeletonKind ? f.skeletonKind.toUpperCase() + " " : ""}SKELETON</span>`
         : kind
           ? `<span class="pp-roletag pp-herotag">HERO</span>${rowTag(isFrontRow(f) ? "FRONT" : "BACK")}`
           : role && f.army
@@ -374,7 +376,11 @@ export function openFighterPopup(opts: PopupOpts): () => void {
     const desc = enemy
       ? enemyLine(f)
       : f.skeleton
-        ? "Rose from a fallen body. Fights for the Necromancer until the fight ends."
+        ? f.skeletonKind === "shield"
+          ? `Raised by Bone Wall. Stands in front and takes the enemy's hits first. Stays until it falls.${f.skeletonLevel ? ` Upgraded ${f.skeletonLevel}${f.skeletonLevel === 1 ? " time" : " times"}.` : ""}`
+          : f.skeletonKind === "warrior"
+            ? `Raised by Raise. Hits on its own until it falls, and the enemy's hits reach it after the shields.${f.skeletonLevel ? ` Upgraded ${f.skeletonLevel}${f.skeletonLevel === 1 ? " time" : " times"}.` : ""}`
+            : "Rose from a fallen body. Fights for the Necromancer until the fight ends."
         : kind
           ? HERO_TEXT[kind].job + stageLine
           : role && f.army && f.kind && f.alive

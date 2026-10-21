@@ -7,7 +7,7 @@ import { hpBarLayout } from "./hpBar.js";
 import { ARMY_SKILL_CARD, termFromTarget, type TermId } from "./terms.js";
 import { isFrontRow } from "../sim/heroes.js";
 import { DRAGON_SCALE, crownOnBody, fangsHtml, unitAccentHex, unitBodyBg, unitBodyStyle, unitFaceHtml, unitUnderHtml } from "./heroLook.js";
-import { ARMY_ACCENT, armyBodyPx } from "./armyLook.js";
+import { ARMY_ACCENT, armyBodyPx, skeletonLook } from "./armyLook.js";
 import { BUBBLE_H, BUBBLE_TAIL, BUBBLE_W, bubblePath, bubbleText, clampTailDx, type BubbleKind } from "./bubble.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
 import { ROLE_SORT_PRIORITY } from "../sim/roles.js";
@@ -203,6 +203,14 @@ const ROLE_BODY_PX: Record<string, number> = { tank: 52, damage: 34, support: 40
 
 /** Every body on your side is this size, the Tank included (style.css `.player-side .hero-slot --role-size`), so size never says "boss". */
 const SQUAD_BODY_PX = 36;
+/** An Undead army skeleton (2026-10-21; canvas 12.0B draws 22 to 24px): small, so five fit beside the Bone Knight. */
+const SKELETON_BODY_PX = 24;
+
+function htmlToElement(html: string): Element {
+  const holder = document.createElement("template");
+  holder.innerHTML = html;
+  return holder.content.firstElementChild as Element;
+}
 
 /** How many guard pips to draw before collapsing to a bare "⛨ ×N" count
  * (2026-09-15 guard-visibility pass) — past this, individual pips stop being
@@ -551,6 +559,10 @@ export class FightView {
    * currently alive: a dead front-ranker just means frontGroupHasSurvivor
    * comes back false, not that some other body silently becomes "front". */
   private heroIsFront: Map<string, boolean> = new Map();
+  /** Undead army (2026-10-21): the look each skeleton place wears now, so a place filled again with the other kind is redrawn; and the
+   * "HORDE n/5" text beside the front row. */
+  private skeletonLooks: Map<string, string> = new Map();
+  private hordeCount: HTMLElement | null = null;
   /** True once any chain has fired this fight (2026-08-15) — gates the
    * near-miss beat so it never competes with a chain that actually landed;
    * "so close" only means something when nothing else already happened. */
@@ -737,6 +749,7 @@ export class FightView {
     this.updateChainHud(shown);
     this.updateSide(this.playerHeroes, shown.playerHeroes, shown);
     this.updateSide(this.enemyHeroes, shown.enemyHeroes, shown);
+    this.updateHorde(shown.playerHeroes);
     this.updateWindupTells(shown);
     this.updateFreezeTells(shown);
 
@@ -966,6 +979,8 @@ export class FightView {
     // with no leader, not a false single body ahead of the rest.
     const frontRank = heroes.length > 0 ? ROLE_SORT_PRIORITY[(heroes[0] as HeroSnapshot).role] : 0;
     let stillFront = true;
+    // An Undead army (2026-10-21): its skeleton places stand in the FRONT row beside the Bone Knight, small bodies, hidden until they rise.
+    const undeadFight = side === "player" && heroes.some((h) => h.army === "undead");
     // Your squad (DECISIONS.md, front and back rows): a Tank stands alone in front and everyone else in a second row behind it, every body one
     // size and none dimmed, with the words FRONT and BACK at the left end of each row. With no Tank there is one flat row and no words.
     const playerFront: HTMLElement[] = [];
@@ -978,7 +993,7 @@ export class FightView {
     let backCount = 0;
     heroes.forEach((hero, i) => {
       if (stillFront && ROLE_SORT_PRIORITY[hero.role] !== frontRank) stillFront = false;
-      const isFront = side === "player" ? isFrontRow(hero) : stillFront;
+      const isFront = side === "player" ? (undeadFight && hero.skeleton ? true : isFrontRow(hero)) : stillFront;
       this.heroIsFront.set(hero.id, isFront);
 
       const refs = makeHeroSlot(hero, side, accentForHero(hero, side, i), i);
@@ -986,7 +1001,7 @@ export class FightView {
       // real size, back rank included, which decides between the plain and the size-tuned eye.
       const baseSize = ROLE_BODY_PX[hero.role] ?? 40;
       // An army unit (2026-10-20) has its own face and size: a Beast is smaller than a plain unit (the Bear 36, the rest 30).
-      const faceSize = side === "player" ? armyBodyPx(hero.kind, SQUAD_BODY_PX) : isFront ? baseSize : baseSize * BACK_RANK_SCALE;
+      const faceSize = side === "player" ? (undeadFight && hero.skeleton ? SKELETON_BODY_PX : armyBodyPx(hero.kind, SQUAD_BODY_PX)) : isFront ? baseSize : baseSize * BACK_RANK_SCALE;
       refs.liveFace =
         side === "player"
           ? unitFaceHtml(hero, fatigueTier(this.cfg, hero.fatigue), faceSize)
@@ -1021,10 +1036,18 @@ export class FightView {
       refs.slot.style.flex = "0 0 auto";
       if (hero.skeleton) {
         // A Necromancer's empty place: hidden until Raise fills it (updateSide), a fixed width since it has no HP to scale by.
-        refs.slot.style.width = "44px";
+        refs.slot.style.width = undeadFight ? `${SKELETON_BODY_PX + 8}px` : "44px";
         refs.slot.style.display = "none";
         refs.slot.classList.add("is-skeleton");
         refs.body.style.background = "#d7dae3";
+        if (undeadFight) {
+          // An army skeleton wears the kind it is raised as (updateSide): its own size, no name and no HP numbers under it.
+          refs.slot.classList.add("undead-skel");
+          refs.slot.style.setProperty("--role-size", `${SKELETON_BODY_PX}px`);
+          const badge = document.createElement("span");
+          badge.className = "skel-badge";
+          refs.slot.appendChild(badge);
+        }
       }
       if (side === "player") {
         // One size, no dimming: no rank-back class (it carries the smaller size, the dim and the smaller freeze pill). The rows below hold the depth.
@@ -1054,6 +1077,11 @@ export class FightView {
       this.heroFatigue.set(hero.id, hero.fatigue);
     });
     if (side === "player") this.appendSquadRows(container, playerFront, playerBack);
+    if (undeadFight) {
+      this.hordeCount = document.createElement("span");
+      this.hordeCount.className = "horde-count";
+      (container.querySelector(".rank-row.front") ?? container.querySelector(".rank-row"))?.appendChild(this.hordeCount);
+    }
   }
 
   /** Puts your squad in its rows: the Tank in front, everyone else in a row behind, FRONT and BACK at the left end of each. With only one
@@ -1151,6 +1179,8 @@ export class FightView {
     c.toggle("max", t.max);
     c.toggle("backfire", t.backfire);
     c.toggle("muted", t.muted);
+    // A long skill word (BONE WALL, COMMAND, PACK BITE) is set smaller so it clears the count in the fixed-size bubble.
+    c.toggle("long", !t.backfire && !t.muted && t.name.length > 6);
   }
 
   /** The flow of yellow that leaves the bar when a skill fires: a short bright streak runs along a line from the bar's left end, a little
@@ -1203,14 +1233,57 @@ export class FightView {
     refs.fallen = fallen;
   }
 
+  /** Draws an Undead army skeleton as the kind it is now (warrior or shield), once per change of kind, and keeps its +N badge and its
+   * row order (shields before the Bone Knight, warriors after) in step with the snapshot. */
+  private dressSkeleton(refs: HeroSlot, hero: HeroSnapshot, filled: boolean): void {
+    const kind = filled ? hero.skeletonKind : undefined;
+    if (!kind) {
+      this.skeletonLooks.delete(hero.id);
+      refs.slot.style.order = "";
+      return;
+    }
+    if (this.skeletonLooks.get(hero.id) !== kind) {
+      this.skeletonLooks.set(hero.id, kind);
+      const look = skeletonLook(kind);
+      refs.body.style.background = look.bg;
+      refs.liveFace = look.face;
+      const next = htmlToElement(look.face);
+      refs.face?.replaceWith(next);
+      refs.face = next;
+      refs.fallen = false;
+      refs.core.querySelector(".skel-overlay")?.remove();
+      refs.core.insertAdjacentHTML("beforeend", `<span class="skel-overlay" style="position:absolute;inset:0;display:block;pointer-events:none;z-index:2">${look.overlay}</span>`);
+    }
+    refs.slot.style.order = kind === "shield" ? "-1" : "1";
+    const badge = refs.slot.querySelector<HTMLElement>(".skel-badge");
+    const level = hero.skeletonLevel ?? 0;
+    if (badge) {
+      badge.classList.toggle("show", level > 0);
+      badge.textContent = level > 0 ? `+${level}` : "";
+    }
+  }
+
+  /** The count beside the front row: how many skeletons stand, and FULL at the limit. */
+  private updateHorde(heroes: HeroSnapshot[]): void {
+    if (!this.hordeCount) return;
+    const places = heroes.filter((h) => h.skeleton);
+    const standing = places.filter((h) => h.alive && h.maxHp > 0).length;
+    const full = standing >= places.length && places.length > 0;
+    this.hordeCount.textContent = full ? `☠ FULL ${standing}/${places.length}` : `☠ HORDE ${standing}/${places.length}`;
+    this.hordeCount.classList.toggle("full", full);
+  }
+
   private updateSide(map: Map<string, HeroSlot>, heroes: HeroSnapshot[], snapshot: TickSnapshot): void {
     for (const hero of heroes) {
       const refs = map.get(hero.id);
       if (!refs) continue;
       // An empty skeleton place stays hidden until it is filled (and again if the fight is rewound).
       if (hero.skeleton) {
-        const filled = hero.maxHp > 0;
+        const army = refs.slot.classList.contains("undead-skel");
+        // An army skeleton that falls leaves the field (its place is free for the next one); a Necromancer's stays down.
+        const filled = hero.maxHp > 0 && (!army || hero.alive);
         refs.slot.style.display = filled ? "" : "none";
+        if (army) this.dressSkeleton(refs, hero, filled);
         if (!filled) continue;
       }
       // HP and Shield share one bar (DECISIONS.md 2026-10-01): it keeps the
@@ -1652,16 +1725,17 @@ export class FightView {
         break;
       case "raise": {
         const refs = this.slotFor(e.heroId);
-        if (refs) pulseClass(refs.body, "raised", 700);
-        break;
-      }
-      case "heroRose": {
-        // An Undead unit got back up (Undying, or its Grave Guard): the body pulses and names what happened. The HP bar has already jumped.
-        const refs = this.slotFor(e.heroId);
         if (!refs) break;
         pulseClass(refs.body, "raised", 700);
-        const popup = this.showPopup(refs.body, e.byGuard ? "UP AGAIN" : "UNDYING", "normal", 0.8, 0, ARMY_ACCENT.undead.hex, 0);
-        popup.classList.add("mark-popup");
+        // An army skeleton also rings (canvas 12.0B): bone-white for a warrior, amber for a shield.
+        if (e.kind) this.popRing(refs.core, e.kind === "shield" ? "#ffb454" : ARMY_ACCENT.undead.hex);
+        break;
+      }
+      case "skeletonUpgrade": {
+        // The horde was full: every skeleton of that kind gets a gold ring (its +N badge follows from the snapshot).
+        for (const refs of this.playerHeroes.values()) {
+          if (refs.slot.classList.contains("undead-skel") && this.skeletonLooks.get(refs.body.dataset.id ?? "") === e.kind) this.popRing(refs.core, "#ffcf4d");
+        }
         break;
       }
       case "resolve":
@@ -1856,6 +1930,15 @@ export class FightView {
     }, SLAM_RING_MS + 60);
   }
 
+  /** A one-shot ring round a body (Undead skeletons rising and upgrading, 2026-10-21): a CSS animation in the body's own wrapper. */
+  private popRing(core: HTMLElement, color: string): void {
+    const ring = document.createElement("div");
+    ring.className = "pop-ring";
+    ring.style.setProperty("--ring-color", color);
+    core.appendChild(ring);
+    fightClock.setTimeout(() => ring.remove(), 640);
+  }
+
   /** An independent, additively-stacking flash on the target's own body —
    * separate DOM nodes rather than a shared toggled class, so a hero hit
    * twice inside one impact window shows two flashes instead of one being
@@ -2016,6 +2099,8 @@ export class FightView {
    * to need its own register, distinct from both. */
   private showHeroDown(heroId: string): void {
     const refs = this.slotFor(heroId);
+    // An army skeleton that falls just leaves the field (updateSide hides it): no "SKELETON FALLS" for each of up to five.
+    if (refs?.slot.classList.contains("undead-skel")) return;
     const name = this.nameOf(heroId);
     // keepIfDeferred: true, heroId attached — worth replaying after a chain
     // if this death wasn't the chain's OWN kill (chainTeardown drops any
@@ -2242,7 +2327,7 @@ export class FightView {
     hitIndex: number,
     amount: number,
     targetId: string | null,
-    kind: "damage" | "heal" | "guard" | "stun",
+    kind: "damage" | "heal" | "guard" | "stun" | "raise",
     backfire: boolean,
     sourceId: string,
     durationSec?: number,
@@ -2252,6 +2337,8 @@ export class FightView {
     mark?: "exposed" | "burn" | "shield",
     markStacks?: number,
   ): void {
+    // A Raise or Bone Wall hit (2026-10-21) draws nothing here: the skeleton's own `raise` or `skeletonUpgrade` event is what the screen shows.
+    if (kind === "raise") return;
     // targetId is null on a WHIFF (2026-09-02, Phase 1 of the chain-targeting
     // plan — see events.ts's chainHit docstring). This is the minimal
     // compile-safe handling — no popup, no flinch, no tracer.

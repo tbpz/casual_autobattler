@@ -2469,6 +2469,8 @@ button:disabled {
 .pt-count { right: 9px; color: #ffcf4d; font-size: 12px; opacity: 0; transition: opacity 0.15s ease-out; }
 .perf-tag.has-count .pt-name { transform: translateX(-11px); }
 .perf-tag.has-count .pt-count { opacity: 1; }
+.perf-tag.long .pt-name { font-size: 7px; letter-spacing: 0.02em; }
+.perf-tag.long.has-count .pt-name { transform: translateX(-9px); }
 /* the bubble keeps its size, so the long chains show in the glow and in MAX instead of a bigger tag */
 .perf-tag.big .pt-progress { filter: drop-shadow(0 0 5px #ffcf4d) drop-shadow(0 0 2px #ffcf4d); }
 .perf-tag.max .pt-name { color: #ffcf4d; }
@@ -2592,6 +2594,79 @@ button:disabled {
 
 .hero-slot.is-skeleton .body-name {
   font-size: 8px;
+}
+
+/* The Undead army's skeletons (2026-10-21; render/fightView.ts dressSkeleton, canvas 12.0B): small bodies in the front row beside the Bone Knight,
+   no name and no HP numbers, a +N badge once their kind has been upgraded, and a count beside the row's word. */
+.hero-slot.undead-skel {
+  position: relative;
+  min-width: 0;
+}
+
+.hero-slot.undead-skel .body-name,
+.hero-slot.undead-skel .hp-label,
+.hero-slot.undead-skel .job-counter,
+.player-side .hero-slot.undead-skel .charge-track {
+  display: none;
+}
+
+.skel-badge {
+  display: none;
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  z-index: 4;
+  padding: 0 4px;
+  border-radius: 7px;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 12px;
+  color: #14161c;
+  background: #ffcf4d;
+  pointer-events: none;
+}
+
+.skel-badge.show {
+  display: block;
+}
+
+.horde-count {
+  position: absolute;
+  left: 0;
+  top: 25px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  color: #eae6d8;
+  pointer-events: none;
+}
+
+.horde-count.full {
+  color: #ffcf4d;
+}
+
+.pop-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--ring-color, #a9b7c9);
+  box-shadow: 0 0 8px var(--ring-color, #a9b7c9);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+  animation: pop-ring 0.6s ease-out;
+}
+
+@keyframes pop-ring {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
 }
 
 /* The army pick (2026-10-20; render/armyScreen.ts, canvas 10.0A): two cards in the army's own colour. */

@@ -110,16 +110,18 @@ export const ABILITY_MARKS: Record<ChainEffect, MarkId[]> = {
   bite: [],
   // The armies' base skills (2026-10-20) leave the marks of the skill they stand in for, so a run with an army still
   // meets Exposed from its Tank and Damage unit; Pack Bite leaves none (a Beast gets its marks from an upgrade).
-  graveGuard: ["exposed"],
-  soulBolt: ["exposed"],
-  bloodRite: [],
+  // The Undead's skills (2026-10-21) leave none either: a renamed mark is not a new thing on screen, so an Undead unit
+  // gets its marks from an upgrade, as a Beast does.
+  raise: [],
+  boneWall: [],
+  command: [],
   roar: ["exposed"],
   packBite: [],
   herd: [],
 };
 
-/** `effects` plus the base skill each army skill stands in for, so a rune that needs "guard" or "mend" counts Grave Guard,
- * Roar, Blood Rite and Herd as it counts Guard and Mend (config.ts's abilityFamily). */
+/** `effects` plus the base skill each army skill stands in for, so a rune that needs "guard" or "mend" counts
+ * Roar and Herd as it counts Guard and Mend (config.ts's abilityFamily). */
 export function withFamilies(effects: readonly ChainEffect[]): ChainEffect[] {
   return effects.flatMap((e) => (abilityFamily(e) === e ? [e] : [e, abilityFamily(e)]));
 }

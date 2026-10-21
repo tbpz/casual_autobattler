@@ -10,6 +10,67 @@
 
 ---
 
+## [2026-10-21] Undead built: what the build settled about skeletons
+
+- **Decision:**
+  - The Undead are built as frame 12.0B draws them: Raise (Bone Priest, warrior skeletons), Bone Wall (Bone Knight, shield skeletons), Command (Wraith).
+  - Undying, Grave Guard, Soul Bolt and Blood Rite are gone from the game.
+  - A backfired Raise or Bone Wall knocks down one standing skeleton of its kind.
+  - A backfired Command makes each skeleton strike your own front unit.
+  - Enemies that reach the back row keep picking at random; shields first, then warriors, then the Bone Knight is for ordinary enemies.
+  - Shield skeletons upgrade too: a Bone Wall hit at the limit makes shields tougher, a Raise hit makes warriors hit harder.
+  - The three skills leave no mark and count as no Guard, Mend or Expose.
+  - Skeletons are not units: they use no skill, do not count when the squad is wiped, and leave the field when they fall.
+  - Working choices, not confirmed: the limit of 5, every skeleton number, the size of an upgrade, Command's multiplier. They live in `config.ts` (`undead*`).
+- **Why:**
+  - Tu's playtest said both armies fought like the plain squad; skeletons change what the screen shows every second.
+  - Tu answered the three open rules (both backfires, back-row enemies) on 2026-10-21.
+  - Tu rejects renamed marks, so the skills leave none, as Pack Bite does.
+  - The numbers were tuned so the build bot completes about 1 run in 3 (32%, n=800, 2026-10-21), as the old Undead did.
+- **Replaces:**
+  - The Undead lines of "Each army fights its own way" (now built), and the open points in "Undead skeletons: who takes enemy hits, the limit, and upgrades"; its other lines stand.
+
+## [2026-10-21] Undead skeletons: who takes enemy hits, the limit, and upgrades
+
+- **Decision:**
+  - Enemy normal hits go to shield skeletons first, then warrior skeletons, then the Bone Knight.
+  - Slams stay random: a slam can land on anyone, a skeleton or a unit.
+  - At most 5 skeletons stand at once.
+  - A skill hit with 5 standing raises nothing; it makes every skeleton of that kind a little stronger.
+  - The boost lasts the whole fight and covers skeletons of that kind raised later.
+  - Units keep their normal hits whether or not a skill is ready; skeletons hit on their own timer.
+  - Working choices, not confirmed: the limit of 5, how much stronger each boost makes a skeleton, and whether shield skeletons get a boost too.
+  - Picture: `design/HANDOFF.md` "Options sets", frame 12.0B (redrawn to this).
+- **Why:**
+  - Tu wants the shield skeletons to be a real wall, with the Bone Knight behind it.
+  - A random slam keeps the army from being safe: Tu rejected "the slam always breaks a shield skeleton".
+  - A hit that upgrades when the army is full means a skill is never wasted.
+- **Replaces:**
+  - The 2026-10-21 entry "Each army fights its own way" line "shield skeletons take slams for the squad"; its other lines stand.
+
+## [2026-10-21] Each army fights its own way: skeletons, a pack pounce, orbs
+
+- **Decision:**
+  - Each army changes what its skills leave on the field, not only numbers. Tu picked canvas frames 12.0B, 12.0C and 12.0D.
+  - Undead: every skill hit raises a skeleton that stays all fight; shield skeletons take slams for the squad.
+  - Undead: one Wraith skill sends every skeleton at the enemy at once.
+  - Beasts: one shared pack bar, filled by every bite, replaces each beast's own skill bar.
+  - Beasts: when it is full, the whole pack jumps on one enemy together; a chain jumps again.
+  - Mages, a third army: each skill hit adds an orb that works alone on a steady beat; an orb past a small cap pushes the oldest out and it bursts.
+  - Replaced: Undying, Grave Guard, Soul Bolt, Blood Rite, Pack Bite, Roar, Herd.
+  - Unchanged: the army pick before round 1, the three roles, five Beasts fielded, merge heroes off.
+  - Each army is built in its own session; the order is open.
+  - Working choices, not confirmed: skill and army names (Mages included), all counts and numbers.
+  - Pictures: `design/HANDOFF.md` "Options sets", frames 12.0A to 12.0D.
+- **Why:**
+  - Tu's playtest: both armies fought like the plain squad, "someone fire a beam to the other one".
+  - Undying rarely happens, and Pack added skills to a fight that already had plenty.
+  - A Hades weapon or the Slay the Spire orb character changes what the screen shows every second.
+  - Rejected: a bleed mark for Beasts, because it is Exposed or Burn under another name.
+  - Rejected: Grow (a beast gets bigger per kill) as the Beasts rule; never drawn.
+- **Replaces:**
+  - The Undead and Beasts rules and skills in the 2026-10-21 entry "An army picked before round 1 shapes the run"; its other lines stand.
+
 ## [2026-10-21] An army picked before round 1 shapes the run; merge heroes stay off while one is picked
 
 - **Decision:**

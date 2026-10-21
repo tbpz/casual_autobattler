@@ -1,7 +1,8 @@
 /**
  * The armies (2026-10-20; sim/armies.ts, canvas 10.x and 11.x). Each assertion runs a small hand-built fight (or a roster step)
- * and pins one rule: the two starting squads, merge heroes off, Undying (once per fight, harder after), Grave Guard, Soul Bolt,
- * Blood Rite, Roar, Pack Bite, Herd, Pack's charge, and that a whole run plays and replays the same for both armies.
+ * and pins one rule: the two starting squads, merge heroes off, the Undead's horde (Raise and Bone Wall raise a skeleton per hit,
+ * five at most, then upgrade; the enemy's normal hits go to shields, then warriors, then the Bone Knight; Command; both backfires),
+ * Roar, Pack Bite, Herd, Pack's charge, and that a whole run plays and replays the same for both armies.
  *
  * Fights force a chain at tick 1 by starting the firing unit at full charge and pin the backfire coin and the damage variance,
  * so nothing here depends on a lucky roll.
@@ -75,70 +76,136 @@ const chargeAt = (r: FightResult, id: string, t: number): number => {
   check("the unit title replaces the role word", unitTitle(unit("undead", "tank")) === "Bone Knight" && unitTitle(unit("beasts", "damage")) === "Wolf" && unitTitle({ role: "tank" }) === "Tank");
   const start = makeArmyRoster("undead", progress("undead").bonus);
   check("merge heroes are off while an army is picked", mergeCandidates(progress("undead"), start, run).length === 0 && mergeCandidates(makeInitialProgress(run), start, run).length > 0);
-  check("a run's first skills are the army's", progress("beasts").chain.tank.effects[0] === "roar" && progress("undead").chain.support.effects[0] === "bloodRite");
+  check("a run's first skills are the army's", progress("beasts").chain.tank.effects[0] === "roar" && progress("undead").chain.support.effects[0] === "raise" && progress("undead").chain.tank.effects[0] === "boneWall" && progress("undead").chain.damage.effects[0] === "command");
 }
 
-// --- Undying: the first fall in a fight is undone at half HP, once, and the unit hits harder after.
-{
-  const wraith = unit("undead", "damage");
-  wraith.hp = 1;
-  const r = fight(setup([wraith], (enemy) => enemy.heroes.forEach((h, i) => { h.nextAttackT = i === 0 ? 2 : 1000; h.nextWindupT = 1000; if (i === 0) h.damage = 1000; })), 7, { chargeThreshold: 1e9 });
-  const rose = r.events.filter((e) => e.type === "heroRose" && e.heroId === wraith.id);
-  check("undying: the unit gets back up when it would fall", rose.length === 1 && rose[0]!.type === "heroRose" && !rose[0]!.byGuard, `${rose.length} rises`);
-  check("undying: it stands up at half its max HP", rose[0]?.type === "heroRose" && rose[0].hp === Math.round(wraith.maxHp * run.fight.undyingReviveFrac), String(rose[0]?.type === "heroRose" ? rose[0].hp : "-"));
-  const roseT = rose[0]?.t ?? Infinity;
-  const downs = r.events.filter((e) => e.type === "heroDown" && e.heroId === wraith.id);
-  check("undying: only once; a second fall is a real fall", downs.length === 1 && (downs[0]?.t ?? 0) > roseT);
-  const hits = (from: number, to: number) => r.events.filter((e) => e.type === "attack" && e.side === "player" && e.attackerId === wraith.id && e.t > from && e.t <= to);
-  const before = hits(0, roseT)[0], after = hits(roseT, Infinity)[0];
-  const base = ARMY_UNITS.undead.damage.damage;
-  check(`undying: a unit that has risen hits 1.5x harder (${base} becomes ${base * run.fight.undyingDamageMult})`, before?.type === "attack" && after?.type === "attack" && before.damage === base && after.damage === base * run.fight.undyingDamageMult, `${before?.type === "attack" ? before.damage : "-"} -> ${after?.type === "attack" ? after.damage : "-"}`);
-  const beastHp1 = unit("beasts", "damage");
-  beastHp1.hp = 1;
-  const rb = fight(setup([beastHp1], (enemy) => enemy.heroes.forEach((h, i) => { h.nextAttackT = i === 0 ? 2 : 1000; h.nextWindupT = 1000; })), 7, { chargeThreshold: 1e9 });
-  check("undying belongs to the Undead: a Beast that would fall, falls", !rb.events.some((e) => e.type === "heroRose") && rb.events.some((e) => e.type === "heroDown" && e.heroId === beastHp1.id));
-}
-
-// --- Grave Guard: takes the slam; a slam that knocks it down stands it back up, and Undying is still ready.
-{
-  const knight = charged(unit("undead", "tank"));
-  knight.hp = 5;
-  const duelist = ENCOUNTERS.findIndex((e) => e.name === "Duelist");
-  const r = fight(setup([knight], (enemy) => enemy.heroes.forEach((h, i) => { h.nextAttackT = 1000; h.nextWindupT = i === 0 ? 0.5 : 1000; }), duelist), 7);
-  const slam = r.events.find((e) => e.type === "windupHit" && e.targetId === knight.id);
-  const rose = r.events.find((e) => e.type === "heroRose" && e.heroId === knight.id);
-  check("grave guard: the slam lands on the knight and a rise follows at once", slam?.type === "windupHit" && rose?.type === "heroRose" && rose.byGuard && rose.t === slam.t, JSON.stringify({ slam: slam?.type, rose: rose?.type }));
-  check("grave guard: it stands up at half HP", rose?.type === "heroRose" && rose.hp === Math.round(knight.maxHp * run.fight.graveGuardReviveFrac));
-}
-
-// --- Soul Bolt: Expose with a base of 17, more once one of your units has risen; leaves Exposed.
-{
-  const r = fight(setup([charged(unit("undead", "damage")), unit("undead", "tank"), unit("undead", "support")], calm));
-  const hit = firstChainHit(r);
-  check("soul bolt: the first rung hits the biggest enemy for 17 and exposes it", hit?.type === "chainHit" && hit.intended === 17 && hit.mark === "exposed", JSON.stringify(hit));
-  let bigger = 0;
-  for (let seed = 1; seed <= 40 && bigger === 0; seed++) {
-    const w = unit("undead", "damage");
-    const priest = unit("undead", "support");
-    priest.hp = 1;
-    const res = fight(setup([w, priest]), seed, { forceBackfire: "never" });
-    const roseT = res.events.find((e) => e.type === "heroRose")?.t;
-    if (roseT === undefined) continue;
-    if (res.events.some((e) => e.type === "chainHit" && e.sourceId === w.id && e.hitIndex === 1 && e.t > roseT && e.intended > 17.5)) bigger++;
-  }
-  check("soul bolt: after one of your units has risen, the bolt is bigger", bigger > 0);
-}
-
-// --- Blood Rite: the Bone Priest pays 20 HP, then heals every other unit 12.
+// --- The Undead's horde (2026-10-21): Raise and Bone Wall raise one skeleton per hit, five at most, then upgrade; Command sends them all in.
+// `chainMaxHits` caps how many hits a skill lands, so each assertion says how many skeletons it expects.
+const standing = (r: FightResult, kind?: "warrior" | "shield") => {
+  const last = r.snapshots[r.snapshots.length - 1]!;
+  return last.playerHeroes.filter((h) => h.skeleton && h.skeletonKind && h.alive && (!kind || h.skeletonKind === kind));
+};
+const raises = (r: FightResult) => r.events.filter((e) => e.type === "raise");
+/** A fight where each unit's skill goes off once only: nothing refills a bar after the first skill, so the counts below are exact. */
+const solo = (s: FightSetup, seed = 7, over: Partial<typeof run.fight> = {}): FightResult => fight(s, seed, { chargeTricklePerSec: 0, chargeWeightDealt: 0, chargeWeightSoaked: 0, chargeWeightRestored: 0, ...over });
 {
   const priest = charged(unit("undead", "support"));
-  const knight = unit("undead", "tank");
-  knight.hp = knight.maxHp - 50;
-  const r = fight(setup([priest, knight, unit("undead", "damage")], calm));
-  const paid = r.events.find((e) => e.type === "chainHit" && e.kind === "damage" && e.targetId === priest.id);
-  const healed = r.events.find((e) => e.type === "chainHit" && e.kind === "heal" && e.targetId === knight.id);
-  check("blood rite: the first rung costs the priest 20 HP", paid?.type === "chainHit" && paid.damage === run.fight.bloodRiteCost, JSON.stringify(paid));
-  check("blood rite: and heals another unit 12", healed?.type === "chainHit" && healed.damage === run.fight.bloodRiteHeal, JSON.stringify(healed));
+  const r = solo(setup([priest, unit("undead", "tank")], calm), 7, { chainMaxHits: 3 });
+  const rs = raises(r);
+  check("raise: three hits raise three warrior skeletons", rs.length === 3 && rs.every((e) => e.type === "raise" && e.kind === "warrior"), `${rs.length} raises`);
+  const sk = standing(r, "warrior");
+  check("raise: they stand with the warrior's HP and stay for the fight", sk.length === 3 && sk.every((h) => h.maxHp === run.fight.undeadWarriorHp), `${sk.length} standing`);
+  check("raise: each hit is one chain hit of kind raise, with no damage", r.events.filter((e) => e.type === "chainHit" && e.kind === "raise").length === 3 && r.events.every((e) => e.type !== "chainHit" || e.kind !== "raise" || e.damage === 0));
+}
+{
+  const knight = charged(unit("undead", "tank"));
+  const r = solo(setup([knight, unit("undead", "support")], calm), 7, { chainMaxHits: 2 });
+  const rs = raises(r);
+  check("bone wall: two hits raise two shield skeletons", rs.length === 2 && rs.every((e) => e.type === "raise" && e.kind === "shield") && standing(r, "shield").every((h) => h.maxHp === run.fight.undeadShieldHp) && standing(r, "shield").length === 2);
+}
+{
+  const r = solo(setup([charged(unit("undead", "support")), unit("undead", "tank")], calm), 7, { chainMaxHits: 7 });
+  const ups = r.events.filter((e) => e.type === "skeletonUpgrade");
+  check("limit: seven raise hits leave five skeletons standing, not seven", raises(r).length === run.fight.undeadSkeletonMax && standing(r).length === run.fight.undeadSkeletonMax, `${raises(r).length} raises`);
+  check("limit: the two hits past five upgrade the warriors instead (levels 1 then 2)", ups.length === 2 && ups.every((e, i) => e.type === "skeletonUpgrade" && e.kind === "warrior" && e.level === i + 1));
+  const lastUp = ups[ups.length - 1]!.t;
+  const swings = r.events.filter((e) => e.type === "attack" && e.side === "player" && e.attackerId.startsWith("skeleton_") && e.t > lastUp);
+  const want = run.fight.undeadWarriorDamage + 2 * run.fight.undeadWarriorUpgradeDamage;
+  check(`upgrade: every standing warrior now hits for ${want}, the ones raised before too`, swings.length > 0 && swings.every((e) => e.type === "attack" && e.damage === want), `${swings.length} swings`);
+  const lastSnap = r.snapshots[r.snapshots.length - 1]!.playerHeroes.find((h) => h.skeleton && h.skeletonKind === "warrior");
+  check("upgrade: a snapshot carries the kind's level for the +N badge", lastSnap?.skeletonLevel === 2);
+}
+{
+  const r = solo(setup([charged(unit("undead", "tank")), unit("undead", "support")], calm), 7, { chainMaxHits: 7 });
+  const want = run.fight.undeadShieldHp + 2 * run.fight.undeadShieldUpgradeHp;
+  check("upgrade: a shield skeleton gets tougher, not stronger (45 becomes 61)", standing(r, "shield").length === 5 && standing(r, "shield").every((h) => h.maxHp === want), standing(r, "shield").map((h) => h.maxHp).join(","));
+}
+{
+  // Enemy hits go to the shield first, then the warrior, then the Bone Knight. Both skeletons have 1 HP and the enemy hits for 1,
+  // so each hit kills exactly what it lands on and nothing spills over.
+  const knight = charged(unit("undead", "tank"));
+  const priest = charged(unit("undead", "support"));
+  const s = setup([knight, priest], (enemy) => enemy.heroes.forEach((h, i) => { h.nextWindupT = 1000; h.nextAttackT = i === 0 ? 12 : 1000; h.maxHp = h.hp = 1e6; if (i === 0) { h.damage = 1; h.attackIntervalSec = 1.5; } }));
+  const r = solo(s, 7, { chainMaxHits: 1, undeadShieldHp: 1, undeadWarriorHp: 1 });
+  const shieldId = raises(r).find((e) => e.type === "raise" && e.kind === "shield");
+  const warriorId = raises(r).find((e) => e.type === "raise" && e.kind === "warrior");
+  const hitsOnUs = r.events.filter((e) => e.type === "attack" && e.side === "enemy" && e.t >= 12).map((e) => (e.type === "attack" ? e.targetId : ""));
+  check("order: the first enemy hit lands on the shield skeleton", shieldId?.type === "raise" && hitsOnUs[0] === shieldId.heroId, `${hitsOnUs[0]} vs ${shieldId?.type === "raise" ? shieldId.heroId : "-"}`);
+  check("order: the second lands on the warrior skeleton", warriorId?.type === "raise" && hitsOnUs[1] === warriorId.heroId, `${hitsOnUs[1]} vs ${warriorId?.type === "raise" ? warriorId.heroId : "-"}`);
+  check("order: the third, with no skeleton standing, lands on the Bone Knight", hitsOnUs[2] === knight.id, `${hitsOnUs[2]}`);
+}
+{
+  // Slams stay random, and so do the hits of an enemy that reaches the back row.
+  const duelist = ENCOUNTERS.findIndex((e) => e.name === "Duelist");
+  let slamOnSkeleton = 0;
+  for (let seed = 1; seed <= 40; seed++) {
+    const s = setup([charged(unit("undead", "support")), unit("undead", "tank"), unit("undead", "damage")], (enemy) => enemy.heroes.forEach((h, i) => { h.nextAttackT = 1000; h.nextWindupT = i === 0 ? 4 : 1000; }), duelist);
+    const r = solo(s, seed, { chainMaxHits: 5 });
+    if (r.events.some((e) => e.type === "windupHit" && e.targetId.startsWith("skeleton_"))) slamOnSkeleton++;
+  }
+  check("slams are random: some land on a skeleton and some do not", slamOnSkeleton > 0 && slamOnSkeleton < 40, `${slamOnSkeleton} of 40`);
+  let offWall = 0;
+  for (let seed = 1; seed <= 30; seed++) {
+    const knight = charged(unit("undead", "tank"));
+    const s = setup([knight, unit("undead", "support"), unit("undead", "damage")], (enemy) => enemy.heroes.forEach((h, i) => { h.nextWindupT = 1000; h.nextAttackT = i === 0 ? 12 : 1000; h.maxHp = h.hp = 1e6; if (i === 0) { h.damage = 1; h.reachesBackline = true; } }));
+    const r = solo(s, seed, { chainMaxHits: 2, undeadShieldHp: 500 });
+    const shields = new Set(raises(r).map((e) => (e.type === "raise" ? e.heroId : "")));
+    if (r.events.some((e) => e.type === "attack" && e.side === "enemy" && e.t >= 12 && !shields.has(e.targetId))) offWall++;
+  }
+  check("an enemy that reaches the back row ignores the wall: some of its hits land elsewhere", offWall > 0, `${offWall} of 30`);
+}
+{
+  // Command: every standing skeleton strikes once per hit; with none standing it ends the skill.
+  const wraith = charged(unit("undead", "damage"));
+  wraith.charge = run.fight.chargeThreshold;
+  const priest = unit("undead", "support");
+  priest.charge = run.fight.chargeThreshold * 3;
+  const r = solo(setup([wraith, priest], calm), 7, { chainMaxHits: 3 });
+  const cmd = r.events.filter((e) => e.type === "chainHit" && e.kind === "damage" && e.sourceId.startsWith("skeleton_"));
+  const ids = new Set(cmd.map((e) => (e.type === "chainHit" ? e.sourceId : "")));
+  check("command: 3 hits with 3 skeletons standing are 9 skeleton strikes", cmd.length === 9 && ids.size === 3, `${cmd.length} strikes from ${ids.size} skeletons`);
+  const hit = cmd[0];
+  const expected = Math.round(run.fight.undeadWarriorDamage * run.fight.undeadCommandMult * 100) / 100;
+  check("command: a first-rung strike is the skeleton's damage times the multiplier", hit?.type === "chainHit" && Math.abs(hit.intended - expected) < 0.01, `${hit?.type === "chainHit" ? hit.intended : "-"} vs ${expected}`);
+  const alone = solo(setup([charged(unit("undead", "damage")), unit("undead", "tank")], calm), 7);
+  const end = alone.events.find((e) => e.type === "chainEnd");
+  check("command: with no skeleton standing the skill ends at once, striking nothing", !alone.events.some((e) => e.type === "chainHit") && end?.type === "chainEnd" && end.reason === "noTarget", end?.type === "chainEnd" ? end.reason : "-");
+}
+{
+  // Backfires. One chain raises (no backfire), a later one on a worn unit that does backfire either knocks a skeleton down or turns
+  // the strikes on our own front unit. The worn unit's fatigue makes its backfire likely, so a seed loop finds one quickly.
+  let crumbled = false, turned = false;
+  for (let seed = 1; seed <= 300 && !(crumbled && turned); seed++) {
+    const raiser = charged(unit("undead", "support"));
+    raiser.charge = run.fight.chargeThreshold * 3;
+    const wornPriest = unit("undead", "support", 2);
+    wornPriest.charge = run.fight.chargeThreshold * 2;
+    wornPriest.fatigue = 100;
+    const wornWraith = unit("undead", "damage");
+    wornWraith.charge = run.fight.chargeThreshold;
+    wornWraith.fatigue = 100;
+    const knight = unit("undead", "tank");
+    const r = solo(setup([knight, raiser, wornPriest, wornWraith], calm), seed, { chainMaxHits: 3, forceBackfire: undefined });
+    const starts = r.events.filter((e) => e.type === "chainStart");
+    const first = starts[0], second = starts[1], third = starts[2];
+    if (!first || first.type !== "chainStart" || first.backfire) continue;
+    if (second?.type === "chainStart" && second.backfire && second.heroId === wornPriest.id) {
+      const knocked = r.events.find((e) => e.type === "chainHit" && e.backfire && e.sourceId === wornPriest.id && e.kind === "damage" && e.targetId?.startsWith("skeleton_"));
+      if (knocked) crumbled = true;
+    }
+    if (third?.type === "chainStart" && third.backfire && third.heroId === wornWraith.id) {
+      const strikes = r.events.filter((e) => e.type === "chainHit" && e.backfire && e.sourceId.startsWith("skeleton_") && e.targetId !== null);
+      if (strikes.length > 0 && strikes.every((e) => e.type === "chainHit" && [knight.id, raiser.id, wornPriest.id, wornWraith.id].includes(e.targetId!))) turned = true;
+    }
+  }
+  check("backfire: a backfired Raise knocks down one of our own warrior skeletons", crumbled);
+  check("backfire: a backfired Command makes each skeleton strike one of our own units", turned);
+}
+{
+  const plain = solo(setup([charged(unit("beasts", "tank")), unit("beasts", "damage")], calm), 7);
+  check("only the Undead bring skeleton places: a Beast fight has none", !plain.snapshots[0]!.playerHeroes.some((h) => h.skeleton));
+  const undead = solo(setup([unit("undead", "tank")], calm), 7);
+  check("an Undead fight starts with five empty places", undead.snapshots[0]!.playerHeroes.filter((h) => h.skeleton && !h.alive && h.maxHp === 0).length === run.fight.undeadSkeletonMax);
 }
 
 // --- Roar: takes the slam like Guard, and the first time it goes every other Beast's bar fills 25%.
@@ -190,8 +257,8 @@ const chargeAt = (r: FightResult, id: string, t: number): number => {
 
 // --- Offers and runes keep working with army skills.
 {
-  check("rampart still reads a guard-like skill (Grave Guard and Roar count as guard)", cardConnects("bulwark", ["graveGuard"]) && cardConnects("bulwark", ["roar"]) && !cardConnects("bulwark", ["soulBolt"]));
-  check("phoenix still reads a mend-like skill (Blood Rite and Herd count as mend)", duoUnlocked("phoenix", ["herd"], ["secondWind"]) && duoUnlocked("phoenix", ["bloodRite"], ["secondWind"]));
+  check("rampart still reads a guard-like skill (Roar counts as guard; no Undead skill does)", cardConnects("bulwark", ["roar"]) && !cardConnects("bulwark", ["boneWall"]) && !cardConnects("bulwark", ["raise"]));
+  check("phoenix still reads a mend-like skill (Herd counts as mend; Raise does not)", duoUnlocked("phoenix", ["herd"], ["secondWind"]) && !duoUnlocked("phoenix", ["raise"], ["secondWind"]));
   const progress = makeInitialProgress(run, undefined, "beasts");
   const roster = makeArmyRoster("beasts", progress.bonus);
   const offers = drawOffers(new Rng(5), progress, roster, run, 3);

@@ -1,5 +1,5 @@
 # Cheatsheet
-Last updated: 2026-10-21 00:30 (values from prototype/src/sim/config.ts). All marks last one fight.
+Last updated: 2026-10-21 22:40 (values from prototype/src/sim/config.ts). All marks last one fight.
 
 Effects:
 - Exposed: each stack makes the body take +12% damage from every hit, max 10 stacks.
@@ -91,13 +91,14 @@ Merge heroes (branch dev/merge-heroes; made-up numbers, one of each kind per run
 - A Recruit offer names the hero it would make possible ("Completes Golem"). A hero has no Fatigue card in its popup, but fatigue still counts.
 
 Armies (branch dev/merge-heroes; made-up numbers; a run picks one before round 1, every unit is re-skinned, and merge heroes are off):
-- Every army unit keeps its role (Tank, Damage or Healer), so rows, the tank lock, offers and role runes work as before. Its base skill takes the place of Guard, Expose or Mend; runes that need Guard or Mend count Grave Guard, Roar and Blood Rite, Herd.
-- Undead — Undying: each unit gets back up once per fight at 50% of its max HP, then hits 50% harder (normal hits and skills).
-- Bone Knight (Tank; 145 HP, 7 damage) — Grave Guard: takes the next slam, 1 per hit; if that slam knocks it down it stands up at 50% HP and Undying stays ready. Leaves Exposed on the slammer like Guard.
-- Wraith (Damage; 60 HP, 8 damage) — Soul Bolt: 17 damage to the highest-HP enemy plus 9 for each of your units that has got back up this fight, and 1 exposed.
-- Bone Priest (Healer; 76 HP, heals 4 a beat) — Blood Rite: loses 20 HP, then heals every other unit 12, per hit.
+- Every army unit keeps its role (Tank, Damage or Healer), so rows, the tank lock, offers and role runes work as before. Its base skill takes the place of Guard, Expose or Mend; runes that need Guard or Mend count Roar and Herd (the Undead skills count as none of Guard, Mend or Expose).
+- Undead — Horde: every skill hit raises a skeleton that stays all fight; 5 at most (the fight starts with 5 empty places). With 5 standing, a Raise or Bone Wall hit raises nothing and upgrades every skeleton of that kind by one level instead (also ones raised later). A warrior skeleton: 15 HP, 2 damage, hits every 1.4s, +1 damage per upgrade. A shield skeleton: 24 HP, 1 damage, hits every 1.6s, +8 HP per upgrade. Skeletons are not units: they never use a skill and do not count when your squad is wiped.
+- Enemy normal hits go to the first standing shield skeleton, then the first standing warrior skeleton, then the Tank lock. Slams and enemies that reach the back row still pick at random, skeletons included.
+- Bone Knight (Tank; 145 HP, 7 damage) — Bone Wall: raises one shield skeleton per hit. Backfire: one standing shield skeleton falls. Leaves no mark.
+- Wraith (Damage; 60 HP, 8 damage) — Command: every standing skeleton strikes the front enemy with its own damage (1x), per hit; nothing standing ends the skill. Backfire: each skeleton strikes your own front unit instead. Leaves no mark.
+- Bone Priest (Healer; 76 HP, heals 4 a beat) — Raise: raises one warrior skeleton per hit. Backfire: one standing warrior skeleton falls. Leaves no mark.
 - Beasts — Pack: 5 units fielded (start with 7: 2 Bear, 3 Wolf, 2 Stag); every hit a Beast lands on an enemy gives every other Beast 1.5 charge.
 - Bear (Tank; 140 HP, 5 damage) — Roar: takes the next slam like Guard; on its first hit, every other Beast gets 25% of a full skill bar.
 - Wolf (Damage; 60 HP, 6 damage) — Pack Bite: 6 damage to the front enemy, once more for each other living Wolf (3 Wolves: 18), in one hit.
 - Stag (Healer; 72 HP, heals 3 a beat) — Herd: heals every unit 1 per living Beast per hit (5 Beasts: 5).
-- Each army skill is a chain like any other: up to 7 hits, later hits up to 2.8x; the same marks as the skill it replaces (Pack Bite, Blood Rite and Herd leave none).
+- Each army skill is a chain like any other: up to 7 hits, later hits up to 2.8x; the same marks as the skill it replaces (Roar leaves Exposed; Pack Bite, Herd, Raise, Bone Wall and Command leave none).

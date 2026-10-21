@@ -7,7 +7,7 @@ import { PLAYER_ROLES, ROLE_LABEL, ROLE_POOL, makeUnitState, type PlayerRole } f
  * or Beasts before round 1 and every unit is re-skinned into it. An army unit keeps its `role` (tank, damage or support), so the
  * tank lock, the front and back rows, the offers and every rune that reads a role work as before. What the army changes is the
  * unit's name, look, stats and its base skill (in the place of Guard, Expose or Mend), plus one rule for the whole squad:
- *   Undead, Undying: a unit gets back up once per fight (fight.ts's applyDamageFrom), then hits harder.
+ *   Undead, Horde: every skill hit raises a skeleton that stays (fight.ts's raiseArmySkeleton), five at most, then it upgrades them.
  *   Beasts, Pack: five units are fielded instead of three, and every hit a Beast lands fills the others' skill bars a little.
  * Merge heroes (sim/heroes.ts) are off while an army is picked. Every number is a made-up first take, like ROLE_POOL's.
  */
@@ -29,9 +29,9 @@ export interface ArmyUnitDef {
 
 export const ARMY_UNITS: Record<ArmyKind, Record<PlayerRole, ArmyUnitDef>> = {
   undead: {
-    tank: { kind: "boneKnight", role: "tank", title: "Bone Knight", maxHp: 145, damage: 7, attackIntervalSec: 1.3, baseChain: "graveGuard" },
-    damage: { kind: "wraith", role: "damage", title: "Wraith", maxHp: 60, damage: 8, attackIntervalSec: 1.1, baseChain: "soulBolt" },
-    support: { kind: "bonePriest", role: "support", title: "Bone Priest", maxHp: 76, damage: 2, attackIntervalSec: 1.1, healPerBeat: 4, baseChain: "bloodRite" },
+    tank: { kind: "boneKnight", role: "tank", title: "Bone Knight", maxHp: 145, damage: 7, attackIntervalSec: 1.3, baseChain: "boneWall" },
+    damage: { kind: "wraith", role: "damage", title: "Wraith", maxHp: 60, damage: 8, attackIntervalSec: 1.1, baseChain: "command" },
+    support: { kind: "bonePriest", role: "support", title: "Bone Priest", maxHp: 76, damage: 2, attackIntervalSec: 1.1, healPerBeat: 4, baseChain: "raise" },
   },
   beasts: {
     tank: { kind: "bear", role: "tank", title: "Bear", maxHp: 140, damage: 5, attackIntervalSec: 1.3, baseChain: "roar" },
@@ -126,11 +126,11 @@ export interface ArmyText {
 export const ARMY_TEXT: Record<ArmyKind, ArmyText> = {
   undead: {
     name: "Undead",
-    pitch: "Fall once. Rise stronger.",
-    ruleName: "Undying",
-    ruleHead: "Every unit gets back up once per fight.",
-    ruleLines: ["It rises at half HP and hits 50% harder for the rest of the fight.", "Healing is weaker: falling is part of the plan."],
-    ruleCard: "Every unit gets back up once per fight, at half HP, and hits 50% harder after. Healing is weaker, because falling is part of the plan.",
+    pitch: "Every skill raises an army.",
+    ruleName: "Horde",
+    ruleHead: "Every skill hit raises a skeleton.",
+    ruleLines: ["Up to 5 stand. Enemy hits go to the shield skeletons first, then the warriors.", "With 5 standing, a skill hit makes that kind stronger instead."],
+    ruleCard: "Every skill hit raises a skeleton that stays for the whole fight. Up to 5 stand. Enemy hits go to the shield skeletons first, then the warriors, then the Bone Knight. With 5 standing, a skill hit makes that kind stronger instead. A slam can still land on anyone.",
   },
   beasts: {
     name: "Beasts",
@@ -156,22 +156,22 @@ export interface UnitText {
 
 export const UNIT_TEXT: Record<UnitKind, UnitText> = {
   boneKnight: {
-    title: "Bone Knight", job: "The Undead Tank. Stands in front and takes the hits. Gets back up once.",
-    skillName: "Grave Guard", skillHead: "Takes the next {slam} for the squad.", skillChips: ["Next slam"],
-    skillLines: ["Takes 1 slam for each time it goes again.", "If a slam knocks it down, it stands up at once, and Undying is still ready."],
-    skillCard: "Takes the next {slam} for the squad. If that slam knocks it down, it stands up at once and Undying is still ready.",
+    title: "Bone Knight", job: "The Undead Tank. Raises a wall of shield skeletons in front of it.",
+    skillName: "Bone Wall", skillHead: "Raises a shield skeleton in front.", skillChips: ["Shield skeleton"],
+    skillLines: ["Raises 1 shield skeleton for each time it goes again.", "Enemy hits go to shield skeletons first. With 5 standing, a hit makes shields tougher."],
+    skillCard: "Raises a shield skeleton that stands in front and takes the enemy's hits. With 5 standing, a hit makes every shield skeleton tougher instead.",
   },
   wraith: {
-    title: "Wraith", job: "The Undead Damage unit. Hits harder with every unit of yours that has risen.",
-    skillName: "Soul Bolt", skillHead: "A bolt at the biggest enemy, which it exposes.", skillChips: ["Biggest enemy"],
-    skillLines: ["Hits for 17, and 9 more for each of your units that has risen this fight.", "Each time it goes again, the bolt is bigger."],
-    skillCard: "Hits the biggest enemy for 17, and 9 more for each of your units that has risen this fight, and exposes it. Each time it goes again, the bolt is bigger.",
+    title: "Wraith", job: "The Undead Damage unit. Sends the whole horde in at once.",
+    skillName: "Command", skillHead: "Every skeleton strikes the front enemy.", skillChips: ["Front enemy", "Whole horde"],
+    skillLines: ["Each standing skeleton hits with its own damage.", "Each time it goes again, the strike is bigger."],
+    skillCard: "Every standing skeleton strikes the front enemy at once, with its own damage. Each time it goes again, the strike is bigger.",
   },
   bonePriest: {
-    title: "Bone Priest", job: "The Undead Healer. Heals a little, and pays its own HP to do it.",
-    skillName: "Blood Rite", skillHead: "Pays its own HP to heal everyone else.", skillChips: ["Whole squad", "Costs 20 HP"],
-    skillLines: ["Loses 20 HP and heals every other unit 12.", "Each time it goes again, it pays and heals again."],
-    skillCard: "Loses 20 HP and heals every other unit 12. Undying makes the price safe: if it falls, it gets up.",
+    title: "Bone Priest", job: "The Undead Healer. Heals a little, and raises warrior skeletons.",
+    skillName: "Raise", skillHead: "Raises a warrior skeleton.", skillChips: ["Warrior skeleton"],
+    skillLines: ["Raises 1 warrior skeleton for each time it goes again.", "With 5 standing, a hit makes warriors hit harder instead."],
+    skillCard: "Raises a warrior skeleton that fights for the rest of the fight. With 5 standing, a hit makes every warrior skeleton hit harder instead.",
   },
   bear: {
     title: "Bear", job: "The Beast Tank. Stands in front and rallies the pack.",
@@ -198,7 +198,7 @@ export function kindOf(army: ArmyKind, role: PlayerRole): UnitKind {
   return ARMY_UNITS[army][role].kind;
 }
 
-/** Whether a unit is an army unit of `army` (Undying and Pack read this). */
+/** Whether a unit is an army unit of `army` (Pack reads this). */
 export function isArmyUnit(h: Pick<HeroState, "army">, army: ArmyKind): boolean {
   return h.army === army;
 }

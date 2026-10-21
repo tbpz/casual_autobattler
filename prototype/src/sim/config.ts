@@ -632,18 +632,21 @@ export interface FightConfig {
   heroBiteMult: number;
 
   // Armies (2026-10-20; sim/armies.ts). Made-up first numbers, meant to move by playing.
-  /** Undead's Undying: the share of max HP a unit stands up with, the first time it falls in a fight. */
-  undyingReviveFrac: number;
-  /** Undead's Undying: how much harder a unit that has risen hits (normal hits and skills). */
-  undyingDamageMult: number;
-  /** Grave Guard: the share of max HP the Bone Knight stands up with when a slam it took for the squad knocks it down. */
-  graveGuardReviveFrac: number;
-  /** Soul Bolt: its damage, plus `soulBoltPerRisen` for each of your units that has risen this fight. */
-  soulBoltBase: number;
-  soulBoltPerRisen: number;
-  /** Blood Rite: the HP its user pays, and what every other unit gets back, per rung. */
-  bloodRiteCost: number;
-  bloodRiteHeal: number;
+  /** Undead skeletons (2026-10-21; Raise, Bone Wall, Command): how many stand at once. At the limit a skill hit upgrades
+   * that kind instead of raising one. Made-up first numbers, meant to move by playing. */
+  undeadSkeletonMax: number;
+  /** A warrior skeleton (Raise): HP, damage, seconds between hits, and what one upgrade adds to its damage. */
+  undeadWarriorHp: number;
+  undeadWarriorDamage: number;
+  undeadWarriorIntervalSec: number;
+  undeadWarriorUpgradeDamage: number;
+  /** A shield skeleton (Bone Wall): HP, damage, seconds between hits, and what one upgrade adds to its HP. */
+  undeadShieldHp: number;
+  undeadShieldDamage: number;
+  undeadShieldIntervalSec: number;
+  undeadShieldUpgradeHp: number;
+  /** Command: each standing skeleton strikes for its own damage times this, grown per rung like any skill. 1 means its own damage. */
+  undeadCommandMult: number;
   /** Roar: the share of a full skill bar it gives every other Beast (first rung only). */
   roarChargeFrac: number;
   /** Pack Bite: damage per bite; the bite counts once for itself and once for every other living Wolf. */
@@ -717,9 +720,9 @@ export type ChainEffect =
   | "bite"
   // The armies' base skills (2026-10-20; sim/armies.ts): one per role per army, in the place of Guard, Expose
   // and Mend. Never offered as an upgrade. Each reads like the base skill of its role (see ABILITY_FAMILY).
-  | "graveGuard"
-  | "soulBolt"
-  | "bloodRite"
+  | "raise"
+  | "boneWall"
+  | "command"
   | "roar"
   | "packBite"
   | "herd";
@@ -728,12 +731,8 @@ export type ChainEffect =
  * Expose" (a rune's need, a mark's source). A plain skill is its own family. */
 export function abilityFamily(effect: ChainEffect): ChainEffect {
   switch (effect) {
-    case "graveGuard":
     case "roar":
       return "guard";
-    case "soulBolt":
-      return "expose";
-    case "bloodRite":
     case "herd":
       return "mend";
     default:
@@ -807,12 +806,12 @@ export function chainEffectLines(effect: ChainEffect): { does: string; against: 
       return { does: "Heals every unit, more the longer the fight.", against: "Good in a long fight." };
     case "bite":
       return { does: "Bites the strongest enemy and heals the squad.", against: "Good against one huge enemy." };
-    case "graveGuard":
-      return { does: "Takes the next slam; if it falls, it gets up.", against: "Good against slams." };
-    case "soulBolt":
-      return { does: "Hits the biggest enemy, harder for each unit that rose.", against: "Good against one huge enemy." };
-    case "bloodRite":
-      return { does: "Pays its own HP to heal every other unit.", against: "Good when units keep falling and rising." };
+    case "raise":
+      return { does: "Raises a warrior skeleton; at five, upgrades them.", against: "Good in a long fight." };
+    case "boneWall":
+      return { does: "Raises a shield skeleton; at five, upgrades them.", against: "Good against lots of small hits." };
+    case "command":
+      return { does: "Every skeleton strikes the front enemy.", against: "Good with a full horde." };
     case "roar":
       return { does: "Takes the next slam and fills the pack's bars.", against: "Good against slams." };
     case "packBite":
@@ -880,12 +879,12 @@ export function chainEffectChip(effect: ChainEffect): { icon: string; word: stri
       return { icon: "✿", word: "bloom" };
     case "bite":
       return { icon: "☍", word: "bite" };
-    case "graveGuard":
-      return { icon: "⛨", word: "grave guard" };
-    case "soulBolt":
-      return { icon: "◎", word: "soul bolt" };
-    case "bloodRite":
-      return { icon: "♥", word: "blood rite" };
+    case "raise":
+      return { icon: "☠", word: "raise" };
+    case "boneWall":
+      return { icon: "⛊", word: "bone wall" };
+    case "command":
+      return { icon: "⚔", word: "command" };
     case "roar":
       return { icon: "⛨", word: "roar" };
     case "packBite":
@@ -1281,13 +1280,16 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   heroLeechHeal: 1,
   heroBiteMult: 2,
 
-  undyingReviveFrac: 0.5,
-  undyingDamageMult: 1.5,
-  graveGuardReviveFrac: 0.5,
-  soulBoltBase: 17,
-  soulBoltPerRisen: 9,
-  bloodRiteCost: 20,
-  bloodRiteHeal: 12,
+  undeadSkeletonMax: 5,
+  undeadWarriorHp: 15,
+  undeadWarriorDamage: 2,
+  undeadWarriorIntervalSec: 1.4,
+  undeadWarriorUpgradeDamage: 1,
+  undeadShieldHp: 24,
+  undeadShieldDamage: 1,
+  undeadShieldIntervalSec: 1.6,
+  undeadShieldUpgradeHp: 8,
+  undeadCommandMult: 1,
   roarChargeFrac: 0.25,
   packBiteDamage: 6,
   herdHealPerBeast: 1,

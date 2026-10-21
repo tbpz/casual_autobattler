@@ -5,7 +5,7 @@
 // The face of an army unit is always ONE element (a wrapper span), because the fight screen swaps a fallen unit's face for the ✕ face
 // by replacing that single element (render/fightView.ts setFallenFace).
 
-import type { ArmyKind, UnitKind } from "../sim/types.js";
+import type { ArmyKind, SkeletonKind, UnitKind } from "../sim/types.js";
 import { hollowFace, squadFace, type FaceTier } from "./faces.js";
 
 /** The body colour of each army unit; also its eyes' lid colour. */
@@ -117,6 +117,18 @@ export function armyLook(kind: UnitKind, tier: FaceTier, size: number): ArmyLook
       };
     }
   }
+}
+
+/** The look of an Undead army skeleton (2026-10-21; canvas 12.0B, design/tools/gen-army-fights.js skelBody): a bone disc with hollow glowing
+ * eyes and a crack. A warrior carries a blade, a shield skeleton an amber shield on its front. `face` goes in the disc, `overlay` is drawn
+ * over it and may reach past its edge. */
+export function skeletonLook(kind: SkeletonKind): { bg: string; face: string; overlay: string } {
+  const crack = 'stroke="#14161c" stroke-opacity="0.55" stroke-width="3.2" fill="none" stroke-linejoin="round" stroke-linecap="round"';
+  const eyes = '<ellipse cx="33" cy="45" rx="13" ry="15" fill="#14161c"/><ellipse cx="67" cy="45" rx="13" ry="15" fill="#14161c"/><circle cx="33" cy="47" r="8.5" fill="#9ff0e0" opacity="0.28"/><circle cx="67" cy="47" r="8.5" fill="#9ff0e0" opacity="0.28"/><circle cx="33" cy="47" r="4.6" fill="#9ff0e0"/><circle cx="67" cy="47" r="4.6" fill="#9ff0e0"/>';
+  const face = `<span style="position:absolute;inset:0;display:block;pointer-events:none">${VB}<path d="M64 4 L58 20 L66 30" ${crack}/>${eyes}</svg></span>`;
+  const blade = `${VB}<path d="M84 74 L100 14" stroke="#fff" stroke-width="7" stroke-linecap="round"/><path d="M76 80 L94 74" stroke="${BONE}" stroke-width="7" stroke-linecap="round"/></svg>`;
+  const shield = `${VB}<path d="M24 58 H76 V78 Q76 98 50 108 Q24 98 24 78 Z" fill="#ffb454" stroke="#14161c" stroke-width="5" stroke-linejoin="round"/><path d="M50 66 V98 M36 80 H64" stroke="#14161c" stroke-width="5" stroke-linecap="round" opacity="0.55"/></svg>`;
+  return kind === "shield" ? { bg: "#bdb59a", face, overlay: shield } : { bg: "#dcd6c2", face, overlay: blade };
 }
 
 /** A whole army body as markup, `size` px: art behind, the disc and its face. For the pick screen and cards, where no fight slot draws it. */

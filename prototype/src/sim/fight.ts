@@ -1,7 +1,7 @@
 import type { Rng } from "./rng.js";
 import type { ChainEffect, FightConfig } from "./config.js";
 import { backfireChanceFor, chainContinuationChance, chainEscalationFactor, fatigueMagnitudeMult } from "./config.js";
-import type { ChainPlan, FightSetup, HeroState, Marks, SideState } from "./types.js";
+import type { ChainPlan, FightSetup, HeroState, Marks, SideState, SkeletonKind } from "./types.js";
 import { sideHp, sideMaxHp } from "./types.js";
 import type { FightEvent, FightResult, HeroSnapshot, Side, TickSnapshot } from "./events.js";
 import type { CardApi, CardId, HookName, HookPayloads } from "./cards/index.js";
@@ -27,8 +27,6 @@ interface FightCtx {
   api: CardApi;
   player: SideState;
   enemy: SideState;
-  /** How many of the player's units have got back up so far this fight (Undying and Grave Guard both count): Soul Bolt reads it. */
-  risen: number;
 }
 let ctx: FightCtx | null = null;
 
@@ -126,28 +124,25 @@ function tauntTargetId(side: SideState): string | undefined {
 }
 
 // ---- The armies' rules (2026-10-20; sim/armies.ts) ----
-// Undying and Pack are read straight off `HeroState.army` where they matter, like the merge heroes' gifts, not routed
+// Pack and the Undead's Horde are read straight off `HeroState.army` where they matter, like the merge heroes' gifts, not routed
 // through the rune system: they must not take a rune slot or show in the runes box.
 
-/** Undead's Undying: a unit that has risen this fight hits harder, normal hits and skills alike. 1 for everyone else. */
-function risenMult(cfg: FightConfig, h: HeroState): number {
-  return h.risen ? cfg.undyingDamageMult : 1;
+/** What an Undead army skeleton of `kind` stands up with, at `level` upgrades. */
+export function skeletonStats(cfg: FightConfig, kind: SkeletonKind, level: number): { hp: number; damage: number; interval: number } {
+  return kind === "warrior"
+    ? { hp: cfg.undeadWarriorHp, damage: cfg.undeadWarriorDamage + level * cfg.undeadWarriorUpgradeDamage, interval: cfg.undeadWarriorIntervalSec }
+    : { hp: cfg.undeadShieldHp + level * cfg.undeadShieldUpgradeHp, damage: cfg.undeadShieldDamage, interval: cfg.undeadShieldIntervalSec };
 }
 
-/** A player unit that just fell may get back up at once: a Bone Knight whose Grave Guard took the slam does (free, as often
- * as it is guarded), and any Undead unit that has not risen yet this fight does (Undying, once). Returns whether it stood up;
- * the caller then does not count it as fallen. */
-function tryRise(c: FightCtx, hero: HeroState, opts: DamageOpts | undefined): boolean {
-  if (hero.skeleton || hero.army !== "undead") return false;
-  const byGuard = !!opts?.guarded && hero.kind === "boneKnight" && (hero.chainPlan?.effects ?? hero.chainEffects ?? []).includes("graveGuard");
-  if (!byGuard && hero.risen) return false;
-  const frac = byGuard ? c.cfg.graveGuardReviveFrac : c.cfg.undyingReviveFrac;
-  hero.alive = true;
-  hero.hp = Math.max(1, Math.round(hero.maxHp * frac));
-  if (!byGuard) hero.risen = true;
-  c.risen += 1;
-  c.events.push({ type: "heroRose", t: c.t, side: "player", heroId: hero.id, hp: hero.hp, byGuard });
-  return true;
+/** The Undead army's standing skeletons (every one of `kind` when given), in list order. A Necromancer's skeleton has no kind and is not one. */
+function standingSkeletons(side: SideState, kind?: SkeletonKind): HeroState[] {
+  return side.heroes.filter((h) => h.skeleton && h.skeletonKind !== undefined && h.alive && h.hp > 0 && (kind === undefined || h.skeletonKind === kind));
+}
+
+/** Where an enemy's normal hit goes first against an Undead army: the first standing shield skeleton, else the first standing warrior
+ * skeleton. Undefined when none stands, and the Tank lock takes over. Slams and enemies that reach the back row do not use it. */
+function skeletonWallTargetId(side: SideState): string | undefined {
+  return (standingSkeletons(side, "shield")[0] ?? standingSkeletons(side, "warrior")[0])?.id;
 }
 
 /** Pack: a hit a Beast lands on an enemy fills every other living Beast's skill bar a little. */
@@ -169,8 +164,8 @@ function healFlat(c: FightCtx, side: SideState, healer: HeroState, target: HeroS
 
 /** The Necromancer's empty places: `cfg.heroSkeletonMax` dormant bodies (not alive, max HP 0) added to the
  * player side at fight start so the screen can draw them in advance. Raise fills one. */
-function makeSkeletonSlots(cfg: FightConfig): HeroState[] {
-  return Array.from({ length: cfg.heroSkeletonMax }, (_, i) => ({
+function makeSkeletonSlots(cfg: FightConfig, count: number = cfg.heroSkeletonMax): HeroState[] {
+  return Array.from({ length: count }, (_, i) => ({
     id: `skeleton_${i + 1}`,
     name: "Skeleton",
     role: "damage" as const,
@@ -212,6 +207,42 @@ function raiseSkeleton(c: FightCtx): void {
   slot.stunnedUntilT = undefined;
   slot.stunnedFromT = undefined;
   c.events.push({ type: "raise", t: c.t, heroId: slot.id });
+}
+
+/** The Undead army's Raise and Bone Wall: one skeleton of `kind` stands up in an empty place, or, with `undeadSkeletonMax` already
+ * standing, every skeleton of that kind gets stronger instead (and so does every one raised later). Returns the skeleton raised, or
+ * the kind's new level when it upgraded; neither when there was no place (cannot happen with the places made at fight start). */
+function raiseArmySkeleton(c: FightCtx, kind: SkeletonKind): { slot?: HeroState; level?: number } {
+  const levels = c.player.skeletonLevel;
+  if (!levels) return {};
+  if (standingSkeletons(c.player).length >= c.cfg.undeadSkeletonMax) {
+    levels[kind] += 1;
+    for (const h of standingSkeletons(c.player, kind)) {
+      if (kind === "warrior") h.damage += c.cfg.undeadWarriorUpgradeDamage;
+      else {
+        h.maxHp += c.cfg.undeadShieldUpgradeHp;
+        h.hp += c.cfg.undeadShieldUpgradeHp;
+      }
+    }
+    c.events.push({ type: "skeletonUpgrade", t: c.t, kind, level: levels[kind] });
+    return { level: levels[kind] };
+  }
+  const places = c.player.heroes.filter((h) => h.skeleton);
+  const slot = places.find((h) => !h.alive && h.maxHp === 0) ?? places.find((h) => !h.alive);
+  if (!slot) return {};
+  const stats = skeletonStats(c.cfg, kind, levels[kind]);
+  slot.alive = true;
+  slot.skeletonKind = kind;
+  slot.maxHp = stats.hp;
+  slot.hp = stats.hp;
+  slot.damage = stats.damage;
+  slot.attackIntervalSec = stats.interval;
+  slot.nextAttackT = c.t + stats.interval;
+  slot.marks = { exposed: 0, burn: 0, shield: 0 };
+  slot.stunnedUntilT = undefined;
+  slot.stunnedFromT = undefined;
+  c.events.push({ type: "raise", t: c.t, heroId: slot.id, kind });
+  return { slot };
 }
 
 /** What a body falling does to the heroes' gifts: an Assassin that landed the kill has its bar filled again
@@ -289,8 +320,6 @@ function makeCardApi(c: () => FightCtx): CardApi {
 interface DamageOpts {
   source?: HeroState;
   chain?: boolean;
-  /** An enemy slam that a Guard redirected onto its guardian: a Bone Knight's Grave Guard stands the guardian back up. */
-  guarded?: boolean;
 }
 
 /**
@@ -375,16 +404,12 @@ function applyDamageFrom(
     if (hero.hp <= 0) {
       hero.hp = 0;
       hero.alive = false;
-      if (c && !onEnemySide && tryRise(c, hero, opts)) {
-        // An Undead unit got back up (Undying, or Grave Guard): it did not fall.
-      } else {
-        died.push(hero.id);
-        if (c) {
-          runHook(c, "death", { side, hero, onEnemySide });
-          // A card may bring the body back (Phoenix): then it did not die.
-          if (hero.alive) died.pop();
-          else onBodyFell(c, hero, onEnemySide, opts?.source);
-        }
+      died.push(hero.id);
+      if (c) {
+        runHook(c, "death", { side, hero, onEnemySide });
+        // A card may bring the body back (Phoenix): then it did not die.
+        if (hero.alive) died.pop();
+        else onBodyFell(c, hero, onEnemySide, opts?.source);
       }
     }
     if (!spillOverkill) break;
@@ -715,8 +740,9 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
     fatigue: h.fatigue,
     backfires: h.backfires,
     ...(h.hero ? { hero: h.hero, madeFrom: h.madeFrom, ...(h.hero === "dragon" ? { stage: h.heroStage ?? 0 } : {}) } : {}),
-    ...(h.army ? { army: h.army, ...(h.kind ? { kind: h.kind } : {}), ...(h.risen ? { risen: true } : {}) } : {}),
+    ...(h.army ? { army: h.army, ...(h.kind ? { kind: h.kind } : {}) } : {}),
     ...(h.skeleton ? { skeleton: true } : {}),
+    ...(h.skeletonKind ? { skeletonKind: h.skeletonKind, skeletonLevel: side.skeletonLevel?.[h.skeletonKind] ?? 0 } : {}),
     windupFireT: h.windupFireT,
     windupTargetId: h.windupTargetId,
     nextWindupT: h.nextWindupT,
@@ -757,7 +783,6 @@ function cloneHeroes(heroes: HeroState[]): HeroState[] {
     marks: h.marks ? { ...h.marks } : { exposed: 0, burn: 0, shield: 0 },
     burnFrom: undefined,
     lastHitBy: undefined,
-    risen: false,
     thawSeenT: h.stunnedUntilT,
     chainPlan: resolveChainPlan(h),
   }));
@@ -825,12 +850,15 @@ function performHeroAction(
   // A living Golem takes every normal hit, even from an enemy that reaches the back row (its Taunt).
   const taunting = targeting === "weighted" ? tauntTargetId(defenderSide) : undefined;
   const lockedTankId = targeting === "weighted" && !hero.reachesBackline ? firstAliveTankId(defenderSide) : undefined;
+  // Against an Undead army the standing skeletons soak the normal hits first: shields, then warriors, then the Tank lock.
+  const wall = targeting === "weighted" && !hero.reachesBackline ? skeletonWallTargetId(defenderSide) : undefined;
   const targetId =
     taunting ??
+    wall ??
     lockedTankId ??
     (targeting === "front" ? frontMostAliveId(defenderSide) : pickEnemyTargetId(defenderSide, rng, cfg, enemyTargetTally));
   if (!targetId) return;
-  const base = (hero.damage + (isPlayerAttacker ? attackerSide.dpsBonus : 0)) * damageMultiplier * rageMult(cfg, hero) * risenMult(cfg, hero);
+  const base = (hero.damage + (isPlayerAttacker ? attackerSide.dpsBonus : 0)) * damageMultiplier * rageMult(cfg, hero);
   let damage = rollDamage(base, rng, cfg.damageVariance);
   // Cards that change a normal attack before it lands (Punish) listen here.
   if (ctx) {
@@ -960,7 +988,6 @@ function handleBruiserBeat(
     const damage = Math.max(1, Math.round(hero.damage * cfg.windupDamageMultiplier));
     const { died, applied } = applyDamageFrom(player, targetId, damage, cfg.chargeWeightSoaked, true, {
       source: hero,
-      guarded: redirect === "guard" || redirect === "guardHeld",
     });
     hero.dealt += applied;
     events.push({ type: "windupHit", t, sourceId: hero.id, targetId, damage, originalTargetId, redirect });
@@ -1028,7 +1055,9 @@ function escalatedDurationSec(cfg: FightConfig, baseSec: number, hitIndex: numbe
  * charges set; "stun" produces a single entry with the frozen body's id and
  * durationSec/durationTotalSec set. */
 interface ChainHitEntry {
-  kind: "damage" | "heal" | "guard" | "stun";
+  kind: "damage" | "heal" | "guard" | "stun" | "raise";
+  /** Who struck, when it was not the unit that used the skill (Command: each skeleton). */
+  sourceId?: string;
   targetId: string | null;
   amount: number;
   intended: number;
@@ -1171,8 +1200,7 @@ function resolveOneEffect(
   // Fatigue makes every escalated rung a little stronger (guard is a flat
   // charge count and ignores it). It scales a backfire equally — a frayed
   // unit's mistake is as big as its success.
-  // An Undead unit that has risen hits harder with its skills too (Undying).
-  let boost = fatigueMagnitudeMult(cfg, hero.fatigue) * risenMult(cfg, hero);
+  let boost = fatigueMagnitudeMult(cfg, hero.fatigue);
   // A damage effect's real payoff lands on the enemy, backfire on the
   // player's own side; a heal effect is the mirror of that (real payoff
   // heals the player's own side, backfire heals the enemy) — same asymmetry
@@ -1181,7 +1209,7 @@ function resolveOneEffect(
   // reads this.
   const isHealEffect =
     effect === "ward" || effect === "mend" || effect === "bless" || effect === "prayer" || effect === "bloom" ||
-    effect === "bloodRite" || effect === "herd";
+    effect === "herd";
   const targetSide = isHealEffect ? (backfire ? enemy : player) : backfire ? player : enemy;
   // Marks are only in play inside runFight (ctx set); every branch below that
   // leaves one guards on this. Stacks per rung: 1, plus one per chain "+N".
@@ -1227,13 +1255,10 @@ function resolveOneEffect(
         };
       });
     }
-    case "expose":
-    case "soulBolt": {
+    case "expose": {
       const target = highestHpAliveHero(targetSide);
       if (!target) return null;
-      // Soul Bolt is Expose with a bigger base: its own plus a bit more for each of your units that has got back up this fight.
-      const exposeBase = effect === "soulBolt" ? cfg.soulBoltBase + cfg.soulBoltPerRisen * (c?.risen ?? 0) : cfg.chainExposeBase;
-      const damage = escalatedMagnitude(cfg, exposeBase, hitIndex, boost);
+      const damage = escalatedMagnitude(cfg, cfg.chainExposeBase, hitIndex, boost);
       const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false, dmgOpts);
       hero.dealt += applied;
       let marked = false;
@@ -1310,10 +1335,8 @@ function resolveOneEffect(
       ];
     }
     case "guard":
-    case "graveGuard":
     case "roar": {
-      // Grave Guard and Roar are Guard with a rider: a guarded slam that knocks a Bone Knight down stands it back up (fight.ts's
-      // tryRise reads it off the slam), and Roar fills every other Beast's skill bar the first time it goes.
+      // Roar is Guard with a rider: it fills every other Beast's skill bar the first time it goes.
       if (effect === "roar" && hitIndex === 1 && !backfire) {
         for (const ally of player.heroes) {
           if (ally !== hero && ally.army === "beasts" && ally.alive && ally.hp > 0 && !ally.skeleton) ally.charge += cfg.chargeThreshold * cfg.roarChargeFrac;
@@ -1564,23 +1587,38 @@ function resolveOneEffect(
       }
       return out.length > 0 ? out : null;
     }
-    case "bloodRite": {
-      // The Bone Priest pays its own HP first (Undying makes that safe: if it falls, it gets up), then heals every other unit.
-      const out: ChainHitEntry[] = [];
-      const paid = applyDamageFrom(player, hero.id, cfg.bloodRiteCost, 0, false, { chain: true });
-      out.push({ kind: "damage", targetId: hero.id, amount: paid.applied, intended: cfg.bloodRiteCost, died: paid.died });
-      if (!hero.alive) return out;
-      const allies = targetSide.heroes.filter((h) => h.alive && h.hp > 0 && h !== hero && !h.skeleton);
-      const raw = escalatedMagnitude(cfg, cfg.bloodRiteHeal, hitIndex, boost);
-      for (const target of allies) {
-        const room = target.maxHp - target.hp;
-        const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
-        const amount = room > 0 ? Math.max(1, Math.min(raw, cap, room)) : 0;
-        target.hp += amount;
-        if (!backfire) hero.restored += amount;
-        out.push({ kind: "heal", targetId: target.id, amount, intended: raw, died: [] });
+    case "raise":
+    case "boneWall": {
+      // One skeleton per hit: a warrior for Raise, a shield for Bone Wall. With the horde full, the hit upgrades that kind instead.
+      // A backfire knocks down one standing skeleton of the kind. Only inside an Undead fight (the places and levels exist then).
+      const kind: SkeletonKind = effect === "raise" ? "warrior" : "shield";
+      if (!c || !player.skeletonLevel) return null;
+      if (backfire) {
+        const victim = standingSkeletons(player, kind)[0];
+        if (!victim) return null;
+        const intended = victim.hp;
+        const { died, applied } = applyDamageFrom(player, victim.id, intended, 0, false, { chain: true });
+        return [{ kind: "damage" as const, targetId: victim.id, amount: applied, intended, died }];
       }
-      return out;
+      const raised = raiseArmySkeleton(c, kind);
+      if (!raised.slot && raised.level === undefined) return null;
+      return [{ kind: "raise" as const, targetId: raised.slot?.id ?? null, amount: 0, intended: 0, died: [] as string[] }];
+    }
+    case "command": {
+      // Every standing skeleton strikes the front enemy at once, for its own damage times a multiplier; a backfire aims the same
+      // strike at your own front unit. No skeleton standing, nothing to do: the skill ends.
+      const skeletons = standingSkeletons(player);
+      if (skeletons.length === 0) return null;
+      const out: ChainHitEntry[] = [];
+      for (const skeleton of skeletons) {
+        const target = targetSide.heroes.find((h) => h.alive && h.hp > 0 && !h.skeleton);
+        if (!target) break;
+        const damage = escalatedMagnitude(cfg, skeleton.damage * cfg.undeadCommandMult, hitIndex, boost);
+        const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false, dmgOpts);
+        hero.dealt += applied;
+        out.push({ kind: "damage", targetId: target.id, amount: applied, intended: damage, died, sourceId: skeleton.id });
+      }
+      return out.length > 0 ? out : null;
     }
     case "packBite": {
       // One bite for itself and one for every other living Wolf, as a single hit on the front enemy.
@@ -1725,6 +1763,11 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
   const enemy: SideState = { heroes: cloneHeroes(setup.enemy.heroes), dpsBonus: setup.enemy.dpsBonus };
   // A fielded Necromancer brings its empty skeleton places with it (see makeSkeletonSlots).
   if (player.heroes.some((h) => h.hero === "necromancer" && h.alive)) player.heroes.push(...makeSkeletonSlots(cfg));
+  // An Undead army brings its empty places too, `undeadSkeletonMax` of them, and counts its upgrades per kind from nothing.
+  else if (player.heroes.some((h) => h.army === "undead")) {
+    player.heroes.push(...makeSkeletonSlots(cfg, cfg.undeadSkeletonMax));
+    player.skeletonLevel = { warrior: 0, shield: 0 };
+  }
   const events: FightEvent[] = [];
 
   // The marks/card context (see FightCtx's docstring) is live only for the
@@ -1737,7 +1780,6 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
     api: makeCardApi(() => ctx!),
     player,
     enemy,
-    risen: 0,
   };
   try {
     return runFightLoop(events, player, enemy, cfg, rng, seed);
@@ -1931,7 +1973,7 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
               targetId: hit.targetId,
               kind: hit.kind,
               backfire: chainBackfire,
-              sourceId: hero.id,
+              sourceId: hit.sourceId ?? hero.id,
               durationSec: hit.durationSec,
               durationTotalSec: hit.durationTotalSec,
               charges: hit.charges,

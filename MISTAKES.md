@@ -16,6 +16,20 @@
 
 ---
 
+### [2026-10-21 #1] Proposed Beasts "bleed" as a new mechanic, but it is Exposed or Burn renamed
+
+- **Said:** In the plan for armies that fight differently, I wrote that Beasts' bite adds bleed to the
+  enemy and the enemy "melts", and called it Slay the Spire's poison deck.
+- **Actually:** The game already has Burn (a mark that damages over time) and Exposed (a mark that
+  makes the enemy take more). Bleed was one of them with a new name, so it changed nothing a player
+  sees. The same fault Tu had just named in the first two armies.
+- **Caught by:** Tu rejected the plan: "Beast design is just like exposes with a different name."
+- **Why:** I checked the idea against the fight's lines and numbers but not against the marks the
+  game already has, so a renamed mark passed as a new mechanic.
+- **Tag:** presented a renamed existing thing as new
+
+---
+
 ### [2026-10-17 #2] Said the other first picks complete "about 35%" of runs, but they average 26%
 
 - **Said:** In the balance discussion, the plan, and the new DECISIONS.md entry I wrote that runs

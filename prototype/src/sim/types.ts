@@ -241,10 +241,13 @@ export interface HeroState {
    * reads a role keeps working; these two only change its name, look and skill. Undefined on a plain unit. */
   army?: ArmyKind;
   kind?: UnitKind;
-  /** Undead, per fight: this unit has already got back up once (Undying), so it hits harder and cannot do it again.
-   * Reset at fight start by fight.ts's cloneHeroes. */
-  risen?: boolean;
+  /** Undead army skeleton (2026-10-21; fight.ts's raiseArmySkeleton): which kind this place holds once it is filled. A warrior
+   * (Raise) hits; a shield (Bone Wall) soaks the enemy's normal hits first. Undefined on a Necromancer's skeleton. */
+  skeletonKind?: SkeletonKind;
 }
+
+/** The two kinds of Undead army skeleton. */
+export type SkeletonKind = "warrior" | "shield";
 
 export interface Marks {
   exposed: number;
@@ -254,6 +257,9 @@ export interface Marks {
 
 export interface SideState {
   heroes: HeroState[];
+  /** Undead army, per fight: how many upgrades each kind of skeleton has had (a skill hit with the horde full). Applies
+   * to the standing ones and to ones raised later. Undefined when the side has no Undead army. */
+  skeletonLevel?: { warrior: number; shield: number };
   /** Flat bonus added to every living hero's attack damage, accumulated from
    * run-level upgrades (coin sink B). Applied only to the player side; 0 for
    * enemies. */

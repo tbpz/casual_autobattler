@@ -1,4 +1,5 @@
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
+import { skeletonStats } from "../sim/fight.js";
 import { defaultCardDrop, type Offer } from "../sim/offers.js";
 import type { CardId } from "../sim/cards/index.js";
 import { heldCards } from "../sim/progress.js";
@@ -274,7 +275,7 @@ export function mountApp(root: HTMLElement): void {
         hp: h.hp,
         maxHp: h.maxHp,
         alive: h.alive,
-        damage: base.get(h.id)?.damage ?? 0,
+        damage: base.get(h.id)?.damage ?? (h.skeletonKind ? skeletonStats(cfg.fight, h.skeletonKind, h.skeletonLevel ?? 0).damage : 0),
         healPerBeat: base.get(h.id)?.healPerBeat,
         reachesBackline: base.get(h.id)?.reachesBackline,
         fatigue: h.fatigue,
@@ -284,13 +285,16 @@ export function mountApp(root: HTMLElement): void {
         army: h.army,
         kind: h.kind,
         skeleton: h.skeleton,
+        skeletonKind: h.skeletonKind,
+        skeletonLevel: h.skeletonLevel,
       });
       pausedByPopup = true;
       syncPause();
       closePopup = openFighterPopup({
         cfg,
-        // A Necromancer's empty skeleton places are not fighters yet: they stay out of the switcher until Raise fills them.
-        squad: snap.playerHeroes.filter((h) => !(h.skeleton && h.maxHp === 0)).map((h) => toFighter(h, squadBase)),
+        // An empty skeleton place is not a fighter yet: it stays out of the switcher until it is filled. An Undead army's skeleton that has
+        // fallen is gone, not a greyed chip.
+        squad: snap.playerHeroes.filter((h) => !(h.skeleton && (h.maxHp === 0 || (h.skeletonKind && !h.alive)))).map((h) => toFighter(h, squadBase)),
         enemies: snap.enemyHeroes.map((h) => toFighter(h, enemyBase)),
         openId: id,
         progress: session.progress,

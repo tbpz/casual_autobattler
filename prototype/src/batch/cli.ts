@@ -60,9 +60,9 @@ function formatEvent(e: FightEvent): string {
     case "shieldAbsorb":
       return `[t=${t}] ${e.side} ${e.targetId} shield absorbs ${e.amount.toFixed(1)}`;
     case "raise":
-      return `[t=${t}] skeleton ${e.heroId} rises`;
-    case "heroRose":
-      return `[t=${t}] ${e.side} ${e.heroId} gets back up at ${e.hp} HP${e.byGuard ? " (Grave Guard)" : " (Undying)"}`;
+      return `[t=${t}] ${e.kind ?? "skeleton"} skeleton ${e.heroId} rises`;
+    case "skeletonUpgrade":
+      return `[t=${t}] the horde is full: every ${e.kind} skeleton is upgraded (level ${e.level})`;
     case "resolve":
       return `[t=${t}] RESOLVE: ${e.outcome.toUpperCase()} (${e.reason})`;
   }

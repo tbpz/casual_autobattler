@@ -5,7 +5,7 @@
  * the old prototype's sim/engine.ts + render/playback.ts).
  */
 import type { ChainEffect } from "./config.js";
-import type { ArmyKind, HeroKind, Marks, Role, UnitKind } from "./types.js";
+import type { ArmyKind, HeroKind, Marks, Role, SkeletonKind, UnitKind } from "./types.js";
 import type { CardId } from "./cards/index.js";
 
 export type Side = "player" | "enemy";
@@ -48,7 +48,7 @@ export type FightEvent =
        * changes no sim behaviour. 0 for "guard"/"stun", which don't move HP. */
       intended: number;
       targetId: string | null;
-      kind: "damage" | "heal" | "guard" | "stun";
+      kind: "damage" | "heal" | "guard" | "stun" | "raise";
       backfire: boolean;
       sourceId: string;
       /** Set only for "stun" — how many seconds THIS rung's freeze added
@@ -167,12 +167,12 @@ export type FightEvent =
   | { type: "burnTick"; t: number; side: Side; targetId: string; amount: number }
   /** A Shield absorbed part or all of a hit (2026-09-30). */
   | { type: "shieldAbsorb"; t: number; side: Side; targetId: string; amount: number }
-  /** The Necromancer's Raise filled an empty place: skeleton `heroId` is now standing on the player side
-   * (2026-10-20; fight.ts's raiseSkeleton). */
-  | { type: "raise"; t: number; heroId: string }
-  /** An Undead unit got back up instead of falling (2026-10-20; fight.ts's tryRise): Undying, or a Bone Knight's Grave Guard
-   * (`byGuard`). `hp` is what it stands up with. */
-  | { type: "heroRose"; t: number; side: Side; heroId: string; hp: number; byGuard: boolean }
+  /** A Necromancer's Raise, or an Undead army's Raise or Bone Wall, filled an empty place: skeleton `heroId` is now standing on
+   * the player side (2026-10-20; fight.ts's raiseSkeleton and raiseArmySkeleton). `kind` is set for an army skeleton. */
+  | { type: "raise"; t: number; heroId: string; kind?: SkeletonKind }
+  /** The Undead horde was full, so a Raise or Bone Wall hit upgraded every skeleton of `kind` instead (2026-10-21);
+   * `level` is how many upgrades that kind has had this fight. */
+  | { type: "skeletonUpgrade"; t: number; kind: SkeletonKind; level: number }
   | { type: "resolve"; t: number; outcome: "win" | "loss"; reason: "wipe" | "failsafe" };
 
 /** A per-hero HP reading at one instant, for body rendering. */
@@ -206,11 +206,13 @@ export interface HeroSnapshot {
   hero?: HeroKind;
   madeFrom?: ("tank" | "damage" | "support")[];
   stage?: number;
-  /** Army unit (2026-10-20): which army and which of its six units this is, and, Undead only, whether it has got back
-   * up this fight. Undefined on a plain unit. */
+  /** Army unit (2026-10-20): which army and which of its six units this is. Undefined on a plain unit. */
   army?: ArmyKind;
   kind?: UnitKind;
-  risen?: boolean;
+  /** Undead army skeleton (2026-10-21): its kind, and how many upgrades that kind has had as of this instant, so the
+   * screen can draw the +N badge after a pause or a jump. */
+  skeletonKind?: SkeletonKind;
+  skeletonLevel?: number;
   /** A Necromancer skeleton place. Not alive and `maxHp` 0 until Raise fills it, so the screen can draw
    * the places in advance and hide the empty ones. */
   skeleton?: boolean;

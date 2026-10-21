@@ -1,4 +1,5 @@
-// Generates canvas sections 10 and 11: the armies Undead and Beasts (2026-10-20, proposal, not built).
+// Generates canvas sections 10 and 11: the armies Undead and Beasts (2026-10-20; the Undead are built since 2026-10-21 and the text below is
+// theirs now: Horde, Raise, Bone Wall, Command. The Beasts are still a proposal).
 //   10.0A, 10.0B  ArmyPickA / ArmyPickB      where the army pick sits: before round 1, or after the round 1 win
 //   10.1, 10.5    ArmySquadUndead / Beasts   the round screen with an army's squad
 //   10.2-10.4     ArmyPopup<Unit>            Undead popups (Bone Knight, Wraith, Bone Priest)
@@ -34,13 +35,13 @@ const shade = (hex, f) => {
 // ---------- armies and units ----------
 const ARMIES = {
   undead: {
-    key: "undead", name: "Undead", hex: "#a9b7c9", rgb: "169,183,201", icon: "undying",
-    pitch: "Fall once. Rise stronger.",
-    play: "You want your units to fall once.",
+    key: "undead", name: "Undead", hex: "#a9b7c9", rgb: "169,183,201", icon: "horde",
+    pitch: "Every skill raises an army.",
+    play: "You want long fights and a wall of skeletons.",
     rule: {
-      name: "Undying", head: "Every unit gets back up once per fight.",
-      lines: ["It rises at half HP and hits 50% harder for the rest of the fight.", "Healing is weaker: falling is part of the plan."],
-      card: "Every unit gets back up once per fight, at half HP, and hits 50% harder after. Healing is weaker, because falling is part of the plan.",
+      name: "Horde", head: "Every skill hit raises a skeleton.",
+      lines: ["Up to 5 stand. Enemy hits go to the shield skeletons first, then the warriors.", "With 5 standing, a skill hit makes that kind stronger instead."],
+      card: "Every skill hit raises a skeleton that stays for the whole fight. Up to 5 stand. Enemy hits go to the shield skeletons first, then the warriors, then the Bone Knight. With 5 standing, a skill hit makes that kind stronger instead. A slam can still land on anyone.",
     },
   },
   beasts: {
@@ -57,12 +58,12 @@ const ARMIES = {
 
 // hp, stat: made-up numbers. skill: key of SKILLS.
 const UNITS = {
-  knight: { army: "undead", role: "tank", title: "Bone Knight", name: "Bram", hex: "#c9b98a", row: "FRONT", hp: 145, stat: ["Damage", 7], skill: "graveGuard",
-    job: "The Undead Tank. Stands in front and takes the hits. Gets back up once." },
-  wraith: { army: "undead", role: "damage", title: "Wraith", name: "Ivy", hex: "#8a86b8", row: "BACK", hp: 60, stat: ["Damage", 8], skill: "soulBolt",
-    job: "The Undead Damage unit. Hits harder with every unit of yours that has risen." },
-  priest: { army: "undead", role: "healer", title: "Bone Priest", name: "Sol", hex: "#7fae9a", row: "BACK", hp: 76, stat: ["Heal", 4], skill: "bloodRite",
-    job: "The Undead Healer. Heals a little, and pays its own HP to do it." },
+  knight: { army: "undead", role: "tank", title: "Bone Knight", name: "Bram", hex: "#c9b98a", row: "FRONT", hp: 145, stat: ["Damage", 7], skill: "boneWall",
+    job: "The Undead Tank. Raises a wall of shield skeletons in front of it." },
+  wraith: { army: "undead", role: "damage", title: "Wraith", name: "Ivy", hex: "#8a86b8", row: "BACK", hp: 60, stat: ["Damage", 8], skill: "command",
+    job: "The Undead Damage unit. Sends the whole horde in at once." },
+  priest: { army: "undead", role: "healer", title: "Bone Priest", name: "Sol", hex: "#7fae9a", row: "BACK", hp: 76, stat: ["Heal", 4], skill: "raise",
+    job: "The Undead Healer. Heals a little, and raises warrior skeletons." },
   bear: { army: "beasts", role: "tank", title: "Bear", name: "Bruno", hex: "#d08a3c", row: "FRONT", hp: 140, stat: ["Damage", 5], skill: "roar",
     job: "The Beast Tank. Stands in front and rallies the pack." },
   wolf: { army: "beasts", role: "damage", title: "Wolf", name: "Fang", hex: "#b08cf5", row: "BACK", hp: 60, stat: ["Damage", 6], skill: "packBite",
@@ -73,15 +74,15 @@ const UNITS = {
 
 // skill words: head, chips, two lines (the second is what "goes again" does), card = the one-sentence version
 const SKILLS = {
-  graveGuard: { name: "Grave Guard", icon: "grave", head: "Takes the next {slam} for the squad.", chips: ["Next slam"],
-    lines: ["Takes 1 slam for each time it goes again.", "If a slam knocks it down, it stands up at once, and Undying is still ready."],
-    card: "Takes the next {slam} for the squad. If that slam knocks it down, it stands up at once and Undying is still ready." },
-  soulBolt: { name: "Soul Bolt", icon: "soul", head: "A bolt at the biggest enemy, which it exposes.", chips: ["Biggest enemy"],
-    lines: ["Hits for 17, and 9 more for each of your units that has risen this fight.", "Each time it goes again, the bolt is bigger."],
-    card: "Hits the biggest enemy for 17, and 9 more for each of your units that has risen this fight, and exposes it. Each time it goes again, the bolt is bigger." },
-  bloodRite: { name: "Blood Rite", icon: "drop", head: "Pays its own HP to heal everyone else.", chips: ["Whole squad", "Costs 20 HP"],
-    lines: ["Loses 20 HP and heals every other unit 12.", "Each time it goes again, it pays and heals again."],
-    card: "Loses 20 HP and heals every other unit 12. Undying makes the price safe: if it falls, it gets up." },
+  boneWall: { name: "Bone Wall", icon: "wall", head: "Raises a shield skeleton in front.", chips: ["Shield skeleton"],
+    lines: ["Raises 1 shield skeleton for each time it goes again.", "Enemy hits go to shield skeletons first. With 5 standing, a hit makes shields tougher."],
+    card: "Raises a shield skeleton that stands in front and takes the enemy's hits. With 5 standing, a hit makes every shield skeleton tougher instead." },
+  command: { name: "Command", icon: "command", head: "Every skeleton strikes the front enemy.", chips: ["Front enemy", "Whole horde"],
+    lines: ["Each standing skeleton hits with its own damage.", "Each time it goes again, the strike is bigger."],
+    card: "Every standing skeleton strikes the front enemy at once, with its own damage. Each time it goes again, the strike is bigger." },
+  raise: { name: "Raise", icon: "skull", head: "Raises a warrior skeleton.", chips: ["Warrior skeleton"],
+    lines: ["Raises 1 warrior skeleton for each time it goes again.", "With 5 standing, a hit makes warriors hit harder instead."],
+    card: "Raises a warrior skeleton that fights for the rest of the fight. With 5 standing, a hit makes every warrior skeleton hit harder instead." },
   roar: { name: "Roar", icon: "roar", head: "Takes the next {slam} and rallies the pack.", chips: ["Next slam", "Whole pack"],
     lines: ["The first time it goes, every other beast's skill bar fills 25%.", "Each time it goes again, it takes one more slam."],
     card: "Takes the next {slam} for the pack, and every other beast's skill bar fills 25%." },
@@ -102,10 +103,10 @@ const villain = (size, scowl = 1) => uniq(faces.villainFace(size, scowl));
 // ---------- icons ----------
 const sw = (c, w = 1.8) => `fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"`;
 const I = {
-  grave: (c) => `<path d="M6 21 V10 A6 6 0 0 1 18 10 V21 Z" fill="${c}33" ${sw(c)}/><path d="M12 9 V15 M9.5 11.5 H14.5" ${sw(c, 1.6)}/>`,
-  soul: (c) => `<path d="M12 3 C7 9 7 14 9 17 C10 19 11 20.5 12 21.5 C13 20.5 14 19 15 17 C17 14 17 9 12 3 Z" fill="${c}33" ${sw(c)}/><circle cx="10.3" cy="12.5" r="1.2" fill="${c}"/><circle cx="13.7" cy="12.5" r="1.2" fill="${c}"/>`,
-  drop: (c) => `<path d="M12 3 C16.5 9 19 12 19 15.5 C19 19 15.9 21.5 12 21.5 C8.1 21.5 5 19 5 15.5 C5 12 7.5 9 12 3 Z" fill="${c}33" ${sw(c)}/>`,
-  undying: (c) => `<path d="M12 21 V8 M6.5 13 L12 7.5 L17.5 13" ${sw(c, 2)}/><path d="M6 21 H18" ${sw(c, 1.8)}/>`,
+  wall: (c) => `<path d="M5 4 H19 V12 Q19 18.5 12 21 Q5 18.5 5 12 Z" fill="${c}33" ${sw(c)}/><path d="M12 7 V17 M8 11.5 H16" ${sw(c, 1.6)}/>`,
+  command: (c) => `<path d="M14.5 3.5 L20.5 3.5 L20.5 9.5 L10 20 L4 20 L4 14 Z" fill="${c}33" ${sw(c)}/><path d="M7 17 L17 7" ${sw(c, 1.6)}/>`,
+  skull: (c) => `<path d="M12 3.5 C7.5 3.5 5 6.5 5 10.5 C5 13 6 14.5 7.5 15.5 V19 H16.5 V15.5 C18 14.5 19 13 19 10.5 C19 6.5 16.5 3.5 12 3.5 Z" fill="${c}33" ${sw(c)}/><circle cx="9.5" cy="10.5" r="1.7" fill="${c}"/><circle cx="14.5" cy="10.5" r="1.7" fill="${c}"/>`,
+  horde: (c) => `<circle cx="7" cy="9" r="2.2" fill="${c}"/><circle cx="12" cy="6.5" r="2.2" fill="${c}"/><circle cx="17" cy="9" r="2.2" fill="${c}"/><path d="M5 20 V16.5 C5 14.5 19 14.5 19 16.5 V20 Z" fill="${c}33" ${sw(c, 1.6)}/>`,
   roar: (c) => `<path d="M5 8 Q9 12 5 16 M10 5.5 Q16 12 10 18.5 M15 3 Q23 12 15 21" ${sw(c, 1.8)}/>`,
   bite: (c) => `<path d="M4.5 6 H19.5 C19.5 11 17.5 13 15.8 13 L14.2 19.5 L12.8 13.5 H11.2 L9.8 19.5 L8.2 13 C6.5 13 4.5 11 4.5 6 Z" fill="${c}33" ${sw(c, 1.6)}/>`,
   herd: (c) => `<path d="M8 21 V13 M16 21 V13 M8 13 C7 9 5 7 4 4 M8 13 C9 10 10 8 10 5 M16 13 C17 9 19 7 20 4 M16 13 C15 10 14 8 14 5" ${sw(c, 1.7)}/>`,
@@ -320,7 +321,7 @@ function tile(rgb, hex, ico, name, tag, head, chipsHtml, lines, icons, footer) {
 }
 const seeMore = (name) => `<div class="sk-more"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6.6 5.3 L11 8 L6.6 10.7 Z" fill="currentColor"/></svg><span>See ${name} in action</span><span class="chev">›</span></div>`;
 const POPUP_NUM = { knight: "10.2", wraith: "10.3", priest: "10.4", bear: "10.6", wolf: "10.7", stag: "10.8" };
-const CARD_NUM = { graveGuard: "11.1", soulBolt: "11.2", bloodRite: "11.3", roar: "11.4", packBite: "11.5", herd: "11.6", undead: "11.7", beasts: "11.8" };
+const CARD_NUM = { boneWall: "11.1", command: "11.2", raise: "11.3", roar: "11.4", packBite: "11.5", herd: "11.6", undead: "11.7", beasts: "11.8" };
 function popupFile(key) {
   const u = UNITS[key], a = ARMIES[u.army], S = SKILLS[u.skill], role = ROLE[u.role];
   const set = u.army === "undead" ? ["knight", "wraith", "priest"] : ["bear", "wolf", "wolf", "wolf", "stag"];
@@ -482,46 +483,70 @@ const fallStops = (down, up) => ({
 // =====================================================================================================
 // the eight scenes
 // =====================================================================================================
+// an Undead skeleton in a card scene (same look as the built game's render/armyLook.ts skeletonLook): a bone disc with hollow glowing eyes, a
+// blade on a warrior, an amber shield on a shield skeleton. Plain style = standing; `pop` rises it at that % and it stays.
+const SKEL_BLADE = `${VB}<path d="M84 74 L100 14" stroke="#fff" stroke-width="7" stroke-linecap="round"/><path d="M76 80 L94 74" stroke="${BONE}" stroke-width="7" stroke-linecap="round"/></svg>`;
+const SKEL_SHIELD = `${VB}<path d="M24 58 H76 V78 Q76 98 50 108 Q24 98 24 78 Z" fill="${ROLE.tank.hex}" stroke="#14161c" stroke-width="5" stroke-linejoin="round"/><path d="M50 66 V98 M36 80 H64" stroke="#14161c" stroke-width="5" stroke-linecap="round" opacity="0.55"/></svg>`;
+const skelFace = `${VB}<path d="M64 4 L58 20 L66 30" stroke="#14161c" stroke-opacity="0.55" stroke-width="3.2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>${hollowEyes}</svg>`;
+function skel(C, { cx, top, size = 22, kind, pop = null, wrapAnim = "", badgeAt = null }) {
+  const b = body(C, { cx, top, size, bg: kind === "shield" ? "#bdb59a" : "#dcd6c2", faceSvg: skelFace, alpha: 0.3, wrapAnim, overlay: kind === "shield" ? SKEL_SHIELD : SKEL_BLADE });
+  const popStops = pop === null ? "" : C.kf([[0, "opacity:0;transform:translateY(8px) scale(0.5)"], [pop - 0.1, "opacity:0;transform:translateY(8px) scale(0.5)"], [pop + 3, "opacity:1;transform:translateY(0) scale(1)"], [95, "opacity:1;transform:translateY(0) scale(1)"], [99, "opacity:0;transform:translateY(0) scale(1)"], [100, "opacity:0;transform:translateY(8px) scale(0.5)"]]);
+  let h = abs(`left:0;top:0;width:0;height:0;transform-origin:${cx}px ${top + size}px;${popStops}`, b);
+  if (pop !== null) h += ring(C, { cx, cy: top + size, r: 14, color: kind === "shield" ? ROLE.tank.hex : ARMIES.undead.hex, at: pop });
+  if (badgeAt !== null) {
+    h += ring(C, { cx, cy: top + size / 2, r: 15, color: YEL, at: badgeAt, dur: 6 });
+    h += abs(`left:${cx + 3}px;top:${top - 10}px;font-size:7.5px;font-weight:800;color:#14161c;background:${YEL};border-radius:7px;padding:0 4px;line-height:12px;z-index:5;opacity:1;${C.kf(from(badgeAt, 1.5))}`, "+1");
+  }
+  return h;
+}
+// the lunge of a skeleton at the enemy: out at `at`%, back by `at + 7`%
+const lunge = (C, at, dx, dy) => C.kf([[0, "transform:translate(0,0)"], [at - 0.1, "transform:translate(0,0)"], [at + 1.5, `transform:translate(${dx}px,${dy}px) scale(1.2)`], [at + 3.5, `transform:translate(${dx}px,${dy}px) scale(1)`], [at + 6.5, "transform:translate(0,0) scale(1)"], [100, "transform:translate(0,0)"]]);
+// the HORDE count at the left of the scene: [[n, from %, to %]], the last one stays
+const hordeCount = (C, list, full = 5) => list.map(([n, a, b], i) => abs(`left:12px;top:106px;font-size:8px;font-weight:800;letter-spacing:0.06em;color:${n >= full ? YEL : BONE};white-space:nowrap;opacity:${i === list.length - 1 ? 1 : 0};${C.kf(win(a, b, 0.5))}`, n >= full ? `☠ FULL ${n}/5` : `☠ HORDE ${n}/5`)).join("");
+
 const SCENES = {
-  graveGuard(C) {
-    const f = fallStops(26, 33);
+  boneWall(C) {
     let h = acoL(C) + wardenE(C) + acoR(C);
     h += ally(C, "wraith", { ...UW, chargePct: 30 }) + ally(C, "priest", { ...UP });
-    h += ally(C, "knight", { ...UK, hpW: 40, hpPct: 50, hpStops: [[0, 100], [24, 100], [26, 0], [33, 0], [35, 50], [100, 50]], cycles: [{ s: 8 }], overlay: f.x(C), wrapAnim: f.wrapAnim(C) });
-    h += chip(C, { x: 186, y: 112, text: "TAKES THE SLAM", color: "#ffb454", stops: win(12, 26, 0.5), base: 0 });
-    h += slamBeam(C, 24, 161, 112) + floater(C, { x: 161, y: 112, text: "−60", color: "#fff", at: 25, size: 17 });
-    h += ring(C, { cx: 161, cy: 134, r: 26, color: ARMIES.undead.hex, at: 34 });
-    h += chip(C, { x: 186, y: 112, text: "UP AGAIN · Undying still ready", color: ARMIES.undead.hex, stops: from(35) });
-    h += bubble(C, { cx: 161, top: 114, size: 40, text: "GRAVE GUARD", color: ROLE.tank.hex, s: 8, w: 76, barW: 40 });
-    h += caps(C, [{ side: "left", text: "SKILL · GRAVE GUARD", color: ROLE.tank.hex, at: [4, 30] }, { side: "right", text: "ARMY · UNDYING", color: ARMIES.undead.hex, at: [33, 90] }]);
+    h += ally(C, "knight", { ...UK, hpW: 40, cycles: [{ s: 6 }] });
+    // two shield skeletons rise in front of Bram, then the enemy's normal hits land on the front one
+    h += skel(C, { cx: 98, top: 116, size: 24, kind: "shield", pop: 14 }) + skel(C, { cx: 122, top: 116, size: 24, kind: "shield", pop: 22 });
+    h += beam(C, { x1: 81, y1: 60, x2: 118, y2: 120, color: RED, at: 46, w: 2 }) + beam(C, { x1: 161, y1: 60, x2: 126, y2: 120, color: RED, at: 54, w: 2 });
+    h += floater(C, { x: 114, y: 100, text: "−6", color: "#fff", at: 47, size: 11 }) + floater(C, { x: 122, y: 100, text: "−6", color: "#fff", at: 55, size: 11 });
+    h += hordeCount(C, [[0, 0, 13.5], [1, 14, 21.5], [2, 22, 99]]);
+    h += chip(C, { x: 150, y: 96, text: "THE SHIELD TAKES THE HITS", color: ROLE.tank.hex, stops: from(46), base: 0 });
+    h += bubble(C, { cx: 161, top: 114, size: 40, text: "BONE WALL ×2", color: ROLE.tank.hex, s: 6, w: 84, barW: 40 });
+    h += caps(C, [{ side: "left", text: "SKILL · BONE WALL", color: ROLE.tank.hex, at: [4, 40] }, { side: "right", text: "ENEMY HITS GO HERE FIRST", color: ARMIES.undead.hex, at: [44, 94] }]);
     return h;
   },
-  soulBolt(C) {
-    const f = fallStops(32, 40);
-    let h = acoL(C) + acoR(C) + wardenE(C, { hpPct: 83, hpStops: [[0, 100], [9, 100], [11, 92], [58, 92], [61, 83], [100, 83]] });
-    h += ally(C, "priest", { ...UP });
-    h += ally(C, "knight", { ...UK, hpW: 40, hpPct: 55, hpStops: [[0, 100], [30, 100], [32, 0], [40, 0], [42, 55], [100, 55]], overlay: f.x(C), wrapAnim: f.wrapAnim(C) });
-    h += ally(C, "wraith", { ...UW, cycles: [{ s: 2 }, { s: 52 }] });
-    h += beam(C, { x1: 100, y1: 160, x2: 158, y2: 56, color: ROLE.damage.hex, at: 8, w: 2 }) + floater(C, { x: 118, y: 34, text: "−17", color: "#e8e8ee", at: 9, size: 11 });
-    h += slamBeam(C, 30, 161, 112) + floater(C, { x: 161, y: 112, text: "−70", color: "#fff", at: 31, size: 14 });
-    h += ring(C, { cx: 161, cy: 134, r: 26, color: ARMIES.undead.hex, at: 41 });
-    h += chip(C, { x: 186, y: 112, text: "↑ RISEN", color: ARMIES.undead.hex, stops: from(41) });
-    h += beam(C, { x1: 100, y1: 160, x2: 158, y2: 56, color: ROLE.damage.hex, at: 58, w: 3.5 }) + floater(C, { x: 214, y: 30, text: "−26", color: "#ffe6ff", at: 59, size: 17, glow: ROLE.damage.hex });
-    h += chip(C, { x: 12, y: 112, text: "17 + 9 for 1 risen", color: ROLE.damage.hex, stops: from(54) });
-    h += bubble(C, { cx: 92, top: 151, size: 30, text: "SOUL BOLT", color: ROLE.damage.hex, s: 2 }) + bubble(C, { cx: 92, top: 151, size: 30, text: "SOUL BOLT", color: ROLE.damage.hex, s: 52 });
-    h += caps(C, [{ side: "left", text: "BOLT 1 · NO ONE RISEN", color: ROLE.damage.hex, at: [4, 28] }, { side: "right", text: "BOLT 2 · ONE RISEN", color: ARMIES.undead.hex, at: [50, 90] }]);
+  command(C) {
+    const WAR = [[198, 3], [226, 3], [254, 3]], SHL = [[98, 0], [122, 0]];
+    let h = acoL(C) + acoR(C) + wardenE(C, { hpPct: 70, hpStops: [[0, 100], [62, 100], [63, 94], [64, 88], [65, 82], [66, 76], [67, 70], [100, 70]] });
+    h += ally(C, "knight", { ...UK, hpW: 40, chargePct: 30 }) + ally(C, "priest", { ...UP });
+    h += ally(C, "wraith", { ...UW, cycles: [{ s: 40 }] });
+    const target = [[161, 64], [175, 64], [147, 64], [168, 60], [154, 60]];
+    [...SHL.map(([cx]) => ({ cx, size: 24, top: 116, kind: "shield" })), ...WAR.map(([cx]) => ({ cx, size: 22, top: 120, kind: "warrior" }))].forEach((p, i) => {
+      const t = target[i], la = lunge(C, 62 + i * 0.6, t[0] - p.cx, t[1] - (p.top + p.size / 2));
+      h += skel(C, { ...p, wrapAnim: la });
+      h += floater(C, { x: t[0] + (i - 2) * 6, y: 50 + (i % 2) * 8, text: "−9", color: "#e8e8ee", at: 63 + i * 0.6, size: 9 });
+    });
+    h += hordeCount(C, [[5, 0, 99]]);
+    h += chip(C, { x: 12, y: 96, text: "ALL 5 STRIKE AT ONCE", color: ROLE.damage.hex, stops: win(60, 80, 1.5), base: 0 });
+    h += bubble(C, { cx: 92, top: 151, size: 30, text: "COMMAND", color: ROLE.damage.hex, s: 40, w: 64 });
+    h += caps(C, [{ side: "left", text: "SKILL · COMMAND", color: ROLE.damage.hex, at: [40, 94] }, { side: "right", text: "EACH ONE HITS FOR ITS OWN DAMAGE", color: ARMIES.undead.hex, at: [58, 94] }]);
     return h;
   },
-  bloodRite(C) {
+  raise(C) {
     let h = acoL(C) + wardenE(C) + acoR(C);
-    h += ally(C, "knight", { ...UK, hpW: 40, hpPct: 72, hpStops: [[0, 60], [50, 60], [54, 72], [100, 72]] });
-    h += ally(C, "wraith", { ...UW, hpPct: 62, hpStops: [[0, 45], [50, 45], [54, 62], [100, 62]], chargePct: 30 });
-    h += ally(C, "priest", { ...UP, hpPct: 78, hpStops: [[0, 100], [45, 100], [48, 78], [100, 78]], cycles: [{ s: 38 }] });
-    h += floater(C, { x: 266, y: 156, text: "−20", color: "#ffd0dc", at: 46, size: 12, glow: "#ff5d8f" });
-    h += beam(C, { x1: 224, y1: 160, x2: 172, y2: 136, color: ROLE.healer.hex, at: 50, w: 1.5 }) + beam(C, { x1: 214, y1: 168, x2: 108, y2: 168, color: ROLE.healer.hex, at: 50, w: 1.5 });
-    h += floater(C, { x: 161, y: 108, text: "+12", color: ROLE.healer.hex, at: 52, size: 12, glow: "#1b8a55" }) + floater(C, { x: 92, y: 143, text: "+12", color: ROLE.healer.hex, at: 52, size: 12, glow: "#1b8a55" });
-    h += bubble(C, { cx: 230, top: 151, size: 30, text: "BLOOD RITE", color: ROLE.healer.hex, s: 38, w: 70 });
-    h += caps(C, [{ side: "right", text: "SKILL · BLOOD RITE", color: ROLE.healer.hex, at: [40, 90] }, { side: "left", text: "THE PRICE · 20 HP", color: "#ff7ab6", at: [44, 90] }]);
+    h += ally(C, "wraith", { ...UW, chargePct: 30 }) + ally(C, "knight", { ...UK, hpW: 40, chargePct: 30 });
+    h += ally(C, "priest", { ...UP, cycles: [{ s: 4 }] });
+    // two shield skeletons already stand; three hits raise three warriors (5 of 5), the fourth upgrades them
+    h += skel(C, { cx: 98, top: 116, size: 24, kind: "shield" }) + skel(C, { cx: 122, top: 116, size: 24, kind: "shield" });
+    h += skel(C, { cx: 198, top: 120, kind: "warrior", pop: 14, badgeAt: 62 }) + skel(C, { cx: 226, top: 120, kind: "warrior", pop: 24, badgeAt: 62.8 }) + skel(C, { cx: 254, top: 120, kind: "warrior", pop: 34, badgeAt: 63.6 });
+    h += hordeCount(C, [[2, 0, 13.5], [3, 14, 23.5], [4, 24, 33.5], [5, 34, 99]]);
+    h += chip(C, { x: 150, y: 96, text: "FULL: THE NEXT HIT UPGRADES", color: YEL, stops: from(58), base: 0 });
+    h += bubble(C, { cx: 230, top: 151, size: 30, text: "RAISE ×4", color: ROLE.healer.hex, s: 4, w: 64 });
+    h += caps(C, [{ side: "left", text: "SKILL · RAISE", color: ROLE.healer.hex, at: [4, 56] }, { side: "right", text: "ONE WARRIOR PER HIT", color: ARMIES.undead.hex, at: [12, 56] }]);
     return h;
   },
   roar(C) {
@@ -563,20 +588,18 @@ const SCENES = {
     h += caps(C, [{ side: "left", text: "SKILL · HERD", color: ROLE.healer.hex, at: [40, 90] }, { side: "right", text: "5 BEASTS · +5 EACH", color: ARMIES.beasts.hex, at: [46, 90] }]);
     return h;
   },
-  // the Undead rule: a unit falls, gets back up once, then stays down the second time
+  // the Undead rule: skeletons fill the field one by one (five at most), the enemy's hits go to the shield first, then the warriors
   undead(C) {
-    const down1 = 18, up1 = 32, down2 = 60;
-    const wrap = C.kf([[0, "opacity:1"], [down1 - 1, "opacity:1"], [down1, "opacity:0.35"], [up1 - 1, "opacity:0.35"], [up1 + 1, "opacity:1"], [down2 - 1, "opacity:1"], [down2, "opacity:0.35"], [96, "opacity:0.35"], [100, "opacity:1"]]);
-    const x = `<div style="position:absolute;inset:0;opacity:0;${C.kf([[0, "opacity:0"], [down1 - 1, "opacity:0"], [down1, "opacity:1"], [up1 - 1, "opacity:1"], [up1, "opacity:0"], [down2 - 1, "opacity:0"], [down2, "opacity:1"], [96, "opacity:1"], [100, "opacity:0"]])}">${xEyes}</div>`;
     let h = acoL(C) + wardenE(C) + acoR(C);
-    h += ally(C, "knight", { ...UK, hpW: 40, short: true, name: "Bram", chargePct: 30 }) + ally(C, "priest", { ...UP, short: true, name: "Sol" });
-    h += ally(C, "wraith", { ...UW, short: true, name: "Ivy", hpPct: 50, hpStops: [[0, 100], [down1 - 2, 100], [down1, 0], [up1 - 1, 0], [up1 + 1, 50], [down2 - 2, 50], [down2, 0], [96, 0], [100, 100]], overlay: x, wrapAnim: wrap });
-    h += beam(C, { x1: 161, y1: 60, x2: 100, y2: 150, color: RED, at: 16, w: 4 }) + floater(C, { x: 100, y: 146, text: "−70", color: "#fff", at: 17, size: 14 });
-    h += ring(C, { cx: 92, cy: 166, r: 22, color: ARMIES.undead.hex, at: 33 });
-    h += chip(C, { x: 8, y: 118, text: "↑ half HP · hits 50% harder", color: ARMIES.undead.hex, stops: [[0, "opacity:0"], [32, "opacity:0"], [33, "opacity:1"], [57, "opacity:1"], [58, "opacity:0"], [100, "opacity:0"]] });
-    h += beam(C, { x1: 161, y1: 60, x2: 100, y2: 150, color: RED, at: 58, w: 4 }) + floater(C, { x: 100, y: 146, text: "−70", color: "#fff", at: 59, size: 14 });
-    h += chip(C, { x: 8, y: 118, text: "Once only: stays down", color: "#ff7ab6", stops: [[0, "opacity:0"], [64, "opacity:0"], [65, "opacity:1"], [96, "opacity:1"], [100, "opacity:0"]], base: 0 });
-    h += caps(C, [{ side: "left", text: "FIRST FALL", color: ARMIES.undead.hex, at: [14, 38] }, { side: "right", text: "SECOND FALL", color: "#ff7ab6", at: [58, 94] }]);
+    h += ally(C, "knight", { ...UK, hpW: 40, short: true, name: "Bram", chargePct: 30 }) + ally(C, "priest", { ...UP, short: true, name: "Sol" }) + ally(C, "wraith", { ...UW, short: true, name: "Ivy" });
+    h += skel(C, { cx: 98, top: 116, size: 24, kind: "shield", pop: 8 }) + skel(C, { cx: 122, top: 116, size: 24, kind: "shield", pop: 16 });
+    h += skel(C, { cx: 198, top: 120, kind: "warrior", pop: 24 }) + skel(C, { cx: 226, top: 120, kind: "warrior", pop: 32 }) + skel(C, { cx: 254, top: 120, kind: "warrior", pop: 40 });
+    h += hordeCount(C, [[0, 0, 7.5], [1, 8, 15.5], [2, 16, 23.5], [3, 24, 31.5], [4, 32, 39.5], [5, 40, 99]]);
+    h += beam(C, { x1: 161, y1: 60, x2: 122, y2: 120, color: RED, at: 56, w: 2 }) + floater(C, { x: 120, y: 100, text: "−6", color: "#fff", at: 57, size: 11 });
+    h += beam(C, { x1: 161, y1: 60, x2: 198, y2: 124, color: RED, at: 76, w: 2 }) + floater(C, { x: 200, y: 100, text: "−6", color: "#fff", at: 77, size: 11 });
+    h += chip(C, { x: 150, y: 96, text: "HITS GO TO THE SHIELD FIRST", color: ROLE.tank.hex, stops: win(54, 70, 1.5), base: 0 });
+    h += chip(C, { x: 150, y: 96, text: "THEN THE WARRIORS, THEN BRAM", color: ARMIES.undead.hex, stops: win(74, 94, 1.5), base: 0 });
+    h += caps(C, [{ side: "left", text: "EVERY SKILL HIT RAISES ONE", color: ARMIES.undead.hex, at: [6, 46] }, { side: "right", text: "FIVE AT MOST", color: YEL, at: [40, 94] }]);
     return h;
   },
   // the Beasts rule: every hit one beast lands fills every other beast's skill bar a little
@@ -607,7 +630,7 @@ const CARDS = [
   { n: 4, kind: "skill", unit: "bear" }, { n: 5, kind: "skill", unit: "wolf" }, { n: 6, kind: "skill", unit: "stag" },
   { n: 7, kind: "rule", army: "undead" }, { n: 8, kind: "rule", army: "beasts" },
 ];
-const NAMES = { 1: "GraveGuard", 2: "SoulBolt", 3: "BloodRite", 4: "Roar", 5: "PackBite", 6: "Herd", 7: "Undying", 8: "Pack" };
+const NAMES = { 1: "BoneWall", 2: "Command", 3: "Raise", 4: "Roar", 5: "PackBite", 6: "Herd", 7: "Horde", 8: "Pack" };
 // the parts of a card shared by the canvas frame and the game copy: its army, the scene, the header line, the ARMY / SKILL rows and the design note
 function cardPieces(c, C) {
   const sceneKey = c.kind === "skill" ? UNITS[c.unit].skill : c.army;
