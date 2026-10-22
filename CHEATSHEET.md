@@ -1,5 +1,5 @@
 # Cheatsheet
-Last updated: 2026-10-22 00:08 (values from prototype/src/sim/config.ts). All marks last one fight.
+Last updated: 2026-10-22 18:35 (values from prototype/src/sim/config.ts). All marks last one fight.
 
 Effects:
 - Exposed: each stack makes the body take +12% damage from every hit, max 10 stacks.
@@ -91,18 +91,18 @@ Merge heroes (branch dev/merge-heroes; made-up numbers, one of each kind per run
 - A Recruit offer names the hero it would make possible ("Completes Golem"). A hero has no Fatigue card in its popup, but fatigue still counts.
 
 Armies (branch dev/merge-heroes; made-up numbers; a run picks one before round 1, every unit is re-skinned, and merge heroes are off):
-- Every army unit keeps its role (Tank, Damage or Healer), so rows, the tank lock, offers and role runes work as before. Its base skill takes the place of Guard, Expose or Mend; runes that need Guard or Mend count Roar and Herd (the Undead skills count as none of Guard, Mend or Expose).
+- Every army unit keeps its role (Tank, Damage or Healer), so rows, the tank lock, offers and role runes work as before. Its base skill takes the place of Guard, Expose or Mend; runes that need Guard or Mend count Tend as Mend, and runes that read Frozen count Pin as a Freeze (the Undead skills count as none of Guard, Mend or Expose).
 - Undead — Horde: every skill hit raises a skeleton that stays all fight; 5 at most (the fight starts with 5 empty places). With 5 standing, a Raise or Bone Wall hit raises nothing and upgrades every skeleton of that kind by one level instead (also ones raised later). A warrior skeleton: 15 HP, 2 damage, hits every 1.4s, +1 damage per upgrade. A shield skeleton: 24 HP, 1 damage, hits every 1.6s, +8 HP per upgrade. Skeletons are not units: they never use a skill and do not count when your squad is wiped.
 - Enemy normal hits go to the first standing shield skeleton, then the first standing warrior skeleton, then the Tank lock. Slams and enemies that reach the back row still pick at random, skeletons included.
 - Bone Knight (Tank; 145 HP, 7 damage) — Bone Wall: raises one shield skeleton per hit. Backfire: one standing shield skeleton falls. Leaves no mark.
 - Wraith (Damage; 60 HP, 8 damage) — Command: every standing skeleton strikes the front enemy with its own damage (1x), per hit; nothing standing ends the skill. Backfire: each skeleton strikes your own front unit instead. Leaves no mark.
 - Bone Priest (Healer; 76 HP, heals 4 a beat) — Raise: raises one warrior skeleton per hit. Backfire: one standing warrior skeleton falls. Leaves no mark.
-- Beasts — Pack: 5 units fielded (start with 7: 2 Bear, 3 Wolf, 2 Stag); every hit a Beast lands on an enemy gives every other Beast 1.5 charge.
-- Bear (Tank; 140 HP, 5 damage) — Roar: takes the next slam like Guard; on its first hit, every other Beast gets 25% of a full skill bar.
-- Wolf (Damage; 60 HP, 6 damage) — Pack Bite: 6 damage to the front enemy, once more for each other living Wolf (3 Wolves: 18), in one hit.
-- Stag (Healer; 72 HP, heals 3 a beat) — Herd: heals every unit 1 per living Beast per hit (5 Beasts: 5).
-- Mages — Orbs: every skill hit adds an orb round that mage, 3 at most; orbs stay between skills. Every 2s all orbs work on one shared beat. A hit that finds 3 orbs out merges them into one big orb (step 1) that strikes at once; each later hit of that skill grows it one step and strikes again, 1.2x the strike before. When a skill that merged ends, every orb is gone. A big orb has no loose orbs, so none work while it stands.
-- Frost Mage (Tank; 135 HP, 5 damage) — Frost Orb: each orb gives the Frost Mage that owns it 10 shield per beat. Merged: every unit gets 45 shield (the usual cap, half a unit's HP). Backfire: pops the newest orb, or drops the big orb one step; with nothing to pop the skill ends. Leaves no mark.
+- Beasts — Pack: 5 units fielded (start with 7: 2 Bear, 3 Wolf, 2 Stag); no Beast has a skill bar, and all their charge fills one PACK bar of 7 full skill bars (315). A full bar sets off a pounce: a skill led by the first Beast (Bear, then Wolves, then Stags) whose every hit runs every living Beast's own skill, in that order. The pounce rolls its backfire and its chance to go again from the pack's average fatigue, and a backfire counts against every Beast that jumped. The bar stays full while it runs and empties when it ends; it ends if the lead falls. A skill a role gains is used by every Beast of that role on every hit. Backfire: the Bear freezes one of your units (never the lead), the Wolves bite your front unit, the Stags heal the enemy.
+- Bear (Tank; 140 HP, 5 damage) — Pin: freezes the front enemy 0.5 s per hit (the later hits are longer); leaves Frozen.
+- Wolf (Damage; 60 HP, 6 damage) — Maul: 7 damage to the front enemy per Wolf (3 Wolves: 21).
+- Stag (Healer; 72 HP, heals 3 a beat) — Tend: heals every unit 4 per Stag.
+- Mages — Orbs: every skill hit adds an orb round that mage, 3 at most; orbs stay between skills. Every 2s all orbs work on one shared beat. A hit that finds 3 orbs out merges them into one big shot that fires at once, and the big orb is gone straight away; the next hit of that skill starts again from none (a long skill can fire two shots). Orbs still out when a skill ends stay.
+- Frost Mage (Tank; 135 HP, 5 damage) — Frost Orb: each orb gives the Frost Mage that owns it 10 shield per beat. Merged: every unit gets 45 shield (the usual cap, half a unit's HP). Backfire: pops the newest orb; with nothing to pop the skill ends. Leaves no mark.
 - Storm Mage (Damage; 58 HP, 6 damage) — Storm Orb: each orb hits one random living enemy for 10 per beat (two orbs can pick the same one). Merged: 80 to the front enemy. Backfire as Frost Orb. Leaves no mark.
 - Life Mage (Healer; 74 HP, heals 3 a beat) — Life Orb: each orb heals the tank 8 per beat (the Life Mage itself with no tank standing). Merged: heals every unit 40, each capped at 20% of its max HP per hit. Backfire as Frost Orb. Leaves no mark.
-- Each army skill is a chain like any other: up to 7 hits, later hits up to 2.8x; the same marks as the skill it replaces (Roar leaves Exposed; Pack Bite, Herd, Raise, Bone Wall, Command and the three orb skills leave none). A Mage's merged strike does not use the later-hit multiplier; it grows only by orb step.
+- Each army skill is a chain like any other: up to 7 hits, later hits up to 2.8x; the same marks as the skill it replaces (Pin leaves Frozen; Maul, Tend, Raise, Bone Wall, Command and the three orb skills leave none). A Mage's merged shot does not use the later-hit multiplier; it is always the same size.

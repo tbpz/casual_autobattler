@@ -1,11 +1,13 @@
 // Generates canvas sections 10 and 11: the armies Undead, Beasts and Mages (2026-10-20; the Undead and the Mages are built since 2026-10-21 and
-// their text is the game's: Horde, Raise, Bone Wall, Command; Orbs, Frost Orb, Storm Orb, Life Orb. The Beasts are still a proposal).
+// the Beasts since 2026-10-22, and their text is the game's: Horde, Raise, Bone Wall, Command; Orbs, Frost Orb, Storm Orb, Life Orb; Pack, Pin,
+// Maul, Tend).
 //   10.0A, 10.0B  ArmyPickA / ArmyPickB      where the army pick sits: before round 1, or after the round 1 win
 //   10.1, 10.5, 10.9  ArmySquad<Army>        the round screen with an army's squad
 //   10.2-10.4     ArmyPopup<Unit>            Undead popups (Bone Knight, Wraith, Bone Priest)
 //   10.6-10.8     ArmyPopup<Unit>            Beasts popups (Bear, Wolf, Stag)
 //   10.10-10.12   ArmyPopup<Unit>            Mages popups (Frost Mage, Storm Mage, Life Mage)
 //   11.1-11.12    ArmyCard<Name>             the looping explain cards: six skills, the two army rules, then the Mages' three skills and rule
+//                                            (the Beasts' three skill cards, 11.4 to 11.6, are Pin, Maul and Tend: each is one part of the pack's pounce)
 // Run:  node design/tools/gen-armies.js     (writes the frames and patches canvas.json)
 // Toolkit (scene helpers, popup shell, card shell) is cut from gen-heroes.js; the popup shell and backdrop from
 // FighterPopupIvy.dc.html, the round screen from RoundFaceOff.dc.html, the card backdrop from TermExpose.dc.html.
@@ -47,12 +49,12 @@ const ARMIES = {
   },
   beasts: {
     key: "beasts", name: "Beasts", hex: "#d9a066", rgb: "217,160,102", icon: "pack",
-    pitch: "Five small units. Skills all the time.",
+    pitch: "Five small units. One pack pounce.",
     play: "More bodies, and which beasts you field matters.",
     rule: {
       name: "Pack", head: "You field 5 beasts instead of 3.",
-      lines: ["Each beast is smaller and weaker.", "Every hit one lands fills every other beast's skill bar a little."],
-      card: "You field 5 beasts instead of 3. Each beast is smaller and weaker, but every hit one lands fills every other beast's skill bar a little, so skills go off all the time.",
+      lines: ["No beast has a skill bar of its own: one PACK bar fills with everything the pack does.", "When it is full, every beast jumps on one enemy at once."],
+      card: "You field 5 beasts instead of 3. Each beast is smaller and weaker, and none has a skill bar of its own: everything the pack does fills one PACK bar. When it is full, every beast jumps on one enemy at once: the Bear lands first and freezes it, the Wolves bite, the Stag heals. If the pounce goes again, they jump again.",
     },
   },
   mages: {
@@ -61,8 +63,8 @@ const ARMIES = {
     play: "You want a machine that builds up, then goes off.",
     rule: {
       name: "Orbs", head: "Every skill hit adds an orb.",
-      lines: ["Up to 3 circle the mage. Every 2 seconds each one works on its own.", "A 4th merges them into one orb that strikes at once, then grows with every hit."],
-      card: "Every skill hit adds an orb around the mage, up to 3. Every 2 seconds each orb works on its own: Storm orbs zap an enemy, Frost orbs shield the Frost Mage, Life orbs heal the tank. A 4th orb merges them into one big orb that strikes at once, and strikes harder with every skill hit after that. When the skill ends, the orbs are gone.",
+      lines: ["Up to 3 circle the mage. Every 2 seconds each one works on its own.", "A 4th merges them into one big shot, then they start again."],
+      card: "Every skill hit adds an orb around the mage, up to 3. Every 2 seconds each orb works on its own: Storm orbs zap an enemy, Frost orbs shield the Frost Mage, Life orbs heal the tank. A 4th orb merges them into one big shot that fires at once, and then they start again from none. Orbs still out when the skill ends stay.",
     },
   },
 };
@@ -75,12 +77,12 @@ const UNITS = {
     job: "The Undead Damage unit. Sends the whole horde in at once." },
   priest: { army: "undead", role: "healer", title: "Bone Priest", name: "Sol", hex: "#7fae9a", row: "BACK", hp: 76, stat: ["Heal", 4], skill: "raise",
     job: "The Undead Healer. Heals a little, and raises warrior skeletons." },
-  bear: { army: "beasts", role: "tank", title: "Bear", name: "Bruno", hex: "#d08a3c", row: "FRONT", hp: 140, stat: ["Damage", 5], skill: "roar",
-    job: "The Beast Tank. Stands in front and rallies the pack." },
-  wolf: { army: "beasts", role: "damage", title: "Wolf", name: "Fang", hex: "#b08cf5", row: "BACK", hp: 60, stat: ["Damage", 6], skill: "packBite",
-    job: "The Beast Damage unit. Bites more with other Wolves beside it." },
-  stag: { army: "beasts", role: "healer", title: "Stag", name: "Moss", hex: "#6bd69a", row: "BACK", hp: 72, stat: ["Heal", 3], skill: "herd",
-    job: "The Beast Healer. Heals more the bigger the pack is." },
+  bear: { army: "beasts", role: "tank", title: "Bear", name: "Bruno", hex: "#d08a3c", row: "FRONT", hp: 140, stat: ["Damage", 5], skill: "pin",
+    job: "The Beast Tank. Lands first in a pounce and holds the enemy." },
+  wolf: { army: "beasts", role: "damage", title: "Wolf", name: "Fang", hex: "#b08cf5", row: "BACK", hp: 60, stat: ["Damage", 6], skill: "maul",
+    job: "The Beast Damage unit. Every Wolf bites in a pounce." },
+  stag: { army: "beasts", role: "healer", title: "Stag", name: "Moss", hex: "#6bd69a", row: "BACK", hp: 72, stat: ["Heal", 3], skill: "tend",
+    job: "The Beast Healer. Heals the whole squad in a pounce." },
   frost: { army: "mages", role: "tank", title: "Frost Mage", name: "Bram", hex: "#7fc8ff", row: "FRONT", hp: 135, stat: ["Damage", 5], skill: "frostOrb",
     job: "The Mage Tank. Wraps itself in shield orbs." },
   storm: { army: "mages", role: "damage", title: "Storm Mage", name: "Ivy", hex: "#c28cff", row: "BACK", hp: 58, stat: ["Damage", 6], skill: "stormOrb",
@@ -100,24 +102,24 @@ const SKILLS = {
   raise: { name: "Raise", icon: "skull", head: "Raises a warrior skeleton.", chips: ["Warrior skeleton"],
     lines: ["Raises 1 warrior skeleton for each time it goes again.", "With 5 standing, a hit makes warriors hit harder instead."],
     card: "Raises a warrior skeleton that fights for the rest of the fight. With 5 standing, a hit makes every warrior skeleton hit harder instead." },
-  roar: { name: "Roar", icon: "roar", head: "Takes the next {slam} and rallies the pack.", chips: ["Next slam", "Whole pack"],
-    lines: ["The first time it goes, every other beast's skill bar fills 25%.", "Each time it goes again, it takes one more slam."],
-    card: "Takes the next {slam} for the pack, and every other beast's skill bar fills 25%." },
-  packBite: { name: "Pack Bite", icon: "bite", head: "Bites the front enemy, with the pack.", chips: ["Front enemy"],
-    lines: ["Bites for 6, once more for each other Wolf in the squad: 3 Wolves, 18.", "Each time it goes again, every bite is bigger."],
-    card: "Bites the front enemy for 6, once more for each other Wolf in the squad. Three Wolves bite for 18." },
-  herd: { name: "Herd", icon: "herd", head: "Heals every unit, more for a bigger pack.", chips: ["Whole squad"],
-    lines: ["Heals each unit 1 for every beast in the squad: 5 beasts, 5 HP each.", "Each time it goes again, it heals again."],
-    card: "Heals every unit 1 for every beast in the squad. With 5 beasts, each unit gets 5 HP." },
+  pin: { name: "Pin", icon: "pin", head: "In a pounce, freezes the front enemy.", chips: ["Front enemy", "Freeze"],
+    lines: ["No skill bar of its own: it goes when the pack's bar is full.", "Each time the pounce goes again, the freeze is longer."],
+    card: "The Bear leads the pack's pounce: it lands first and freezes the front enemy. Each time the pounce goes again, the freeze is longer." },
+  maul: { name: "Maul", icon: "bite", head: "In a pounce, bites the front enemy.", chips: ["Front enemy"],
+    lines: ["Bites for 7. Every Wolf in the pack bites: 3 Wolves, 21.", "Each time the pounce goes again, every bite is bigger."],
+    card: "In a pounce, every Wolf bites the front enemy for 7. Three Wolves bite for 21. Each time the pounce goes again, every bite is bigger." },
+  tend: { name: "Tend", icon: "herd", head: "In a pounce, heals every unit.", chips: ["Whole squad"],
+    lines: ["Heals each unit 4. Every Stag in the pack tends.", "Each time the pounce goes again, it heals again."],
+    card: "In a pounce, every Stag heals every unit 4 HP. Each time the pounce goes again, it heals again." },
   frostOrb: { name: "Frost Orb", icon: "frostorb", head: "Adds an orb that shields the Frost Mage.", chips: ["Shield orb", "Whole squad"],
-    lines: ["Each hit adds a shield orb: every 2 seconds it gives the Frost Mage 10 shield.", "A 4th orb merges them: the whole squad gets a shield, and each hit after it is bigger."],
-    card: "Adds an orb around the Frost Mage. Every 2 seconds each orb gives it 10 shield. A 4th orb merges them into one big orb that shields the whole squad at once, and every hit after that shields more." },
+    lines: ["Each hit adds a shield orb: every 2 seconds it gives the Frost Mage 10 shield.", "A 4th orb merges them: the whole squad gets a shield, then they start again."],
+    card: "Adds an orb around the Frost Mage. Every 2 seconds each orb gives it 10 shield. A 4th orb merges them into one big shot that shields the whole squad at once, and then they start again." },
   stormOrb: { name: "Storm Orb", icon: "bolt", head: "Adds an orb that zaps an enemy.", chips: ["One random enemy", "Front enemy"],
-    lines: ["Each hit adds a storm orb: every 2 seconds it zaps one enemy for 10.", "A 4th orb merges them into a big zap on the front enemy; each hit after it is bigger."],
-    card: "Adds an orb around the Storm Mage. Every 2 seconds each orb zaps one random enemy for 10; two orbs can pick the same one. A 4th orb merges them into one big orb that strikes the front enemy at once, and every hit after that strikes harder." },
+    lines: ["Each hit adds a storm orb: every 2 seconds it zaps one enemy for 10.", "A 4th orb merges them into a big zap on the front enemy, then they start again."],
+    card: "Adds an orb around the Storm Mage. Every 2 seconds each orb zaps one random enemy for 10; two orbs can pick the same one. A 4th orb merges them into one big shot that strikes the front enemy at once, and then they start again." },
   lifeOrb: { name: "Life Orb", icon: "lifeorb", head: "Adds an orb that heals the tank.", chips: ["The tank", "Whole squad"],
-    lines: ["Each hit adds a life orb: every 2 seconds it heals the tank 8.", "A 4th orb merges them: the whole squad is healed, and each hit after it heals more."],
-    card: "Adds an orb around the Life Mage. Every 2 seconds each orb heals the tank for 8. A 4th orb merges them into one big orb that heals the whole squad at once, and every hit after that heals more." },
+    lines: ["Each hit adds a life orb: every 2 seconds it heals the tank 8.", "A 4th orb merges them: the whole squad is healed, then they start again."],
+    card: "Adds an orb around the Life Mage. Every 2 seconds each orb heals the tank for 8. A 4th orb merges them into one big shot that heals the whole squad at once, and then they start again." },
 };
 
 // ---------- unique svg ids ----------
@@ -133,7 +135,7 @@ const I = {
   command: (c) => `<path d="M14.5 3.5 L20.5 3.5 L20.5 9.5 L10 20 L4 20 L4 14 Z" fill="${c}33" ${sw(c)}/><path d="M7 17 L17 7" ${sw(c, 1.6)}/>`,
   skull: (c) => `<path d="M12 3.5 C7.5 3.5 5 6.5 5 10.5 C5 13 6 14.5 7.5 15.5 V19 H16.5 V15.5 C18 14.5 19 13 19 10.5 C19 6.5 16.5 3.5 12 3.5 Z" fill="${c}33" ${sw(c)}/><circle cx="9.5" cy="10.5" r="1.7" fill="${c}"/><circle cx="14.5" cy="10.5" r="1.7" fill="${c}"/>`,
   horde: (c) => `<circle cx="7" cy="9" r="2.2" fill="${c}"/><circle cx="12" cy="6.5" r="2.2" fill="${c}"/><circle cx="17" cy="9" r="2.2" fill="${c}"/><path d="M5 20 V16.5 C5 14.5 19 14.5 19 16.5 V20 Z" fill="${c}33" ${sw(c, 1.6)}/>`,
-  roar: (c) => `<path d="M5 8 Q9 12 5 16 M10 5.5 Q16 12 10 18.5 M15 3 Q23 12 15 21" ${sw(c, 1.8)}/>`,
+  pin: (c) => `<path d="M12 3 V21 M4.2 7.5 L19.8 16.5 M4.2 16.5 L19.8 7.5" ${sw(c, 1.6)}/><circle cx="12" cy="12" r="3" fill="${c}33" ${sw(c, 1.5)}/>`,
   bite: (c) => `<path d="M4.5 6 H19.5 C19.5 11 17.5 13 15.8 13 L14.2 19.5 L12.8 13.5 H11.2 L9.8 19.5 L8.2 13 C6.5 13 4.5 11 4.5 6 Z" fill="${c}33" ${sw(c, 1.6)}/>`,
   herd: (c) => `<path d="M8 21 V13 M16 21 V13 M8 13 C7 9 5 7 4 4 M8 13 C9 10 10 8 10 5 M16 13 C17 9 19 7 20 4 M16 13 C15 10 14 8 14 5" ${sw(c, 1.7)}/>`,
   pack: (c) => `<circle cx="7" cy="9" r="2.2" fill="${c}"/><circle cx="12" cy="6.5" r="2.2" fill="${c}"/><circle cx="17" cy="9" r="2.2" fill="${c}"/><path d="M7 16 C7 13 17 13 17 16 C17 19 14 19.5 12 19.5 C10 19.5 7 19 7 16 Z" fill="${c}33" ${sw(c, 1.6)}/>`,
@@ -216,6 +218,10 @@ const statLine = (u) => `<div class="stat"><span class="st">${HP_ICO}${u.hp}</sp
 const SET = { undead: ["knight", "wraith", "priest"], beasts: ["bear", "wolf", "wolf", "wolf", "stag"], mages: ["frost", "storm", "life"] };
 const SQUAD_NUM = { undead: "10.1", beasts: "10.5", mages: "10.9" };
 const POPUP_RANGE = { undead: "10.2 to 10.4", beasts: "10.6 to 10.8", mages: "10.10 to 10.12" };
+// the words after a frame's number: which armies are built, and when
+const BUILT_ON = { mages: "built 2026-10-21", beasts: "built 2026-10-22" };
+// the line under a card's picture
+const cardLead = (c) => (c.kind === "skill" ? (UNITS[c.unit].army === "beasts" ? "When the PACK bar is full, the whole pack pounces." : "When its bar is full, a unit uses its skill.") : "Every unit in the squad follows this rule.");
 
 // =====================================================================================================
 // 10.0A / 10.0B — where the army pick sits
@@ -322,9 +328,9 @@ function squadFile(armyKey) {
     ? `Round screen, round 2, Mages squad (built 2026-10-21): the same screen as 1.1 with the army's bodies. Bram, Ivy and Sol are the same three units, now a Frost Mage, a Storm Mage and a Life Mage, each with a pointed hat. The army chip names the rule and opens its card (11.12).`
     : U
     ? `Round screen, round 2, Undead squad (proposal, design only, not built): the same screen as 1.1 with the army's bodies. Bram, Ivy and Sol are the same three units, now a Bone Knight, a Wraith and a Bone Priest. The army chip names the rule and opens its card (11.7).`
-    : `Round screen, round 2, Beasts squad (proposal, design only, not built): five fielded, one Bear in front and four behind (three Wolves and a Stag), each one smaller. The bench holds two. The army chip names the rule and opens its card (11.8). Open: how many units a Beasts run starts with.`;
+    : `Round screen, round 2, Beasts squad (built 2026-10-22): five fielded, one Bear in front and four behind (three Wolves and a Stag), each one smaller. The bench holds two. The army chip names the rule and opens its card (11.8). No beast has a skill bar of its own: the pack's one PACK bar is on the fight screen.`;
   return shellOpen(RF_CSS) + `
-<!-- Frame ${SQUAD_NUM[armyKey]} (${M ? "built" : "proposal"}): ${note} -->
+<!-- Frame ${SQUAD_NUM[armyKey]} (${M || armyKey === "beasts" ? "built" : "proposal"}): ${note} -->
 <div style="background: #14161c; width: 390px; min-height: 780px; display: flex; justify-content: center; padding-top: 24px;">
   <div style="width: 100%; max-width: 640px; padding: 0 16px 24px; box-sizing: border-box;">
     <div style="position: relative; background: #1d2029; border-radius: 12px; padding: 16px; box-sizing: border-box;">
@@ -369,7 +375,7 @@ function tile(rgb, hex, ico, name, tag, head, chipsHtml, lines, icons, footer) {
 }
 const seeMore = (name) => `<div class="sk-more"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6.6 5.3 L11 8 L6.6 10.7 Z" fill="currentColor"/></svg><span>See ${name} in action</span><span class="chev">›</span></div>`;
 const POPUP_NUM = { knight: "10.2", wraith: "10.3", priest: "10.4", bear: "10.6", wolf: "10.7", stag: "10.8", frost: "10.10", storm: "10.11", life: "10.12" };
-const CARD_NUM = { boneWall: "11.1", command: "11.2", raise: "11.3", roar: "11.4", packBite: "11.5", herd: "11.6", undead: "11.7", beasts: "11.8", frostOrb: "11.9", stormOrb: "11.10", lifeOrb: "11.11", mages: "11.12" };
+const CARD_NUM = { boneWall: "11.1", command: "11.2", raise: "11.3", pin: "11.4", maul: "11.5", tend: "11.6", undead: "11.7", beasts: "11.8", frostOrb: "11.9", stormOrb: "11.10", lifeOrb: "11.11", mages: "11.12" };
 function popupFile(key) {
   const u = UNITS[key], a = ARMIES[u.army], S = SKILLS[u.skill], role = ROLE[u.role];
   const set = SET[u.army];
@@ -386,7 +392,7 @@ function popupFile(key) {
   const armyTile = tile(a.rgb, a.hex, a.icon, a.rule.name, "ARMY", terms(a.rule.head, true), "", a.rule.lines.map((l) => terms(l, true)), ["bullet", "bullet"], seeMore(a.rule.name));
   const skillTile = tile(role.rgb, role.hex, S.icon, S.name, "SKILL", terms(S.head, true), chips, S.lines.map((l) => terms(l, true)), ["bullet", "repeat"], seeMore(S.name));
   const hpPct = 100;
-  const note = `Popup, ${u.title} (${u.army === "mages" ? "built 2026-10-21" : "proposal, design only, not built"}). Over a dimmed copy of 1.1 as a stand-in. The 2.3 popup with the army's body, an ARMY tile above the SKILL tile (both open a card: ${CARD_NUM[u.army]} and ${CARD_NUM[u.skill]}). Numbers are made up.`;
+  const note = `Popup, ${u.title} (${BUILT_ON[u.army] ?? "proposal, design only, not built"}). Over a dimmed copy of 1.1 as a stand-in. The 2.3 popup with the army's body, an ARMY tile above the SKILL tile (both open a card: ${CARD_NUM[u.army]} and ${CARD_NUM[u.skill]}). Numbers are made up.`;
   return shellOpen(POPUP_CSS) + `
 ${POPUP_BACKDROP}<div style="position: absolute; top: 40px; left: 20px; width: 350px; background: #1d2029; border: 1px solid #3a3f4e; border-radius: 14px; padding: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.55);">
     <div style="position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; background: #2a2e3a; color: #c7cad6; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;">✕</div>
@@ -510,12 +516,12 @@ const acoR = (C) => enemy(C, { ...ACO_R, name: "Acolyte", hp: "HP 55" });
 // one of our units; `name` is what sits under it, a label like "Bram · Guard" unless labelHtml says otherwise
 function ally(C, key, o) {
   const u = UNITS[key], L = look(key, o.size);
-  const { cx, top, size, name = u.name, hpPct = 100, hpStops = null, cycles = null, chargePct = 45, chargeStops = null, labelHtml = null, hpW = 36, short = false, overlay = "", wrapStyle = "", wrapAnim = "" } = o;
+  const { cx, top, size, name = u.name, hpPct = 100, hpStops = null, cycles = null, chargePct = 45, chargeStops = null, labelHtml = null, hpW = 36, short = false, overlay = "", wrapStyle = "", wrapAnim = "", noCharge = false } = o;
   const label = labelHtml || (short ? name : `${name} · <span style="color:${u.hex}">${SKILLS[u.skill].name}</span>`);
   return body(C, { cx, top, size, bg: u.hex, faceSvg: L.inner, under: L.under, bodyStyle: L.bodyStyle, alpha: size >= 36 ? 0.4 : 0.24, overlay, wrapStyle, wrapAnim })
     + nameLabel(cx, top + size + 2, label)
     + hpBar(C, { cx, y: top + size + 13, pct: hpPct, stops: hpStops, w: hpW })
-    + chargeBar(C, { cx, y: top + size + 18, pct: chargePct, cycles, stops: chargeStops, w: hpW });
+    + (noCharge ? "" : chargeBar(C, { cx, y: top + size + 18, pct: chargePct, cycles, stops: chargeStops, w: hpW }));
 }
 // the Undead layout and the Beasts layout
 const UK = { cx: 161, top: 114, size: 40 }, UW = { cx: 92, top: 151, size: 30 }, UP = { cx: 230, top: 151, size: 30 };
@@ -586,43 +592,42 @@ function bolt(C, { x1, y1, x2, y2, color, at, w = 1.6, base = 0 }) {
   const anim = C.kf([[0, "opacity:0"], [at - 0.05, "opacity:0"], [at, "opacity:1"], [at + 0.7, "opacity:0.15"], [at + 1.3, "opacity:1"], [at + 2, "opacity:0.2"], [at + 2.6, "opacity:0.9"], [at + 3.6, "opacity:0"], [100, "opacity:0"]]);
   return `<svg width="322" height="210" viewBox="0 0 322 210" style="position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:4;filter:drop-shadow(0 0 ${2 + w}px ${color});opacity:${base};${anim}"><path d="${d}" fill="none" stroke="${color}" stroke-width="${(w * 2).toFixed(1)}" stroke-opacity="0.55" stroke-linejoin="round" stroke-linecap="round"/><path d="${d}" fill="none" stroke="#fff" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 }
-// the one big sparkling orb the others merge into: appears at `at` %, grows at each % in `grows`, fades at `end` %. The still shows it at its largest.
-function mergedOrb(C, { cx, cy, at, grows, end, color }) {
-  const sizes = [1.0, 1.4, 1.8];
+// the one big sparkling orb the others merge into: appears at `at` %, flares at `flare` % as its one big shot fires, fades at `end` %. It lives for one
+// moment: the next hit starts again from none (reworked 2026-10-22). The still shows it flaring.
+function mergedOrb(C, { cx, cy, at, flare, end, color }) {
   const S = (s, a) => `opacity:${a};transform:scale(${s});box-shadow:0 0 ${6 + s * 8}px ${1 + s * 3}px ${color},0 0 ${2 + s * 4}px ${s * 2}px #fff8;`;
-  const stops = [[0, S(0.3, 0)], [at - 0.1, S(0.3, 0)], [at + 0.6, S(1.6, 1)], [at + 2, S(sizes[0], 1)]];
-  grows.forEach((g, i) => stops.push([g - 0.1, S(sizes[i], 1)], [g + 0.6, S(sizes[i + 1] + 0.25, 1)], [g + 1.5, S(sizes[i + 1], 1)]));
-  stops.push([end, S(sizes[grows.length], 1)], [end + 1.8, S(0.4, 0)], [100, S(0.3, 0)]);
+  const stops = [[0, S(0.3, 0)], [at - 0.1, S(0.3, 0)], [at + 0.6, S(1.2, 1)], [flare - 0.1, S(1.2, 1)], [flare + 0.6, S(1.9, 1)], [end, S(1.6, 1)], [end + 1.8, S(0.4, 0)], [100, S(0.3, 0)]];
   const sparks = [[-4, -4, 9], [32, -2, 7], [34, 32, 9], [-2, 34, 7]].map(([x, y, fs]) => `<span style="position:absolute;left:${x}px;top:${y}px;font-size:${fs}px;line-height:1;color:#fffbd0;text-shadow:0 0 4px ${color};">✦</span>`).join("");
   const core = `radial-gradient(circle at 40% 38%,#fff 0%,#fff 28%,${color} 70%,${shade(color, -0.45)} 100%)`;
-  return abs(`left:${cx - 14}px;top:${cy - 14}px;width:28px;height:28px;border-radius:50%;background:${core};z-index:4;${S(sizes[grows.length], 1)}${C.kf(stops)}`,
+  return abs(`left:${cx - 14}px;top:${cy - 14}px;width:28px;height:28px;border-radius:50%;background:${core};z-index:4;${S(1.6, 1)}${C.kf(stops)}`,
     abs("left:-2px;top:-2px;width:32px;height:32px;animation:orbSpin 2.4s linear infinite;", sparks));
 }
 // one card scene for a Mage skill (who = "storm" | "frost" | "life") or for the Orbs rule (rule = true, drawn on the Storm Mage with the other
-// two mages' orbs showing too). T = 9 s: 2 hits... three orbs build up (8-20%), the 2 s beat (33%), a second skill's 4th hit merges them (52%),
-// the merged orb strikes (55%) and grows with every hit after (64%, 73%), the skill ends (80%) and the mage starts from none.
+// two mages' orbs showing too). T = 9 s: the first skill's three hits build three orbs (8-20%), the 2 s beat (33%), a second skill's first hit finds
+// three out and merges them (49%), the merged orb fires its one big shot (52%) and is gone, the next two hits start again (58%, 65%) and those orbs stay.
 function mageScene(C, { who, rule = false }) {
-  const BEAT = 33, MERGE = 52, STRIKES = [55.5, 64.5, 73.5];
+  const BEAT = 33, MERGE = 49, SHOT = 51.6, NEW = [58, 65];
   const G = { storm: { key: "storm", at: UW, color: GOLD, r: 24, mp: [34, 166], bubble: "STORM ORB", bw: 84, bb: 36 },
     frost: { key: "frost", at: UK, color: FROSTC, r: 28, mp: [216, 122], bubble: "FROST ORB", bw: 80, bb: 40 },
     life: { key: "life", at: UP, color: LIFEC, r: 24, mp: [276, 168], bubble: "LIFE ORB", bw: 72, bb: 36 } }[who];
   const o = G.at, cx = o.cx, cy = o.top + o.size / 2, u = UNITS[G.key];
   const SH = [[81, 43], [161, 34], [241, 43]];            // the enemies' centres: Acolyte, Warden, Acolyte
   const allies = { frost: [161, 134], storm: [92, 166], life: [230, 166] };
-  // the Warden's HP: a zap from the orbs, then the merged orb's strikes (storm only)
-  const hpStops = who === "storm" ? [[0, 100], [BEAT + 1, 100], [BEAT + 3, 97.6], [STRIKES[0] + 1, 97.6], [STRIKES[0] + 2.5, 78.6], [STRIKES[1] + 1, 78.6], [STRIKES[1] + 2.5, 55.7], [STRIKES[2] + 1, 55.7], [STRIKES[2] + 2.5, 28.3], [100, 28.3]] : null;
-  let h = acoL(C) + wardenE(C, who === "storm" ? { hp: "HP 420", hpPct: 28.3, hpStops } : {}) + acoR(C);
+  // the Warden's HP: a zap from the orbs, then the one big shot (storm only)
+  const hpStops = who === "storm" ? [[0, 100], [BEAT + 1, 100], [BEAT + 3, 97.6], [SHOT + 1, 97.6], [SHOT + 2.5, 78.6], [100, 78.6]] : null;
+  let h = acoL(C) + wardenE(C, who === "storm" ? { hp: "HP 420", hpPct: 78.6, hpStops } : {}) + acoR(C);
   // the squad; the casting mage runs two skills (its bar fills at 2 and at 46); the others wait
   const cast = { cycles: [{ s: 2 }, { s: 46 }] };
   const bars = { frost: { ...UK, hpW: 40, chargePct: 30 }, storm: { ...UW, chargePct: 30 }, life: { ...UP, chargePct: 35 } };
   const hurt = who === "life"
-    ? { frost: { hpPct: 100, hpStops: [[0, 40], [BEAT, 40], [BEAT + 2, 52], [STRIKES[0], 52], [STRIKES[0] + 2, 88], [STRIKES[1] + 1, 88], [STRIKES[1] + 3, 100], [100, 100]] },
-        storm: { hpPct: 100, hpStops: [[0, 50], [STRIKES[0], 50], [STRIKES[0] + 2, 100], [100, 100]] },
-        life: { hpPct: 100, hpStops: [[0, 70], [STRIKES[0], 70], [STRIKES[0] + 2, 100], [100, 100]] } }
+    ? { frost: { hpPct: 100, hpStops: [[0, 40], [BEAT, 40], [BEAT + 2, 52], [SHOT, 52], [SHOT + 2, 88], [100, 88]] },
+        storm: { hpPct: 100, hpStops: [[0, 50], [SHOT, 50], [SHOT + 2, 100], [100, 100]] },
+        life: { hpPct: 100, hpStops: [[0, 70], [SHOT, 70], [SHOT + 2, 100], [100, 100]] } }
     : { frost: {}, storm: {}, life: {} };
   for (const k of ["frost", "storm", "life"]) h += ally(C, k, { ...bars[k], ...(k === G.key ? cast : {}), ...hurt[k], ...(k === "frost" ? { hpW: 40 } : {}) });
-  // orbs: three build up on the casting mage and persist until the merge; the rule scene also shows two Frost orbs and one Life orb
+  // orbs: three build up on the casting mage and persist until the merge; after the shot two new ones start again and stay; the rule scene also shows two Frost orbs and one Life orb
   h += orbRing(C, { cx, cy, r: G.r, color: G.color, items: [[-150, 8], [-30, 14], [180, 20]], pulses: [BEAT], mergeAt: MERGE, mergeTo: G.mp, shownInStill: false });
+  h += orbRing(C, { cx, cy, r: G.r, color: G.color, items: [[-150, NEW[0]], [-30, NEW[1]]], shownInStill: false });
   if (rule) {
     h += orbRing(C, { cx: 161, cy: 134, r: 28, color: FROSTC, items: [[-150, 26], [-30, 30]], pulses: [BEAT] });
     h += orbRing(C, { cx: 230, cy: 166, r: 24, color: LIFEC, items: [[-30, 34]], pulses: [BEAT] });
@@ -646,31 +651,92 @@ function mageScene(C, { who, rule = false }) {
       h += floater(C, { x: 150 + i * 11, y: 110, text: "+8", color: LIFEC, at: BEAT + i * 0.5 + 1, size: 9, glow: "#1b8a55", show: false });
     });
   }
-  // the merge: the orbs fly into one sparkling orb, which strikes at once and again on every hit after
-  h += ring(C, { cx: G.mp[0], cy: G.mp[1], r: 26, color: "#fff", at: MERGE + 3.4, dur: 8 });
-  h += mergedOrb(C, { cx: G.mp[0], cy: G.mp[1], at: MERGE + 3.6, grows: [STRIKES[1] - 0.5, STRIKES[2] - 0.5], end: 80, color: G.color });
-  STRIKES.forEach((t, i) => {
-    const last = i === STRIKES.length - 1;
-    if (who === "storm") {
-      h += bolt(C, { x1: G.mp[0], y1: G.mp[1] - 6, x2: SH[1][0], y2: SH[1][1] + 14, color: GOLD, at: t, w: 3 + i, base: last ? 1 : 0 });
-      h += floater(C, { x: 214 + (i % 2) * 14, y: 28 + i * 3, text: ["−80", "−96", "−115"][i], color: "#fff", at: t + 0.8, size: 14 + i * 2, glow: GOLD, show: last });
-    } else {
-      const rings = Object.values(allies);
-      rings.forEach(([ax, ay], j) => { h += ring(C, { cx: ax, cy: ay, r: j === 0 ? 30 : 22, color: G.color, at: t + 0.3, dur: 9 }); });
-      if (i === 0) {
-        const txt = who === "frost" ? [["⛊+45", 161, 104], ["⛊+29", 92, 140], ["⛊+37", 230, 140]] : [["+27", 161, 104], ["+12", 92, 140], ["+15", 230, 140]];
-        txt.forEach(([text, x, y]) => { h += floater(C, { x, y, text, color: G.color, at: t + 0.8, size: 11, glow: who === "frost" ? "#4da6ff" : "#1b8a55", show: true }); });
-      }
-    }
-  });
+  // the merge: the three orbs fly into one sparkling orb, which flares as it fires one big shot, and is gone
+  h += ring(C, { cx: G.mp[0], cy: G.mp[1], r: 26, color: "#fff", at: SHOT - 0.2, dur: 8 });
+  h += mergedOrb(C, { cx: G.mp[0], cy: G.mp[1], at: MERGE + 1, flare: SHOT, end: SHOT + 3, color: G.color });
+  if (who === "storm") {
+    h += bolt(C, { x1: G.mp[0], y1: G.mp[1] - 6, x2: SH[1][0], y2: SH[1][1] + 14, color: GOLD, at: SHOT, w: 4, base: 1 });
+    h += floater(C, { x: 214, y: 28, text: "−80", color: "#fff", at: SHOT + 0.8, size: 16, glow: GOLD, show: true });
+  } else {
+    Object.values(allies).forEach(([ax, ay], j) => { h += ring(C, { cx: ax, cy: ay, r: j === 0 ? 30 : 22, color: G.color, at: SHOT + 0.3, dur: 9 }); });
+    const txt = who === "frost" ? [["⛊+45", 161, 104], ["⛊+29", 92, 140], ["⛊+37", 230, 140]] : [["+27", 161, 104], ["+12", 92, 140], ["+15", 230, 140]];
+    txt.forEach(([text, x, y]) => { h += floater(C, { x, y, text, color: G.color, at: SHOT + 0.8, size: 11, glow: who === "frost" ? "#4da6ff" : "#1b8a55", show: true }); });
+  }
   const flavour = who === "storm" ? "EACH ORB ZAPS ONE ENEMY" : who === "frost" ? "EACH ORB SHIELDS BRAM" : "EACH ORB HEALS THE TANK";
-  h += chip(C, { x: 150, y: 96, text: rule ? "EVERY 2 S EACH ORB WORKS ALONE" : flavour, color: G.color, stops: win(BEAT - 1, 48, 1.5), base: 0 });
-  h += chip(C, { x: 150, y: 96, text: "A 4TH HIT MERGES THEM", color: G.color, stops: win(49, 62, 1.5), base: 0 });
-  h += chip(C, { x: 150, y: 96, text: "EVERY HIT AFTER: BIGGER", color: G.color, stops: win(63, 79, 1.5), base: 0 });
-  h += chip(C, { x: 150, y: 96, text: "SKILL ENDS: START FROM 0", color: "#e8e8ee", stops: win(80, 96, 1.5), base: 0 });
+  h += chip(C, { x: 150, y: 96, text: rule ? "EVERY 2 S EACH ORB WORKS ALONE" : flavour, color: G.color, stops: win(BEAT - 1, 43, 1.5), base: 0 });
+  h += chip(C, { x: 150, y: 96, text: "NEXT HIT MERGES THE 3 ORBS", color: G.color, stops: win(44, 50, 1.2), base: 0 });
+  h += chip(C, { x: 150, y: 96, text: "ONE BIG SHOT, THEN GONE", color: G.color, stops: win(52, 58, 1.2), base: 0 });
+  h += chip(C, { x: 150, y: 96, text: "NEXT HITS START FROM 0", color: G.color, stops: win(60, 72, 1.2), base: 0 });
+  h += chip(C, { x: 150, y: 96, text: "SKILL ENDS: ORBS STAY", color: "#e8e8ee", stops: win(73, 96, 1.2), base: 0 });
   h += bubble(C, { cx, top: o.top, size: o.size, text: `${G.bubble} ×3`, color: u.hex, s: 2, w: G.bw, barW: G.bb });
   h += bubble(C, { cx, top: o.top, size: o.size, text: `${G.bubble} ×3`, color: u.hex, s: 46, w: G.bw, barW: G.bb });
   h += caps(C, [{ side: "left", text: rule ? "EVERY SKILL HIT ADDS AN ORB" : `SKILL · ${G.bubble}`, color: rule ? ARMIES.mages.hex : u.hex, at: [4, 94] }]);
+  return h;
+}
+
+// ---------- the Beasts' pounce (canvas 12.0C, built 2026-10-22; the game draws it in render/fightView.ts) ----------
+const BEASTS = "#d9a066", ICEC = "#8fd3ff";
+// a beast's jump from `home` to `land` and back, twice (the second is the chain: the pack pounces again): out at t1 and t2 (%), back about 8.5% later
+function jumpAnim(C, home, land, t1, t2) {
+  const dx = land[0] - home[0], dy = land[1] - home[1], T = (x, y, s = "1") => `transform:translate(${x}px,${y}px) scale(${s})`;
+  const leg = (t) => [[t, T(0, 0)], [t + 1.2, T(dx / 2, dy / 2 - 30, "1.08")], [t + 2.4, T(dx, dy, "1.2,0.82")], [t + 3.4, T(dx, dy)], [t + 6, T(dx, dy)], [t + 8.5, T(0, 0)]];
+  return C.kf([[0, T(0, 0)], ...leg(t1), ...leg(t2), [100, T(0, 0)]]);
+}
+// one card scene for a Beast's part of the pounce (who = "pin" | "maul" | "tend") or for the Pack rule (who = "rule", all three parts at once).
+// T = 9 s: the PACK bar steps up (5-28%), is full (28%) and the bubble pops, the pack jumps (46%): the Bear first, then the Wolves, then the Stag; the
+// Bear's part lands as a freeze, the Wolves' as three bites, the Stag's as a heal on everyone; the bar stays full through the jumps, the pounce
+// goes again (66%) with bigger numbers, and the bar empties when it ends (80%). The still shows the first landing.
+function pounceScene(C, { who }) {
+  const all = who === "rule", pin = all || who === "pin", maul = all || who === "maul", tend = all || who === "tend";
+  const T1 = 46, T2 = 66, STAG = 0.8;
+  const WARDEN_C = [161, 34];
+  let h = acoL(C) + wardenE(C, maul ? { hpPct: 76, hpStops: [[0, 100], [T1 + 3, 100], [T1 + 4, 90], [T2 + 3, 90], [T2 + 4, 76], [100, 76]] } : {}) + acoR(C);
+  const pack = [
+    { key: "bear", o: BEAR, name: "Bruno", land: [161, 78], hpW: 38, hp: [60, 82, 100] },
+    { key: "wolf", o: BK[0], name: "Fang", land: [118, 68], hpW: 32, hp: [70, 88, 100] },
+    { key: "wolf", o: BK[1], name: "Ash", land: [204, 68], hpW: 32, hp: [64, 84, 100] },
+    { key: "wolf", o: BK[2], name: "Dusk", land: [136, 98], hpW: 32, hp: [72, 90, 100] },
+    { key: "stag", o: BK[3], name: "Moss", land: [188, 98], hpW: 32, hp: [68, 86, 100] },
+  ];
+  pack.forEach((p, i) => {
+    const home = [p.o.cx, p.o.top + p.o.size / 2];
+    const hp = tend ? { hpPct: p.hp[2], hpStops: [[0, p.hp[0]], [T1 + 4 + i * STAG, p.hp[0]], [T1 + 6 + i * STAG, p.hp[1]], [T2 + 4 + i * STAG, p.hp[1]], [T2 + 6 + i * STAG, p.hp[2]], [100, p.hp[2]]] } : {};
+    h += ally(C, p.key, { ...p.o, name: p.name, short: true, hpW: p.hpW, noCharge: true, wrapAnim: jumpAnim(C, home, p.land, T1 + i * STAG, T2 + i * STAG), ...hp });
+  });
+  // the PACK bar: one bar for all five, steps up, is full through the pounce, and empties when it ends (the still shows it full)
+  const steps = [[0, 0], [5, 0], [7, 25], [12, 25], [14, 50], [19, 50], [21, 75], [26, 75], [28, 100], [78, 100], [80, 0], [100, 0]];
+  h += abs(`left:12px;top:197px;font-size:8px;font-weight:800;letter-spacing:0.12em;color:${BEASTS};`, "PACK");
+  h += abs(`left:46px;top:197px;width:262px;height:8px;border-radius:5px;background:#2a2e3a;overflow:hidden;border:1px solid #3a3f4e;${C.kf([[0, "box-shadow:none"], [27, "box-shadow:none"], [28, `box-shadow:0 0 8px 1px ${YEL}`], [79, `box-shadow:0 0 8px 1px ${YEL}`], [80, "box-shadow:none"], [100, "box-shadow:none"]])}`,
+    `<div style="height:100%;width:100%;background:${YEL};${C.kf(W(steps))}"></div>` + [1, 2, 3, 4].map((i) => abs(`left:${i * 20}%;top:0;bottom:0;width:1px;background:#14161c;opacity:.7;`)).join(""));
+  // the landing of each part, first and second pounce (the second is bigger)
+  const at = (i, t) => t + 2.4 + i * STAG;
+  if (pin) {
+    h += ring(C, { cx: WARDEN_C[0], cy: WARDEN_C[1], r: 30, color: ICEC, at: at(0, T1) }) + ring(C, { cx: WARDEN_C[0], cy: WARDEN_C[1], r: 30, color: ICEC, at: at(0, T2) });
+    h += chip(C, { x: 214, y: 4, text: "FROZEN 0.5 S", color: ICEC, stops: win(at(0, T1), at(0, T1) + 12, 1.2) });
+    h += chip(C, { x: 214, y: 4, text: "FROZEN 1.0 S", color: ICEC, stops: win(at(0, T2), at(0, T2) + 12, 1.2), base: 0 });
+  }
+  if (maul) {
+    [[1, 128, 46], [2, 194, 46], [3, 161, 66]].forEach(([i, x, y]) => {
+      h += floater(C, { x, y, text: "−7", color: "#fff", at: at(i, T1), size: 11, glow: "#ff5252" });
+      h += floater(C, { x, y, text: "−14", color: "#fff", at: at(i, T2), size: 13, glow: "#ff5252", show: false });
+    });
+  }
+  if (tend) {
+    pack.forEach((p, i) => {
+      const x = p.o.cx, y = p.o.top - 10;
+      h += floater(C, { x, y, text: "+4", color: ROLE.healer.hex, at: at(i, T1) + 2, size: 10, glow: "#1b8a55" });
+      h += floater(C, { x, y, text: "+8", color: ROLE.healer.hex, at: at(i, T2) + 2, size: 11, glow: "#1b8a55", show: false });
+    });
+  }
+  // the words
+  const say = { pin: "THE BEAR LANDS FIRST AND FREEZES IT", maul: "EVERY WOLF BITES: 3 WOLVES, 21", tend: "EVERY STAG HEALS EVERYONE", rule: "FULL: THE WHOLE PACK JUMPS" }[who];
+  if (all) h += chip(C, { x: 12, y: 100, text: "ONE BAR FOR THE WHOLE PACK", color: BEASTS, stops: win(6, 34, 1.5), base: 0 });
+  h += chip(C, { x: 12, y: 100, text: say, color: BEASTS, stops: win(T1 - 2, T1 + 14, 1.5) });
+  h += chip(C, { x: 12, y: 100, text: "A CHAIN: THEY JUMP AGAIN", color: YEL, stops: win(T2 - 4, T2 + 14, 1.5), base: 0 });
+  h += bubble(C, { cx: 161, top: 114, size: 38, text: "POUNCE", color: BEASTS, s: 36, w: 60, barW: 38 });
+  h += bubble(C, { cx: 161, top: 114, size: 38, text: "POUNCE ×2", color: BEASTS, s: 57, w: 70, barW: 38 });
+  const name = { pin: "PIN", maul: "MAUL", tend: "TEND" }[who];
+  h += caps(C, [{ side: "left", text: all ? "THE PACK BAR FILLS, THEN THE PACK POUNCES" : `SKILL · ${name}`, color: all ? BEASTS : ROLE[{ pin: "tank", maul: "damage", tend: "healer" }[who]].hex, at: [4, 94] }]);
   return h;
 }
 
@@ -723,45 +789,9 @@ const SCENES = {
     h += caps(C, [{ side: "left", text: "SKILL · RAISE", color: ROLE.healer.hex, at: [4, 56] }, { side: "right", text: "ONE WARRIOR PER HIT", color: ARMIES.undead.hex, at: [12, 56] }]);
     return h;
   },
-  roar(C) {
-    let h = acoL(C) + wardenE(C) + acoR(C);
-    const bars = [[0, 40], [14, 40], [17, 65], [100, 65]];
-    h += ally(C, "bear", { ...BEAR, hpW: 38, hpPct: 62, hpStops: [[0, 100], [28, 100], [30, 62], [100, 62]], cycles: [{ s: 10 }] });
-    const kinds = ["wolf", "wolf", "wolf", "stag"];
-    BK.forEach((p, i) => { h += ally(C, kinds[i], { ...p, name: ["Fang", "Ash", "Dusk", "Moss"][i], short: true, hpW: 32, chargeStops: bars }); });
-    BK.forEach((p) => { h += beam(C, { x1: 161, y1: 134, x2: p.cx, y2: 156, color: YEL, at: 14, w: 1.5, dur: 8 }) + floater(C, { x: p.cx, y: 143, text: "+25%", color: YEL, at: 16, size: 8, glow: "#a07a00" }); });
-    h += ring(C, { cx: 161, cy: 133, r: 26, color: ARMIES.beasts.hex, at: 14 });
-    h += slamBeam(C, 28, 161, 112) + floater(C, { x: 161, y: 112, text: "−48", color: "#fff", at: 29, size: 15 });
-    h += bubble(C, { cx: 161, top: 114, size: 38, text: "ROAR", color: ROLE.tank.hex, s: 10, w: 60, barW: 38 });
-    h += caps(C, [{ side: "left", text: "SKILL · ROAR", color: ROLE.tank.hex, at: [8, 40] }, { side: "right", text: "THE PACK FILLS UP", color: ARMIES.beasts.hex, at: [14, 40] }]);
-    return h;
-  },
-  packBite(C) {
-    let h = acoL(C) + acoR(C) + wardenE(C, { hpPct: 91, hpStops: [[0, 100], [47, 100], [49, 97], [52, 94], [55, 91], [100, 91]] });
-    h += ally(C, "bear", { ...BEAR, hpW: 38, chargePct: 40 });
-    h += ally(C, "wolf", { ...BK[0], name: "Fang", short: true, hpW: 32, chargePct: 35 }) + ally(C, "wolf", { ...BK[1], name: "Ash", short: true, hpW: 32, cycles: [{ s: 38 }] }) + ally(C, "wolf", { ...BK[2], name: "Dusk", short: true, hpW: 32, chargePct: 35 });
-    h += ally(C, "stag", { ...BK[3], name: "Moss", short: true, hpW: 32, chargePct: 40 });
-    h += beam(C, { x1: 120, y1: 160, x2: 156, y2: 58, color: ROLE.damage.hex, at: 52, w: 3.5 });
-    h += ring(C, { cx: 62, cy: 164, r: 18, color: ARMIES.beasts.hex, at: 48 }) + ring(C, { cx: 202, cy: 164, r: 18, color: ARMIES.beasts.hex, at: 51 });
-    h += chip(C, { x: 36, y: 134, text: "+1 bite", color: ARMIES.beasts.hex, stops: from(48) }) + chip(C, { x: 178, y: 134, text: "+1 bite", color: ARMIES.beasts.hex, stops: from(51) });
-    h += floater(C, { x: 218, y: 20, text: "−18", color: "#ffe6ff", at: 57, size: 17, glow: ROLE.damage.hex });
-    h += bubble(C, { cx: 120, top: 151, size: 26, text: "PACK BITE", color: ROLE.damage.hex, s: 38, w: 64, barW: 32 });
-    h += caps(C, [{ side: "left", text: "SKILL · PACK BITE", color: ROLE.damage.hex, at: [40, 90] }, { side: "right", text: "3 WOLVES · ONE BITE OF 18", color: ARMIES.beasts.hex, at: [47, 90] }]);
-    return h;
-  },
-  herd(C) {
-    let h = acoL(C) + wardenE(C) + acoR(C);
-    const hp = [[68, 78], [62, 70], [74, 82], [66, 74], [70, 80]];
-    const st = (a, b) => [[0, a], [47, a], [51, b], [100, b]];
-    h += ally(C, "bear", { ...BEAR, hpW: 38, hpPct: hp[0][1], hpStops: st(...hp[0]), chargePct: 40 });
-    ["wolf", "wolf", "wolf"].forEach((k, i) => { h += ally(C, k, { ...BK[i], name: ["Fang", "Ash", "Dusk"][i], short: true, hpW: 32, hpPct: hp[i + 1][1], hpStops: st(...hp[i + 1]), chargePct: 35 }); });
-    h += ally(C, "stag", { ...BK[3], name: "Moss", short: true, hpW: 32, hpPct: hp[4][1], hpStops: st(...hp[4]), cycles: [{ s: 38 }] });
-    [[161, 134], [62, 164], [120, 164], [202, 164]].forEach(([x, y]) => { h += beam(C, { x1: 260, y1: 164, x2: x, y2: y, color: ROLE.healer.hex, at: 46, w: 1.5 }) + floater(C, { x, y: y - 22, text: "+5", color: ROLE.healer.hex, at: 48, size: 10, glow: "#1b8a55" }); });
-    h += floater(C, { x: 260, y: 143, text: "+5", color: ROLE.healer.hex, at: 48, size: 10, glow: "#1b8a55" });
-    h += bubble(C, { cx: 260, top: 151, size: 26, text: "HERD", color: ROLE.healer.hex, s: 38, w: 54, barW: 32 });
-    h += caps(C, [{ side: "left", text: "SKILL · HERD", color: ROLE.healer.hex, at: [40, 90] }, { side: "right", text: "5 BEASTS · +5 EACH", color: ARMIES.beasts.hex, at: [46, 90] }]);
-    return h;
-  },
+  pin: (C) => pounceScene(C, { who: "pin" }),
+  maul: (C) => pounceScene(C, { who: "maul" }),
+  tend: (C) => pounceScene(C, { who: "tend" }),
   // the Undead rule: skeletons fill the field one by one (five at most), the enemy's hits go to the shield first, then the warriors
   undead(C) {
     let h = acoL(C) + wardenE(C) + acoR(C);
@@ -776,24 +806,8 @@ const SCENES = {
     h += caps(C, [{ side: "left", text: "EVERY SKILL HIT RAISES ONE", color: ARMIES.undead.hex, at: [6, 46] }, { side: "right", text: "FIVE AT MOST", color: YEL, at: [40, 94] }]);
     return h;
   },
-  // the Beasts rule: every hit one beast lands fills every other beast's skill bar a little
-  beasts(C) {
-    let h = acoL(C) + wardenE(C, { hpPct: 88, hpStops: [[0, 100], [15, 100], [17, 96], [35, 96], [37, 92], [55, 92], [57, 88], [100, 88]] }) + acoR(C);
-    const hit = { 0: 14, 1: 34, 2: 54 }; // which wolf hits when
-    const stops = (i) => { // a beast's bar steps up 20% after each hit by someone else
-      const s = [[0, 40]]; let v = 40;
-      Object.entries(hit).forEach(([w, t]) => { if (Number(w) !== i) { s.push([t + 1.5, v]); v += 20; s.push([t + 4, v]); } });
-      s.push([100, v]); return s;
-    };
-    h += ally(C, "bear", { ...BEAR, hpW: 38, chargeStops: [[0, 40], [15.5, 40], [18, 60], [35.5, 60], [38, 80], [55.5, 80], [58, 100], [100, 100]] });
-    ["Fang", "Ash", "Dusk"].forEach((nm, i) => { h += ally(C, "wolf", { ...BK[i], name: nm, short: true, hpW: 32, chargeStops: stops(i) }); });
-    h += ally(C, "stag", { ...BK[3], name: "Moss", short: true, hpW: 32, chargeStops: [[0, 40], [15.5, 40], [18, 60], [35.5, 60], [38, 80], [55.5, 80], [58, 100], [100, 100]] });
-    [[0, 14, 62], [1, 34, 120], [2, 54, 202]].forEach(([i, t, x]) => { h += beam(C, { x1: x, y1: 160, x2: 156 + i * 6, y2: 58, color: ROLE.damage.hex, at: t, w: 1.8 }) + floater(C, { x: 140 + i * 22, y: 36, text: "−6", color: "#e8e8ee", at: t + 1, size: 10 }); });
-    [14, 34, 54].forEach((t, i) => { h += floater(C, { x: 298, y: 150 + i * 12, text: "+20%", color: YEL, at: t + 2, size: 8, glow: "#a07a00" }); });
-    h += bubble(C, { cx: 260, top: 151, size: 26, text: "HERD", color: ROLE.healer.hex, s: 56, w: 54, barW: 32 });
-    h += caps(C, [{ side: "left", text: "EVERY HIT FEEDS THE PACK", color: ARMIES.beasts.hex, at: [12, 60] }, { side: "right", text: "SKILLS GO OFF", color: ROLE.healer.hex, at: [58, 94] }]);
-    return h;
-  },
+  // the Beasts rule: one PACK bar for the whole pack; when it is full every beast jumps on one enemy
+  beasts: (C) => pounceScene(C, { who: "rule" }),
 };
 
 // =====================================================================================================
@@ -806,7 +820,7 @@ const CARDS = [
   { n: 9, kind: "skill", unit: "frost" }, { n: 10, kind: "skill", unit: "storm" }, { n: 11, kind: "skill", unit: "life" },
   { n: 12, kind: "rule", army: "mages" },
 ];
-const NAMES = { 1: "BoneWall", 2: "Command", 3: "Raise", 4: "Roar", 5: "PackBite", 6: "Herd", 7: "Horde", 8: "Pack", 9: "FrostOrb", 10: "StormOrb", 11: "LifeOrb", 12: "Orbs" };
+const NAMES = { 1: "BoneWall", 2: "Command", 3: "Raise", 4: "Pin", 5: "Maul", 6: "Tend", 7: "Horde", 8: "Pack", 9: "FrostOrb", 10: "StormOrb", 11: "LifeOrb", 12: "Orbs" };
 // the parts of a card shared by the canvas frame and the game copy: its army, the scene, the header line, the ARMY / SKILL rows and the design note
 function cardPieces(c, C) {
   const sceneKey = c.kind === "skill" ? UNITS[c.unit].skill : c.army;
@@ -865,7 +879,7 @@ ${ex.slice(start, end)}<!-- the army card -->
 ${scene}
     </div>
 
-    <div style="font-size: 10.5px; color: #8a8fa3; text-align: center; margin-top: 8px;">When its bar is full, a unit uses its skill.</div>
+    <div style="font-size: 10.5px; color: #8a8fa3; text-align: center; margin-top: 8px;">${cardLead(c)}</div>
 ${rows}
     <button style="margin-top: 14px; width: 100%; font: inherit; font-weight: 700; background: #4da6ff; color: #0c1420; border: none; border-radius: 8px; padding: 12px; font-size: 15px;">Got it</button>
   </div>
@@ -891,15 +905,15 @@ w("ArmyPickA.dc.html", pickFile("A"), 0, Y_PICK, 1060, "10.0A Pick before round 
 w("ArmyPickB.dc.html", pickFile("B"), 550, Y_PICK, 1140, "10.0B Pick after the round 1 win, in place of the rune pick (option)");
 w("ArmySquadUndead.dc.html", squadFile("undead"), 0, Y_UND, 880, "10.1 Undead squad — round screen (proposal)");
 ["knight", "wraith", "priest"].forEach((k, i) => w(`ArmyPopup${UNITS[k].title.replace(/ /g, "")}.dc.html`, popupFile(k), 550 * (i + 1), Y_UND, 900, `${POPUP_NUM[k]} ${UNITS[k].title} — Undead ${ROLE[UNITS[k].role].word} (proposal)`));
-w("ArmySquadBeasts.dc.html", squadFile("beasts"), 0, Y_BEA, 880,"10.5 Beasts squad — round screen, five fielded (proposal)");
-["bear", "wolf", "stag"].forEach((k, i) => w(`ArmyPopup${UNITS[k].title}.dc.html`, popupFile(k), 550 * (i + 1), Y_BEA, 900, `${POPUP_NUM[k]} ${UNITS[k].title} — Beast ${ROLE[UNITS[k].role].word} (proposal)`));
+w("ArmySquadBeasts.dc.html", squadFile("beasts"), 0, Y_BEA, 880,"10.5 Beasts squad — round screen, five fielded (built 2026-10-22)");
+["bear", "wolf", "stag"].forEach((k, i) => w(`ArmyPopup${UNITS[k].title}.dc.html`, popupFile(k), 550 * (i + 1), Y_BEA, 900, `${POPUP_NUM[k]} ${UNITS[k].title} — Beast ${ROLE[UNITS[k].role].word} (built 2026-10-22)`));
 w("ArmySquadMages.dc.html", squadFile("mages"), 0, Y_MAG, 880, "10.9 Mages squad — round screen (built 2026-10-21)");
 ["frost", "storm", "life"].forEach((k, i) => w(`ArmyPopup${UNITS[k].title.replace(/ /g, "")}.dc.html`, popupFile(k), 550 * (i + 1), Y_MAG, 900, `${POPUP_NUM[k]} ${UNITS[k].title} — Mage ${ROLE[UNITS[k].role].word} (built 2026-10-21)`));
 CARDS.forEach((c, i) => {
-  const built = c.kind === "skill" ? UNITS[c.unit].army === "mages" : c.army === "mages";
+  const built = BUILT_ON[c.kind === "skill" ? UNITS[c.unit].army : c.army] ?? "proposal";
   const label = c.kind === "skill"
-    ? `11.${c.n} ${SKILLS[UNITS[c.unit].skill].name} — ${UNITS[c.unit].title}'s skill (${built ? "built 2026-10-21" : "proposal"})`
-    : `11.${c.n} ${ARMIES[c.army].rule.name} — the ${ARMIES[c.army].name} rule (${built ? "built 2026-10-21" : "proposal"})`;
+    ? `11.${c.n} ${SKILLS[UNITS[c.unit].skill].name} — ${UNITS[c.unit].title}'s skill (${built})`
+    : `11.${c.n} ${ARMIES[c.army].rule.name} — the ${ARMIES[c.army].name} rule (${built})`;
   w(`ArmyCard${NAMES[c.n]}.dc.html`, cardFile(c), 550 * i, Y_CARD, 900, label);
 });
 
@@ -910,7 +924,7 @@ const boards = FRAMES.map((f) => `    { "file": "${f.file}", "x": ${f.x}, "y": $
 const notes = [
   `    { "id": "section-army-pick", "x": 0, "y": ${Y_PICK - 140}, "w": 1000, "text": "10 · ARMIES — pick an army and every unit changes: its look, its skills and one rule (proposal, design only, not built). First, where the pick sits" },`,
   `    { "id": "section-army-undead", "x": 0, "y": ${Y_UND - 140}, "w": 2200, "text": "10 · UNDEAD — fall once, rise stronger: the round screen, then the three popups" },`,
-  `    { "id": "section-army-beasts", "x": 0, "y": ${Y_BEA - 140}, "w": 2200, "text": "10 · BEASTS — five small units, skills all the time: the round screen, then the three popups" },`,
+  `    { "id": "section-army-beasts", "x": 0, "y": ${Y_BEA - 140}, "w": 2200, "text": "10 · BEASTS — five small units, one pack pounce (built 2026-10-22): the round screen, then the three popups" },`,
   `    { "id": "section-army-cards", "x": 0, "y": ${Y_CARD - 140}, "w": 6600, "text": "11 · ARMY CARDS — opened from the 'See … in action' rows: six skills, then the two army rules, then the Mages' three skills and their rule" },`,
   `    { "id": "section-army-mages", "x": 0, "y": ${Y_MAG - 140}, "w": 2200, "text": "10 · MAGES — orbs that work alone, then merge (built 2026-10-21): the round screen, then the three popups" },`,
 ];
@@ -940,7 +954,7 @@ console.log("wrote", FRAMES.length, "frames and patched canvas.json");
     const { a, scene, header, rows } = cardPieces(c, C);
     const head = `<div style="position: absolute; top: 14px; left: 14px; display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.14em; color: ${a.hex};">${header}</div>`;
     const sceneHtml = head + `<div class="scene" style="position: relative; width: 322px; height: 210px; margin-top: 26px; background: #14161c; border: 1px solid #2a2e3a; border-radius: 10px; overflow: hidden;"><div style="position: absolute; top: 104px; left: 16px; right: 16px; height: 1px; background: linear-gradient(90deg, transparent, #3a3f4e, transparent);"></div>${scene}</div>`;
-    const lead = c.kind === "skill" ? "When its bar is full, a unit uses its skill." : "Every unit in the squad follows this rule.";
+    const lead = cardLead(c);
     const text = `<div style="font-size: 10.5px; color: #8a8fa3; text-align: center; margin-top: 8px;">${lead}</div>` + rows;
     data[id] = { scene: sceneHtml, text };
     cssLines.push(`/* ---------- ${key} ---------- */`, `.tc-${id} .scene { --T: 9s; }`, ...C.rules, "");

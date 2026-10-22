@@ -10,6 +10,43 @@
 
 ---
 
+## [2026-10-22] Beasts built: one pack bar, one pounce
+
+- **Decision:**
+  - The Beasts are built as frame 12.0C draws them: no beast has a skill bar of its own, and everything the pack does fills one PACK bar.
+  - A full bar sets off a pounce: a skill led by the Bear whose every hit runs every living beast's part at once (Bear: Pin, a freeze on the front enemy; Wolves: Maul, a bite each; Stags: Tend, heals everyone).
+  - A pounce that goes again jumps again.
+  - A backfired pounce lands on your own side: the Bear freezes one of your units, the Wolves bite your front unit, the Stags heal the enemy.
+  - Backfire odds and the chance to go again come from the pack's average fatigue, and a backfire counts against every beast that jumped.
+  - A skill a role gains fires from every beast of that role on every pounce.
+  - The Pin is a Freeze, so Frozen runes read it.
+  - A pounce ends if its lead falls, and a freeze never lands on the lead.
+  - Working choices, not confirmed: the part names, the bar size and every number (`config.ts`, `beast*`).
+- **Why:**
+  - Tu's playtest: the first army builds fought like the plain squad; a pack-wide jump changes what the screen shows.
+  - The first numbers finished 65.6% of runs (build bot, n=800, 2026-10-22): each hit is the whole pack's work and the pin feeds the Frozen runes. The tuned numbers finish 20.4% (n=800).
+  - Tu settled the backfire, fatigue, gained-skill and Pin = Freeze rules, the part names and the lead-falls rule on 2026-10-22.
+- **Replaces:**
+  - The Beasts lines of "Each army fights its own way" are now built; its other lines stand.
+  - Roar, Pack Bite, Herd, and the Pack rule's "every hit fills the others' skill bars" are gone.
+
+## [2026-10-22] Mages: a merge fires one shot and the orbs start again
+
+- **Decision:**
+  - A skill hit that finds 3 orbs out merges them into one big shot that fires at once; the big orb is gone straight away.
+  - The next hit of the same skill starts again from none, so a long skill can fire twice.
+  - Orbs still out when a skill ends stay and keep working on the 2 s beat.
+  - The shot is always the same size: Storm hits the front enemy, Frost shields the whole squad, Life heals it.
+  - A backfired hit pops the newest orb; with none out the skill ends.
+  - Everything else in "Mages built: orbs that merge and strike" stands.
+  - Working choices, not confirmed: the shot's numbers and the limit of 3 (`config.ts`, `mage*`).
+- **Why:**
+  - Tu saw that a mage rarely kept an orb after a skill: chains run long enough to merge, and the merge cleared everything.
+  - Loose orbs that survive a skill are the part of the army that works alone between skills.
+  - Measured with this rule: 11.8% run completion (build bot, n=800, 2026-10-22), against 22.6% before; not retuned yet.
+- **Replaces:**
+  - From "Mages built: orbs that merge and strike": the big orb that grows and strikes again on every later hit, the clear when a merged skill ends, and the big-orb step on a backfire.
+
 ## [2026-10-22] Mages built: orbs that merge and strike
 
 - **Decision:**

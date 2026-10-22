@@ -297,8 +297,10 @@ export function openFighterPopup(opts: PopupOpts): () => void {
       now > fresh + 1e-9 ? `<span class="pp-fatd" style="color:${hex}">▲ from ${pct(fresh)}</span>` : `<span class="pp-fatd"></span>`;
     const max = fc.chainMaxHits;
     const chainText =
-      f.army === "mages"
-        ? `The chance to add another orb after the first, up to ${pct(late)} later. A 4th orb merges them, and each hit after that is stronger. Max ${max} hits in a row.`
+      f.army === "beasts"
+        ? `The chance for the pounce to go again after the first, up to ${pct(late)} later, from the pack's average fatigue. Each jump is stronger. Max ${max} jumps in a row.`
+        : f.army === "mages"
+        ? `The chance to add another orb after the first, up to ${pct(late)} later. A 4th orb merges them into one big shot, then they start again. Max ${max} hits in a row.`
         : base === "guard"
         ? `The chance to guard again after the first, up to ${pct(late)} later. Each repeat covers one more slam. Max ${max} in a row.`
         : base === "mend"
@@ -307,7 +309,9 @@ export function openFighterPopup(opts: PopupOpts): () => void {
             ? `The chance to bite again after the first, up to ${pct(late)} later. Each bite is stronger. Max ${max} bites in a row.`
             : `The chance to hit again after the first, up to ${pct(late)} later. Each hit is stronger and adds another ${termSpan("exposed", "exposed")} stack. Max ${max} hits in a row.`;
     const backText =
-      f.army === "mages"
+      f.army === "beasts"
+        ? "A backfired pounce lands on your own side: the Bear freezes one of your units, the Wolves bite your front unit, the Stags heal the enemy. Every beast that jumped counts it."
+        : f.army === "mages"
         ? "A backfired hit pops an orb instead of adding one. With none to pop, the skill ends."
         : base === "guard"
         ? `${esc(f.name)} steps aside and the next slam hits your weakest ally instead.`

@@ -8,9 +8,10 @@ import { PLAYER_ROLES, ROLE_LABEL, ROLE_POOL, makeUnitState, type PlayerRole } f
  * tank lock, the front and back rows, the offers and every rune that reads a role work as before. What the army changes is the
  * unit's name, look, stats and its base skill (in the place of Guard, Expose or Mend), plus one rule for the whole squad:
  *   Undead, Horde: every skill hit raises a skeleton that stays (fight.ts's raiseArmySkeleton), five at most, then it upgrades them.
- *   Beasts, Pack: five units are fielded instead of three, and every hit a Beast lands fills the others' skill bars a little.
- *   Mages, Orbs: every skill hit puts an orb around the mage (3 at most); orbs work alone every 2 s; a 4th merges them into one orb
- *   that strikes at once and grows with every hit after it (fight.ts's mageOrbHit, tickOrbs).
+ *   Beasts, Pack: five units are fielded instead of three. They have no skill bar of their own: everything their bars would collect fills one
+ *   shared PACK bar, and a full bar sets off a pounce, every beast's part (Pin, Maul, Tend) on one enemy at once (fight.ts's pounce).
+ *   Mages, Orbs: every skill hit puts an orb around the mage (3 at most); orbs work alone every 2 s; a 4th merges them into one great
+ *   shot that fires at once, then the orbs start again from none (fight.ts's mageOrbHit, tickOrbs).
  * Merge heroes (sim/heroes.ts) are off while an army is picked. Every number is a made-up first take, like ROLE_POOL's.
  */
 
@@ -36,9 +37,9 @@ export const ARMY_UNITS: Record<ArmyKind, Record<PlayerRole, ArmyUnitDef>> = {
     support: { kind: "bonePriest", role: "support", title: "Bone Priest", maxHp: 76, damage: 2, attackIntervalSec: 1.1, healPerBeat: 4, baseChain: "raise" },
   },
   beasts: {
-    tank: { kind: "bear", role: "tank", title: "Bear", maxHp: 140, damage: 5, attackIntervalSec: 1.3, baseChain: "roar" },
-    damage: { kind: "wolf", role: "damage", title: "Wolf", maxHp: 60, damage: 6, attackIntervalSec: 1.1, baseChain: "packBite" },
-    support: { kind: "stag", role: "support", title: "Stag", maxHp: 72, damage: 2, attackIntervalSec: 1.1, healPerBeat: 3, baseChain: "herd" },
+    tank: { kind: "bear", role: "tank", title: "Bear", maxHp: 140, damage: 5, attackIntervalSec: 1.3, baseChain: "pin" },
+    damage: { kind: "wolf", role: "damage", title: "Wolf", maxHp: 60, damage: 6, attackIntervalSec: 1.1, baseChain: "maul" },
+    support: { kind: "stag", role: "support", title: "Stag", maxHp: 72, damage: 2, attackIntervalSec: 1.1, healPerBeat: 3, baseChain: "tend" },
   },
   mages: {
     tank: { kind: "frostMage", role: "tank", title: "Frost Mage", maxHp: 135, damage: 5, attackIntervalSec: 1.3, baseChain: "frostOrb" },
@@ -142,19 +143,19 @@ export const ARMY_TEXT: Record<ArmyKind, ArmyText> = {
   },
   beasts: {
     name: "Beasts",
-    pitch: "Five small units. Skills all the time.",
+    pitch: "Five small units. One pack pounce.",
     ruleName: "Pack",
     ruleHead: "You field 5 beasts instead of 3.",
-    ruleLines: ["Each beast is smaller and weaker.", "Every hit one lands fills every other beast's skill bar a little."],
-    ruleCard: "You field 5 beasts instead of 3. Each beast is smaller and weaker, but every hit one lands fills every other beast's skill bar a little, so skills go off all the time.",
+    ruleLines: ["No beast has a skill bar of its own: one PACK bar fills with everything the pack does.", "When it is full, every beast jumps on one enemy at once."],
+    ruleCard: "You field 5 beasts instead of 3. Each beast is smaller and weaker, and none has a skill bar of its own: everything the pack does fills one PACK bar. When it is full, every beast jumps on one enemy at once: the Bear lands first and freezes it, the Wolves bite, the Stag heals. If the pounce goes again, they jump again.",
   },
   mages: {
     name: "Mages",
     pitch: "Every skill builds orbs that work alone.",
     ruleName: "Orbs",
     ruleHead: "Every skill hit adds an orb.",
-    ruleLines: ["Up to 3 circle the mage. Every 2 seconds each one works on its own.", "A 4th merges them into one orb that strikes at once, then grows with every hit."],
-    ruleCard: "Every skill hit adds an orb around the mage, up to 3. Every 2 seconds each orb works on its own: Storm orbs zap an enemy, Frost orbs shield the Frost Mage, Life orbs heal the tank. A 4th orb merges them into one big orb that strikes at once, and strikes harder with every skill hit after that. When the skill ends, the orbs are gone.",
+    ruleLines: ["Up to 3 circle the mage. Every 2 seconds each one works on its own.", "A 4th merges them into one big shot, then they start again."],
+    ruleCard: "Every skill hit adds an orb around the mage, up to 3. Every 2 seconds each orb works on its own: Storm orbs zap an enemy, Frost orbs shield the Frost Mage, Life orbs heal the tank. A 4th orb merges them into one big shot that fires at once, and then they start again from none. Orbs still out when the skill ends stay.",
   },
 };
 
@@ -190,40 +191,40 @@ export const UNIT_TEXT: Record<UnitKind, UnitText> = {
     skillCard: "Raises a warrior skeleton that fights for the rest of the fight. With 5 standing, a hit makes every warrior skeleton hit harder instead.",
   },
   bear: {
-    title: "Bear", job: "The Beast Tank. Stands in front and rallies the pack.",
-    skillName: "Roar", skillHead: "Takes the next {slam} and rallies the pack.", skillChips: ["Next slam", "Whole pack"],
-    skillLines: ["The first time it goes, every other beast's skill bar fills 25%.", "Each time it goes again, it takes one more slam."],
-    skillCard: "Takes the next {slam} for the pack, and every other beast's skill bar fills 25%.",
+    title: "Bear", job: "The Beast Tank. Lands first in a pounce and holds the enemy.",
+    skillName: "Pin", skillHead: "In a pounce, freezes the front enemy.", skillChips: ["Front enemy", "Freeze"],
+    skillLines: ["No skill bar of its own: it goes when the pack's bar is full.", "Each time the pounce goes again, the freeze is longer."],
+    skillCard: "The Bear leads the pack's pounce: it lands first and freezes the front enemy. Each time the pounce goes again, the freeze is longer.",
   },
   wolf: {
-    title: "Wolf", job: "The Beast Damage unit. Bites more with other Wolves beside it.",
-    skillName: "Pack Bite", skillHead: "Bites the front enemy, with the pack.", skillChips: ["Front enemy"],
-    skillLines: ["Bites for 6, once more for each other Wolf in the squad: 3 Wolves, 18.", "Each time it goes again, every bite is bigger."],
-    skillCard: "Bites the front enemy for 6, once more for each other Wolf in the squad. Three Wolves bite for 18.",
+    title: "Wolf", job: "The Beast Damage unit. Every Wolf bites in a pounce.",
+    skillName: "Maul", skillHead: "In a pounce, bites the front enemy.", skillChips: ["Front enemy"],
+    skillLines: ["Bites for 7. Every Wolf in the pack bites: 3 Wolves, 21.", "Each time the pounce goes again, every bite is bigger."],
+    skillCard: "In a pounce, every Wolf bites the front enemy for 7. Three Wolves bite for 21. Each time the pounce goes again, every bite is bigger.",
   },
   stag: {
-    title: "Stag", job: "The Beast Healer. Heals more the bigger the pack is.",
-    skillName: "Herd", skillHead: "Heals every unit, more for a bigger pack.", skillChips: ["Whole squad"],
-    skillLines: ["Heals each unit 1 for every beast in the squad: 5 beasts, 5 HP each.", "Each time it goes again, it heals again."],
-    skillCard: "Heals every unit 1 for every beast in the squad. With 5 beasts, each unit gets 5 HP.",
+    title: "Stag", job: "The Beast Healer. Heals the whole squad in a pounce.",
+    skillName: "Tend", skillHead: "In a pounce, heals every unit.", skillChips: ["Whole squad"],
+    skillLines: ["Heals each unit 4. Every Stag in the pack tends.", "Each time the pounce goes again, it heals again."],
+    skillCard: "In a pounce, every Stag heals every unit 4 HP. Each time the pounce goes again, it heals again.",
   },
   frostMage: {
     title: "Frost Mage", job: "The Mage Tank. Wraps itself in shield orbs.",
     skillName: "Frost Orb", skillHead: "Adds an orb that shields the Frost Mage.", skillChips: ["Shield orb", "Whole squad"],
-    skillLines: ["Each hit adds a shield orb: every 2 seconds it gives the Frost Mage 10 shield.", "A 4th orb merges them: the whole squad gets a shield, and each hit after it is bigger."],
-    skillCard: "Adds an orb around the Frost Mage. Every 2 seconds each orb gives it 10 shield. A 4th orb merges them into one big orb that shields the whole squad at once, and every hit after that shields more.",
+    skillLines: ["Each hit adds a shield orb: every 2 seconds it gives the Frost Mage 10 shield.", "A 4th orb merges them: the whole squad gets a shield, then they start again."],
+    skillCard: "Adds an orb around the Frost Mage. Every 2 seconds each orb gives it 10 shield. A 4th orb merges them into one big shot that shields the whole squad at once, and then they start again.",
   },
   stormMage: {
     title: "Storm Mage", job: "The Mage Damage unit. Orbs zap on their own.",
     skillName: "Storm Orb", skillHead: "Adds an orb that zaps an enemy.", skillChips: ["One random enemy", "Front enemy"],
-    skillLines: ["Each hit adds a storm orb: every 2 seconds it zaps one enemy for 10.", "A 4th orb merges them into a big zap on the front enemy; each hit after it is bigger."],
-    skillCard: "Adds an orb around the Storm Mage. Every 2 seconds each orb zaps one random enemy for 10; two orbs can pick the same one. A 4th orb merges them into one big orb that strikes the front enemy at once, and every hit after that strikes harder.",
+    skillLines: ["Each hit adds a storm orb: every 2 seconds it zaps one enemy for 10.", "A 4th orb merges them into a big zap on the front enemy, then they start again."],
+    skillCard: "Adds an orb around the Storm Mage. Every 2 seconds each orb zaps one random enemy for 10; two orbs can pick the same one. A 4th orb merges them into one big shot that strikes the front enemy at once, and then they start again.",
   },
   lifeMage: {
     title: "Life Mage", job: "The Mage Healer. Heals a little, and builds healing orbs.",
     skillName: "Life Orb", skillHead: "Adds an orb that heals the tank.", skillChips: ["The tank", "Whole squad"],
-    skillLines: ["Each hit adds a life orb: every 2 seconds it heals the tank 8.", "A 4th orb merges them: the whole squad is healed, and each hit after it heals more."],
-    skillCard: "Adds an orb around the Life Mage. Every 2 seconds each orb heals the tank for 8. A 4th orb merges them into one big orb that heals the whole squad at once, and every hit after that heals more.",
+    skillLines: ["Each hit adds a life orb: every 2 seconds it heals the tank 8.", "A 4th orb merges them: the whole squad is healed, then they start again."],
+    skillCard: "Adds an orb around the Life Mage. Every 2 seconds each orb heals the tank for 8. A 4th orb merges them into one big shot that heals the whole squad at once, and then they start again.",
   },
 };
 

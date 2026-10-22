@@ -244,12 +244,9 @@ export interface HeroState {
   /** Undead army skeleton (2026-10-21; fight.ts's raiseArmySkeleton): which kind this place holds once it is filled. A warrior
    * (Raise) hits; a shield (Bone Wall) soaks the enemy's normal hits first. Undefined on a Necromancer's skeleton. */
   skeletonKind?: SkeletonKind;
-  /** Mages army (2026-10-21; fight.ts's orb code): the loose orbs this mage has now, 0 to `mageOrbMax`. They stay between skills and work
-   * on a shared beat. Undefined on anyone else. */
+  /** Mages army (2026-10-21; fight.ts's orb code): the loose orbs this mage has now, 0 to `mageOrbMax`. They stay between skills, also
+   * after a skill ends, and work on a shared beat. A merge fires one great shot and sets this back to 0 at once. Undefined on anyone else. */
   orbs?: number;
-  /** Mages army: the step of the merged orb, 0 or undefined when there is none. It exists from the skill hit that finds `mageOrbMax`
-   * orbs already out until the skill ends, and grows a step with every skill hit after that. */
-  orbBig?: number;
 }
 
 /** The two kinds of Undead army skeleton. */
@@ -266,6 +263,9 @@ export interface SideState {
   /** Undead army, per fight: how many upgrades each kind of skeleton has had (a skill hit with the horde full). Applies
    * to the standing ones and to ones raised later. Undefined when the side has no Undead army. */
   skeletonLevel?: { warrior: number; shield: number };
+  /** Beasts army, per fight (2026-10-22): the one PACK bar all the beasts share. Everything a beast's own skill bar would have collected is swept
+   * in here each tick (fight.ts), and a full bar sets off a pounce. Undefined when the side has no Beasts army. */
+  packCharge?: number;
   /** Flat bonus added to every living hero's attack damage, accumulated from
    * run-level upgrades (coin sink B). Applied only to the player side; 0 for
    * enemies. */

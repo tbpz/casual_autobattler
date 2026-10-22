@@ -22,15 +22,14 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 ## Where it stands
 
-A run opens on a pick between three armies, Undead, Beasts and Mages. The Undead raise skeletons, five at most, and the enemy's normal hits go to the shield skeletons first. The Mages build orbs: up to three loose orbs work alone every 2 seconds, and a fourth hit merges them into one big orb that strikes at once and again, harder, on every hit after it. The Beasts still play Pack with their old three skills, and the pack pounce off one shared bar is drawn and picked but not built. Merge heroes are built on the branch `dev/merge-heroes`, not merged into `main`, and are off while an army is picked; no first-time player has played any of it, and every canvas frame still awaits Tu's approval.
+A run opens on a pick between three armies, all built: the Undead raise skeletons, five at most; the Mages build orbs that work alone every 2 seconds and merge into one big shot; the Beasts fill one shared PACK bar, and a full bar sends the whole pack on one enemy at once. Merge heroes are built on the branch `dev/merge-heroes`, not merged into `main`, and are off while an army is picked. No first-time player has played any of it, and every canvas frame still awaits Tu's approval.
 
 ## Next up
 
-1. **Build the last army, the Beasts,** from frame 12.0C, with the build notes under "Options sets" in `design/HANDOFF.md` (`sim/fight.ts` already holds the Undead's skeleton code and the Mages' orb code as patterns).
-2. **Play each rebuilt army:** `npm run dev` on a phone, then with the playtest friend; the Undead and the Mages are ready now; send the `export` file from each play; the questions to ask are under "Options sets" in `design/HANDOFF.md`.
-3. **Fix what the play shows, then get the canvas frames approved:** open calls 8 to 12 and 10b in `design/HANDOFF.md`, frames 6.1 to 6.3 and 10.0A to 11.12; redraw frame 5.3 to the built slam.
-4. **Decide what happens to the merge heroes now that an army switches them off:** leave them dormant, bring them back as a late reward inside an army run, or drop the branch.
-5. **Fix the rune pool's two known faults, then rebalance:** the "rarely fires" line of `npm run batch -- --offers build`, and `check:offers` failing on Rampart (Tu's call); then outlier first picks, a target for chains' share of damage, and the bot's completion target (a new player should win about 1 run in 4, `DECISIONS.md`).
+1. **Play each rebuilt army:** `npm run dev` on a phone, then with the playtest friend; all three armies are ready now; send the `export` file from each play; the questions to ask are under "Options sets" in `design/HANDOFF.md`.
+2. **Fix what the play shows, then get the canvas frames approved:** open calls 8 to 12 and 10b in `design/HANDOFF.md`, frames 6.1 to 6.3 and 10.0A to 11.12; redraw frame 5.3 to the built slam.
+3. **Decide what happens to the merge heroes now that an army switches them off:** leave them dormant, bring them back as a late reward inside an army run, or drop the branch.
+4. **Fix the rune pool's two known faults, then rebalance:** the "rarely fires" line of `npm run batch -- --offers build`, and `check:offers` failing on Rampart (Tu's call); then the Mages' 11.8% completion (Tu's call whether to retune), outlier first picks, a target for chains' share of damage, and the bot's completion target (a new player should win about 1 run in 4, `DECISIONS.md`).
 
 ---
 
@@ -43,12 +42,13 @@ A run opens on a pick between three armies, Undead, Beasts and Mages. The Undead
 | Chain frequency — per-fight reset, time trickle, tougher enemies | batch-verified | `sim/roster.ts`, `sim/config.ts`, `checks/runShape.ts` |
 | Fatigue — per-unit, sets backfire odds and chain size | batch-verified | `sim/roster.ts`, `sim/config.ts`, `checks/fatigue.ts` |
 | Chain abilities — 12; each role has 3 ability options, 2 drawn per run; a backfired freeze never picks its own user | batch-verified | `sim/roles.ts`, `sim/progress.ts`, `checks/abilities.ts`, `DECISIONS.md` (2026-10-20, backfired freeze) |
-| Armies in code — Undead, Beasts and Mages: a pick before round 1, every unit re-skinned; the Beasts still run Pack and Roar, Pack Bite, Herd | batch-verified | `sim/armies.ts`, `sim/fight.ts`, `sim/config.ts`, `checks/armies.ts`, `DECISIONS.md` (2026-10-21, 2026-10-22) |
+| Armies in code — Undead, Beasts and Mages: a pick before round 1, every unit re-skinned | batch-verified | `sim/armies.ts`, `sim/fight.ts`, `sim/config.ts`, `checks/armies.ts`, `DECISIONS.md` (2026-10-21, 2026-10-22) |
 | Undead fights — Raise, Bone Wall, Command; skeletons rise per skill hit, five at most, upgrade at the limit, soak enemy hits first | batch-verified | `sim/fight.ts` (`raiseArmySkeleton`, `skeletonWallTargetId`), `sim/config.ts` (`undead*`), `checks/armies.ts`, `DECISIONS.md` (2026-10-21, three Undead entries) |
 | Undead fight screen — warrior and shield bodies in the front row, HORDE count, rise ring, +N upgrade badge, a strike line per skeleton on Command | built | `render/fightView.ts`, `render/armyLook.ts` (`skeletonLook`), `style.css`, `design/HANDOFF.md` (12.0B) |
-| Mages fights — Frost Orb, Storm Orb, Life Orb; orbs add per skill hit, work on a 2 s beat, merge at the fourth hit and strike harder per hit, clear when that skill ends | batch-verified | `sim/fight.ts` (`mageOrbHit`, `tickOrbs`), `sim/config.ts` (`mage*`), `checks/armies.ts`, `DECISIONS.md` (2026-10-22) |
-| Mages fight screen — orbs round the body, the merged orb, a lightning bolt per zap, pointed hats | built | `render/fightView.ts` (`buildOrbs`, `updateOrbs`, `fireBolt`), `render/armyLook.ts`, `style.css`, `design/HANDOFF.md` (12.0D) |
-| Beasts pack pounce (a shared pack bar, one big jump) | not started; frame 12.0C drawn and picked | `design/HANDOFF.md` ("Options sets"), `DECISIONS.md` (2026-10-21, "Each army fights its own way") |
+| Mages fights — Frost Orb, Storm Orb, Life Orb; orbs add per skill hit, work on a 2 s beat, a hit that finds three out merges them into one shot and they start again, orbs left at a skill's end stay | batch-verified | `sim/fight.ts` (`mageOrbHit`, `tickOrbs`), `sim/config.ts` (`mage*`), `checks/armies.ts`, `DECISIONS.md` (2026-10-22, two entries) |
+| Mages fight screen — orbs round the body, a merged orb that shows only for the shot, a lightning bolt per zap, pointed hats | built | `render/fightView.ts` (`buildOrbs`, `updateOrbs`, `fireBolt`), `render/armyLook.ts`, `style.css`, `design/HANDOFF.md` (12.0D) |
+| Beasts fights — no skill bar per beast; one PACK bar fills, a full bar sets off a pounce (Bear Pin, Wolves Maul, Stags Tend), led by the Bear, on the pack's average fatigue | batch-verified | `sim/fight.ts` (`pounceBeasts`, `resolvePounceHit`, the pack sweep in `runFightLoop`), `sim/config.ts` (`beast*`), `checks/armies.ts`, `DECISIONS.md` (2026-10-22, Beasts built) |
+| Beasts fight screen — PACK bar under the squad, POUNCE bubble over the Bear, a jump per beast, numbers pop as each lands | built | `render/fightView.ts` (`buildPackBar`, `updatePack`, `showPounce`), `style.css`, `design/HANDOFF.md` (12.0C) |
 | Army pick screen, bodies, popups and cards (canvas 10.x, 11.x) | built | `render/armyScreen.ts`, `render/armyLook.ts`, `render/fighterPopup.ts`, `render/armyCardData.ts` (made by `design/tools/gen-armies.js`), `design/HANDOFF.md` (10–11) |
 | Starting squad — a plain run starts with six units, three fielded; Undead and Mages start with six, Beasts with seven and field five | batch-verified | `sim/roles.ts` (`makeStartingRoster`), `sim/armies.ts` (`makeArmyRoster`), `sim/config.ts` (`startingPerRole`, `packSlots`), `checks/squadPick.ts`, `checks/armies.ts` |
 | Squad rows — the Tank in front (a hero with two or more Tank pieces too), the rest behind, one 36px size (30px for Beasts but the Bear), FRONT and BACK words, on the round and fight screens | built | `render/fightView.ts` (`appendSquadRows`), `render/roundParts.ts` (`squadRowsHtml`), `design/HANDOFF.md` |
@@ -81,7 +81,7 @@ A run opens on a pick between three armies, Undead, Beasts and Mages. The Undead
 | Offer safety net — a revive/recruit/Rest when the roster has no cushion | batch-verified | `sim/offers.ts` |
 | 20-round plan — mini-bosses at 7/14, boss at 20 | batch-verified | `sim/rounds.ts`, `checks/runShape.ts` |
 | Enemy shapes — the encounter pool | batch-verified | `sim/encounters.ts` |
-| Difficulty — plain squad 25.5% run completion with the build bot (n=3000, 2026-10-17); Undead 32% with the new skeleton rules (n=800, 2026-10-21), Beasts 24% with Pack (n=800), Mages 22.6% (n=800, 2026-10-22) | batch-verified | `checks/runShape.ts`, `batch/cli.ts` (`--army`) |
+| Difficulty — plain squad 25.5% run completion with the build bot (n=3000, 2026-10-17); Undead 32% (n=800, 2026-10-21), Beasts 20.4% with the pounce and Mages 11.8% (n=800, 2026-10-22) | batch-verified | `checks/runShape.ts`, `batch/cli.ts` (`--army`) |
 | Merge heroes — a mini-boss win offers three units into one of ten heroes; built, off while an army is picked | built on branch `dev/merge-heroes`, not merged; `check:heroes` passes | `sim/heroes.ts`, `sim/fight.ts`, `render/mergeScreen.ts`, `render/heroLook.ts`, `design/HANDOFF.md` (8–9), `DECISIONS.md` (2026-10-20) |
 | Real game build | not started | — |
 
@@ -95,11 +95,11 @@ A run opens on a pick between three armies, Undead, Beasts and Mages. The Undead
 
 ## Open questions
 
-- Does the face-off round screen let a first-time player say who fights whom and what each side can do, does the fight's bubble name who did what, and does an empty slot that blocks Fight break accept-default? Answered by Next up #2.
-- Does an army chosen before the first fight give a run an identity a first-time player feels, and does the round 1 rune pick still belong after it? Answered by Next up #2.
-- Do the Undead's five skeletons and the Mages' orbs stay readable and fair on a phone (the merged orb beside a neighbour's body, the bolts), and do the old runes read right with skills that leave no mark? Answered by Next up #2.
-- Does the Exposed build still win less than Burn or Frozen, and is that its runes or a multiplier on a flat damage number? Needed for Next up #5.
-- What fire rate is healthy for a rune that fires only on a moment (Heir, Vigil)? Needed for Next up #5.
+- Does the face-off round screen let a first-time player say who fights whom and what each side can do, does the fight's bubble name who did what, and does an empty slot that blocks Fight break accept-default? Answered by Next up #1.
+- Does an army chosen before the first fight give a run an identity a first-time player feels, and does the round 1 rune pick still belong after it? Answered by Next up #1.
+- Do the Undead's five skeletons, the Mages' orbs and the Beasts' five jumps stay readable and fair on a phone (the merged orb beside a neighbour's body, the bolts, the pounce numbers, the one bubble over the Bear), and do the old runes read right with skills that leave no mark? Answered by Next up #1.
+- Does the Exposed build still win less than Burn or Frozen, and is that its runes or a multiplier on a flat damage number? Needed for Next up #4.
+- What fire rate is healthy for a rune that fires only on a moment (Heir, Vigil)? Needed for Next up #4.
 
 ## How to work here
 

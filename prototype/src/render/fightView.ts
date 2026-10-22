@@ -168,9 +168,10 @@ interface HeroSlot {
   liveFace: string;
   face: Element | null;
   fallen: boolean;
-  /** A Mages army unit's orbs (2026-10-21; canvas 12.0D), drawn in `core` from the snapshot's `orbs` and `orbBig`: up to `mageOrbMax` loose
-   * orbs round the body, and one merged orb to its upper left that grows a step at a time. Undefined on anyone else. */
-  orbs?: { color: string; loose: HTMLElement[]; big: HTMLElement; shownLoose: number; shownBig: number };
+  /** A Mages army unit's orbs (2026-10-21; canvas 12.0D), drawn in `core`: up to `mageOrbMax` loose orbs round the body, shown from the
+   * snapshot's `orbs`, and one merged orb to its upper left that exists only for the moment of the great shot (the `orbMerge` event).
+   * Undefined on anyone else. */
+  orbs?: { color: string; loose: HTMLElement[]; big: HTMLElement; shownLoose: number };
 }
 
 /** How long a tracer takes to fly from attacker to target, in ms. Impact
@@ -196,6 +197,14 @@ const FLOW_MS = 300;
 /** How far left of the bar's end the flow line runs before it turns up. */
 const FLOW_JOG_PX = 14;
 
+/** The Beasts' pounce (2026-10-22; canvas 12.0C): each beast's jump lasts this long (style.css `pounceJump`), the beasts leave this far apart
+ * (the Bear first), and a jump touches its target this far in, which is when that beast's numbers pop. */
+const POUNCE_JUMP_MS = 650;
+const POUNCE_STAGGER_MS = 60;
+const POUNCE_CONTACT_MS = 290;
+/** How far short of the target's centre a jumping beast stops, so it lands beside the enemy and does not hide it. */
+const POUNCE_STOP_SHORT_PX = 24;
+
 /** How long the result bubble is held onscreen before chainTeardown hides it
  * and drains the callout queue — matches .perf-result's own animation
  * (style.css) plus a small buffer so teardown never clips it mid-animation. */
@@ -218,6 +227,8 @@ const ORB_RADIUS = 0.62;
 /** The merged orb: its centre, as a share of the body's size from the body's top-left, and the time its loose orbs take to fly into it. */
 const BIG_ORB_AT = { x: -0.6, y: 0.05 };
 const ORB_FLY_MS = 420;
+/** How long the merged orb stays: it appears as its loose orbs fly in, flares as the shot fires and is gone (style.css `orb-shot`). */
+const ORB_SHOT_MS = 640;
 /** How long a lightning bolt flickers before it is gone, and how soon after it appears the number and flinch land. */
 const BOLT_MS = 420;
 const ORB_BOLT_LAND_MS = 110;
@@ -585,6 +596,11 @@ export class FightView {
    * "HORDE n/5" text beside the front row. */
   private skeletonLooks: Map<string, string> = new Map();
   private hordeCount: HTMLElement | null = null;
+  /** Beasts army (2026-10-22): the one PACK bar under the squad's rows (null in every other fight), the fraction last drawn into it, and,
+   * for the rung of the pounce that has just landed, how many ms after the jump starts each beast's numbers pop (by beast id). */
+  private packBar: { root: HTMLElement; track: HTMLElement; fill: HTMLElement } | null = null;
+  private lastPackFraction = 0;
+  private pounceLand: Map<string, number> = new Map();
   /** Counts bolts drawn, so each lightning zig-zag differs from the last without any random number (fireBolt). */
   private boltSeq = 0;
   /** Storm Mages whose merged orb has just struck: the next damage hit from them is drawn as a thick bolt from the orb, not a plain line. */
@@ -776,6 +792,7 @@ export class FightView {
     this.updateSide(this.playerHeroes, shown.playerHeroes, shown);
     this.updateSide(this.enemyHeroes, shown.enemyHeroes, shown);
     this.updateHorde(shown.playerHeroes);
+    this.updatePack(shown);
     this.updateWindupTells(shown);
     this.updateFreezeTells(shown);
 
@@ -958,7 +975,7 @@ export class FightView {
         "bypassed",
         "struck-back",
       );
-      refs.core.classList.remove("lunge", "flinch");
+      refs.core.classList.remove("lunge", "flinch", "pounce-jump");
       refs.body.querySelectorAll(".impact-flash").forEach((el) => el.remove());
       refs.freezeRing.classList.remove("show");
       refs.freezeSecs.classList.remove("show");
@@ -1007,6 +1024,8 @@ export class FightView {
     let stillFront = true;
     // An Undead army (2026-10-21): its skeleton places stand in the FRONT row beside the Bone Knight, small bodies, hidden until they rise.
     const undeadFight = side === "player" && heroes.some((h) => h.army === "undead");
+    // A Beasts army (2026-10-22): no beast has a skill bar of its own; one PACK bar under the rows stands for all of them.
+    const beastFight = side === "player" && heroes.some((h) => h.army === "beasts");
     // Your squad (DECISIONS.md, front and back rows): a Tank stands alone in front and everyone else in a second row behind it, every body one
     // size and none dimmed, with the words FRONT and BACK at the left end of each row. With no Tank there is one flat row and no words.
     const playerFront: HTMLElement[] = [];
@@ -1044,6 +1063,7 @@ export class FightView {
         if (faceSize !== SQUAD_BODY_PX) refs.slot.style.setProperty("--role-size", `${faceSize}px`);
       }
       if (side === "player" && hero.army === "mages" && hero.kind) refs.orbs = this.buildOrbs(refs.core, hero.kind);
+      if (beastFight && hero.army === "beasts") refs.slot.classList.add("pack-beast");
       if (side === "player" && hero.hero) {
         // A merge hero wears its recipe and a crown (canvas 8.x); a Dragon grows with its stage.
         const scale = hero.hero === "dragon" ? DRAGON_SCALE[Math.min(3, hero.stage ?? 0)]! : 1;
@@ -1104,6 +1124,7 @@ export class FightView {
       this.heroFatigue.set(hero.id, hero.fatigue);
     });
     if (side === "player") this.appendSquadRows(container, playerFront, playerBack);
+    if (beastFight) container.appendChild(this.buildPackBar());
     if (undeadFight) {
       this.hordeCount = document.createElement("span");
       this.hordeCount.className = "horde-count";
@@ -1134,8 +1155,75 @@ export class FightView {
     }
   }
 
-  /** The skill's name for the tag: the chain's base effect (always listed first), in capitals ("EXPOSE", "GUARD", "MEND"). */
+  /** The Beasts' PACK bar (2026-10-22; canvas 12.0C): a word and one bar for the whole pack, with a tick at every fifth. It sits under the
+   * squad's rows and is the start of the flow of yellow when the pack pounces. Filled by `updatePack`. */
+  private buildPackBar(): HTMLElement {
+    const root = document.createElement("div");
+    root.className = "pack-bar";
+    const word = document.createElement("span");
+    word.className = "pack-word";
+    word.textContent = "PACK";
+    const track = document.createElement("div");
+    track.className = "pack-track";
+    const fill = document.createElement("div");
+    fill.className = "pack-fill instant";
+    track.appendChild(fill);
+    for (let i = 1; i < 5; i++) {
+      const tick = document.createElement("i");
+      tick.className = "pack-tick";
+      tick.style.left = `${i * 20}%`;
+      track.appendChild(tick);
+    }
+    root.append(word, track);
+    this.packBar = { root, track, fill };
+    this.lastPackFraction = 0;
+    return root;
+  }
+
+  /** Draws the PACK bar from the snapshot: it creeps up as the pack collects charge, glows when full (and so through the whole pounce), and
+   * snaps back to empty when the pounce ends. */
+  private updatePack(snapshot: TickSnapshot): void {
+    if (!this.packBar) return;
+    const max = snapshot.packMax ?? 0;
+    const fraction = max > 0 ? Math.min(1, (snapshot.packCharge ?? 0) / max) : 0;
+    this.packBar.fill.classList.toggle("instant", fraction < this.lastPackFraction);
+    this.packBar.fill.style.width = `${(fraction * 100).toFixed(1)}%`;
+    this.packBar.root.classList.toggle("full", fraction >= 1);
+    this.lastPackFraction = fraction;
+  }
+
+  /** One rung of a pounce (canvas 12.0C): every beast jumps on the target in turn, the Bear first, and a ring marks where it lands. A beast
+   * that has fallen stays put. The numbers of the rung's chain hits wait for each beast's own landing (`pounceLand`, read by showChainHit). */
+  private showPounce(beastIds: string[], targetId: string | null, backfire: boolean): void {
+    this.pounceLand.clear();
+    const target = targetId !== null ? this.slotFor(targetId) : undefined;
+    const a = target?.body.getBoundingClientRect();
+    beastIds.forEach((id, i) => {
+      const delay = i * POUNCE_STAGGER_MS;
+      this.pounceLand.set(id, delay + POUNCE_CONTACT_MS);
+      const refs = this.playerHeroes.get(id);
+      if (!refs || !a || refs.body.classList.contains("down")) return;
+      const from = refs.body.getBoundingClientRect();
+      const dx = a.left + a.width / 2 - (from.left + from.width / 2);
+      const dy = a.top + a.height / 2 - (from.top + from.height / 2);
+      const dist = Math.hypot(dx, dy) || 1;
+      const reach = Math.max(0, dist - POUNCE_STOP_SHORT_PX) / dist;
+      refs.core.style.setProperty("--jump-x", `${(dx * reach).toFixed(1)}px`);
+      refs.core.style.setProperty("--jump-y", `${(dy * reach).toFixed(1)}px`);
+      refs.core.style.setProperty("--jump-ms", `${POUNCE_JUMP_MS}ms`);
+      refs.core.style.setProperty("--jump-delay", `${delay}ms`);
+      pulseClass(refs.core, "pounce-jump", POUNCE_JUMP_MS + delay);
+    });
+    if (target) {
+      const color = backfire ? "#ff4d4d" : ARMY_ACCENT.beasts.hex;
+      fightClock.setTimeout(() => this.popRing(target.core, color), POUNCE_CONTACT_MS);
+    }
+  }
+
+  /** The skill's name for the tag: the chain's base effect (always listed first), in capitals ("EXPOSE", "GUARD", "MEND"). In a Beasts
+   * fight every skill is the pack's pounce, whichever beast leads it. */
   private skillName(effects: ChainEffect[] | null | undefined): string {
+    if (this.packBar) return "POUNCE";
     const first = effects?.[0];
     return first ? chainEffectChip(first).word.toUpperCase() : "SKILL";
   }
@@ -1217,7 +1305,8 @@ export class FightView {
     const refs = this.slotFor(heroId);
     if (!refs) return;
     const a = this.arena.getBoundingClientRect();
-    const t = refs.chargeTrack.getBoundingClientRect();
+    // A pounce's flow starts from the shared PACK bar, not from the lead's own (hidden) bar.
+    const t = (this.packBar?.track ?? refs.chargeTrack).getBoundingClientRect();
     const sx = t.left - a.left;
     const sy = t.top - a.top + t.height / 2;
     const jogX = Math.max(4, sx - FLOW_JOG_PX);
@@ -1290,8 +1379,9 @@ export class FightView {
     }
   }
 
-  /** A Mage's orbs (2026-10-21; canvas 12.0D): `mageOrbMax` loose orbs at fixed places round the body and one merged orb to its upper left, all hidden
-   * until the snapshot says they exist (`updateOrbs`). They live in the body's `core`, so they follow its lunge. */
+  /** A Mage's orbs (2026-10-21; canvas 12.0D): `mageOrbMax` loose orbs at fixed places round the body, hidden until the snapshot says they
+   * exist (`updateOrbs`), and one merged orb to its upper left, hidden until a merge (`orbMerge`). They live in the body's `core`, so they
+   * follow its lunge. */
   private buildOrbs(core: HTMLElement, kind: string): NonNullable<HeroSlot["orbs"]> {
     const color = ORB_COLOR[kind] ?? "#ffe36a";
     const loose: HTMLElement[] = [];
@@ -1312,23 +1402,17 @@ export class FightView {
     big.style.top = `${(BIG_ORB_AT.y * 100).toFixed(1)}%`;
     big.innerHTML = '<span class="orb-spark"><i>✦</i><i>✦</i><i>✦</i><i>✦</i></span>';
     core.appendChild(big);
-    return { color, loose, big, shownLoose: 0, shownBig: 0 };
+    return { color, loose, big, shownLoose: 0 };
   }
 
-  /** Shows as many loose orbs as the snapshot says, and the merged orb at its step (nothing loose while it stands). */
+  /** Shows as many loose orbs as the snapshot says. */
   private updateOrbs(refs: HeroSlot, hero: HeroSnapshot): void {
     const orbs = refs.orbs;
     if (!orbs) return;
-    const big = hero.alive ? hero.orbBig ?? 0 : 0;
-    const loose = hero.alive && big === 0 ? hero.orbs ?? 0 : 0;
+    const loose = hero.alive ? hero.orbs ?? 0 : 0;
     if (loose !== orbs.shownLoose) {
       orbs.loose.forEach((el, i) => el.classList.toggle("on", i < loose));
       orbs.shownLoose = loose;
-    }
-    if (big !== orbs.shownBig) {
-      orbs.big.classList.toggle("on", big > 0);
-      if (big > 0) orbs.big.style.setProperty("--orb-step", String(big));
-      orbs.shownBig = big;
     }
   }
 
@@ -1489,10 +1573,13 @@ export class FightView {
       // (set below), gold for a real chain, red for a backfire, so the
       // WHICH-WAY read is instant, not just the fact that someone's hot.
       const isHot = hero.id === snapshot.hotHeroId;
-      refs.body.classList.toggle("hot", isHot);
+      // A pounce is the whole pack's skill: every living beast glows and stays undimmed while it runs, the lead included.
+      const inPounce = snapshot.hotHeroId !== null && hero.army === "beasts" && hero.alive && snapshot.packMax !== undefined;
+      const lit = isHot || inPounce;
+      refs.body.classList.toggle("hot", lit);
       // While a skill plays the other units dim as a whole (name, HP and bar too, not only the body): style.css keys on this.
-      refs.slot.classList.toggle("performing", isHot);
-      refs.body.style.setProperty("--chain-color", isHot && snapshot.chainBackfire ? "var(--backfire)" : refs.accent);
+      refs.slot.classList.toggle("performing", lit);
+      refs.body.style.setProperty("--chain-color", lit && snapshot.chainBackfire ? "var(--backfire)" : refs.accent);
       refs.body.classList.toggle("broken", hero.role === "tank" && hero.alive && !hero.holding);
       // The wind-up telegraph's own tells (attacker glow, victim mark, the
       // SLAM bar, the aim line) moved to updateWindupTells (2026-09-13
@@ -1881,6 +1968,7 @@ export class FightView {
         if (e.amount >= 1) this.showMarkPopup(e.side, e.targetId, `-${Math.round(e.amount)}`, "burn", 300, "burn:" + e.targetId);
         break;
       case "chainEnd":
+        this.pounceLand.clear();
         this.showChainEnd(e.heroId, e.chainLength, e.totalDamage, e.totalStunSec, e.killedIds, e.backfire, e.effects);
         break;
       case "heroDown":
@@ -1915,24 +2003,29 @@ export class FightView {
         break;
       }
       case "orbMerge": {
+        // The loose orbs fly together into one merged orb, which flares and is gone (the `shot` animation); the orbs are already 0 in the snapshot.
         const refs = this.playerHeroes.get(e.heroId);
-        if (refs) this.flyOrbsIntoBig(refs, this.cfg.mageOrbMax);
+        if (refs?.orbs) {
+          this.flyOrbsIntoBig(refs, this.cfg.mageOrbMax);
+          pulseClass(refs.orbs.big, "shot", ORB_SHOT_MS);
+        }
         break;
       }
       case "orbStrike": {
         const refs = this.playerHeroes.get(e.heroId);
         if (refs?.orbs) {
           this.popRing(refs.core, refs.orbs.color);
-          pulseClass(refs.orbs.big, "strike", 500);
-          this.bigStrike.add(e.heroId);
+          // Only a Storm Mage's shot is a damage hit that draws the thick bolt (the next chainHit takes this flag).
+          if (refs.orbs.color === ORB_COLOR.stormMage) this.bigStrike.add(e.heroId);
         }
         break;
       }
-      case "orbClear":
-        this.bigStrike.delete(e.heroId);
-        break;
       case "orbTick":
         this.showOrbTick(e.heroId, e.index, e.orbKind, e.targetId, e.amount);
+        break;
+      // The Beasts' pounce (2026-10-22; canvas 12.0C): the bar and the glow come from the snapshot; this is the jump of one rung.
+      case "pounceHit":
+        this.showPounce(e.beastIds, e.targetId, e.backfire);
         break;
       case "resolve":
         this.showResolve(e.outcome);
@@ -2563,9 +2656,11 @@ export class FightView {
         : undefined;
     // A Storm Mage's merged orb strikes with a thick lightning bolt from the orb itself (canvas 12.0D), not a plain line.
     const strikeBolt = !!attacker?.orbs && kind === "damage" && !backfire && this.bigStrike.delete(sourceId);
-    const chainFlightMs = strikeBolt ? ORB_BOLT_LAND_MS : chainBlocker ? LOB_TRACER_MS : TRACER_MS;
+    // A beast's part of a pounce (2026-10-22): the jump is its line, and its numbers pop when it lands (showPounce set the time).
+    const pounceLandMs = this.pounceLand.get(sourceId);
+    const chainFlightMs = pounceLandMs ?? (strikeBolt ? ORB_BOLT_LAND_MS : chainBlocker ? LOB_TRACER_MS : TRACER_MS);
 
-    if (attacker && target) {
+    if (attacker && target && pounceLandMs === undefined) {
       if (strikeBolt) {
         this.fireBolt(attacker.orbs!.big, target.body, ORB_COLOR.stormMage!, true);
       } else {

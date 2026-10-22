@@ -175,17 +175,21 @@ export type FightEvent =
   | { type: "skeletonUpgrade"; t: number; kind: SkeletonKind; level: number }
   /** Mages army (2026-10-21; fight.ts's `mageOrbHit`): a skill hit put a loose orb around mage `heroId`; `orbs` is how many it has now. */
   | { type: "orbAdd"; t: number; heroId: string; orbs: number }
-  /** A skill hit found the mage's orbs full: they flew together into one merged orb at `step` 1. The strike follows as an `orbStrike`. */
-  | { type: "orbMerge"; t: number; heroId: string; step: number }
-  /** The merged orb struck, at `step` (1 on the merge, one more with every skill hit after it). The hits themselves follow as chainHit events. */
-  | { type: "orbStrike"; t: number; heroId: string; step: number }
+  /** A skill hit found the mage's orbs full: they flew together into one merged orb. The great shot follows at once as an `orbStrike`. */
+  | { type: "orbMerge"; t: number; heroId: string }
+  /** The merged orb fired its one great shot; the mage has no orbs left. The hit itself follows as chainHit events. */
+  | { type: "orbStrike"; t: number; heroId: string }
   /** One loose orb did its work on the shared beat: Storm hit `targetId` for `amount`, Frost shielded `targetId` (the mage) for `amount`,
    * Life healed `targetId` (the tank) for `amount`. `index` is which of the mage's orbs it was (0 based). */
   | { type: "orbTick"; t: number; heroId: string; index: number; orbKind: "storm" | "frost" | "life"; targetId: string; amount: number }
-  /** A backfired skill hit popped an orb: the mage now has `orbs` loose orbs and a merged orb at `orbBig` (0 for none). */
-  | { type: "orbPop"; t: number; heroId: string; orbs: number; orbBig: number }
-  /** A skill that merged has ended: every orb of the mage is gone and it starts again from 0. */
-  | { type: "orbClear"; t: number; heroId: string }
+  /** A backfired skill hit popped an orb: the mage now has `orbs` loose orbs. */
+  | { type: "orbPop"; t: number; heroId: string; orbs: number }
+  /** Beasts army (2026-10-22; fight.ts's pounce): the PACK bar filled and the pack is about to jump. `leadId` is the beast whose beat the
+   * skill rolls on (the Bear first), `beastIds` every beast that jumps, in the order they leave (Bear, Wolves, Stags). A chainStart follows. */
+  | { type: "pounceStart"; t: number; leadId: string; beastIds: string[]; backfire: boolean }
+  /** One rung of a pounce: every beast in `beastIds` jumped on `targetId` (the front enemy; one of your own units on a backfire), or
+   * null when the rung had no body to land on. The chainHit events for the rung follow, each naming its beast as `sourceId`. */
+  | { type: "pounceHit"; t: number; hitIndex: number; beastIds: string[]; targetId: string | null; backfire: boolean }
   | { type: "resolve"; t: number; outcome: "win" | "loss"; reason: "wipe" | "failsafe" };
 
 /** A per-hero HP reading at one instant, for body rendering. */
@@ -226,9 +230,8 @@ export interface HeroSnapshot {
    * screen can draw the +N badge after a pause or a jump. */
   skeletonKind?: SkeletonKind;
   skeletonLevel?: number;
-  /** Mages army (2026-10-21): the loose orbs and the merged orb's step as of this instant, so the screen can draw them after a pause or a jump. */
+  /** Mages army (2026-10-21): the loose orbs as of this instant, so the screen can draw them after a pause or a jump. */
   orbs?: number;
-  orbBig?: number;
   /** A Necromancer skeleton place. Not alive and `maxHp` 0 until Raise fills it, so the screen can draw
    * the places in advance and hide the empty ones. */
   skeleton?: boolean;
@@ -297,6 +300,9 @@ export interface TickSnapshot {
   guardHeroId: string | null;
   guardCharges: number;
   guardInverted: boolean;
+  /** Beasts army (2026-10-22): the shared PACK bar as of this instant and the level that sets off a pounce. Absent without a Beasts army. */
+  packCharge?: number;
+  packMax?: number;
 }
 
 export interface FightResult {

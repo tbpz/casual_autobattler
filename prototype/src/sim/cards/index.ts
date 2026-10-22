@@ -109,15 +109,16 @@ export const ABILITY_MARKS: Record<ChainEffect, MarkId[]> = {
   bloom: [],
   bite: [],
   // The armies' base skills (2026-10-20) leave the marks of the skill they stand in for, so a run with an army still
-  // meets Exposed from its Tank and Damage unit; Pack Bite leaves none (a Beast gets its marks from an upgrade).
+  // meets Exposed from its Tank and Damage unit (the Beasts' pounce skills, below, are the exception: Pin freezes).
   // The Undead's skills (2026-10-21) leave none either: a renamed mark is not a new thing on screen, so an Undead unit
   // gets its marks from an upgrade, as a Beast does.
   raise: [],
   boneWall: [],
   command: [],
-  roar: ["exposed"],
-  packBite: [],
-  herd: [],
+  // The Beasts' parts of a pounce (2026-10-22): the Bear's Pin is a Freeze, so it leaves Frozen; Maul and Tend leave none.
+  pin: ["frozen"],
+  maul: [],
+  tend: [],
   // The Mages' skills (2026-10-21) leave none either, for the same reason: a Mage gets its marks from an upgrade.
   // A Frost orb's shield still goes through addShield, so a rune that reads a shield landing sees it.
   stormOrb: [],
@@ -126,7 +127,7 @@ export const ABILITY_MARKS: Record<ChainEffect, MarkId[]> = {
 };
 
 /** `effects` plus the base skill each army skill stands in for, so a rune that needs "guard" or "mend" counts
- * Roar and Herd as it counts Guard and Mend (config.ts's abilityFamily). */
+ * Tend as it counts Mend, and Pin as it counts Freeze (config.ts's abilityFamily). */
 export function withFamilies(effects: readonly ChainEffect[]): ChainEffect[] {
   return effects.flatMap((e) => (abilityFamily(e) === e ? [e] : [e, abilityFamily(e)]));
 }

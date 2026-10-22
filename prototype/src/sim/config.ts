@@ -647,16 +647,18 @@ export interface FightConfig {
   undeadShieldUpgradeHp: number;
   /** Command: each standing skeleton strikes for its own damage times this, grown per rung like any skill. 1 means its own damage. */
   undeadCommandMult: number;
-  /** Roar: the share of a full skill bar it gives every other Beast (first rung only). */
-  roarChargeFrac: number;
-  /** Pack Bite: damage per bite; the bite counts once for itself and once for every other living Wolf. */
-  packBiteDamage: number;
-  /** Herd: HP each unit gets per rung, for every living Beast in the squad. */
-  herdHealPerBeast: number;
-  /** Beasts' Pack: charge every other Beast gains each time a Beast lands a hit on an enemy. */
-  packChargePerHit: number;
+  /** Beasts' pounce (2026-10-22; canvas 12.0C; fight.ts's pack charge sweep and `pounceHit`). The beasts share one PACK bar, filled by
+   * everything their own bars would have collected; when it holds this many full skill bars the whole pack jumps on one enemy. */
+  beastPackBarMult: number;
+  /** Pin (Bear's part of a pounce): seconds the front enemy is frozen, grown per rung like Freeze. */
+  beastPinSec: number;
+  /** Maul (Wolf's part): damage to the front enemy, per rung, per Wolf. */
+  beastMaulDamage: number;
+  /** Tend (Stag's part): HP every unit is healed, per rung, per Stag. */
+  beastTendHeal: number;
   /** Mages orbs (2026-10-21; Storm Orb, Frost Orb, Life Orb; fight.ts's `mageOrbHit` and `tickOrbs`). Every skill hit puts one loose orb
-   * around the mage, `mageOrbMax` at most; a skill hit that finds that many out merges them into one big orb. Made-up first numbers. */
+   * around the mage, `mageOrbMax` at most; a skill hit that finds that many out merges them into one great shot and the orbs are gone,
+   * so the next hit starts again from none. Orbs still out when a skill ends stay. Made-up first numbers. */
   mageOrbMax: number;
   /** Seconds between the shared beats on which every loose orb works. */
   mageOrbBeatSec: number;
@@ -664,12 +666,10 @@ export interface FightConfig {
   mageStormOrbDamage: number;
   mageFrostOrbShield: number;
   mageLifeOrbHeal: number;
-  /** The merged orb's first strike: Storm's damage to the front enemy, Frost's shield and Life's heal on every unit. */
+  /** The merged orb's great shot: Storm's damage to the front enemy, Frost's shield and Life's heal on every unit. */
   mageStormMergeDamage: number;
   mageFrostMergeShield: number;
   mageLifeMergeHeal: number;
-  /** Each skill hit after the merge makes the big orb one step bigger: its strike is this many times the one before. */
-  mageMergeGrowth: number;
 }
 
 /**
@@ -738,9 +738,9 @@ export type ChainEffect =
   | "raise"
   | "boneWall"
   | "command"
-  | "roar"
-  | "packBite"
-  | "herd"
+  | "pin"
+  | "maul"
+  | "tend"
   | "stormOrb"
   | "frostOrb"
   | "lifeOrb";
@@ -749,9 +749,9 @@ export type ChainEffect =
  * Expose" (a rune's need, a mark's source). A plain skill is its own family. */
 export function abilityFamily(effect: ChainEffect): ChainEffect {
   switch (effect) {
-    case "roar":
-      return "guard";
-    case "herd":
+    case "pin":
+      return "stun";
+    case "tend":
       return "mend";
     default:
       return effect;
@@ -830,12 +830,12 @@ export function chainEffectLines(effect: ChainEffect): { does: string; against: 
       return { does: "Raises a shield skeleton; at five, upgrades them.", against: "Good against lots of small hits." };
     case "command":
       return { does: "Every skeleton strikes the front enemy.", against: "Good with a full horde." };
-    case "roar":
-      return { does: "Takes the next slam and fills the pack's bars.", against: "Good against slams." };
-    case "packBite":
-      return { does: "Bites the front enemy, once more per other Wolf.", against: "Good with several Wolves." };
-    case "herd":
-      return { does: "Heals every unit, more for a bigger pack.", against: "Good against lots of small hits." };
+    case "pin":
+      return { does: "In a pounce, freezes the front enemy.", against: "Good against a slam, or a fast enemy." };
+    case "maul":
+      return { does: "In a pounce, mauls the front enemy.", against: "Good with several Wolves." };
+    case "tend":
+      return { does: "In a pounce, heals every unit.", against: "Good against lots of small hits." };
     case "stormOrb":
       return { does: "Adds an orb that zaps an enemy; four merge.", against: "Good in a long fight." };
     case "frostOrb":
@@ -909,12 +909,12 @@ export function chainEffectChip(effect: ChainEffect): { icon: string; word: stri
       return { icon: "⛊", word: "bone wall" };
     case "command":
       return { icon: "⚔", word: "command" };
-    case "roar":
-      return { icon: "⛨", word: "roar" };
-    case "packBite":
-      return { icon: "☍", word: "pack bite" };
-    case "herd":
-      return { icon: "♥", word: "herd" };
+    case "pin":
+      return { icon: "❄", word: "pin" };
+    case "maul":
+      return { icon: "☍", word: "maul" };
+    case "tend":
+      return { icon: "♥", word: "tend" };
     case "stormOrb":
       return { icon: "✦", word: "storm orb" };
     case "frostOrb":
@@ -1320,10 +1320,12 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   undeadShieldIntervalSec: 1.6,
   undeadShieldUpgradeHp: 8,
   undeadCommandMult: 1,
-  roarChargeFrac: 0.25,
-  packBiteDamage: 6,
-  herdHealPerBeast: 1,
-  packChargePerHit: 1.5,
+  // Tuned 2026-10-22 with `npm run batch -- --n 800 --offers build --army beasts`: the first take (4 / 0.75 / 10 / 5) finished 65.6% of
+  // runs, far too easy (every rung is the whole pack's work, and the pin feeds the Frozen runes); these finish about 1 in 4.
+  beastPackBarMult: 7,
+  beastPinSec: 0.5,
+  beastMaulDamage: 7,
+  beastTendHeal: 4,
   mageOrbMax: 3,
   mageOrbBeatSec: 2,
   // Tuned 2026-10-21 with `npm run batch -- --n 800 --offers build --army mages`: the first take (4 / 4 / 3 and 38 / 20 / 14, the numbers
@@ -1334,7 +1336,6 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   mageStormMergeDamage: 80,
   mageFrostMergeShield: 45,
   mageLifeMergeHeal: 40,
-  mageMergeGrowth: 1.2,
 };
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {

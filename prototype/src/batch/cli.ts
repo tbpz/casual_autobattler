@@ -66,15 +66,17 @@ function formatEvent(e: FightEvent): string {
     case "orbAdd":
       return `[t=${t}] ${e.heroId} gains an orb (${e.orbs})`;
     case "orbMerge":
-      return `[t=${t}] ${e.heroId}'s orbs merge into one (step ${e.step})`;
+      return `[t=${t}] ${e.heroId}'s orbs merge into one`;
     case "orbStrike":
-      return `[t=${t}] ${e.heroId}'s merged orb strikes (step ${e.step})`;
+      return `[t=${t}] ${e.heroId}'s merged orb fires its great shot`;
     case "orbTick":
       return `[t=${t}] ${e.heroId}'s ${e.orbKind} orb ${e.index + 1} works on ${e.targetId}: ${e.amount.toFixed(1)}`;
     case "orbPop":
-      return `[t=${t}] ${e.heroId} loses an orb (${e.orbs} loose, big orb step ${e.orbBig})`;
-    case "orbClear":
-      return `[t=${t}] ${e.heroId}'s orbs are gone`;
+      return `[t=${t}] ${e.heroId} loses an orb (${e.orbs} loose)`;
+    case "pounceStart":
+      return `[t=${t}] the pack ${e.backfire ? "MISPOUNCES" : "POUNCES"}, led by ${e.leadId} (${e.beastIds.length} beasts)`;
+    case "pounceHit":
+      return `[t=${t}] pounce #${e.hitIndex}${e.backfire ? " (backfire)" : ""}: the pack lands on ${e.targetId ?? "nobody"}`;
     case "resolve":
       return `[t=${t}] RESOLVE: ${e.outcome.toUpperCase()} (${e.reason})`;
   }

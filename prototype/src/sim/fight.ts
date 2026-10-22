@@ -27,6 +27,9 @@ interface FightCtx {
   api: CardApi;
   player: SideState;
   enemy: SideState;
+  /** Beasts' pounce (2026-10-22): the beast whose beat the running pounce rolls on, null when none runs. A freeze never lands on it, or its
+   * own beat could not come round to end the pounce (the same trap as a unit freezing itself, see pickFreezeTarget). */
+  pounceLeadId?: string | null;
 }
 let ctx: FightCtx | null = null;
 
@@ -145,12 +148,41 @@ function skeletonWallTargetId(side: SideState): string | undefined {
   return (standingSkeletons(side, "shield")[0] ?? standingSkeletons(side, "warrior")[0])?.id;
 }
 
-/** Pack: a hit a Beast lands on an enemy fills every other living Beast's skill bar a little. */
-function packFill(c: FightCtx, hitter: HeroState): void {
-  if (hitter.army !== "beasts" || !hitter.alive) return;
-  for (const ally of c.player.heroes) {
-    if (ally !== hitter && ally.army === "beasts" && ally.alive && ally.hp > 0 && !ally.skeleton) ally.charge += c.cfg.packChargePerHit;
+// ---- The Beasts' pounce (2026-10-22; canvas 12.0C) ----
+// The beasts have no skill bar of their own: each tick everything one would have collected is swept into `SideState.packCharge`
+// (runFightLoop). A full bar sets off a pounce, which is an ordinary skill rolled on the lead beast's beat whose every rung runs
+// every living beast's own skill (Pin, Maul, Tend and anything gained) one after the other.
+
+/** The living, fielded Beasts in jumping order: Tank first (the Bear lands first), then Damage, then Support. */
+function pounceBeasts(side: SideState): HeroState[] {
+  const rank = { tank: 0, damage: 1, support: 2 } as const;
+  return side.heroes
+    .filter((h) => h.army === "beasts" && h.alive && h.hp > 0 && !h.skeleton)
+    .map((h, i) => ({ h, i }))
+    .sort((a, b) => (rank[a.h.role as keyof typeof rank] ?? 3) - (rank[b.h.role as keyof typeof rank] ?? 3) || a.i - b.i)
+    .map((x) => x.h);
+}
+
+/** One rung of a pounce: each living beast of `beasts` resolves its own skill list as the firing unit, one after the other, and the
+ * entries are joined (each names its beast as `sourceId`). Null when no beast had anything to do, which ends the skill. */
+function resolvePounceHit(
+  t: number,
+  rng: Rng,
+  cfg: FightConfig,
+  player: SideState,
+  enemy: SideState,
+  beasts: HeroState[],
+  hitIndex: number,
+  backfire: boolean,
+  stunHeld: Map<string, number>,
+): ChainHitEntry[] | null {
+  const out: ChainHitEntry[] = [];
+  for (const beast of beasts) {
+    if (!beast.alive || beast.hp <= 0) continue;
+    const entries = resolveChainHit(t, rng, cfg, player, enemy, beast, hitIndex, backfire, stunHeld);
+    if (entries) for (const e of entries) out.push({ ...e, sourceId: e.sourceId ?? beast.id });
   }
+  return out.length > 0 ? out : null;
 }
 
 /** Heals `target` for up to `amount` (not past full HP), announces it as a heal event and returns what went in. */
@@ -245,55 +277,52 @@ function raiseArmySkeleton(c: FightCtx, kind: SkeletonKind): { slot?: HeroState;
   return { slot };
 }
 
-// ---- The Mages' orbs (2026-10-21; canvas 12.0D, DECISIONS.md 2026-10-21) ----
+// ---- The Mages' orbs (2026-10-21; canvas 12.0D, DECISIONS.md 2026-10-21; merge reworked 2026-10-22) ----
 // Every hit of a mage's skill puts a loose orb around it, `mageOrbMax` at most. Loose orbs stay between skills and work on one shared
-// beat (`tickOrbs`). A skill hit that finds the orbs full merges them into one big orb (step 1) that strikes at once; every skill hit
-// after it makes the big orb one step bigger and strikes again, harder. When a skill that merged ends, the orbs are gone
-// (runFightLoop's restartCharge). The three skills leave no mark.
+// beat (`tickOrbs`). A skill hit that finds the orbs full merges them into one great shot that fires at once, and the big orb is gone
+// straight away: the next hit starts again from none. Orbs still out when a skill ends stay. The three skills leave no mark.
 
-/** What the merged orb's strike at `step` is worth before fatigue and runes: the first strike's number, grown for every step after the first. */
-function mageStrikeBase(cfg: FightConfig, effect: ChainEffect, step: number): number {
-  const first = effect === "stormOrb" ? cfg.mageStormMergeDamage : effect === "frostOrb" ? cfg.mageFrostMergeShield : cfg.mageLifeMergeHeal;
-  return first * Math.pow(cfg.mageMergeGrowth, Math.max(0, step - 1));
+/** What the merged orb's great shot is worth before fatigue and runes. */
+function mageStrikeBase(cfg: FightConfig, effect: ChainEffect): number {
+  return effect === "stormOrb" ? cfg.mageStormMergeDamage : effect === "frostOrb" ? cfg.mageFrostMergeShield : cfg.mageLifeMergeHeal;
 }
 
-/** One hit of a Mages skill. A backfire pops the newest orb, or drops the big orb back one step; with nothing to pop it returns null, which
- * ends the skill. Otherwise the hit adds a loose orb, or merges full orbs, or (with a big orb out) grows it and strikes again. */
+/** One hit of a Mages skill. A backfire pops the newest orb; with nothing to pop it returns null, which ends the skill. Otherwise the hit
+ * adds a loose orb, or (finding them full) merges them into one great shot that fires and leaves no orb behind. A shot with nobody to hit
+ * or help returns null and leaves the orbs as they were. */
 function mageOrbHit(c: FightCtx, effect: ChainEffect, hero: HeroState, backfire: boolean, boost: number): ChainHitEntry[] | null {
   const cfg = c.cfg;
   const orbs = hero.orbs ?? 0;
-  const big = hero.orbBig ?? 0;
   const orbEntry: ChainHitEntry = { kind: "orb", targetId: hero.id, amount: 0, intended: 0, died: [] };
   if (backfire) {
-    if (big > 0) hero.orbBig = big - 1;
-    else if (orbs > 0) hero.orbs = orbs - 1;
-    else return null;
-    c.events.push({ type: "orbPop", t: c.t, heroId: hero.id, orbs: hero.orbs ?? 0, orbBig: hero.orbBig ?? 0 });
+    if (orbs === 0) return null;
+    hero.orbs = orbs - 1;
+    c.events.push({ type: "orbPop", t: c.t, heroId: hero.id, orbs: hero.orbs });
     return [orbEntry];
   }
-  if (big === 0 && orbs < cfg.mageOrbMax) {
+  if (orbs < cfg.mageOrbMax) {
     hero.orbs = orbs + 1;
     c.events.push({ type: "orbAdd", t: c.t, heroId: hero.id, orbs: hero.orbs });
     return [orbEntry];
   }
-  const step = big + 1;
-  if (big === 0) {
+  // The shot goes through escalatedMagnitude at hit 1, so fatigue and the size runes apply.
+  const raw = escalatedMagnitude(cfg, mageStrikeBase(cfg, effect), 1, boost);
+  const fire = (): void => {
     hero.orbs = 0;
-    c.events.push({ type: "orbMerge", t: c.t, heroId: hero.id, step });
-  }
-  hero.orbBig = step;
-  c.events.push({ type: "orbStrike", t: c.t, heroId: hero.id, step });
-  // Strikes go through escalatedMagnitude at hit 1, so fatigue and the size runes apply and the growth comes from the step alone.
-  const raw = escalatedMagnitude(cfg, mageStrikeBase(cfg, effect, step), 1, boost);
+    c.events.push({ type: "orbMerge", t: c.t, heroId: hero.id });
+    c.events.push({ type: "orbStrike", t: c.t, heroId: hero.id });
+  };
   if (effect === "stormOrb") {
     const target = aliveOnSide(c.enemy, frontMostAliveId(c.enemy));
     if (!target) return null;
+    fire();
     const { died, applied } = applyDamageFrom(c.enemy, target.id, raw, 0, false, { source: hero, chain: true });
     hero.dealt += applied;
     return [{ kind: "damage", targetId: target.id, amount: applied, intended: raw, died }];
   }
   const allies = c.player.heroes.filter((h) => h.alive && h.hp > 0 && !h.skeleton);
   if (allies.length === 0) return null;
+  fire();
   if (effect === "frostOrb") {
     return allies.map((target) => {
       const shield = addShield(c, target, raw);
@@ -309,12 +338,12 @@ function mageOrbHit(c: FightCtx, effect: ChainEffect, hero: HeroState, backfire:
   });
 }
 
-/** The shared orb beat: every loose orb of every living mage works once. A mage holding a big orb has no loose ones. Storm orbs hit one
+/** The shared orb beat: every loose orb of every living mage works once. Storm orbs hit one
  * random living enemy each (two can pick the same), Frost orbs shield their own mage, Life orbs heal the tank (the mage itself with no
  * tank standing). Returns the fight's outcome if a zap wiped the enemy. */
 function tickOrbs(c: FightCtx, rng: Rng): "win" | null {
   for (const mage of c.player.heroes) {
-    if (mage.army !== "mages" || !mage.alive || mage.hp <= 0 || (mage.orbBig ?? 0) > 0) continue;
+    if (mage.army !== "mages" || !mage.alive || mage.hp <= 0) continue;
     const n = mage.orbs ?? 0;
     for (let index = 0; index < n; index++) {
       if (mage.kind === "stormMage") {
@@ -511,8 +540,6 @@ function applyDamageFrom(
     }
     if (!spillOverkill) break;
   }
-  // Beasts' Pack: a hit a Beast lands on an enemy fills the other Beasts' skill bars a little.
-  if (c && opts?.source && applied > 0 && side === c.enemy) packFill(c, opts.source);
   // Vampire's Leech: each hit the player's squad lands heals the unit that landed it.
   if (c && opts?.source && applied > 0 && side === c.enemy && opts.source.alive && c.player.heroes.includes(opts.source)) {
     const vampire = c.player.heroes.find((h) => h.hero === "vampire" && h.alive && h.hp > 0);
@@ -840,7 +867,7 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
     ...(h.army ? { army: h.army, ...(h.kind ? { kind: h.kind } : {}) } : {}),
     ...(h.skeleton ? { skeleton: true } : {}),
     ...(h.skeletonKind ? { skeletonKind: h.skeletonKind, skeletonLevel: side.skeletonLevel?.[h.skeletonKind] ?? 0 } : {}),
-    ...(h.army === "mages" ? { orbs: h.alive ? h.orbs ?? 0 : 0, orbBig: h.alive ? h.orbBig ?? 0 : 0 } : {}),
+    ...(h.army === "mages" ? { orbs: h.alive ? h.orbs ?? 0 : 0 } : {}),
     windupFireT: h.windupFireT,
     windupTargetId: h.windupTargetId,
     nextWindupT: h.nextWindupT,
@@ -1204,7 +1231,8 @@ function pickFreezeTarget(
   backfire: boolean,
   hero: HeroState,
 ): HeroState | undefined {
-  const others: SideState = { ...player, heroes: player.heroes.filter((h) => h.id !== hero.id) };
+  const lead = ctx?.pounceLeadId;
+  const others: SideState = { ...player, heroes: player.heroes.filter((h) => h.id !== hero.id && h.id !== lead) };
   const targetId = backfire ? pickWeightedTargetId(others, rng, cfg) : frontMostAliveId(enemy);
   const lookupSide = backfire ? player : enemy;
   return targetId ? lookupSide.heroes.find((h) => h.id === targetId) : undefined;
@@ -1233,6 +1261,10 @@ function freezeBody(
   backfire: boolean,
   stunHeld: Map<string, number>,
 ): ChainHitEntry {
+  // A pounce's lead is never held (see FightCtx.pounceLeadId): the freeze that would have landed on it does nothing.
+  if (c && c.pounceLeadId === target.id) {
+    return { kind: "stun", targetId: target.id, amount: 0, intended: 0, died: [], durationSec: 0, durationTotalSec: 0 };
+  }
   let sec = baseSec;
   if (c) {
     const freeze = { target, backfire, sec };
@@ -1307,7 +1339,7 @@ function resolveOneEffect(
   // reads this.
   const isHealEffect =
     effect === "ward" || effect === "mend" || effect === "bless" || effect === "prayer" || effect === "bloom" ||
-    effect === "herd";
+    effect === "tend";
   const targetSide = isHealEffect ? (backfire ? enemy : player) : backfire ? player : enemy;
   // Marks are only in play inside runFight (ctx set); every branch below that
   // leaves one guards on this. Stacks per rung: 1, plus one per chain "+N".
@@ -1432,14 +1464,7 @@ function resolveOneEffect(
         },
       ];
     }
-    case "guard":
-    case "roar": {
-      // Roar is Guard with a rider: it fills every other Beast's skill bar the first time it goes.
-      if (effect === "roar" && hitIndex === 1 && !backfire) {
-        for (const ally of player.heroes) {
-          if (ally !== hero && ally.army === "beasts" && ally.alive && ally.hp > 0 && !ally.skeleton) ally.charge += cfg.chargeThreshold * cfg.roarChargeFrac;
-        }
-      }
+    case "guard": {
       // Side-level, not aimed at a body — always writes to the PLAYER side,
       // since only the enemy ever winds up. A real payoff covers the squad
       // with the firing hero (Bracer); a backfire inverts the redirect onto
@@ -1723,22 +1748,27 @@ function resolveOneEffect(
     case "lifeOrb":
       // Only inside a Mages fight (the orb state lives on the unit and the beat runs in runFightLoop).
       return c && hero.army === "mages" ? mageOrbHit(c, effect, hero, backfire, boost) : null;
-    case "packBite": {
-      // One bite for itself and one for every other living Wolf, as a single hit on the front enemy.
+    case "pin": {
+      // The Bear's part of a pounce: a Freeze on the front enemy (a backfire: one of your own units, never the Bear or the pounce's lead).
+      const target = pickFreezeTarget(player, enemy, rng, cfg, backfire, hero);
+      if (!target) return null;
+      const sec = escalatedDurationSec(cfg, cfg.beastPinSec, hitIndex, level, boost);
+      return [freezeBody(c, t, target, sec, backfire, stunHeld)];
+    }
+    case "maul": {
+      // A Wolf's part of a pounce: a bite on the front enemy (a backfire: your own front unit). Each Wolf in the pack mauls on its own.
       const target = aliveOnSide(targetSide, frontMostAliveId(targetSide));
       if (!target) return null;
-      const bites = 1 + player.heroes.filter((h) => h !== hero && h.kind === "wolf" && h.alive && h.hp > 0).length;
-      const damage = escalatedMagnitude(cfg, cfg.packBiteDamage * bites, hitIndex, boost);
+      const damage = escalatedMagnitude(cfg, cfg.beastMaulDamage, hitIndex, boost);
       const { died, applied } = applyDamageFrom(targetSide, target.id, damage, 0, false, dmgOpts);
       hero.dealt += applied;
       return [{ kind: "damage" as const, targetId: target.id, amount: applied, intended: damage, died }];
     }
-    case "herd": {
-      // Heals every unit, 1 for every living Beast in the squad.
+    case "tend": {
+      // A Stag's part of a pounce: heals every unit (a backfire: every enemy). Each Stag in the pack tends on its own.
       const allies = targetSide.heroes.filter((h) => h.alive && h.hp > 0 && !h.skeleton);
       if (allies.length === 0) return null;
-      const beasts = Math.max(1, player.heroes.filter((h) => h.army === "beasts" && h.alive && h.hp > 0).length);
-      const raw = escalatedMagnitude(cfg, cfg.herdHealPerBeast * beasts, hitIndex, boost);
+      const raw = escalatedMagnitude(cfg, cfg.beastTendHeal, hitIndex, boost);
       return allies.map((target) => {
         const room = target.maxHp - target.hp;
         const cap = target.maxHp * cfg.chainHealMaxFractionOfTargetMaxHp;
@@ -1871,6 +1901,8 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
     player.heroes.push(...makeSkeletonSlots(cfg, cfg.undeadSkeletonMax));
     player.skeletonLevel = { warrior: 0, shield: 0 };
   }
+  // A Beasts army shares one PACK bar, from nothing each fight.
+  if (player.heroes.some((h) => h.army === "beasts")) player.packCharge = 0;
   const events: FightEvent[] = [];
 
   // The marks/card context (see FightCtx's docstring) is live only for the
@@ -1952,6 +1984,11 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
   // there is no more separate "hasn't whiffed yet" flag to track alongside
   // this.
   let hotEffects: ChainEffect[] | null = null;
+  // The beasts jumping in the CURRENT chain when it is a pounce (Bear first, so the lead is [0]); null for every other skill. Set and
+  // cleared in lockstep with hotHeroId, like hotEffects (restartCharge clears it at every chain end).
+  let pounce: HeroState[] | null = null;
+  const packMax = cfg.chargeThreshold * cfg.beastPackBarMult;
+  const averageFatigue = (beasts: HeroState[]): number => (beasts.length > 0 ? beasts.reduce((sum, b) => sum + b.fatigue, 0) / beasts.length : 0);
   let bonusHitsLanded = 0;
   let finalChainLength = 0;
   // Running totals for the CURRENT chain — reset when a chain fires,
@@ -2013,17 +2050,17 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
   // The bar of the unit whose skill just ended restarts at zero. It is held full for the whole skill (the chain trigger does not
   // reset it), and any charge the unit gained meanwhile is thrown away, so the bar visibly ends with the skill.
   function restartCharge(heroId: string): void {
+    // A pounce that ends empties the shared PACK bar, the way a skill's end empties its unit's own bar.
+    if (pounce) {
+      player.packCharge = 0;
+      pounce = null;
+      ctx!.pounceLeadId = null;
+    }
     const hero = player.heroes.find((h) => h.id === heroId);
     if (!hero) return;
     // An Assassin that landed a kill during the skill that just ended keeps its bar full (Bloodlust).
     hero.charge = hero.lustKill && hero.alive ? cfg.chargeThreshold : 0;
     hero.lustKill = false;
-    // A Mage whose skill merged its orbs starts again from none when the skill ends; loose orbs of a skill that never merged stay.
-    if ((hero.orbBig ?? 0) > 0) {
-      hero.orbs = 0;
-      hero.orbBig = 0;
-      events.push({ type: "orbClear", t: ctx!.t, heroId: hero.id });
-    }
   }
 
   // Cards that set a fight up (starting marks, shields) listen here.
@@ -2060,7 +2097,8 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
         // damper checks/beatsheet.ts and checks/projection.ts use to disable
         // continuation entirely.
         const capped = bonusHitsLanded >= cfg.chainMaxHits;
-        let chance = capped ? 0 : chainContinuationChance(cfg, bonusHitsLanded, hero.fatigue);
+        // A pounce reads the pack's average fatigue, not the lead's own.
+        let chance = capped ? 0 : chainContinuationChance(cfg, bonusHitsLanded, pounce ? averageFatigue(pounce) : hero.fatigue);
         if (!capped) {
           // Cards that make a chain likelier to go on (Permafrost) listen here.
           const roll = { hero, chance };
@@ -2069,11 +2107,18 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
         }
         const rolled = rng.chance(chance);
         const hits = rolled
-          ? resolveChainHit(t, rng, cfg, player, enemy, hero, bonusHitsLanded + 1, chainBackfire, chainStunHeld)
+          ? pounce
+            ? resolvePounceHit(t, rng, cfg, player, enemy, pounce, bonusHitsLanded + 1, chainBackfire, chainStunHeld)
+            : resolveChainHit(t, rng, cfg, player, enemy, hero, bonusHitsLanded + 1, chainBackfire, chainStunHeld)
           : null;
         if (hits) {
           const hitIndex = bonusHitsLanded + 1;
           const downSide: Side = chainBackfire ? "player" : "enemy";
+          if (pounce) {
+            // Where the pack landed: the body it pinned, else the one it mauled (null when neither).
+            const landedOn = hits.find((h) => h.kind === "stun")?.targetId ?? hits.find((h) => h.kind === "damage")?.targetId ?? null;
+            events.push({ type: "pounceHit", t, hitIndex, beastIds: pounce.map((b) => b.id), targetId: landedOn, backfire: chainBackfire });
+          }
           for (const hit of hits) {
             events.push({
               type: "chainHit",
@@ -2225,11 +2270,32 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
       }
     }
 
+    // Beasts' PACK bar (2026-10-22): the beasts' own bars are swept into one shared bar every tick, so they never cross the
+    // threshold alone. While a pounce runs the swept charge is thrown away and the bar stays full until the pounce ends.
+    if (player.packCharge !== undefined) {
+      for (const h of player.heroes) {
+        if (h.army !== "beasts" || !h.alive || h.skeleton) continue;
+        if (!pounce) player.packCharge = Math.min(packMax, player.packCharge + h.charge);
+        h.charge = 0;
+      }
+    }
+
     if (!outcome && hotHeroId === null) {
       let ready: HeroState | undefined;
-      for (const h of player.heroes) {
-        if (!h.alive || h.skeleton || h.charge < cfg.chargeThreshold) continue;
-        if (!ready || h.charge > ready.charge) ready = h;
+      let jumpers: HeroState[] | null = null;
+      // A full PACK bar sets off a pounce, led by the first beast in jumping order (the Bear).
+      if (player.packCharge !== undefined && player.packCharge >= packMax) {
+        const beasts = pounceBeasts(player);
+        if (beasts.length > 0) {
+          jumpers = beasts;
+          ready = beasts[0];
+        }
+      }
+      if (!ready) {
+        for (const h of player.heroes) {
+          if (!h.alive || h.skeleton || h.charge < cfg.chargeThreshold) continue;
+          if (!ready || h.charge > ready.charge) ready = h;
+        }
       }
       if (ready) {
         ignited = true;
@@ -2238,9 +2304,15 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
         // The roll always happens, whether or not cfg.forceBackfire overrides
         // what it decides — see that field's own docstring (config.ts) for
         // why this keeps the RNG stream identical to today's game.
-        const rolled = rng.chance(backfireChanceFor(cfg, ready.fatigue));
+        const rolled = rng.chance(backfireChanceFor(cfg, jumpers ? averageFatigue(jumpers) : ready.fatigue));
         chainBackfire = cfg.forceBackfire === undefined ? rolled : cfg.forceBackfire === "always";
-        if (chainBackfire) ready.backfires++;
+        // A backfired pounce counts against every beast that jumped.
+        if (chainBackfire) for (const b of jumpers ?? [ready]) b.backfires++;
+        if (jumpers) {
+          pounce = jumpers;
+          ctx!.pounceLeadId = ready.id;
+          events.push({ type: "pounceStart", t, leadId: ready.id, beastIds: jumpers.map((b) => b.id), backfire: chainBackfire });
+        }
         hotEffects = ready.chainPlan?.effects ?? ["expose"];
         bonusHitsLanded = 0;
         chainDamageSoFar = 0;
@@ -2309,6 +2381,7 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
       guardHeroId: player.guardHeroId ?? null,
       guardCharges: player.guardCharges ?? 0,
       guardInverted: player.guardInverted ?? false,
+      ...(player.packCharge !== undefined ? { packCharge: player.packCharge, packMax } : {}),
     });
 
     if (outcome) break;

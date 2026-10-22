@@ -11,10 +11,10 @@ export type HeroCardId = `hero-${HeroKind}`;
 export const HERO_CARD_IDS: HeroCardId[] = HERO_ORDER.map((k): HeroCardId => `hero-${k}`);
 
 /** An army's cards (2026-10-20, canvas 11.x): one per army skill and one per army rule. Opened from the skill bubble and from the popup's "See it in action". */
-export type ArmyCardId = `army-${"boneWall" | "command" | "raise" | "roar" | "packBite" | "herd" | "stormOrb" | "frostOrb" | "lifeOrb" | "undead" | "beasts" | "mages"}`;
+export type ArmyCardId = `army-${"boneWall" | "command" | "raise" | "pin" | "maul" | "tend" | "stormOrb" | "frostOrb" | "lifeOrb" | "undead" | "beasts" | "mages"}`;
 
 export const ARMY_CARD_IDS: ArmyCardId[] = [
-  "army-boneWall", "army-command", "army-raise", "army-roar", "army-packBite", "army-herd", "army-stormOrb", "army-frostOrb", "army-lifeOrb",
+  "army-boneWall", "army-command", "army-raise", "army-pin", "army-maul", "army-tend", "army-stormOrb", "army-frostOrb", "army-lifeOrb",
   "army-undead", "army-beasts", "army-mages",
 ];
 
@@ -23,9 +23,11 @@ export const ARMY_SKILL_CARD: Record<string, ArmyCardId> = {
   "bone wall": "army-boneWall",
   command: "army-command",
   raise: "army-raise",
-  roar: "army-roar",
-  "pack bite": "army-packBite",
-  herd: "army-herd",
+  pin: "army-pin",
+  maul: "army-maul",
+  tend: "army-tend",
+  // The skill bubble in a Beasts fight always says POUNCE (the pack's one skill), and opens the Pack rule's card, which shows the whole pounce.
+  pounce: "army-beasts",
   "storm orb": "army-stormOrb",
   "frost orb": "army-frostOrb",
   "life orb": "army-lifeOrb",
