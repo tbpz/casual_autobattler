@@ -70,7 +70,7 @@ function formatEvent(e: FightEvent): string {
     case "orbStrike":
       return `[t=${t}] ${e.heroId}'s merged orb fires its great shot`;
     case "orbTick":
-      return `[t=${t}] ${e.heroId}'s ${e.orbKind} orb ${e.index + 1} works on ${e.targetId}: ${e.amount.toFixed(1)}`;
+      return `[t=${t}] ${e.heroId}'s ${e.orbKind} ${e.index < 0 ? "core orb" : `orb ${e.index + 1}`} works on ${e.targetId}: ${e.amount.toFixed(1)}${e.foeId ? ` (drained ${(e.drained ?? 0).toFixed(1)} from ${e.foeId})` : ""}`;
     case "orbPop":
       return `[t=${t}] ${e.heroId} loses an orb (${e.orbs} loose)`;
     case "pounceStart":

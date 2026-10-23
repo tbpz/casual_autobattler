@@ -179,9 +179,10 @@ export type FightEvent =
   | { type: "orbMerge"; t: number; heroId: string }
   /** The merged orb fired its one great shot; the mage has no orbs left. The hit itself follows as chainHit events. */
   | { type: "orbStrike"; t: number; heroId: string }
-  /** One loose orb did its work on the shared beat: Storm hit `targetId` for `amount`, Frost shielded `targetId` (the mage) for `amount`,
-   * Life healed `targetId` (the tank) for `amount`. `index` is which of the mage's orbs it was (0 based). */
-  | { type: "orbTick"; t: number; heroId: string; index: number; orbKind: "storm" | "frost" | "life"; targetId: string; amount: number }
+  /** One orb did its work on the shared beat: Storm hit `targetId` for `amount`, Frost shielded `targetId` (the mage) for `amount`, Life took
+   * `drained` from the enemy `foeId` and healed `targetId` (the most hurt unit, the mage itself when nobody was hurt) for `amount`. `index` is
+   * which of the mage's orbs it was: -1 for the core orb (always out), then 0 based for the loose ones. */
+  | { type: "orbTick"; t: number; heroId: string; index: number; orbKind: "storm" | "frost" | "life"; targetId: string; amount: number; foeId?: string; drained?: number }
   /** A backfired skill hit popped an orb: the mage now has `orbs` loose orbs. */
   | { type: "orbPop"; t: number; heroId: string; orbs: number }
   /** Beasts army (2026-10-22; fight.ts's pounce): the PACK bar filled and the pack is about to jump. `leadId` is the beast whose beat the

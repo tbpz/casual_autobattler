@@ -80,7 +80,7 @@ having taken that hero (the first it can make if it cannot make that one), and `
 Seeds that reach round 7 with the default picks: 10, 11, 21, 23, 24, 30.
 
 **Armies (2026-10-20, branch dev/merge-heroes).** A run opens on a pick between Undead, Beasts and Mages (`render/armyScreen.ts`); every unit is then that army's
-own (`sim/armies.ts`). `check:armies` pins the starting squads, the Undead's horde (Raise, Bone Wall, Command, the five-skeleton limit and upgrade, the order of enemy hits, both backfires), the Beasts' pounce (one PACK bar, the Bear leading, Pin, Maul, Tend, gained skills, the backfire), the Mages' orbs (add, merge, grow, clear, the 2 s beat, backfire) and that a seed replays the same run for each army. Merge heroes are off while an army is picked. Dev links: `?army=undead`, `?army=beasts` or
+own (`sim/armies.ts`). `check:armies` pins the starting squads, the Undead's horde (Raise, Bone Wall, Command, the five-skeleton limit and upgrade, the order of enemy hits, both backfires), the Beasts' pounce (one PACK bar, the Bear leading, Pin, Maul, Tend, gained skills, the backfire), the Mages' orbs (the core orb, no plain attack, add, merge, clear, the beat, the Life drain and Great Drain, backfire) and that a seed replays the same run for each army. Merge heroes are off while an army is picked. Dev links: `?army=undead`, `?army=beasts` or
 `?army=mages` starts as that army without the pick, `?army=none` plays the plain squad; a link that jumps ahead (`?round=`, `?offer=`, `?fight=1`,
 `?runover=1`, `?fall=`) skips the pick and plays the plain squad unless it names an army, so the merge links above still work. Army cards are
 generated from the canvas by `node design/tools/gen-armies.js` (it also redraws canvas frames 10.x and 11.x).

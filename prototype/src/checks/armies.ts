@@ -2,7 +2,8 @@
  * The armies (2026-10-20; sim/armies.ts, canvas 10.x and 11.x). Each assertion runs a small hand-built fight (or a roster step)
  * and pins one rule: the two starting squads, merge heroes off, the Undead's horde (Raise and Bone Wall raise a skeleton per hit,
  * five at most, then upgrade; the enemy's normal hits go to shields, then warriors, then the Bone Knight; Command; both backfires),
- * the Beasts' pounce (one PACK bar, the Bear leading, Pin, Maul, Tend, the backfire, gained skills), the Mages' orbs (add, merge, grow, clear, the 2 s beat, backfire), and that a whole run plays and
+ * the Beasts' pounce (one PACK bar, the Bear leading, Pin, Maul, Tend, the backfire, gained skills), the Mages' orbs (the core orb, no plain attack,
+ * add, merge, clear, the beat, the Life drain and its Great Drain, backfire), and that a whole run plays and
  * replays the same for every army.
  *
  * Fights force a chain at tick 1 by starting the firing unit at full charge and pin the backfire coin and the damage variance,
@@ -206,9 +207,13 @@ const solo = (s: FightSetup, seed = 7, over: Partial<typeof run.fight> = {}): Fi
   check("an Undead fight starts with five empty places", undead.snapshots[0]!.playerHeroes.filter((h) => h.skeleton && !h.alive && h.maxHp === 0).length === run.fight.undeadSkeletonMax);
 }
 
-// --- The Mages' orbs (2026-10-21; canvas 12.0D; merge reworked 2026-10-22): every skill hit adds an orb (3 at most), orbs work alone on a
-// shared 2 s beat, a 4th hit merges them into one great shot that fires at once and leaves no orb, and the next hit starts again from none.
-// Orbs still out when a skill ends stay. Every fight below has an enemy with 1e6 HP that never acts, so nothing ends early and nothing dies.
+// --- The Mages' orbs (2026-10-21; canvas 12.0D; merge reworked 2026-10-22; core orb and Life drain 2026-10-23, canvas 12.0E): every mage has a
+// core orb that never leaves and makes no plain attack; every skill hit adds a loose orb (3 at most); every orb works alone on a shared beat
+// (1 s in, then every 2 s) for the mage's own `damage`; a 4th hit merges the loose orbs into one great shot that fires at once and leaves no
+// loose orb, and the next hit starts again from none. Orbs still out when a skill ends stay. Every fight below has an enemy with 1e6 HP that
+// never acts, so nothing ends early and nothing dies. A test that is about the merge alone moves the first beat out of the fight
+// (`noBeat`), so the core orb's work does not mix into what it counts.
+const noBeat = { mageOrbFirstBeatSec: 1000 };
 type EventOf<T extends FightEvent["type"]> = Extract<FightEvent, { type: T }>;
 const eventsOf = <T extends FightEvent["type"]>(r: FightResult, type: T): EventOf<T>[] => r.events.filter((e): e is EventOf<T> => e.type === type);
 const calmBig = (enemy: SideState): void => {
@@ -248,25 +253,50 @@ const shotSize = (base: number): number => Math.round(base * run.fight.chainHitM
   check("skill end: a skill that never merged keeps its orbs", eventsOf(r, "orbMerge").length === 0 && mageIn(r, r.snapshots[0]!.playerHeroes.find((h) => h.kind === "stormMage")!.id).orbs === 2);
 }
 {
-  // The beat: three Storm orbs, loose from the start of the fight, work together every 2 s, each on one enemy picked at random.
+  // The beat: the core orb and two loose Storm orbs, out from the start of the fight, work together on the first beat (1 s in), each on one
+  // enemy picked at random, for the mage's own damage.
   let sameTwice = 0, allApart = 0, wrong = 0;
   for (let seed = 1; seed <= 30; seed++) {
     const storm = unit("mages", "damage");
-    storm.orbs = 3;
+    storm.orbs = 2;
     const three = (enemy: SideState): void => {
       calmBig(enemy);
       const base = enemy.heroes[0]!;
       enemy.heroes.push({ ...base, id: "e2", name: "e2" }, { ...base, id: "e3", name: "e3" });
     };
     const r = solo(setup([storm, unit("mages", "tank")], three), seed);
-    const first = eventsOf(r, "orbTick").filter((e) => e.t < 2.2);
+    const first = eventsOf(r, "orbTick").filter((e) => e.heroId === storm.id && e.t < run.fight.mageOrbFirstBeatSec + 0.2);
     const ids = first.map((e) => e.targetId);
-    if (first.length !== 3 || first.some((e) => e.orbKind !== "storm" || e.amount !== run.fight.mageStormOrbDamage || e.heroId !== storm.id || Math.abs(e.t - run.fight.mageOrbBeatSec) > 0.1)) wrong++;
+    if (first.length !== 3 || first.some((e) => e.orbKind !== "storm" || e.amount !== storm.damage || Math.abs(e.t - run.fight.mageOrbFirstBeatSec) > 0.1) || first.map((e) => e.index).join() !== "-1,0,1") wrong++;
     if (new Set(ids).size < 3) sameTwice++;
     else allApart++;
   }
-  check("beat: three Storm orbs zap together on the 2 s beat for their damage each", wrong === 0, `${wrong} seeds off`);
+  check("beat: the core orb and two loose Storm orbs zap together 1 s in, for the Storm Mage's damage each", wrong === 0, `${wrong} seeds off`);
   check("beat: each orb picks its enemy alone, so two can pick the same one", sameTwice > 0 && allApart > 0, `${sameTwice} shared, ${allApart} apart`);
+}
+{
+  // The core orb: a mage with no loose orb at all still works on the first beat and on the next one 2 s later, and a mage makes no plain attack.
+  const storm = unit("mages", "damage");
+  const tank = unit("mages", "tank");
+  const life = unit("mages", "support");
+  const r = solo(setup([storm, tank, life], calmBig), 7);
+  const stormTicks = eventsOf(r, "orbTick").filter((e) => e.heroId === storm.id);
+  check("core orb: with no loose orb the Storm Mage's core orb still zaps on the first beat and the next, for its damage", stormTicks.length >= 2 && stormTicks.slice(0, 2).every((e, i) => e.index === -1 && e.orbKind === "storm" && e.amount === storm.damage && Math.abs(e.t - (run.fight.mageOrbFirstBeatSec + i * run.fight.mageOrbBeatSec)) < 0.1), stormTicks.slice(0, 3).map((e) => e.t.toFixed(1)).join(","));
+  check("no plain attack: no attack and no beat heal comes from a mage", !r.events.some((e) => (e.type === "attack" && e.side === "player") || (e.type === "heal" && e.side === "player")), `${r.events.filter((e) => e.type === "attack" && e.side === "player").length} attacks`);
+  check("a Life Mage has no beat heal, so it shows damage rather than heal", life.healPerBeat === undefined && life.damage === ARMY_UNITS.mages.support.damage);
+}
+{
+  // Orb work fills the mage's skill bar like a hit would (no trickle, nothing hits the squad): one core zap puts its damage into the Storm Mage's bar.
+  const storm = unit("mages", "damage");
+  const r = fight(setup([storm, unit("mages", "tank")], calmBig), 7, { chargeTricklePerSec: 0 });
+  check("orb work fills the skill bar: the first core zap adds its damage to the Storm Mage's charge", Math.abs(mageIn(r, storm.id, run.fight.mageOrbFirstBeatSec + 0.1).charge - storm.damage) < 0.01, `${mageIn(r, storm.id, run.fight.mageOrbFirstBeatSec + 0.1).charge}`);
+}
+{
+  // A Storm orb's zap is a hit by a Damage unit for the runes that read a normal hit: Kindling puts a burn on what it zapped.
+  const storm = unit("mages", "damage");
+  const r = solo({ ...setup([storm, unit("mages", "tank")], calmBig), cards: ["kindling"] }, 7);
+  const kindled = eventsOf(r, "cardTriggered").filter((e) => e.card === "kindling");
+  check("storm zap: counts as a Damage unit's hit, so Kindling fires on it", kindled.length >= 1 && Math.abs(kindled[0]!.t - run.fight.mageOrbFirstBeatSec) < 0.1, `${kindled.length} burns`);
 }
 {
   // Orbs left after a skill keep working: a skill of two hits leaves two Storm orbs, and they zap on the next beat.
@@ -276,26 +306,38 @@ const shotSize = (base: number): number => Math.round(base * run.fight.chainHitM
   check("beat: orbs left after a skill keep working on the beat", zaps.length >= 2 && zaps.every((e) => e.orbKind === "storm"), `${zaps.length} zaps`);
 }
 {
-  // Frost orbs shield their own mage; Life orbs heal the tank and say so through one orbTick, not also a heal event.
+  // Frost orbs shield their own mage: the core orb and two loose ones give it its damage each on the first beat.
   const frost = unit("mages", "tank");
   frost.orbs = 2;
   const r = solo(setup([frost, unit("mages", "support")], calmBig), 7);
-  const ticks = eventsOf(r, "orbTick").filter((e) => e.t < 2.2);
-  check("frost orb: two orbs shield their own mage on the first beat", ticks.length === 2 && ticks.every((e) => e.orbKind === "frost" && e.targetId === frost.id && e.amount === run.fight.mageFrostOrbShield) && mageIn(r, frost.id, 2.3).marks.shield === 2 * run.fight.mageFrostOrbShield, `${mageIn(r, frost.id, 2.3).marks.shield} shield`);
+  const ticks = eventsOf(r, "orbTick").filter((e) => e.heroId === frost.id && e.t < run.fight.mageOrbFirstBeatSec + 0.2);
+  const afterBeat = mageIn(r, frost.id, run.fight.mageOrbFirstBeatSec + 0.1).marks.shield;
+  check("frost orb: the core orb and two loose ones shield their own mage on the first beat", ticks.length === 3 && ticks.every((e) => e.orbKind === "frost" && e.targetId === frost.id && e.amount === frost.damage) && afterBeat === 3 * frost.damage, `${afterBeat} shield`);
+}
+{
+  // Life orbs drain: each takes the Life Mage's damage from the front enemy and heals the most hurt unit by what it took, and says so through
+  // one orbTick, not also a heal event. The core orb and two loose ones work on the first beat.
   const tank = unit("mages", "tank");
   tank.hp = tank.maxHp - 30;
   const life = unit("mages", "support");
-  life.orbs = 3;
+  life.orbs = 2;
   const lr = solo(setup([tank, life], calmBig), 7);
-  const lt = eventsOf(lr, "orbTick").filter((e) => e.t < 2.2);
-  check("life orb: three orbs heal the tank on the first beat", lt.length === 3 && lt.every((e) => e.orbKind === "life" && e.targetId === tank.id && e.amount === run.fight.mageLifeOrbHeal), lt.map((e) => `${e.targetId}:${e.amount}`).join(" "));
-  check("life orb: the heal is not announced a second time as a heal event", !lr.events.some((e) => e.type === "heal" && Math.abs(e.t - lt[0]!.t) < 0.01));
+  const lt = eventsOf(lr, "orbTick").filter((e) => e.heroId === life.id && e.t < run.fight.mageOrbFirstBeatSec + 0.2);
+  const front = lr.snapshots[0]!.enemyHeroes[0]!;
+  const after = lr.snapshots.find((s) => s.t >= run.fight.mageOrbFirstBeatSec + 0.1)!;
+  check("life orb: three orbs each drain the front enemy and heal the most hurt unit, the tank, by the same amount", lt.length === 3 && lt.every((e) => e.orbKind === "life" && e.foeId === front.id && e.drained === life.damage && e.targetId === tank.id && e.amount === life.damage), lt.map((e) => `${e.targetId}:${e.amount}/${e.drained}`).join(" "));
+  check("life orb: the enemy lost what was drained and the tank gained it", after.enemyHeroes[0]!.hp === front.hp - 3 * life.damage && after.playerHeroes.find((h) => h.id === tank.id)!.hp === tank.hp + 3 * life.damage, `${front.hp - after.enemyHeroes[0]!.hp} drained`);
+  check("life orb: the drain is not announced a second time as a heal event", !lr.events.some((e) => e.type === "heal" && Math.abs(e.t - lt[0]!.t) < 0.01));
+  const whole = unit("mages", "support");
+  const wr = solo(setup([unit("mages", "tank"), whole], calmBig), 7);
+  const wt = eventsOf(wr, "orbTick").find((e) => e.heroId === whole.id);
+  check("life orb: with nobody hurt it still takes HP from the enemy, and heals nothing", wt?.orbKind === "life" && wt.drained === whole.damage && wt.amount === 0, `${wt?.drained}/${wt?.amount}`);
 }
 {
   // Merged Frost and Life orbs reach the whole squad.
   const frost = charged(unit("mages", "tank"));
   const storm = unit("mages", "damage");
-  const r = solo(setup([frost, storm], calmBig), 7, { chainMaxHits: 4 });
+  const r = solo(setup([frost, storm], calmBig), 7, { chainMaxHits: 4, ...noBeat });
   const shields = r.events.filter((e) => e.type === "chainHit" && e.sourceId === frost.id && e.kind === "heal" && e.mark === "shield");
   check("frost merge: the 4th hit shields every unit, up to half its HP", shields.length === 2 && shields.every((e) => e.type === "chainHit" && Math.abs((e.markStacks ?? 0) - Math.min(run.fight.mageFrostMergeShield, (e.targetId === frost.id ? frost.maxHp : storm.maxHp) * run.fight.shieldCapFractionOfMaxHp)) < 0.01) && new Set(shields.map((e) => (e.type === "chainHit" ? e.targetId : ""))).size === 2);
   check("frost merge: the orbs are gone after the shot", mageIn(r, frost.id).orbs === 0 && eventsOf(r, "orbStrike").length === 1);
@@ -304,12 +346,25 @@ const shotSize = (base: number): number => Math.round(base * run.fight.chainHitM
   const hurt = unit("mages", "damage");
   hurt.hp = hurt.maxHp - 40;
   const life = charged(unit("mages", "support"));
-  const lr = solo(setup([tank, hurt, life], calmBig), 7, { chainMaxHits: 4 });
+  const lr = solo(setup([tank, hurt, life], calmBig), 7, { chainMaxHits: 4, ...noBeat });
+  const drain = lr.events.find((e) => e.type === "chainHit" && e.sourceId === life.id && e.kind === "damage");
   const heals = lr.events.filter((e) => e.type === "chainHit" && e.sourceId === life.id && e.kind === "heal");
-  const room = (h: HeroState): number => Math.max(1, Math.min(run.fight.mageLifeMergeHeal, h.maxHp * run.fight.chainHealMaxFractionOfTargetMaxHp, h.maxHp - h.hp));
-  const healedTank = heals.find((e) => e.type === "chainHit" && e.targetId === tank.id);
-  const healedHurt = heals.find((e) => e.type === "chainHit" && e.targetId === hurt.id);
-  check("life merge: the 4th hit heals the whole squad (capped per unit)", heals.length >= 2 && healedTank?.type === "chainHit" && Math.abs(healedTank.damage - room(tank)) < 0.01 && healedHurt?.type === "chainHit" && Math.abs(healedHurt.damage - room(hurt)) < 0.01, `${healedTank?.type === "chainHit" ? healedTank.damage : "-"} / ${healedHurt?.type === "chainHit" ? healedHurt.damage : "-"}`);
+  const frontId = lr.snapshots[0]!.enemyHeroes[0]!.id;
+  const taken = drain?.type === "chainHit" ? drain.damage : 0;
+  const share = taken / 3;
+  const healed = (h: HeroState): number => {
+    const e = heals.find((x) => x.type === "chainHit" && x.targetId === h.id);
+    return e?.type === "chainHit" ? e.damage : -1;
+  };
+  check(`life merge: the 4th hit is one Great Drain of ${shotSize(run.fight.mageLifeMergeDrain)} from the front enemy`, drain?.type === "chainHit" && drain.targetId === frontId && drain.intended === shotSize(run.fight.mageLifeMergeDrain) && drain.damage === drain.intended && eventsOf(lr, "orbMerge").length === 1, `${taken}`);
+  check("life merge: what it took is shared over the three living units, each capped by its room", heals.length === 3 && Math.abs(healed(tank) - Math.min(share, tank.maxHp - tank.hp)) < 0.01 && Math.abs(healed(hurt) - Math.min(share, hurt.maxHp - hurt.hp)) < 0.01 && healed(life) === 0, `${healed(tank)} / ${healed(hurt)} / ${healed(life)}`);
+}
+{
+  // The core orb survives a merge: after the shot the mage keeps working on the beat.
+  const storm = charged(unit("mages", "damage"));
+  const r = solo(setup([storm, unit("mages", "tank")], calmBig), 7, { chainMaxHits: 6 });
+  const merge = eventsOf(r, "orbMerge")[0];
+  check("core orb: it is not spent by a merge, and keeps zapping on the beats after it", merge !== undefined && eventsOf(r, "orbTick").some((e) => e.heroId === storm.id && e.index === -1 && e.t > merge.t + 0.5), `${merge?.t}`);
 }
 {
   // Backfire pops one orb; with nothing to pop the skill ends.

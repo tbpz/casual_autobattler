@@ -59,12 +59,12 @@ const ARMIES = {
   },
   mages: {
     key: "mages", name: "Mages", hex: "#8fd3ff", rgb: "143,211,255", icon: "orbs",
-    pitch: "Every skill builds orbs that work alone.",
+    pitch: "Orbs do the work, from the first second.",
     play: "You want a machine that builds up, then goes off.",
     rule: {
-      name: "Orbs", head: "Every skill hit adds an orb.",
-      lines: ["Up to 3 circle the mage. Every 2 seconds each one works on its own.", "A 4th merges them into one big shot, then they start again."],
-      card: "Every skill hit adds an orb around the mage, up to 3. Every 2 seconds each orb works on its own: Storm orbs zap an enemy, Frost orbs shield the Frost Mage, Life orbs heal the tank. A 4th orb merges them into one big shot that fires at once, and then they start again from none. Orbs still out when the skill ends stay.",
+      name: "Orbs", head: "Every mage fights through orbs.",
+      lines: ["Each starts with a core orb that stays. Every 2 seconds each orb works on its own.", "Every skill hit adds an orb, up to 3. A 4th merges them into one big shot."],
+      card: "Every mage has a core orb that never leaves, and makes no plain attack: all the work is the orbs'. Every 2 seconds, starting 1 second into the fight, each orb works on its own: Storm orbs zap an enemy, Frost orbs shield the Frost Mage, Life orbs take HP from the front enemy and heal your most hurt unit with it. Every skill hit adds an orb around the mage, up to 3. A 4th orb merges them into one big shot that fires at once, and then they start again from none. The core orb stays, and so do orbs still out when the skill ends.",
     },
   },
 };
@@ -83,12 +83,12 @@ const UNITS = {
     job: "The Beast Damage unit. Every Wolf bites in a pounce." },
   stag: { army: "beasts", role: "healer", title: "Stag", name: "Moss", hex: "#6bd69a", row: "BACK", hp: 72, stat: ["Heal", 3], skill: "tend",
     job: "The Beast Healer. Heals the whole squad in a pounce." },
-  frost: { army: "mages", role: "tank", title: "Frost Mage", name: "Bram", hex: "#7fc8ff", row: "FRONT", hp: 135, stat: ["Damage", 5], skill: "frostOrb",
+  frost: { army: "mages", role: "tank", title: "Frost Mage", name: "Bram", hex: "#7fc8ff", row: "FRONT", hp: 135, stat: ["Damage", 8], skill: "frostOrb",
     job: "The Mage Tank. Wraps itself in shield orbs." },
-  storm: { army: "mages", role: "damage", title: "Storm Mage", name: "Ivy", hex: "#c28cff", row: "BACK", hp: 58, stat: ["Damage", 6], skill: "stormOrb",
+  storm: { army: "mages", role: "damage", title: "Storm Mage", name: "Ivy", hex: "#c28cff", row: "BACK", hp: 58, stat: ["Damage", 8], skill: "stormOrb",
     job: "The Mage Damage unit. Orbs zap on their own." },
-  life: { army: "mages", role: "healer", title: "Life Mage", name: "Sol", hex: "#8be9a8", row: "BACK", hp: 74, stat: ["Heal", 3], skill: "lifeOrb",
-    job: "The Mage Healer. Heals a little, and builds healing orbs." },
+  life: { army: "mages", role: "healer", title: "Life Mage", name: "Sol", hex: "#8be9a8", row: "BACK", hp: 74, stat: ["Damage", 5], skill: "lifeOrb",
+    job: "The Mage Healer. Its orbs drain the enemy to heal your squad." },
 };
 
 // skill words: head, chips, two lines (the second is what "goes again" does), card = the one-sentence version
@@ -112,14 +112,14 @@ const SKILLS = {
     lines: ["Heals each unit 4. Every Stag in the pack tends.", "Each time the pounce goes again, it heals again."],
     card: "In a pounce, every Stag heals every unit 4 HP. Each time the pounce goes again, it heals again." },
   frostOrb: { name: "Frost Orb", icon: "frostorb", head: "Adds an orb that shields the Frost Mage.", chips: ["Shield orb", "Whole squad"],
-    lines: ["Each hit adds a shield orb: every 2 seconds it gives the Frost Mage 10 shield.", "A 4th orb merges them: the whole squad gets a shield, then they start again."],
-    card: "Adds an orb around the Frost Mage. Every 2 seconds each orb gives it 10 shield. A 4th orb merges them into one big shot that shields the whole squad at once, and then they start again." },
+    lines: ["Each hit adds a shield orb. Every orb, the core one too, gives the Frost Mage 8 shield every 2 seconds.", "A 4th orb merges the loose ones: the whole squad gets a shield, then they start again."],
+    card: "Adds an orb around the Frost Mage. Every 2 seconds each orb, the core one included, gives it 8 shield. A 4th loose orb merges them into one big shot that shields the whole squad at once, and then they start again." },
   stormOrb: { name: "Storm Orb", icon: "bolt", head: "Adds an orb that zaps an enemy.", chips: ["One random enemy", "Front enemy"],
-    lines: ["Each hit adds a storm orb: every 2 seconds it zaps one enemy for 10.", "A 4th orb merges them into a big zap on the front enemy, then they start again."],
-    card: "Adds an orb around the Storm Mage. Every 2 seconds each orb zaps one random enemy for 10; two orbs can pick the same one. A 4th orb merges them into one big shot that strikes the front enemy at once, and then they start again." },
-  lifeOrb: { name: "Life Orb", icon: "lifeorb", head: "Adds an orb that heals the tank.", chips: ["The tank", "Whole squad"],
-    lines: ["Each hit adds a life orb: every 2 seconds it heals the tank 8.", "A 4th orb merges them: the whole squad is healed, then they start again."],
-    card: "Adds an orb around the Life Mage. Every 2 seconds each orb heals the tank for 8. A 4th orb merges them into one big shot that heals the whole squad at once, and then they start again." },
+    lines: ["Each hit adds a storm orb. Every orb, the core one too, zaps one enemy for 8 every 2 seconds.", "A 4th orb merges the loose ones into a big zap on the front enemy, then they start again."],
+    card: "Adds an orb around the Storm Mage. Every 2 seconds each orb, the core one included, zaps one random enemy for 8; two orbs can pick the same one. A 4th loose orb merges them into one big shot that strikes the front enemy at once, and then they start again." },
+  lifeOrb: { name: "Life Orb", icon: "lifeorb", head: "Adds an orb that drains the front enemy.", chips: ["Front enemy", "Most hurt unit"],
+    lines: ["Each hit adds a life orb. Every orb, the core one too, takes 5 HP from the front enemy every 2 seconds and heals the most hurt unit with it.", "A 4th orb merges the loose ones: one Great Drain, shared over the whole squad, then they start again."],
+    card: "Adds an orb around the Life Mage. Every 2 seconds each orb, the core one included, takes 5 HP from the front enemy and heals your most hurt unit with it. A 4th loose orb merges them into one Great Drain that takes 45 from the front enemy and shares it over the whole squad, and then they start again." },
 };
 
 // ---------- unique svg ids ----------
@@ -219,7 +219,7 @@ const SET = { undead: ["knight", "wraith", "priest"], beasts: ["bear", "wolf", "
 const SQUAD_NUM = { undead: "10.1", beasts: "10.5", mages: "10.9" };
 const POPUP_RANGE = { undead: "10.2 to 10.4", beasts: "10.6 to 10.8", mages: "10.10 to 10.12" };
 // the words after a frame's number: which armies are built, and when
-const BUILT_ON = { mages: "built 2026-10-21", beasts: "built 2026-10-22" };
+const BUILT_ON = { mages: "built 2026-10-21, reworked 2026-10-23", beasts: "built 2026-10-22" };
 // the line under a card's picture
 const cardLead = (c) => (c.kind === "skill" ? (UNITS[c.unit].army === "beasts" ? "When the PACK bar is full, the whole pack pounces." : "When its bar is full, a unit uses its skill.") : "Every unit in the squad follows this rule.");
 
@@ -325,7 +325,7 @@ function squadFile(armyKey) {
         ${benchShelf(M ? [["frost", "Kit"], ["storm", "Wren"], ["life", "Olo"]] : U ? [["knight", "Kit"], ["wraith", "Wren"], ["priest", "Olo"]] : [["bear", "Kit"], ["wolf", "Rue"]])}
       </div>`;
   const note = M
-    ? `Round screen, round 2, Mages squad (built 2026-10-21): the same screen as 1.1 with the army's bodies. Bram, Ivy and Sol are the same three units, now a Frost Mage, a Storm Mage and a Life Mage, each with a pointed hat. The army chip names the rule and opens its card (11.12).`
+    ? `Round screen, round 2, Mages squad (built 2026-10-21, reworked 2026-10-23): the same screen as 1.1 with the army's bodies. Bram, Ivy and Sol are the same three units, now a Frost Mage, a Storm Mage and a Life Mage, each with a pointed hat. The army chip names the rule and opens its card (11.12).`
     : U
     ? `Round screen, round 2, Undead squad (proposal, design only, not built): the same screen as 1.1 with the army's bodies. Bram, Ivy and Sol are the same three units, now a Bone Knight, a Wraith and a Bone Priest. The army chip names the rule and opens its card (11.7).`
     : `Round screen, round 2, Beasts squad (built 2026-10-22): five fielded, one Bear in front and four behind (three Wolves and a Stag), each one smaller. The bench holds two. The army chip names the rule and opens its card (11.8). No beast has a skill bar of its own: the pack's one PACK bar is on the fight screen.`;
@@ -602,11 +602,22 @@ function mergedOrb(C, { cx, cy, at, flare, end, color }) {
   return abs(`left:${cx - 14}px;top:${cy - 14}px;width:28px;height:28px;border-radius:50%;background:${core};z-index:4;${S(1.6, 1)}${C.kf(stops)}`,
     abs("left:-2px;top:-2px;width:32px;height:32px;animation:orbSpin 2.4s linear infinite;", sparks));
 }
+// a core orb (2026-10-23, canvas 12.0E): always out, never leaves, a little bigger than a loose orb and ringed; it swells on every beat in `pulses`
+function coreOrb(C, { cx, cy, r, color, pulses = [] }) {
+  const [px, py] = orbAt(cx, cy, r, 180);
+  const S = (s) => `transform:scale(${s})`;
+  const stops = [[0, S(1)]];
+  pulses.forEach((t) => stops.push([t - 0.3, S(1)], [t + 0.4, S(1.9)], [t + 1.6, S(1)]));
+  stops.push([100, S(1)]);
+  return abs(`left:${(px - 7).toFixed(1)}px;top:${(py - 7).toFixed(1)}px;width:14px;height:14px;border-radius:50%;background:${color};border:1px solid #fff;box-shadow:0 0 0 2px #14161c,0 0 0 3.5px ${color},0 0 9px 3px ${color};z-index:4;${C.kf(stops)}`);
+}
 // one card scene for a Mage skill (who = "storm" | "frost" | "life") or for the Orbs rule (rule = true, drawn on the Storm Mage with the other
-// two mages' orbs showing too). T = 9 s: the first skill's three hits build three orbs (8-20%), the 2 s beat (33%), a second skill's first hit finds
-// three out and merges them (49%), the merged orb fires its one big shot (52%) and is gone, the next two hits start again (58%, 65%) and those orbs stay.
+// two mages' orbs showing too). T = 9 s: every mage has a core orb from the start and works on the shared beat 1 s in (11%) and every 2 s after
+// (33%, 55%, 77%); the first skill's three hits build three loose orbs (8-20%), the beat at 33% has four working, a second skill's first hit finds
+// three out and merges them (49%), the merged orb fires its one big shot (52%) and is gone, the next two hits start again (58%, 65%) and those
+// orbs stay, and the core orb works on through all of it.
 function mageScene(C, { who, rule = false }) {
-  const BEAT = 33, MERGE = 49, SHOT = 51.6, NEW = [58, 65];
+  const FIRST = 11, BEAT = 33, MERGE = 49, SHOT = 51.6, NEW = [58, 65], BEATS = [FIRST, BEAT, 55, 77];
   const G = { storm: { key: "storm", at: UW, color: GOLD, r: 24, mp: [34, 166], bubble: "STORM ORB", bw: 84, bb: 36 },
     frost: { key: "frost", at: UK, color: FROSTC, r: 28, mp: [216, 122], bubble: "FROST ORB", bw: 80, bb: 40 },
     life: { key: "life", at: UP, color: LIFEC, r: 24, mp: [276, 168], bubble: "LIFE ORB", bw: 72, bb: 36 } }[who];
@@ -625,30 +636,38 @@ function mageScene(C, { who, rule = false }) {
         life: { hpPct: 100, hpStops: [[0, 70], [SHOT, 70], [SHOT + 2, 100], [100, 100]] } }
     : { frost: {}, storm: {}, life: {} };
   for (const k of ["frost", "storm", "life"]) h += ally(C, k, { ...bars[k], ...(k === G.key ? cast : {}), ...hurt[k], ...(k === "frost" ? { hpW: 40 } : {}) });
-  // orbs: three build up on the casting mage and persist until the merge; after the shot two new ones start again and stay; the rule scene also shows two Frost orbs and one Life orb
-  h += orbRing(C, { cx, cy, r: G.r, color: G.color, items: [[-150, 8], [-30, 14], [180, 20]], pulses: [BEAT], mergeAt: MERGE, mergeTo: G.mp, shownInStill: false });
-  h += orbRing(C, { cx, cy, r: G.r, color: G.color, items: [[-150, NEW[0]], [-30, NEW[1]]], shownInStill: false });
+  // orbs: every mage has a core orb, out from the first frame; three loose ones build up on the casting mage and persist until the merge; after the shot two
+  // new ones start again and stay; the rule scene also shows two loose Frost orbs and one loose Life orb
+  h += coreOrb(C, { cx: 161, cy: 134, r: 28, color: FROSTC, pulses: BEATS }) + coreOrb(C, { cx: 92, cy: 166, r: 24, color: GOLD, pulses: BEATS }) + coreOrb(C, { cx: 230, cy: 166, r: 24, color: LIFEC, pulses: BEATS });
+  h += orbRing(C, { cx, cy, r: G.r, color: G.color, items: [[-150, 8], [-30, 14], [0, 20]], pulses: BEATS, mergeAt: MERGE, mergeTo: G.mp, shownInStill: false });
+  h += orbRing(C, { cx, cy, r: G.r, color: G.color, items: [[-150, NEW[0]], [-30, NEW[1]]], pulses: BEATS, shownInStill: false });
   if (rule) {
-    h += orbRing(C, { cx: 161, cy: 134, r: 28, color: FROSTC, items: [[-150, 26], [-30, 30]], pulses: [BEAT] });
-    h += orbRing(C, { cx: 230, cy: 166, r: 24, color: LIFEC, items: [[-30, 34]], pulses: [BEAT] });
-    h += ring(C, { cx: 161, cy: 134, r: 28, color: FROSTC, at: BEAT }) + ring(C, { cx: 230, cy: 166, r: 22, color: LIFEC, at: BEAT + 0.5 });
-    h += floater(C, { x: 161, y: 104, text: "⛊+10", color: FROSTC, at: BEAT, size: 9, glow: "#4da6ff", show: false });
-    h += floater(C, { x: 214, y: 140, text: "+8", color: LIFEC, at: BEAT + 0.5, size: 9, glow: "#1b8a55", show: false });
+    h += orbRing(C, { cx: 161, cy: 134, r: 28, color: FROSTC, items: [[-150, 26], [-30, 30]], pulses: BEATS });
+    h += orbRing(C, { cx: 230, cy: 166, r: 24, color: LIFEC, items: [[-30, 34]], pulses: BEATS });
+    BEATS.forEach((t) => { h += ring(C, { cx: 161, cy: 134, r: 28, color: FROSTC, at: t }) + ring(C, { cx: 230, cy: 166, r: 22, color: LIFEC, at: t + 0.5 }); });
+    h += floater(C, { x: 161, y: 104, text: "⛊+8", color: FROSTC, at: BEAT, size: 9, glow: "#4da6ff", show: false });
+    h += floater(C, { x: 214, y: 140, text: "+5", color: LIFEC, at: BEAT + 0.5, size: 9, glow: "#1b8a55", show: false });
   }
-  // the beat: what each orb does on its own
-  const orbPos = [-150, -30, 180].map((a) => orbAt(cx, cy, G.r, a));
+  // the beat: what each orb does on its own, the core orb included. On the first beat (11%) only the core orb works; on the 33% beat the core and the three loose orbs do.
+  const orbPos = [180, -150, -30, 0].map((a) => orbAt(cx, cy, G.r, a));
   if (who === "storm") {
     orbPos.forEach(([x, y], i) => {
-      h += bolt(C, { x1: x, y1: y, x2: SH[i][0], y2: SH[i][1] + 10, color: GOLD, at: BEAT + i * 0.5, w: 1.6 });
-      h += floater(C, { x: SH[i][0] + (i === 1 ? 0 : 0), y: SH[i][1] + 22, text: "−10", color: "#fff4b0", at: BEAT + i * 0.5 + 1, size: 9, glow: GOLD, show: false });
+      const t = i === 0 ? FIRST : BEAT + (i - 1) * 0.5;
+      h += bolt(C, { x1: x, y1: y, x2: SH[i % 3][0], y2: SH[i % 3][1] + 10, color: GOLD, at: t, w: 1.6 });
+      h += floater(C, { x: SH[i % 3][0], y: SH[i % 3][1] + 22, text: "−8", color: "#fff4b0", at: t + 1, size: 9, glow: GOLD, show: false });
     });
   } else if (who === "frost") {
-    h += ring(C, { cx, cy, r: 30, color: FROSTC, at: BEAT });
-    [140, 161, 182].forEach((x, i) => { h += floater(C, { x, y: 104, text: "⛊+10", color: FROSTC, at: BEAT + i * 0.6, size: 9, glow: "#4da6ff", show: false }); });
+    h += ring(C, { cx, cy, r: 30, color: FROSTC, at: FIRST }) + ring(C, { cx, cy, r: 30, color: FROSTC, at: BEAT });
+    h += floater(C, { x: 161, y: 104, text: "⛊+8", color: FROSTC, at: FIRST, size: 9, glow: "#4da6ff", show: false });
+    [128, 150, 172, 194].forEach((x, i) => { h += floater(C, { x, y: 104, text: "⛊+8", color: FROSTC, at: BEAT + i * 0.6, size: 9, glow: "#4da6ff", show: false }); });
   } else {
+    // a Life orb drains: a green line from the front enemy (the Warden) to the orb, then on to the most hurt unit (Bram), `−5` on the enemy and `+5` on Bram
     orbPos.forEach(([x, y], i) => {
-      h += beam(C, { x1: x, y1: y, x2: 161, y2: 134, color: LIFEC, at: BEAT + i * 0.5, w: 1.4, dur: 6 });
-      h += floater(C, { x: 150 + i * 11, y: 110, text: "+8", color: LIFEC, at: BEAT + i * 0.5 + 1, size: 9, glow: "#1b8a55", show: false });
+      const t = i === 0 ? FIRST : BEAT + (i - 1) * 0.5;
+      h += beam(C, { x1: SH[1][0], y1: SH[1][1] + 18, x2: x, y2: y, color: LIFEC, at: t, w: 1.4, dur: 6 });
+      h += beam(C, { x1: x, y1: y, x2: 161, y2: 134, color: LIFEC, at: t + 1.5, w: 1.4, dur: 6 });
+      h += floater(C, { x: SH[1][0] + 18 + (i % 2) * 14, y: SH[1][1] + 22, text: "−5", color: "#d6ffe6", at: t + 1, size: 9, glow: LIFEC, show: false });
+      h += floater(C, { x: 150 + i * 9, y: 110, text: "+5", color: LIFEC, at: t + 2.5, size: 9, glow: "#1b8a55", show: false });
     });
   }
   // the merge: the three orbs fly into one sparkling orb, which flares as it fires one big shot, and is gone
@@ -659,18 +678,24 @@ function mageScene(C, { who, rule = false }) {
     h += floater(C, { x: 214, y: 28, text: "−80", color: "#fff", at: SHOT + 0.8, size: 16, glow: GOLD, show: true });
   } else {
     Object.values(allies).forEach(([ax, ay], j) => { h += ring(C, { cx: ax, cy: ay, r: j === 0 ? 30 : 22, color: G.color, at: SHOT + 0.3, dur: 9 }); });
-    const txt = who === "frost" ? [["⛊+45", 161, 104], ["⛊+29", 92, 140], ["⛊+37", 230, 140]] : [["+27", 161, 104], ["+12", 92, 140], ["+15", 230, 140]];
+    // Life's merge is the Great Drain: 45 taken from the front enemy (the Warden), shared as 15 on each of the three units
+    const txt = who === "frost" ? [["⛊+45", 161, 104], ["⛊+29", 92, 140], ["⛊+37", 230, 140]] : [["+15", 161, 104], ["+15", 92, 140], ["+15", 230, 140]];
     txt.forEach(([text, x, y]) => { h += floater(C, { x, y, text, color: G.color, at: SHOT + 0.8, size: 11, glow: who === "frost" ? "#4da6ff" : "#1b8a55", show: true }); });
+    if (who === "life") {
+      h += beam(C, { x1: G.mp[0], y1: G.mp[1] - 6, x2: SH[1][0], y2: SH[1][1] + 18, color: LIFEC, at: SHOT, w: 3, dur: 7 });
+      h += floater(C, { x: 214, y: 28, text: "−45", color: "#fff", at: SHOT + 0.8, size: 16, glow: LIFEC, show: true });
+    }
   }
-  const flavour = who === "storm" ? "EACH ORB ZAPS ONE ENEMY" : who === "frost" ? "EACH ORB SHIELDS BRAM" : "EACH ORB HEALS THE TANK";
+  const flavour = who === "storm" ? "EVERY ORB ZAPS ONE ENEMY" : who === "frost" ? "EVERY ORB SHIELDS BRAM" : "EVERY ORB DRAINS, HEALS THE HURT";
+  h += chip(C, { x: 150, y: 96, text: "EVERY MAGE HAS A CORE ORB", color: "#e8e8ee", stops: win(3, 10, 1.2), base: 0 });
   h += chip(C, { x: 150, y: 96, text: rule ? "EVERY 2 S EACH ORB WORKS ALONE" : flavour, color: G.color, stops: win(BEAT - 1, 43, 1.5), base: 0 });
-  h += chip(C, { x: 150, y: 96, text: "NEXT HIT MERGES THE 3 ORBS", color: G.color, stops: win(44, 50, 1.2), base: 0 });
-  h += chip(C, { x: 150, y: 96, text: "ONE BIG SHOT, THEN GONE", color: G.color, stops: win(52, 58, 1.2), base: 0 });
+  h += chip(C, { x: 150, y: 96, text: "NEXT HIT MERGES THE 3 LOOSE ORBS", color: G.color, stops: win(44, 50, 1.2), base: 0 });
+  h += chip(C, { x: 150, y: 96, text: who === "life" ? "ONE GREAT DRAIN, CORE STAYS" : "ONE BIG SHOT, CORE STAYS", color: G.color, stops: win(52, 58, 1.2), base: 0 });
   h += chip(C, { x: 150, y: 96, text: "NEXT HITS START FROM 0", color: G.color, stops: win(60, 72, 1.2), base: 0 });
   h += chip(C, { x: 150, y: 96, text: "SKILL ENDS: ORBS STAY", color: "#e8e8ee", stops: win(73, 96, 1.2), base: 0 });
   h += bubble(C, { cx, top: o.top, size: o.size, text: `${G.bubble} ×3`, color: u.hex, s: 2, w: G.bw, barW: G.bb });
   h += bubble(C, { cx, top: o.top, size: o.size, text: `${G.bubble} ×3`, color: u.hex, s: 46, w: G.bw, barW: G.bb });
-  h += caps(C, [{ side: "left", text: rule ? "EVERY SKILL HIT ADDS AN ORB" : `SKILL · ${G.bubble}`, color: rule ? ARMIES.mages.hex : u.hex, at: [4, 94] }]);
+  h += caps(C, [{ side: "left", text: rule ? "EVERY MAGE FIGHTS THROUGH ORBS" : `SKILL · ${G.bubble}`, color: rule ? ARMIES.mages.hex : u.hex, at: [4, 94] }]);
   return h;
 }
 
@@ -907,8 +932,8 @@ w("ArmySquadUndead.dc.html", squadFile("undead"), 0, Y_UND, 880, "10.1 Undead sq
 ["knight", "wraith", "priest"].forEach((k, i) => w(`ArmyPopup${UNITS[k].title.replace(/ /g, "")}.dc.html`, popupFile(k), 550 * (i + 1), Y_UND, 900, `${POPUP_NUM[k]} ${UNITS[k].title} — Undead ${ROLE[UNITS[k].role].word} (proposal)`));
 w("ArmySquadBeasts.dc.html", squadFile("beasts"), 0, Y_BEA, 880,"10.5 Beasts squad — round screen, five fielded (built 2026-10-22)");
 ["bear", "wolf", "stag"].forEach((k, i) => w(`ArmyPopup${UNITS[k].title}.dc.html`, popupFile(k), 550 * (i + 1), Y_BEA, 900, `${POPUP_NUM[k]} ${UNITS[k].title} — Beast ${ROLE[UNITS[k].role].word} (built 2026-10-22)`));
-w("ArmySquadMages.dc.html", squadFile("mages"), 0, Y_MAG, 880, "10.9 Mages squad — round screen (built 2026-10-21)");
-["frost", "storm", "life"].forEach((k, i) => w(`ArmyPopup${UNITS[k].title.replace(/ /g, "")}.dc.html`, popupFile(k), 550 * (i + 1), Y_MAG, 900, `${POPUP_NUM[k]} ${UNITS[k].title} — Mage ${ROLE[UNITS[k].role].word} (built 2026-10-21)`));
+w("ArmySquadMages.dc.html", squadFile("mages"), 0, Y_MAG, 880, "10.9 Mages squad — round screen (built 2026-10-21, reworked 2026-10-23)");
+["frost", "storm", "life"].forEach((k, i) => w(`ArmyPopup${UNITS[k].title.replace(/ /g, "")}.dc.html`, popupFile(k), 550 * (i + 1), Y_MAG, 900, `${POPUP_NUM[k]} ${UNITS[k].title} — Mage ${ROLE[UNITS[k].role].word} (built 2026-10-21, reworked 2026-10-23)`));
 CARDS.forEach((c, i) => {
   const built = BUILT_ON[c.kind === "skill" ? UNITS[c.unit].army : c.army] ?? "proposal";
   const label = c.kind === "skill"
@@ -926,7 +951,7 @@ const notes = [
   `    { "id": "section-army-undead", "x": 0, "y": ${Y_UND - 140}, "w": 2200, "text": "10 · UNDEAD — fall once, rise stronger: the round screen, then the three popups" },`,
   `    { "id": "section-army-beasts", "x": 0, "y": ${Y_BEA - 140}, "w": 2200, "text": "10 · BEASTS — five small units, one pack pounce (built 2026-10-22): the round screen, then the three popups" },`,
   `    { "id": "section-army-cards", "x": 0, "y": ${Y_CARD - 140}, "w": 6600, "text": "11 · ARMY CARDS — opened from the 'See … in action' rows: six skills, then the two army rules, then the Mages' three skills and their rule" },`,
-  `    { "id": "section-army-mages", "x": 0, "y": ${Y_MAG - 140}, "w": 2200, "text": "10 · MAGES — orbs that work alone, then merge (built 2026-10-21): the round screen, then the three popups" },`,
+  `    { "id": "section-army-mages", "x": 0, "y": ${Y_MAG - 140}, "w": 2200, "text": "10 · MAGES — a core orb on every mage, orbs that merge (built 2026-10-21, reworked 2026-10-23): the round screen, then the three popups" },`,
 ];
 FRAMES.forEach((f, i) => notes.push(`    { "id": "label-army-${i}", "x": ${f.x}, "y": ${f.y - 60}, "w": 390, "text": ${JSON.stringify(f.label)} },`));
 const iArt = lines.findIndex((l) => l.includes('"annotations"'));

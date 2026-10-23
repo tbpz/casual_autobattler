@@ -16,6 +16,34 @@
 
 ---
 
+### [2026-10-23 #2] Recommended the Life Mage feeding other mages' orbs, but chains already fill them fast
+
+- **Said:** After Tu rejected the lifeline idea, I put "Orb feeder" first as the recommended Life
+  Mage job: when nobody needs healing, its orb flies to the Storm or Frost Mage, and its merge fills
+  every other mage's orbs.
+- **Actually:** Mages already skill 2.3 to 2.9 times a fight and merge 1.2 to 1.5 times (my own
+  100-run measurement), so the other mages' orbs fill quickly without help. A gift orb changes
+  nothing a player sees.
+- **Caught by:** Tu rejected it: "The chain already happen so fast that adding an orb to the allies
+  seems no impact."
+- **Why:** I tested the idea against "is the Life Mage ever idle?" but not against how fast the
+  other mages fill their orbs, a number I already had on screen.
+- **Tag:** proposed a mechanic without checking it against numbers I already had
+
+### [2026-10-23 #1] Recommended the Life Mage's lifeline and Rebirth, which pay off only in a fight about to be lost
+
+- **Said:** In the Mages plan I proposed the Life Mage saves an ally who would fall (Lifeline) and
+  brings back a fallen unit (Rebirth), and marked it as the recommended option.
+- **Actually:** Both only matter when someone is about to die. In every other fight the Life Mage
+  would do nothing a player notices, which is the same fault as the Healer-lookalike Tu started with.
+- **Caught by:** Tu rejected it: "Your recommendation makes the life mage only worth in a fight that
+  risky dying one. The rest of that it is useless."
+- **Why:** I designed for the moment that looks dramatic and never asked what the unit does in an
+  ordinary fight, which is most of them.
+- **Tag:** proposed a mechanic without checking it pays off in every fight
+
+---
+
 ### [2026-10-21 #1] Proposed Beasts "bleed" as a new mechanic, but it is Exposed or Burn renamed
 
 - **Said:** In the plan for armies that fight differently, I wrote that Beasts' bite adds bleed to the

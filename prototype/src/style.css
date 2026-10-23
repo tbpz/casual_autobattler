@@ -2669,9 +2669,10 @@ button:disabled {
   }
 }
 
-/* The Mages' orbs (2026-10-21; render/fightView.ts buildOrbs, updateOrbs, fireBolt; canvas 12.0D). Loose orbs sit round the body at fixed
-   places and pop in when the snapshot says one more exists; the merged orb sits to the body's upper left and shows only for the
-   great shot (.shot). Both live in .body-core, so they follow its lunge. Colour is --orb: gold Storm, blue Frost, green Life. */
+/* The Mages' orbs (2026-10-21; render/fightView.ts buildOrbs, updateOrbs, fireBolt; canvas 12.0D, reworked 2026-10-23 to 12.0E). The core orb
+   sits at the body's left and is out for as long as the mage lives. Loose orbs sit round the body at fixed places and pop in when the
+   snapshot says one more exists; the merged orb sits to the body's right and shows only for the great shot (.shot). All live in
+   .body-core, so they follow its lunge. Colour is --orb: gold Storm, blue Frost, green Life. */
 .orb {
   position: absolute;
   width: 7px;
@@ -2692,6 +2693,14 @@ button:disabled {
 .orb.on {
   opacity: 1;
   transform: scale(1);
+}
+
+/* The core orb: a little bigger than a loose one and ringed, so it reads as the one that never leaves. */
+.orb.core {
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  box-shadow: 0 0 0 1.5px #14161c, 0 0 0 2.6px var(--orb, #ffe36a), 0 0 8px 3px var(--orb, #ffe36a);
 }
 
 /* One orb doing its work on the shared beat: it swells once. */

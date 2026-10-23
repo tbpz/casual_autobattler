@@ -656,20 +656,21 @@ export interface FightConfig {
   beastMaulDamage: number;
   /** Tend (Stag's part): HP every unit is healed, per rung, per Stag. */
   beastTendHeal: number;
-  /** Mages orbs (2026-10-21; Storm Orb, Frost Orb, Life Orb; fight.ts's `mageOrbHit` and `tickOrbs`). Every skill hit puts one loose orb
-   * around the mage, `mageOrbMax` at most; a skill hit that finds that many out merges them into one great shot and the orbs are gone,
-   * so the next hit starts again from none. Orbs still out when a skill ends stay. Made-up first numbers. */
+  /** Mages orbs (2026-10-21; Storm Orb, Frost Orb, Life Orb; fight.ts's `mageOrbHit` and `tickOrbs`; reworked 2026-10-23, canvas 12.0E). Every
+   * mage has one core orb that never leaves, and no plain attack: all it does happens on the shared beat. Every skill hit puts one loose orb
+   * around the mage, `mageOrbMax` at most; a skill hit that finds that many out merges them into one great shot and the loose orbs are gone,
+   * so the next hit starts again from none. Orbs still out when a skill ends stay. What one orb does on a beat is the mage's own `damage`
+   * (sim/armies.ts: a Storm orb zaps for it, a Frost orb shields its mage for it, a Life orb drains the front enemy for it and heals the most
+   * hurt ally by what it took), so the "+damage" offers raise it. Made-up first numbers. */
   mageOrbMax: number;
-  /** Seconds between the shared beats on which every loose orb works. */
+  /** Seconds between the shared beats on which every orb (the core and the loose ones) works, and the time of the first beat of a fight. */
   mageOrbBeatSec: number;
-  /** What one loose orb does on a beat: a Storm orb's damage to one random enemy, a Frost orb's shield on its mage, a Life orb's heal on the tank. */
-  mageStormOrbDamage: number;
-  mageFrostOrbShield: number;
-  mageLifeOrbHeal: number;
-  /** The merged orb's great shot: Storm's damage to the front enemy, Frost's shield and Life's heal on every unit. */
+  mageOrbFirstBeatSec: number;
+  /** The merged orb's great shot: Storm's damage to the front enemy, Frost's shield on every unit, and Life's Great Drain (HP taken from the
+   * front enemy, shared out over the living units). */
   mageStormMergeDamage: number;
   mageFrostMergeShield: number;
-  mageLifeMergeHeal: number;
+  mageLifeMergeDrain: number;
 }
 
 /**
@@ -841,7 +842,7 @@ export function chainEffectLines(effect: ChainEffect): { does: string; against: 
     case "frostOrb":
       return { does: "Adds an orb that shields it; four merge.", against: "Good against lots of small hits." };
     case "lifeOrb":
-      return { does: "Adds an orb that heals the tank; four merge.", against: "Good when the tank takes the hits." };
+      return { does: "Adds an orb that drains the front enemy to heal; four merge.", against: "Good when the squad takes damage." };
   }
 }
 
@@ -1328,14 +1329,14 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   beastTendHeal: 4,
   mageOrbMax: 3,
   mageOrbBeatSec: 2,
+  mageOrbFirstBeatSec: 1,
   // Tuned 2026-10-21 with `npm run batch -- --n 800 --offers build --army mages`: the first take (4 / 4 / 3 and 38 / 20 / 14, the numbers
-  // on canvas 12.0D) finished 2.5% of runs; these finish about 1 in 4, like the other armies.
-  mageStormOrbDamage: 10,
-  mageFrostOrbShield: 10,
-  mageLifeOrbHeal: 8,
+  // on canvas 12.0D) finished 2.5% of runs; these finished about 1 in 4. The 2026-10-23 rework moved the three per-orb numbers into the
+  // mages' `damage` (sim/armies.ts: Storm 8, Frost 8, Life 5) and made the Life merge a drain (45). Tuned with the build bot, n=400: the first
+  // take (10 / 10 / 6, the numbers on canvas 12.0E) finished 47.5% of runs, 7 / 7 / 4 only 9.8%; 8 / 8 / 5 finish about 1 in 4.
   mageStormMergeDamage: 80,
   mageFrostMergeShield: 45,
-  mageLifeMergeHeal: 40,
+  mageLifeMergeDrain: 45,
 };
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {

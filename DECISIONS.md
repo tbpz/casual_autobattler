@@ -10,6 +10,44 @@
 
 ---
 
+## [2026-10-23] Mages: a mage's damage is its orbs' work, and a Storm zap counts as a hit for runes
+
+- **Decision:**
+  - A mage's `damage` stat is what one of its orbs does on a beat: a Storm orb's zap, a Frost orb's shield, a Life orb's drain.
+  - The "+damage" offers and the runes that scale with a unit's damage (Weak spot) therefore work on Mages with no special case.
+  - A Storm orb's zap counts as a Damage unit's hit for the runes that read a normal hit (Kindling, Weak spot).
+  - Each orb's work fills its mage's skill bar the way a hit would.
+  - Runes that read a Tank's normal hit (Punish, Shield bash) never fire for the Frost Mage, which no longer hits. Accepted, not fixed.
+  - Working choices, not confirmed: the per-orb numbers and the Great Drain's size (`sim/armies.ts` `ARMY_UNITS`, `sim/config.ts` `mage*`).
+- **Why:**
+  - Taking away the Mages' plain attack (the entry above) removed the unit hits that Kindling and the damage offers act on.
+  - Without these rules Mages would lose their only source of burn and their damage offers.
+  - Measured 2026-10-23 (build bot, n=800): the first per-orb numbers finished 47.5% of runs, the tuned ones 24.6%, against 11.8% before the rework.
+  - Tu asked for the rework as drawn on canvas 12.0E; these follow from it.
+- **Replaces:**
+  - Nothing; it completes "Mages: no normal attack, a core orb, and the Life Mage drains".
+
+## [2026-10-23] Mages: no normal attack, a core orb, and the Life Mage drains
+
+- **Decision:**
+  - Every mage starts each fight with one core orb. It never leaves: a merge and a backfire pop both spare it.
+  - A mage makes no normal attack, and the Life Mage has no beat heal. Everything a mage does happens on the shared orb beat.
+  - Orb work fills the mage's skill bar, as a normal hit did.
+  - The Life Mage drains: on each beat every Life orb takes HP from the front enemy and heals the most hurt ally for what it took.
+  - The drain's damage lands even when nobody is hurt.
+  - A Life merge is one big drain on the front enemy, its HP shared over the whole squad.
+  - Frost and Storm keep their merge rules.
+  - Working choices, not confirmed: the time of the first beat, the front enemy as the drain target, and every number (`config.ts`, `mage*`).
+- **Why:**
+  - Tu's playtest: with no orb out the team is a plain attacking team, and the Life Mage feels like a Healer with orbs around it.
+  - Measured 2026-10-23 (build bot, n=100 runs each): the Storm and Life Mages had no orb for half their time alive (50%, 56%).
+  - Same measurement: a Mages run's normal attacks did 249 damage a fight against 264 for a plain squad; the Life Mage healed 121 a fight against the Healer's 127.
+  - Rejected: Lifeline and Rebirth, useful only in a fight about to be lost.
+  - Rejected: Life orbs feeding the other mages' orbs, because chains already fill and merge them fast.
+- **Replaces:**
+  - From "Mages built: orbs that merge and strike" and "a merge fires one shot": the mages' normal attack, the Life Mage's beat heal, Life orbs healing the tank, and the Life merge healing every unit.
+  - Its other lines stand.
+
 ## [2026-10-22] Beasts built: one pack bar, one pounce
 
 - **Decision:**

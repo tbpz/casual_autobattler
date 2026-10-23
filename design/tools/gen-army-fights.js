@@ -1,8 +1,8 @@
-// Generates canvas section 12: the fight screen under four ways an army could play (2026-10-21; Tu picked B, C and D, none built yet; A is today).
+// Generates canvas section 12: the fight screen under four ways an army could play (2026-10-21; Tu picked B, C and D, all built since; D reworked 2026-10-23; A is today).
 //   12.0A  FightArmyPlain    today: a line from one unit to one enemy
 //   12.0B  FightArmyUndead   every skill hit raises a skeleton (5 at most, then it upgrades them); enemy hits go shields, warriors, Bram; slams hit anyone
 //   12.0C  FightArmyBeasts   one shared pack bar; when it fills, the whole pack jumps on one enemy
-//   12.0D  FightArmyMages    every skill hit adds an orb (3 at most) that works on its own every 2 seconds; a 4th hit merges them into one orb that fires one big shot and is gone, the next hit starts again from none, and orbs left when the skill ends stay
+//   12.0D  FightArmyMages    every mage has a core orb that never leaves and no plain attack; every skill hit adds a loose orb (3 at most); every orb works on a shared beat (1 s in, then every 2 s); a 4th hit merges the loose orbs into one orb that fires one big shot and is gone, the next hit starts again from none, orbs left when the skill ends stay; Life orbs drain the front enemy and heal the most hurt unit (reworked 2026-10-23)
 // Run:  node design/tools/gen-army-fights.js     (writes the four frames and patches canvas.json)
 // Toolkit (scene helpers, bubble, beam, floater) is cut from gen-armies.js; unit looks from there too. Every number (HP, damage) is made up
 // for the picture; the play style is what is being judged. Every animated part keeps its key moment as its plain (animation off) style,
@@ -178,13 +178,13 @@ const frontLine = () => abs("left:0;top:152px;width:326px;height:1px;background:
 
 // one of our units: disc, name, HP bar, charge bar
 function ally(C, key, o) {
-  const { cx, top, size, name, hpPct = 100, hpStops = null, cycles = null, chargePct = 45, hpW = 40, noCharge = false, plain = null, wrapAnim = "", wrapStyle = "", overlay = "", labelColor = "" } = o;
+  const { cx, top, size, name, hpPct = 100, hpStops = null, cycles = null, chargePct = 45, hpW = 40, noCharge = false, plain = null, wrapAnim = "", wrapStyle = "", overlay = "", labelColor = "", chargeEl = null } = o;
   let b;
   if (plain) b = body(C, { cx, top, size, bg: plain, faceSvg: face(plain, size), alpha: 0.4, wrapAnim, wrapStyle, overlay });
   else { const L = look(key, size); b = body(C, { cx, top, size, bg: UNIT_HEX[key], faceSvg: L.inner, under: L.under, bodyStyle: L.bodyStyle, alpha: size >= 36 ? 0.4 : 0.24, wrapAnim, wrapStyle, overlay }); }
   return b + nameLabel(cx, top + size + 2, name, labelColor ? `color:${labelColor};` : "")
     + hpBar(C, { cx, y: top + size + 14, pct: hpPct, stops: hpStops, w: hpW })
-    + (noCharge ? "" : chargeBar(C, { cx, y: top + size + 21, pct: chargePct, cycles, w: hpW }));
+    + (noCharge ? "" : chargeEl || chargeBar(C, { cx, y: top + size + 21, pct: chargePct, cycles, w: hpW }));
 }
 
 // something that pops in at `at`% and stays: plain style = shown
@@ -339,7 +339,7 @@ function sceneC(C) {
 }
 
 // =====================================================================================================
-// D — Mages: every skill hit adds an orb that works on its own every 2 seconds
+// D — Mages: the orb helpers (the scene itself is sceneD, below)
 // =====================================================================================================
 // where an orb sits on a ring, in arena pixels
 const orbAt = (cx, cy, r, ang) => [cx + r * Math.cos(ang * Math.PI / 180), cy + r * Math.sin(ang * Math.PI / 180)];
@@ -378,72 +378,117 @@ function bolt(C, { x1, y1, x2, y2, color, at, w = 1.6, show = false }) {
 }
 // the one big sparkling orb the others merge into. Appears at `at` %, flares at `flare` % as its one big shot fires and is gone at `end` %:
 // it lives for one moment, and the next hit starts again from none (reworked 2026-10-22). The still (animation off) shows it flaring.
-function mergedOrb(C, { cx, cy, at, flare, end, color }) {
+function mergedOrb(C, { cx, cy, at, flare, end, color, edge = "#ff9f1c" }) {
   const S = (s, a) => `opacity:${a};transform:scale(${s});box-shadow:0 0 ${6 + s * 8}px ${1 + s * 3}px ${color},0 0 ${2 + s * 4}px ${s * 2}px #fff8;`;
   const stops = [[0, S(0.3, 0)], [at - 0.1, S(0.3, 0)], [at + 0.6, S(1.2, 1)], [flare - 0.1, S(1.2, 1)], [flare + 0.6, S(1.9, 1)], [end, S(1.6, 1)], [end + 1.8, S(0.4, 0)], [100, S(0.3, 0)]];
   const sparks = [[-4, -4, 9], [32, -2, 7], [34, 32, 9], [-2, 34, 7]].map(([x, y, fs]) => `<span style="position:absolute;left:${x}px;top:${y}px;font-size:${fs}px;line-height:1;color:#fffbd0;text-shadow:0 0 4px ${color};">✦</span>`).join("");
-  const core = `radial-gradient(circle at 40% 38%,#fff 0%,#fff6b0 30%,${color} 68%,#ff9f1c 100%)`;
+  const core = `radial-gradient(circle at 40% 38%,#fff 0%,#fff6b0 30%,${color} 68%,${edge} 100%)`;
   return abs(`left:${cx - 14}px;top:${cy - 14}px;width:28px;height:28px;border-radius:50%;background:${core};z-index:4;${S(1.6, 1)}${C.kf(stops)}`,
     abs("left:-2px;top:-2px;width:32px;height:32px;animation:orbSpin 2.4s linear infinite;", sparks));
 }
+// =====================================================================================================
+// D — Mages (built 2026-10-21, reworked 2026-10-23, once as option 12.0E): a core orb on every mage, no plain attacks, and the Life Mage drains
+// =====================================================================================================
+// a core orb: always out, never leaves, a little bigger than a loose orb and ringed. It swells on every beat in `pulses`.
+function coreOrb(C, { cx, cy, r, color, ang, pulses = [] }) {
+  const [px, py] = orbAt(cx, cy, r, ang);
+  const S = (s) => `transform:scale(${s})`;
+  const stops = [[0, S(1)]];
+  pulses.forEach((t) => stops.push([t - 0.3, S(1)], [t + 0.4, S(1.9)], [t + 1.6, S(1)]));
+  stops.push([100, S(1)]);
+  return abs(`left:${(px - 7).toFixed(1)}px;top:${(py - 7).toFixed(1)}px;width:14px;height:14px;border-radius:50%;background:${color};border:1px solid #fff;box-shadow:0 0 0 2px #14161c,0 0 0 3.5px ${color},0 0 9px 3px ${color};z-index:4;${C.kf(stops)}`);
+}
+// a skill bar that steps up on every beat (orb work fills it) and turns yellow at full, as every skill bar does.
+// `list` = [[% of the loop, bar %]], each a hard step; `still` = the bar's width in the still (animation off).
+function steppedCharge(C, { cx, y, w = 40, start, list, still }) {
+  const pts = [[0, start]]; let prev = start;
+  list.forEach(([p, v]) => { pts.push([p - 0.05, prev], [p + 0.4, v]); prev = v; });
+  pts.push([100, prev]);
+  const st = (v) => `width:${v}%;background:${v >= 100 ? YEL : "#e8e8ee"}`;
+  return abs(`left:${cx - w / 2}px;top:${y}px;width:${w}px;height:3px;border-radius:2px;background:#2a2e3a;overflow:hidden;`,
+    `<div style="height:100%;${st(still)};${C.kf(pts.map(([p, v]) => [p, st(v)]))}"></div>`);
+}
 function sceneD(C) {
   let h = frontLine() + outriders(C);
-  // the Vanguard's HP: a 4 from Ivy's second zap, then the one big shot's 38 (of 699)
-  h += vanguard(C, [[0, 100], [45, 100], [46, 99.4], [58.6, 99.4], [59.6, 94], [100, 94]], 94, "657/699");
-  // Bram (Frost Mage) in front, Storm Mage and Life Mage behind
-  h += ally(C, "frost", { cx: 163, top: 174, size: 38, name: "Bram", hpW: 40, chargePct: 40, cycles: [{ s: 10 }], hpPct: 100 });
-  h += ally(C, "storm", { cx: 100, top: 298, size: 36, name: "Ivy", cycles: [{ s: 2 }, { s: 50 }] });
-  h += ally(C, "life", { cx: 226, top: 298, size: 36, name: "Sol", cycles: [{ s: 18 }] });
-  const FC = [163, 193], SC = [100, 316], LC = [226, 316], MP = [54, 318];
   const GOLD = "#ffe36a", FROST = "#8fd3ff", LIFE = "#6ee7a0";
-  const TICKS = [28, 45, 62, 79];
-  // Ivy's orbs stand still (so each zap leaves its own orb): two from her first skill, the 3rd with the second skill's first hit. The next hit finds
-  // three out: all three fly to MP, merge and fire one big shot, and are gone. The hits after it start again: a new orb at 64 and 68, which stay.
-  // Orbs sit at the sides and upper corners, clear of the bubble above and the name below.
-  h += orbRing(C, { cx: SC[0], cy: SC[1], r: 29, color: GOLD, items: [[-150, 8], [-30, 13], [180, 53]], pulses: [28, 45], mergeAt: 56, mergeTo: MP, shownInStill: false });
-  h += orbRing(C, { cx: SC[0], cy: SC[1], r: 29, color: GOLD, items: [[-150, 64], [-30, 68]], pulses: [79], shownInStill: false });
-  h += orbRing(C, { cx: FC[0], cy: FC[1], r: 30, color: FROST, items: [[-150, 16], [-30, 21]], spin: 3.4, pulses: TICKS });
-  h += orbRing(C, { cx: LC[0], cy: LC[1], r: 29, color: LIFE, items: [[-30, 24]], spin: 3.4, pulses: TICKS });
-  // the enemies' centres, for the bolts
-  const O1c = [60, 84], O2c = [122, 84], VANc = [194, 76];
-  const orbA = orbAt(SC[0], SC[1], 29, -150), orbB = orbAt(SC[0], SC[1], 29, -30);
-  // every 2 seconds each orb does its small job, on its own: Ivy's two orbs each throw lightning at one enemy (the same one is fine), at 28 and 45,
-  // and again at 79, after her skill has ended (the orbs stay). Frost shields Bram, Life heals him. The still keeps the shield and heal numbers of the first beat.
-  [[28, O2c, O2c], [45, O1c, VANc], [79, O1c, O2c]].forEach(([t, ta, tb]) => {
-    [[orbA, ta, -7], [orbB, tb, 7]].forEach(([o, tg, ox], i) => {
-      h += bolt(C, { x1: o[0], y1: o[1], x2: tg[0], y2: tg[1], color: GOLD, at: t + i * 0.5, w: 1.6, show: false });
-      h += floater(C, { x: tg[0] + ox, y: 62, text: "−4", color: "#fff4b0", at: t + i * 0.5 + 1, size: 9, glow: GOLD, show: false });
+  // the shared beat: 1 s into the fight, then every 2 s (a 12 s loop)
+  const BEATS = [8.3, 25, 41.7, 58.3, 75, 91.7];
+  const FC = [163, 193], SC = [100, 316], LC = [226, 316], MP = [292, 316];
+  const O1c = [60, 84], O2c = [122, 84], O3c = [266, 81], VANc = [194, 76], BRAMc = [163, 193];
+  // the Vanguard loses 6 on beat 1, 24 on beat 2 (four Life orbs), 45 to the Great Drain, then 12 a beat (the core orb and one loose one).
+  // The still shows the moment after the Great Drain.
+  h += vanguard(C, [[0, 100], [8.3, 100], [9.3, 99.1], [25, 99.1], [26, 95.7], [34.8, 95.7], [35.8, 89.3], [41.7, 89.3], [42.7, 87.6], [58.3, 87.6], [59.3, 85.9], [75, 85.9], [76, 84.2], [91.7, 84.2], [92.7, 82.4], [100, 82.4]], 89, "624/699");
+  // Bram (Frost Mage) in front, Ivy (Storm Mage) and Sol (Life Mage) behind. No plain attacks from any of them. Bram starts hurt, the enemy hits him
+  // for 12 now and then, and Sol's drain heals him (cap 100).
+  h += ally(C, "frost", { cx: 163, top: 174, size: 38, name: "Bram", hpW: 40, hpPct: 99,
+    hpStops: [[0, 84], [8.3, 84], [9, 88], [19.5, 88], [20, 79], [25, 79], [26, 97], [28, 97], [28.5, 88], [34.8, 88], [35.8, 99], [41.7, 99], [42.5, 100], [45, 100], [45.5, 91], [58.3, 91], [59, 100], [62, 100], [62.5, 91], [75, 91], [75.8, 100], [80, 100], [80.5, 91], [91.7, 91], [92.4, 100], [100, 100]],
+    chargeEl: steppedCharge(C, { cx: 163, y: 174 + 38 + 21, start: 8, list: [[8.3, 24], [25, 40], [41.7, 56], [58.3, 72], [75, 88], [91.7, 100]], still: 40 }) });
+  h += ally(C, "storm", { cx: 100, top: 298, size: 36, name: "Ivy",
+    chargeEl: steppedCharge(C, { cx: 100, y: 298 + 36 + 21, start: 6, list: [[8.3, 20], [25, 34], [41.7, 48], [58.3, 62], [75, 76], [91.7, 90]], still: 34 }) });
+  h += ally(C, "life", { cx: 226, top: 298, size: 36, name: "Sol", hpPct: 100,
+    chargeEl: steppedCharge(C, { cx: 226, y: 298 + 36 + 21, start: 6, list: [[7.9, 100], [19, 0], [25, 14], [28.4, 100], [39.5, 0], [41.7, 12], [58.3, 24], [75, 36], [91.7, 48]], still: 100 }) });
+  // a core orb on each mage, out from the first frame and never leaving
+  h += coreOrb(C, { cx: SC[0], cy: SC[1], r: 29, color: GOLD, ang: 180, pulses: BEATS });
+  h += coreOrb(C, { cx: FC[0], cy: FC[1], r: 30, color: FROST, ang: 180, pulses: BEATS });
+  h += coreOrb(C, { cx: LC[0], cy: LC[1], r: 29, color: LIFE, ang: 180, pulses: BEATS });
+  // Sol's loose Life orbs: three from her first skill (they stay), merged by the first hit of her second skill; its second hit starts again
+  h += orbRing(C, { cx: LC[0], cy: LC[1], r: 29, color: LIFE, items: [[-150, 11], [-30, 14.5], [0, 18]], pulses: BEATS, mergeAt: 32, mergeTo: MP, shownInStill: false });
+  h += orbRing(C, { cx: LC[0], cy: LC[1], r: 29, color: LIFE, items: [[-150, 38.5]], pulses: BEATS, shownInStill: false });
+  // every beat: Ivy's core orb zaps one enemy, Bram's shields him, and the squad pulses together
+  const zapAt = [O2c, O1c, O3c, O2c, O1c, O3c], ivyOrb = orbAt(SC[0], SC[1], 29, 180);
+  BEATS.forEach((t, k) => {
+    h += bolt(C, { x1: ivyOrb[0], y1: ivyOrb[1], x2: zapAt[k][0], y2: zapAt[k][1], color: GOLD, at: t, w: 1.6, show: false });
+    h += floater(C, { x: zapAt[k][0] + 6, y: 62, text: "−10", color: "#fff4b0", at: t + 1, size: 9, glow: GOLD, show: false });
+    h += floater(C, { x: 140, y: 168, text: "⛊+10", color: FROST, at: t, size: 10, glow: "#4da6ff", show: false });
+    h += ring(C, { cx: SC[0], cy: SC[1], r: 28, color: GOLD, at: t, dur: 6 }) + ring(C, { cx: FC[0], cy: FC[1], r: 30, color: FROST, at: t, dur: 6 }) + ring(C, { cx: LC[0], cy: LC[1], r: 28, color: LIFE, at: t, dur: 6 });
+  });
+  // Sol's drain, every beat: each Life orb sends a green line to the Vanguard, then on to the most hurt ally (Bram). [beat, the angles of the working orbs, HP taken]
+  const orbPos = (ang) => orbAt(LC[0], LC[1], 29, ang);
+  [[8.3, [180], 6], [25, [180, -150, -30, 0], 24], [41.7, [180, -150], 12], [58.3, [180, -150], 12], [75, [180, -150], 12], [91.7, [180, -150], 12]].forEach(([t, angs, total]) => {
+    angs.forEach((ang, i) => {
+      const o = orbPos(ang), at = t + 0.3 + i * 0.25;
+      h += beam(C, { x1: VANc[0], y1: 90, x2: o[0], y2: o[1], color: LIFE, at, w: 1.5, dur: 3, show: false });
+      h += beam(C, { x1: o[0], y1: o[1], x2: BRAMc[0] + 6, y2: BRAMc[1] + 6, color: LIFE, at: at + 1.1, w: 1.5, dur: 3, show: false });
     });
+    h += floater(C, { x: 236, y: 40, text: `−${total}`, color: "#d6ffe6", at: t + 0.8, size: 10 + Math.min(4, total / 8), glow: LIFE, show: false });
+    h += floater(C, { x: 200, y: 192, text: `+${total}`, color: LIFE, at: t + 2, size: 10 + Math.min(4, total / 8), glow: "#1b8a55", show: false });
   });
-  TICKS.forEach((t, k) => {
-    h += floater(C, { x: 150, y: 168, text: "⛊+4", color: FROST, at: t, size: 10, glow: "#4da6ff", show: k === 0 });
-    h += floater(C, { x: 176, y: 168, text: "⛊+4", color: FROST, at: t + 0.6, size: 10, glow: "#4da6ff", show: k === 0 });
-    h += floater(C, { x: 196, y: 190, text: "+3", color: ROLE.healer.hex, at: t + 0.5, size: 10, glow: "#1b8a55", show: k === 0 });
-    h += ring(C, { cx: FC[0], cy: FC[1], r: 30, color: FROST, at: t }) + ring(C, { cx: FC[0], cy: FC[1], r: 34, color: LIFE, at: t + 0.5 });
+  // the enemy still hits Bram now and then; that is what the drain heals
+  [20, 28.5, 45, 62, 80].forEach((t) => {
+    h += beam(C, { x1: 194, y1: 98, x2: 170, y2: 178, color: RED, at: t, w: 2, dur: 5, show: false });
+    h += floater(C, { x: 196, y: 160, text: "−12", color: "#fff", at: t + 1, size: 10, show: false });
   });
-  // the merge: the three orbs fly into one sparkling orb, which flares as it fires one big shot, and is gone
-  h += ring(C, { cx: MP[0], cy: MP[1], r: 26, color: "#fff", at: 58.4, dur: 8 });
-  h += mergedOrb(C, { cx: MP[0], cy: MP[1], at: 56.8, flare: 58.6, end: 61, color: GOLD });
-  h += bolt(C, { x1: MP[0], y1: MP[1] - 6, x2: VANc[0], y2: VANc[1], color: GOLD, at: 58.6, w: 4.2, show: true });
-  h += floater(C, { x: 240, y: 30, text: "−38", color: "#fff", at: 59.4, size: 22, glow: GOLD, show: true });
-  h += ring(C, { cx: VANc[0], cy: 68, r: 40, color: GOLD, at: 59, dur: 10 });
+  // the Great Drain: Sol's second skill finds three loose orbs out; they merge, fire one big drain on the Vanguard and are gone; the core orb stays
+  h += ring(C, { cx: MP[0], cy: MP[1], r: 26, color: "#fff", at: 34.4, dur: 8 });
+  h += mergedOrb(C, { cx: MP[0], cy: MP[1], at: 32.8, flare: 34.6, end: 37, color: LIFE, edge: "#1b8a55" });
+  h += beam(C, { x1: MP[0], y1: MP[1] - 6, x2: VANc[0], y2: 94, color: LIFE, at: 34.6, w: 4, dur: 6, show: true });
+  h += floater(C, { x: 240, y: 30, text: "−45", color: "#fff", at: 35.4, size: 22, glow: LIFE, show: true });
+  h += ring(C, { cx: VANc[0], cy: 68, r: 40, color: LIFE, at: 35, dur: 10 });
+  // the 45 taken is shared out over the whole squad: 15 each
+  [[BRAMc[0], 176, 200, 192], [100, 296, 66, 296], [226, 296, 252, 322]].forEach(([tx, ty, fx, fy]) => {
+    h += beam(C, { x1: VANc[0], y1: 96, x2: tx, y2: ty, color: LIFE, at: 35.3, w: 2, dur: 5, show: true });
+    h += floater(C, { x: fx, y: fy, text: "+15", color: LIFE, at: 36.1, size: 12, glow: "#1b8a55", show: true });
+  });
   // what is happening now (plays in the loop only)
-  h += chip(C, { x: 4, y: 232, text: "EACH ORB ZAPS ONE ENEMY", color: GOLD, stops: win(27, 46, 1.5), base: 0 });
-  h += chip(C, { x: 4, y: 252, text: "THE SAME ENEMY TWICE IS FINE", color: GOLD, stops: win(27, 40, 1.5), base: 0 });
-  h += chip(C, { x: 4, y: 232, text: "3 ORBS OUT: THE NEXT HIT MERGES", color: GOLD, stops: win(47, 56, 1.3), base: 0 });
-  h += chip(C, { x: 4, y: 232, text: "ONE BIG SHOT, THEN THE ORB IS GONE", color: GOLD, stops: win(57.5, 63, 1.3), base: 0 });
-  h += chip(C, { x: 4, y: 232, text: "NEXT HITS: START AGAIN FROM 0", color: GOLD, stops: win(63.5, 72, 1.3), base: 0 });
-  h += chip(C, { x: 4, y: 232, text: "SKILL ENDS: THE ORBS STAY", color: "#e8e8ee", stops: win(72.5, 92, 1.3), base: 0 });
-  h += chip(C, { x: 4, y: 252, text: "AND KEEP WORKING EVERY 2 S", color: "#e8e8ee", stops: win(76, 92, 1.3), base: 0 });
+  h += chip(C, { x: 4, y: 232, text: "EACH BEAT: ORBS WORK", color: GOLD, stops: win(8.3, 24.5, 1.3), base: 0 });
+  h += chip(C, { x: 4, y: 252, text: "A CORE ORB ON EVERY MAGE", color: "#e8e8ee", stops: win(0.5, 7.8, 1.3), base: 0 });
+  h += chip(C, { x: 4, y: 252, text: "TAKES HP FROM THE FRONT", color: LIFE, stops: win(9.3, 24.5, 1.3), base: 0 });
+  h += chip(C, { x: 4, y: 268, text: "HEALS THE MOST HURT: BRAM", color: LIFE, stops: win(10, 24.5, 1.3), base: 0 });
+  h += chip(C, { x: 4, y: 252, text: "FOUR ORBS, FOUR DRAINS", color: LIFE, stops: win(25, 31.3, 1.3), base: 0 });
+  h += chip(C, { x: 4, y: 268, text: "THE HEAL IS WHAT IT TOOK", color: LIFE, stops: win(25.5, 31.3, 1.3), base: 0 });
+  h += chip(C, { x: 4, y: 252, text: "THE HIT FINDS 3 OUT: MERGE", color: LIFE, stops: win(31.5, 34.4, 1.3), base: 0 });
+  h += chip(C, { x: 4, y: 252, text: "GREAT DRAIN: ONE BIG TAKE", color: LIFE, stops: win(34.6, 42, 1.3), base: 0 });
+  h += chip(C, { x: 4, y: 268, text: "SHARED OVER THE WHOLE TEAM", color: LIFE, stops: win(35, 42, 1.3), base: 0 });
+  h += chip(C, { x: 4, y: 252, text: "CORE STAYS: DRAIN GOES ON", color: "#e8e8ee", stops: win(42.5, 58, 1.3), base: 0 });
+  h += chip(C, { x: 4, y: 252, text: "NO PLAIN HITS FROM A MAGE", color: GOLD, stops: win(58.5, 74, 1.3), base: 0 });
+  h += chip(C, { x: 4, y: 252, text: "THE TEAM PULSES TOGETHER", color: GOLD, stops: win(75, 96, 1.3), base: 0 });
   // the two rules, always shown at the foot of the arena
-  [[GOLD, 362, "EVERY 2 S EACH ORB WORKS ALONE · 3 AT MOST"], [FROST, 377, "MERGED: ONE BIG SHOT · FROST SHIELDS ALL · LIFE HEALS ALL"]].forEach(([color, y, text]) => {
+  [["#e8e8ee", 362, "CORE ORB ON EVERY MAGE · NO PLAIN ATTACKS"], [LIFE, 377, "BEAT EVERY 2 S · LIFE ORBS DRAIN THE FRONT ENEMY"]].forEach(([color, y, text]) => {
     h += chip(C, { x: 4, y, text, color, stops: [[0, "opacity:1"], [100, "opacity:1"]], base: 1 });
   });
-  // bubbles: Ivy, Bram and Sol each use a skill early (2 to 3 orbs in all), then Ivy again; the still shows the last
-  h += bubble(C, { cx: 100, top: 298, size: 36, text: "STORM ORB ×2", color: UNIT_HEX.storm, s: 2, w: 84, show: false });
-  h += bubble(C, { cx: 163, top: 174, size: 38, text: "FROST ORB ×2", color: UNIT_HEX.frost, s: 10, w: 80, barW: 40, show: false });
-  h += bubble(C, { cx: 226, top: 298, size: 36, text: "LIFE ORB", color: UNIT_HEX.life, s: 18, w: 60, show: false });
-  h += bubble(C, { cx: 100, top: 298, size: 36, text: "STORM ORB ×4", color: UNIT_HEX.storm, s: 50, w: 84 });
+  // bubbles: Sol's LIFE ORB ×3, then her LIFE ORB ×2 (the still shows the second, whose first hit merges)
+  h += bubble(C, { cx: 226, top: 298, size: 36, text: "LIFE ORB ×3", color: UNIT_HEX.life, s: 8, w: 72, show: false });
+  h += bubble(C, { cx: 226, top: 298, size: 36, text: "LIFE ORB ×2", color: UNIT_HEX.life, s: 29, w: 72 });
   h += rowLabels();
   return h;
 }
@@ -462,9 +507,11 @@ const OPTIONS = [
   { file: "FightArmyBeasts.dc.html", id: "12.0C", scene: sceneC, tag: "C", title: "C · Beasts: one pack bar, one big pounce",
     text: "No beast has a skill of its own. Every bite fills one bar shared by the pack. When it is full, all five jump on one enemy: the Bear lands first and holds it, the Wolves bite, the Stag heals. A chain means they jump again.",
     feel: "Feels like: wait, BOOM, wait, BOOM." },
-  { file: "FightArmyMages.dc.html", id: "12.0D", scene: sceneD, tag: "D", T: 12, title: "D · Mages: orbs that merge into one shot",
-    text: "Skill hits add orbs, three at most. Every 2 seconds each orb works alone: Ivy's throw lightning, Bram's shield him, Sol's heal him. A hit that finds three out pulls them into one orb that fires one big shot (Frost shields the team, Life heals it) and is gone; the next hit starts again from none. Orbs left when the skill ends stay.",
-    feel: "Feels like: build it up, then it all goes off." },
+  { file: "FightArmyMages.dc.html", id: "12.0D", scene: sceneD, tag: "D", T: 12, title: "D · Mages: a core orb on every mage, the Life Mage drains",
+    labelNote: "built 2026-10-21, reworked 2026-10-23",
+    note: "2026-10-21; reworked 2026-10-23 to the core orb and the Life drain, drawn as option 12.0E first and built the same day",
+    text: "Every mage starts with a core orb that never leaves, and no mage makes a plain attack: on the 2 s beat every orb works, Ivy's zaps, Bram's shields. Sol's Life orbs drain: each takes HP from the Vanguard and heals the most hurt ally with it, Bram. Three loose orbs out, the next skill hit merges them into one Great Drain, shared over the squad. The core orb stays.",
+    feel: "Feels like: the team pulses from second 1." },
 ];
 function frame(o, n) {
   const C = makeCtx(`fa${n}k`);
@@ -486,7 +533,7 @@ function frame(o, n) {
   ${C.rules.join("\n  ")}
 </style>
 </helmet>
-<!-- Frame ${o.id} (2026-10-21; A is today, B to D picked by Tu and not built yet): the same fight, Vanguard and three Outriders, played by a squad that fights this way. Generated by design/tools/gen-army-fights.js; every number is made up, the play style is what is being judged. The loop is ${o.T || 8} seconds; the plain style is the key moment. -->
+<!-- Frame ${o.id} (${o.note || "2026-10-21; A is today, B to D picked by Tu and not built yet"}): the same fight, Vanguard and three Outriders, played by a squad that fights this way. Generated by design/tools/gen-army-fights.js; every number is made up, the play style is what is being judged. The loop is ${o.T || 8} seconds; the plain style is the key moment. -->
 <div style="background:#14161c;width:390px;padding:12px 0 16px;color:#e8e8ee;">
   <div style="padding:0 20px 10px;">
     <div style="font-size:13px;font-weight:800;color:#e8e8ee;padding-bottom:3px;">${o.title}</div>
@@ -512,13 +559,13 @@ ${scene}
 const Y = 19000, FRAMES = [];
 OPTIONS.forEach((o, i) => {
   fs.writeFileSync(path.join(CANVAS, o.file), frame(o, i));
-  FRAMES.push({ file: o.file, x: 550 * i, y: Y, w: 390, h: 600, label: `${o.id} ${o.title.slice(4)} (${o.tag === "A" ? "today, kept for comparison" : "picked 2026-10-21, to build"})` });
+  FRAMES.push({ file: o.file, x: 550 * i, y: Y, w: 390, h: 600, label: `${o.id} ${o.title.slice(4)} (${o.labelNote || (o.tag === "A" ? "today, kept for comparison" : "picked 2026-10-21, to build")})` });
 });
 const cj = path.join(CANVAS, "canvas.json");
 let lines = fs.readFileSync(cj, "utf8").split("\n").filter((l) => !/"file": "FightArmy|"id": "(label|section)-fightarmy/.test(l));
 lines = lines.filter((l, i, a) => !(l.trim() === "" && (a[i + 1] === undefined || a[i + 1].trim() === "" || /^\s*\]/.test(a[i + 1]))));
 const boards = FRAMES.map((f) => `    { "file": "${f.file}", "x": ${f.x}, "y": ${f.y}, "w": ${f.w}, "h": ${f.h} },`);
-const notes = [`    { "id": "section-fightarmy", "x": 0, "y": ${Y - 140}, "w": 1940, "text": "12 · HOW AN ARMY FIGHTS — the same fight under four ways to play: A is today, B to D are picked and not built yet. Watch each one loop" },`];
+const notes = [`    { "id": "section-fightarmy", "x": 0, "y": ${Y - 140}, "w": ${550 * (OPTIONS.length - 1) + 390}, "text": "12 · HOW AN ARMY FIGHTS — the same fight under different ways to play: A is today, B to D were picked and are built (D reworked 2026-10-23). Watch each one loop" },`];
 FRAMES.forEach((f, i) => notes.push(`    { "id": "label-fightarmy-${i}", "x": ${f.x}, "y": ${f.y - 60}, "w": 390, "text": ${JSON.stringify(f.label)} },`));
 const iArt = lines.findIndex((l) => l.includes('"annotations"'));
 lines.splice(iArt - 1, 0, "", ...boards.map((l, i) => (i === boards.length - 1 ? l.replace(/,$/, "") : l)));

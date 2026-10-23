@@ -168,10 +168,10 @@ interface HeroSlot {
   liveFace: string;
   face: Element | null;
   fallen: boolean;
-  /** A Mages army unit's orbs (2026-10-21; canvas 12.0D), drawn in `core`: up to `mageOrbMax` loose orbs round the body, shown from the
-   * snapshot's `orbs`, and one merged orb to its upper left that exists only for the moment of the great shot (the `orbMerge` event).
-   * Undefined on anyone else. */
-  orbs?: { color: string; loose: HTMLElement[]; big: HTMLElement; shownLoose: number };
+  /** A Mages army unit's orbs (2026-10-21; canvas 12.0D, 12.0E), drawn in `core`: the core orb at the body's left, out for as long as the unit
+   * lives; up to `mageOrbMax` loose orbs round the body, shown from the snapshot's `orbs`; and one merged orb to its right that exists only
+   * for the moment of the great shot (the `orbMerge` event). Undefined on anyone else. */
+  orbs?: { color: string; core: HTMLElement; loose: HTMLElement[]; big: HTMLElement; shownLoose: number };
 }
 
 /** How long a tracer takes to fly from attacker to target, in ms. Impact
@@ -220,12 +220,14 @@ const SKELETON_BODY_PX = 24;
 
 /** The colour of each Mage's orbs: gold for Storm, blue for Frost, green for Life (canvas 12.0D). */
 const ORB_COLOR: Record<string, string> = { stormMage: "#ffe36a", frostMage: "#8fd3ff", lifeMage: "#6ee7a0" };
-/** Where the loose orbs sit round a Mage's body, as degrees from the right, clockwise: upper left, upper right, left (clear of the skill bubble above and the name below). */
-const ORB_ANGLES = [-150, -30, 180];
+/** Where the loose orbs sit round a Mage's body, as degrees from the right, clockwise: upper left, upper right, right (clear of the skill bubble
+ * above and the name below); the core orb takes the left (canvas 12.0E). */
+const ORB_ANGLES = [-150, -30, 0];
+const CORE_ORB_ANGLE = 180;
 /** How far out from the body's centre an orb sits, as a share of the body's size. */
 const ORB_RADIUS = 0.62;
-/** The merged orb: its centre, as a share of the body's size from the body's top-left, and the time its loose orbs take to fly into it. */
-const BIG_ORB_AT = { x: -0.6, y: 0.05 };
+/** The merged orb: its centre, as a share of the body's size from the body's top-left (to the body's right, so the core orb stays clear), and the time its loose orbs take to fly into it. */
+const BIG_ORB_AT = { x: 1.6, y: 0.05 };
 const ORB_FLY_MS = 420;
 /** How long the merged orb stays: it appears as its loose orbs fly in, flares as the shot fires and is gone (style.css `orb-shot`). */
 const ORB_SHOT_MS = 640;
@@ -1379,11 +1381,18 @@ export class FightView {
     }
   }
 
-  /** A Mage's orbs (2026-10-21; canvas 12.0D): `mageOrbMax` loose orbs at fixed places round the body, hidden until the snapshot says they
-   * exist (`updateOrbs`), and one merged orb to its upper left, hidden until a merge (`orbMerge`). They live in the body's `core`, so they
-   * follow its lunge. */
+  /** A Mage's orbs (2026-10-21; canvas 12.0D, 12.0E): the core orb at the body's left, shown for as long as the unit lives (`updateOrbs`);
+   * `mageOrbMax` loose orbs at fixed places round the body, hidden until the snapshot says they exist (`updateOrbs`); and one merged orb to
+   * its right, hidden until a merge (`orbMerge`). They live in the body's `core`, so they follow its lunge. */
   private buildOrbs(core: HTMLElement, kind: string): NonNullable<HeroSlot["orbs"]> {
     const color = ORB_COLOR[kind] ?? "#ffe36a";
+    const [cdx, cdy] = orbOffset(CORE_ORB_ANGLE);
+    const coreOrb = document.createElement("div");
+    coreOrb.className = "orb core";
+    coreOrb.style.setProperty("--orb", color);
+    coreOrb.style.left = `${(50 + cdx * 100).toFixed(1)}%`;
+    coreOrb.style.top = `${(50 + cdy * 100).toFixed(1)}%`;
+    core.appendChild(coreOrb);
     const loose: HTMLElement[] = [];
     for (let i = 0; i < this.cfg.mageOrbMax; i++) {
       const [dx, dy] = orbOffset(ORB_ANGLES[i % ORB_ANGLES.length]!);
@@ -1402,13 +1411,14 @@ export class FightView {
     big.style.top = `${(BIG_ORB_AT.y * 100).toFixed(1)}%`;
     big.innerHTML = '<span class="orb-spark"><i>✦</i><i>✦</i><i>✦</i><i>✦</i></span>';
     core.appendChild(big);
-    return { color, loose, big, shownLoose: 0 };
+    return { color, core: coreOrb, loose, big, shownLoose: 0 };
   }
 
-  /** Shows as many loose orbs as the snapshot says. */
+  /** Shows the core orb while the unit lives, and as many loose orbs as the snapshot says. */
   private updateOrbs(refs: HeroSlot, hero: HeroSnapshot): void {
     const orbs = refs.orbs;
     if (!orbs) return;
+    orbs.core.classList.toggle("on", hero.alive);
     const loose = hero.alive ? hero.orbs ?? 0 : 0;
     if (loose !== orbs.shownLoose) {
       orbs.loose.forEach((el, i) => el.classList.toggle("on", i < loose));
@@ -1464,13 +1474,36 @@ export class FightView {
     fightClock.setTimeout(() => svg.remove(), BOLT_MS + 60);
   }
 
-  /** One loose orb did its work on the shared beat (canvas 12.0D): the orb swells; a Storm orb throws a thin bolt and a number at its enemy,
-   * a Frost orb rings its mage and shows the shield, a Life orb rings the tank and shows the heal. The HP and shield bars follow from the snapshot. */
-  private showOrbTick(heroId: string, index: number, orbKind: "storm" | "frost" | "life", targetId: string, amount: number): void {
+  /** One orb did its work on the shared beat (canvas 12.0D, 12.0E; `index` -1 is the core orb): the orb swells; a Storm orb throws a thin bolt
+   * and a number at its enemy, a Frost orb rings its mage and shows the shield, a Life orb draws a green line from the enemy it drains to
+   * the orb and on to the unit it heals, with `-N` on the enemy and `+N` on the unit. The HP and shield bars follow from the snapshot. */
+  private showOrbTick(heroId: string, index: number, orbKind: "storm" | "frost" | "life", targetId: string, amount: number, foeId?: string, drained?: number): void {
     const mage = this.playerHeroes.get(heroId);
-    const orbEl = mage?.orbs?.loose[index];
+    const orbEl = index < 0 ? mage?.orbs?.core : mage?.orbs?.loose[index];
     if (orbEl) pulseClass(orbEl, "work", 450);
     const rounded = Math.round(amount);
+    if (orbKind === "life") {
+      const foe = foeId ? this.enemyHeroes.get(foeId) : undefined;
+      const patient = this.playerHeroes.get(targetId);
+      if (foe && orbEl) {
+        this.fireTracer(foe.body, orbEl, ORB_COLOR.lifeMage!, 6, "chain-tracer", TRACER_MS);
+        fightClock.setTimeout(() => {
+          pulseClass(foe.core, "flinch", 300);
+          const taken = Math.round(drained ?? 0);
+          if (taken > 0) this.showPopup(foe.body, `-${taken}`, "normal", 0.9, 0, ORB_COLOR.lifeMage);
+          // The second half of the line: from the orb on to the unit it heals, once the first has arrived.
+          if (patient && rounded > 0) {
+            this.fireTracer(orbEl, patient.body, ORB_COLOR.lifeMage!, 6, "chain-tracer", TRACER_MS);
+            fightClock.setTimeout(() => {
+              this.popRing(patient.core, ORB_COLOR.lifeMage!);
+              pulseClass(patient.body, "healed", 500);
+              this.showPopup(patient.body, `+${rounded}`, "heal", 1, 0, HEAL_ACCENT);
+            }, TRACER_MS);
+          }
+        }, TRACER_MS);
+      }
+      return;
+    }
     if (orbKind === "storm") {
       const target = this.enemyHeroes.get(targetId);
       if (!target) return;
@@ -1481,16 +1514,11 @@ export class FightView {
       }, ORB_BOLT_LAND_MS);
       return;
     }
+    // A Frost orb rings its mage and shows the shield it gave.
     const target = this.playerHeroes.get(targetId);
     if (!target) return;
-    if (orbKind === "frost") {
-      this.popRing(target.core, ORB_COLOR.frostMage!);
-      if (rounded > 0) this.showMarkPopup("player", targetId, `+${rounded} ${MARK_CHIP.shield.word.toUpperCase()}`, "shield", 0);
-    } else {
-      this.popRing(target.core, ORB_COLOR.lifeMage!);
-      pulseClass(target.body, "healed", 500);
-      if (rounded > 0) this.showPopup(target.body, `+${rounded}`, "heal", 1, 0, HEAL_ACCENT);
-    }
+    this.popRing(target.core, ORB_COLOR.frostMage!);
+    if (rounded > 0) this.showMarkPopup("player", targetId, `+${rounded} ${MARK_CHIP.shield.word.toUpperCase()}`, "shield", 0);
   }
 
   /** The loose orbs of a Mage fly into the merged orb: ghost copies leave where the orbs stood and arrive at its place, then are gone. */
@@ -2021,7 +2049,7 @@ export class FightView {
         break;
       }
       case "orbTick":
-        this.showOrbTick(e.heroId, e.index, e.orbKind, e.targetId, e.amount);
+        this.showOrbTick(e.heroId, e.index, e.orbKind, e.targetId, e.amount, e.foeId, e.drained);
         break;
       // The Beasts' pounce (2026-10-22; canvas 12.0C): the bar and the glow come from the snapshot; this is the jump of one rung.
       case "pounceHit":

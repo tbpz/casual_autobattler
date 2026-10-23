@@ -200,6 +200,16 @@ function sideRates(heroes: HeroState[], cfg: FightConfig): { dps: number; healPe
   const minAllyMaxHp = Math.min(...heroes.filter((h) => h.alive).map((h) => h.maxHp));
   for (const h of heroes) {
     if (!h.alive) continue;
+    // A mage makes no plain attack (2026-10-23): its core orb works once a beat, for its `damage` (a Frost orb's shield is not modelled).
+    // A Life orb's drain is damage that comes back as healing.
+    if (h.army === "mages") {
+      if (h.kind === "stormMage") dps += h.damage / cfg.mageOrbBeatSec;
+      else if (h.kind === "lifeMage") {
+        dps += h.damage / cfg.mageOrbBeatSec;
+        healPerSec += h.damage / cfg.mageOrbBeatSec;
+      }
+      continue;
+    }
     if (h.healPerBeat) {
       const cap = minAllyMaxHp * cfg.healMaxFractionOfTargetMaxHp;
       healPerSec += Math.min(h.healPerBeat, cap) / h.attackIntervalSec;
