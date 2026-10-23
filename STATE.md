@@ -89,7 +89,7 @@ The moment lands in plain runs from two sources: a chain that goes unexpectedly 
 
 ## Bets
 
-The four pillars, the top test, and the verified and unverified bets, in order, live in [BETS.md](BETS.md). The first-time-player questions are under `## Options sets` in `design/HANDOFF.md`.
+The four pillars, the top test, and the verified and unverified bets, in order, live in [BETS.html](BETS.html) (open it in a browser); click an unverified bet there for the few questions to answer after a run. The first-time-player questions are under `## Options sets` in `design/HANDOFF.md`.
 
 ## Open questions
 

@@ -2,8 +2,8 @@
 
 This project's design context lives in five files with **different rules**:
 
-- **[BETS.md](BETS.md)** — the bets, under four pillars (what the game must be great at) and one top test. The verified bets are the game's quality standard, grouped by pillar; the unverified ones are one list ordered first to last to verify, each tagged with its pillar. One line per bet, no explanation. Every verified bet carries a proof link to the DECISIONS entry that settled it. Carries a `Last updated` line.
-- **[STATE.md](STATE.md)** — what is true *right now*, and what to do next. Present tense. Rewritten wholesale, never appended to. Two layers: layer 1 (above the rule) is a 60-second re-orientation read; layer 2 is the working index of status, open questions, and pointers. Bets live in BETS.md, not here.
+- **[BETS.html](BETS.html)** — the bets, under four pillars (what the game must be great at) and one top test. It is an HTML page (open it in a browser) so each unverified bet can fold open to its test questions. The verified bets are the game's quality standard, grouped by pillar; the unverified ones are one list ordered first to last to verify, each tagged with its pillar. One line per bet, no explanation. Every verified bet carries a proof link to the DECISIONS entry that settled it. Carries a `Last updated` line.
+- **[STATE.md](STATE.md)** — what is true *right now*, and what to do next. Present tense. Rewritten wholesale, never appended to. Two layers: layer 1 (above the rule) is a 60-second re-orientation read; layer 2 is the working index of status, open questions, and pointers. Bets live in BETS.html, not here.
 - **[DECISIONS.md](DECISIONS.md)** — the append-only history of decisions and their rationale. Dated, newest at top. Never edited or deleted, only added to.
 - **[REFERENCE.md](REFERENCE.md)** — the near-static material: the game's mechanical shape, reference games, standing constraints. Edited only when it is actually wrong; **a sync never regenerates it**.
 - **[CHEATSHEET.md](CHEATSHEET.md)** — the current rules and numbers of every mark, relic, card, duo and role ability, one line each. Derived from the code, never the source of truth; kept current automatically (see "Keeping CHEATSHEET.md current").
@@ -19,7 +19,7 @@ The `decision-log`, `state-sync`, `cheatsheet-update`, `canvas-update` and `brow
 ## On session start — the READ protocol
 
 1. **Read `STATE.md` first, always.** It is the current direction. Layer 1 alone is enough to orient; read layer 2 when the task needs it.
-2. **Read the verified list in `BETS.md` before proposing any design solution.** It is the quality
+2. **Read the verified list in `BETS.html` before proposing any design solution.** It is the quality
    standard. Say which verified bet a proposal could break, or that it breaks none. The unverified
    list is read when deciding what to work on next.
 3. **Read `REFERENCE.md` only when you need the game's mechanical shape** — it is stable, so re-reading it every session is wasted.
@@ -36,12 +36,12 @@ The `decision-log`, `state-sync`, `cheatsheet-update`, `canvas-update` and `brow
 Tu has said logging a decision needs no sign-off. Log without asking, but only what he said or chose.
 
 1. When Tu states or picks something that settles a choice (*X over Y*), **invoke the `decision-log` skill** and append one entry to `DECISIONS.md` immediately — no "Log it?" question, do not batch it, and do not edit `STATE.md` for it.
-   - **Exception — check the verified list in `BETS.md` first.** If the decision breaks a verified bet, do not log it yet and do not build on it. Tell Tu in plain words which bet breaks, how it breaks, and give the link to that bet's proof entry. Then he picks:
+   - **Exception — check the verified list in `BETS.html` first.** If the decision breaks a verified bet, do not log it yet and do not build on it. Tell Tu in plain words which bet breaks, how it breaks, and give the link to that bet's proof entry. Then he picks:
      - **Keep the bet:** the decision is changed or dropped. Nothing is logged.
-     - **Drop or replace the bet:** log the decision, plus a new entry saying the bet is overturned and why. The verified line comes out of `BETS.md` (or is replaced) in the same change.
+     - **Drop or replace the bet:** log the decision, plus a new entry saying the bet is overturned and why. The verified line comes out of `BETS.html` (or is replaced) in the same change.
    - A decision that breaks no verified bet is logged at once, as before. If unsure whether it breaks one, flag it.
    - The skill carries the entry format, the word budget, and the rules that keep entries small and grep-safe. Never write a DECISIONS.md entry freehand.
-   - If the decision settles or adds a bet, `BETS.md` changes in the same step (see "Keeping BETS.md current").
+   - If the decision settles or adds a bet, `BETS.html` changes in the same step (see "Keeping BETS.html current").
 2. Tell him in one line what was logged (the entry's heading).
 3. Only log what Tu said or chose. My own suggestion he has not taken up is not a decision, and neither is a passing idea in design talk. If a logged decision is later reversed, write a new entry that supersedes it — never edit the old one.
 4. STATE catches up at the end of the task (see "Rewriting STATE.md").
@@ -58,7 +58,7 @@ Before writing any code for it:
    a UI feeling — it asks what he felt, not which look he wants.
 2. **Offer 2–3 possible causes**, each with the cheapest way to tell them apart — often a replay,
    an `export` file, a batch number or a throwaway probe, not a build.
-3. **Tie it to the bet:** say which pillar in `BETS.md` and which unverified bet (or open question in
+3. **Tie it to the bet:** say which pillar in `BETS.html` and which unverified bet (or open question in
    `STATE.md`) this serves, and which verified bet the fix could break. If it serves none, say so
    plainly — it may be widening the game, not deepening it.
 4. **Build only after he picks a cause**, and say up front how we'll know it worked (his replay, a
@@ -96,9 +96,9 @@ There is **no word budget**. Length is an output of the sizing rules, not a targ
 
 Cutting lines is fine; cramming words into a line is not — the plain-language rules in `~/.claude/CLAUDE.md` still apply here.
 
-## Keeping BETS.md current
+## Keeping BETS.html current
 
-Update `BETS.md` in the same change as the DECISIONS entry that settles a bet, **without asking** —
+Update `BETS.html` in the same change as the DECISIONS entry that settles a bet, **without asking** —
 the decision itself was already logged.
 
 - A bet is **verified** only by Tu's play, a played test, or a measurement, and every verified bet
@@ -111,9 +111,17 @@ the decision itself was already logged.
   position, never reorder the list silently.
 - A new pillar, or a change to one, is Tu's call and a decision (propose it, then log it).
 - One line per bet, no explanation. Bump the `Last updated` date on every change.
-- The proof is a reference-style link whose text is the entry's date, like `[2026-08-06][7]`. Its
-  definition, `[7]: DECISIONS.md#<heading-anchor>`, goes in the block at the bottom of the file, so
-  no long anchor sits in a list line. Check the anchor matches a real heading.
+- Every unverified bet is a `<li><details>` fold in `BETS.html`: the bet line is the `<summary>`, and
+  the questions sit inside. At most 3 yes/no or few-word questions, answered once after the run,
+  never during it, plus a Play line and a Pass line. Never a per-fight tally or a grid; the heavy
+  attribution test made playing tiring. A new bet gets its fold in the same change; a verified or
+  removed bet loses its fold. Copy an existing fold as the template.
+- The proof is an inline link whose text is the entry's date, like
+  `<a class="proof" href="DECISIONS.md#<heading-anchor>">2026-08-06</a>`, at the end of the bet's
+  line. Check the anchor matches a real heading (GitHub slug: lowercase, punctuation dropped,
+  spaces to hyphens).
+- BETS.html is plain HTML with no build step and no scripts. Keep it that way, and keep it openable
+  by double-click.
 - A line in the verified list is never reworded to fit a new idea. If a new decision contradicts one,
   say so to Tu first; it is a decision, not an edit. The same holds for Tu's own decisions: one that
   breaks a verified bet is flagged before it is logged, never silently overriding it (see step 1 of

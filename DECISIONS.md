@@ -22,6 +22,50 @@
 
 ---
 
+## [2026-10-23] [workflow] The bets and their test questions are one HTML page, BETS.html, replacing the two markdown files
+
+- **Decision:**
+  - `BETS.html` holds the pillars, the verified bets and the unverified bets; `BETS.md` and `BET_TESTS.md` are deleted.
+  - Each unverified bet is a fold in the page: the bet line shows, its test questions open on a click.
+  - Proof links are inline links to `DECISIONS.md#anchor`, with the entry's date as the text.
+  - The 3-question limit and the Play and Pass lines are unchanged.
+  - Not settled: nothing.
+- **Why:**
+  - Tu's markdown preview showed neither the `<details>` fold nor the link to a separate questions file.
+  - A browser always draws a fold, so the questions stay out of sight until Tu opens a bet.
+  - Tu asked for both files to become one HTML file.
+- **Replaces:**
+  - The `BET_TESTS.md` entry and the "folded away in BETS.md" entry below.
+  - The markdown format of `BETS.md` from the earlier "Bets get their own file" entry; its other rules stand.
+  - The rules for keeping it current are in `CLAUDE.md`, "Keeping BETS.html current".
+
+## [2026-10-23] [workflow] The bet test questions live in their own file, BET_TESTS.md, not folded inside BETS.md
+
+- **Decision:**
+  - The test-question blocks moved out of `BETS.md` into `BET_TESTS.md`; `BETS.md` keeps one link line to it.
+  - The blocks, their 3-question limit and their Play and Pass lines are unchanged.
+  - Not settled: nothing.
+- **Why:**
+  - Tu reported the `<details>` fold in `BETS.md` did not fold in his VS Code markdown preview.
+  - The fold depends on how a viewer draws HTML; a link to another file works in any viewer.
+  - Tu still gets his aim: the questions stay out of sight until he opens them.
+- **Replaces:**
+  - The "folded away in BETS.md" part of the entry below; its other points stand.
+
+## [2026-10-23] [workflow] Each unverified bet carries a short test-question block, folded away in BETS.md
+
+- **Decision:**
+  - Every unverified bet in `BETS.md` has a block of at most 3 simple questions, answered once after the run.
+  - The blocks sit in one folded "Show test questions" section at the bottom, so a scan of the bets stays clean.
+  - Each block has a Play line and a Pass line; "didn't come up" means play again, not fail.
+  - Not settled: nothing.
+- **Why:**
+  - Tu's only check on a bet is his feeling, and a feeling is easier to give when the questions are fixed and light.
+  - The attribution test (2026-08-25) was so heavy to answer that it made playing tiring.
+  - Tu asked for the questions to stay hidden until he opens them.
+- **Replaces:**
+  - Nothing; it adds a rule to "Keeping BETS.md current" in `CLAUDE.md`.
+
 ## [2026-10-23] [workflow] Entries are tagged game or workflow, and a dropped-systems list marks history
 
 - **Decision:**

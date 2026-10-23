@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bets</title>
+<style>
+  :root {
+    --bg: #fbfaf7; --fg: #1f1d1a; --muted: #6b665e; --line: #e4e0d8;
+    --accent: #b4561a; --card: #f3f0e9; --link: #1d5fa8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17161a; --fg: #ece9e2; --muted: #9b968c; --line: #2d2b32;
+      --accent: #e8935a; --card: #212027; --link: #7fb2ec;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  h2 { font-size: 20px; margin: 36px 0 10px; padding-top: 16px; border-top: 1px solid var(--line); }
+  h3 { font-size: 15px; margin: 22px 0 6px; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+  p, ul, ol { margin: 8px 0; }
+  .meta { color: var(--muted); font-size: 14px; }
+  .meta p { margin: 2px 0; }
+  a { color: var(--link); }
+  ul.bets { padding-left: 20px; }
+  ul.bets li { margin: 6px 0; }
+  .proof { color: var(--muted); font-size: 14px; white-space: nowrap; }
+
+  /* unverified list: one fold per bet */
+  ol.unverified { list-style: none; padding: 0; counter-reset: bet; }
+  ol.unverified > li { counter-increment: bet; margin: 6px 0; }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 8px; }
+  summary {
+    cursor: pointer; padding: 10px 12px; list-style: none;
+    display: flex; gap: 10px; align-items: baseline;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "\25B8"; color: var(--muted); flex: none; }
+  details[open] > summary::before { content: "\25BE"; }
+  summary .n { color: var(--muted); flex: none; min-width: 1.6em; }
+  summary .n::before { content: counter(bet) "."; }
+  summary .tag {
+    flex: none; font-size: 12px; font-weight: 600; color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 4px; padding: 0 6px;
+  }
+  .q { padding: 2px 14px 12px 40px; border-top: 1px dashed var(--line); font-size: 15px; }
+  .q p { margin: 8px 0 4px; }
+  .q ul { margin: 4px 0; padding-left: 20px; }
+  .q .label { font-weight: 600; }
+  .rules { color: var(--muted); font-size: 14px; }
+  .note { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Bets</h1>
+<div class="meta">
+  <p><b>Last updated:</b> 2026-10-23</p>
+  <p>Every bet serves one pillar. A bet that serves none widens the game, it does not deepen it.</p>
+  <p>A decision that breaks a verified bet is flagged to Tu before it is logged, never applied silently.</p>
+</div>
+
+<!-- THE TOP TEST -->
+<h2>The top test</h2>
+<p>Someone not on the team finishes a run and starts another without being asked. <span class="note">(Unverified, ranked 7 below.)</span></p>
+
+<!-- PILLARS -->
+<h2>Pillars</h2>
+<ul>
+  <li><b>A. The fight moment</b> — "It blew up bigger than I expected, and I made that happen."</li>
+  <li><b>B. The run</b> — "My choices in this run mattered."</li>
+  <li><b>C. Coming back</b> — "One more run; the next one will be different, and I keep getting better."</li>
+  <li><b>D. Pick up and play</b> — "I got it in minutes on my phone, and a run fits my sitting."</li>
+</ul>
+
+<!-- VERIFIED: one line per bet, proof link is the date -->
+<h2>Verified — the quality standard</h2>
+
+<h3>A. The fight moment</h3>
+<ul class="bets">
+  <li>The lead moment lands in plain runs. <a class="proof" href="DECISIONS.md#2026-10-23-game-the-lead-moment-holds-in-plain-runs-in-two-forms-rune-synergy-is-the-stronger">2026-10-23</a></li>
+  <li>Rune synergy is the strongest source of "mine"; chain luck is the lesser. <a class="proof" href="DECISIONS.md#2026-10-23-game-the-lead-moment-holds-in-plain-runs-in-two-forms-rune-synergy-is-the-stronger">2026-10-23</a></li>
+  <li>Runes must combine with what the squad's skills do. <a class="proof" href="DECISIONS.md#2026-10-23-game-armies-will-feed-the-rune-engine-both-ways-skills-leave-marks-and-each-army-gets-its-own-runes">2026-10-23</a></li>
+  <li>Chains run unexpectedly long both ways; payoff and backfire both surprise. <a class="proof" href="DECISIONS.md#2026-08-17-game-prototype-1-played-and-judged-the-shape-lands-the-read-fails-on-perception-and-attribution">2026-08-17</a></li>
+  <li>A player can name what caused a chain. <a class="proof" href="DECISIONS.md#2026-08-25-game-attribution-test-played-attribution-reads-but-only-the-charge-bar-is-a-complete-lever">2026-08-25</a></li>
+  <li>The big payoff is rare; one every fight feels scripted. <a class="proof" href="DECISIONS.md#2026-08-06-game-in-fight-jeopardy-is-no-longer-mandatory-every-fight">2026-08-06</a></li>
+  <li>Spectacle plays only when the payoff is real. <a class="proof" href="DECISIONS.md#2026-08-06-game-spectacle-shake-callout-glow-escalating-numbers-is-gated-on-the-chains-actual-length-not-on-the-ignition-roll">2026-08-06</a></li>
+  <li>Every HP loss has a visible actor and cause. <a class="proof" href="DECISIONS.md#2026-08-04-game-legibility-rewrite-per-hero-combat-a-visible-enemy-bruiser-and-wipe-only-resolution-replace-side-level-dps-the-timed-dip-and-the-coin-flip-tie-break">2026-08-04</a></li>
+  <li>RNG alone fails "claim as mine". <a class="proof" href="DECISIONS.md#2026-07-26-game-friend-validation-session-run--rng-confirmed-cleanly-friends-behavior-shows-he-doesnt-self-generate-variety">2026-07-26</a></li>
+</ul>
+
+<h3>B. The run</h3>
+<ul class="bets">
+  <li>The best squad can still lose. <a class="proof" href="DECISIONS.md#2026-08-08-game-difficulty-retuned-so-the-best-squad-can-actually-lose--the-game-cannot-be-lost-was-the-root-cause-of-it-feels-like-a-solved-puzzle">2026-08-08</a></li>
+  <li>A run grows as it goes; it never only shrinks. <a class="proof" href="DECISIONS.md#2026-09-23-game-three-roles-and-a-20-round-run-replace-six-named-heroes-and-a-5-fight-run">2026-09-23</a></li>
+  <li>A run never ends on something the player could not change. <a class="proof" href="DECISIONS.md#2026-09-23-game-the-offer-draw-guarantees-a-way-back-when-the-roster-has-no-cushion">2026-09-23</a></li>
+  <li>A real decision brings new options, never leaves the default better, never collapses to one move. <a class="proof" href="DECISIONS.md#2026-07-26-game-decision-density-criterion-sharpened-three-ways-a-recurring-decision-turns-out-fake">2026-07-26</a></li>
+  <li>Watching with no real choice reads as an idle game. <a class="proof" href="DECISIONS.md#2026-10-17-game-a-run-starts-with-two-of-each-role-and-wanderer-gives-a-squad-spot">2026-10-17</a></li>
+  <li>A re-skin alone gives an army no identity. <a class="proof" href="DECISIONS.md#2026-10-21-game-each-army-fights-its-own-way-skeletons-a-pack-pounce-orbs">2026-10-21</a></li>
+  <li>An army's own runes must act on its own mechanic; a rune that works with the army taken out gives no identity. <a class="proof" href="DECISIONS.md#2026-10-23-game-mage-runes-must-act-on-the-orbs-not-the-marks">2026-10-23</a></li>
+</ul>
+
+<h3>C. Coming back</h3>
+<ul class="bets">
+  <li>Chance alone stops holding Tu once the best move is known. <a class="proof" href="DECISIONS.md#2026-07-24-game-rng-only-arm-played-fun-is-real-but-non-renewing--masterycomprehension-not-chance-sustains-tu">2026-07-24</a></li>
+  <li>A solved deterministic build stays solved. <a class="proof" href="DECISIONS.md#2026-07-22-game-emergence-only-arm-complete--burnout-is-the-structural-ceiling-not-a-balance-problem">2026-07-22</a></li>
+</ul>
+
+<h3>D. Pick up and play</h3>
+<ul class="bets">
+  <li>A term is explained where the player first meets it. <a class="proof" href="DECISIONS.md#2026-10-10-game-the-next-push-is-making-the-game-explain-itself-after-the-first-outside-playtest">2026-10-10</a></li>
+</ul>
+
+<!-- UNVERIFIED: one fold per bet. Click a bet to see its test questions.
+     Per bet: at most 3 questions, plus a Play line and a Pass line. When a bet is verified or
+     removed, its <li> leaves this list. A new bet gets its <li> here in the same change. -->
+<h2>Unverified — verify in this order</h2>
+<p class="rules">Click a bet to see its test questions. Answer them once after the run, never during it. "Didn't come up" is a valid answer: play again, it is not a fail.</p>
+
+<ol class="unverified">
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">A</span><span>Mage runes and marks bring the synergy moment to Mage runs.</span></summary>
+    <div class="q">
+      <p><span class="label">Play:</span> 2 Mages runs (<code>?army=mages</code>).</p>
+      <ul>
+        <li>Did two of my runes fire together for a big moment? (which round)</li>
+        <li>Did it feel like I built it, not luck?</li>
+      </ul>
+      <p><span class="label">Pass:</span> yes to both, in at least one run.</p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">A</span><span>The same works for the Undead and Beasts.</span></summary>
+    <div class="q">
+      <p class="note">Not testable yet: their runes are not built.</p>
+      <p><span class="label">Play:</span> 1 Undead run, 1 Beasts run.</p>
+      <ul>
+        <li>Did two of my runes fire together for a big moment? (which round, per army)</li>
+        <li>Did it feel like I built it, not luck? (per army)</li>
+      </ul>
+      <p><span class="label">Pass:</span> yes to both, for each army.</p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">B</span><span>An army gives a run an identity worth picking.</span></summary>
+    <div class="q">
+      <p><span class="label">Play:</span> 2 Mages runs with different builds (Vessel, Fuse or Kernel).</p>
+      <ul>
+        <li>Did I pick runes differently because of my build?</li>
+        <li>Did I watch something different in the fights? (a few words)</li>
+        <li>Next time at the army pick, do I have a reason to pick this one?</li>
+      </ul>
+      <p><span class="label">Pass:</span> yes to the first and the last.</p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">D</span><span>Skeletons, the pounce and orbs stay readable on a phone.</span></summary>
+    <div class="q">
+      <p><span class="label">Play:</span> one fight per army, on a real phone.</p>
+      <ul>
+        <li>Could I tell what my army did without pausing? (per army)</li>
+        <li>Was there anything I couldn't see or had to squint at? (name it)</li>
+      </ul>
+      <p><span class="label">Pass:</span> yes for every army, nothing named. This tests seeing, not understanding; you cannot unknow the rules.</p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">B</span><span>Push or rest stays a real choice; tired units get benched by hand.</span></summary>
+    <div class="q">
+      <p><span class="label">Play:</span> one full run.</p>
+      <ul>
+        <li>Did I bench a tired unit myself at least once?</li>
+        <li>Was there a moment I wasn't sure whether to push or rest?</li>
+      </ul>
+      <p><span class="label">Pass:</span> yes to both.</p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">D</span><span>A first-time player reads the game unprompted.</span></summary>
+    <div class="q">
+      <p class="note">Needs a new player; outside tests are paused.</p>
+      <p><span class="label">Play:</span> watch them, don't explain.</p>
+      <ul>
+        <li>What did they ask about? (list)</li>
+        <li>Did they get stuck on any screen? (which)</li>
+        <li>After the run, could they say why they won or lost?</li>
+      </ul>
+      <p><span class="label">Pass:</span> no stuck screen, and they can say why.</p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">Top</span><span>Someone not on the team finishes a run and starts another without being asked.</span></summary>
+    <div class="q">
+      <p class="note">The top test; needs a new player.</p>
+      <p><span class="label">Play:</span> hand them the phone, then say nothing.</p>
+      <ul>
+        <li>Did they finish the run?</li>
+        <li>Did they start another on their own?</li>
+      </ul>
+      <p><span class="label">Pass:</span> yes to both.</p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">D</span><span>A new player wins about 1 run in 4.</span></summary>
+    <div class="q">
+      <p class="note">Needs a new player.</p>
+      <p><span class="label">Play:</span> their first 8 or more runs.</p>
+      <ul>
+        <li>How many runs, how many wins?</li>
+      </ul>
+      <p><span class="label">Pass:</span> roughly 1 in 4.</p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">C</span><span>A player starts another run right after one ends, win or lose.</span></summary>
+    <div class="q">
+      <p><span class="label">Play:</span> just play; you count as the player for now.</p>
+      <ul>
+        <li>After a win, did I start another right away?</li>
+        <li>After a loss, did I start another right away?</li>
+      </ul>
+      <p><span class="label">Pass:</span> yes to both, across a few sessions.</p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">C</span><span>Run 20 still shows something new.</span></summary>
+    <div class="q">
+      <p><span class="label">Play:</span> just play; keep one line per run wherever you like.</p>
+      <ul>
+        <li>Did I see something new this run? (one line)</li>
+      </ul>
+      <p><span class="label">Pass:</span> still yes around run 20.</p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">D</span><span>A run fits a short sitting.</span></summary>
+    <div class="q">
+      <p><span class="label">Play:</span> one run, on the phone.</p>
+      <ul>
+        <li>How many minutes did it take?</li>
+        <li>Did I have to stop before the end?</li>
+      </ul>
+      <p><span class="label">Pass:</span> done in one sitting, no forced stop.</p>
+    </div>
+  </details></li>
+
+</ol>
+
+</main>
+</body>
+</html>

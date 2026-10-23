@@ -75,7 +75,7 @@ Stable headers. Layer 1 is the 60-second read and ends at the rule; layer 2 is t
 | Next up | ordered, #1 unambiguous and actionable today | ≤5 lines |
 | *— layer break (`---`) —* | | |
 | Status by piece | table: Piece \| State \| Where it lives | one row per piece |
-| Bets | a pointer to `BETS.md`; never restate or reorder the bets here | 1–2 lines |
+| Bets | a pointer to `BETS.html`; never restate or reorder the bets here | 1–2 lines |
 | Open questions | only ones that gate a Next up item | ≤5 lines |
 | How to work here | commands, key files, protocol pointers | ≤6 lines |
 
