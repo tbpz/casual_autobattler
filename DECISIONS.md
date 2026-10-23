@@ -5,12 +5,74 @@
 > **When to read it:** only to answer a "why did we decide X?" question — grep it, don't read top-to-bottom. The current state lives in [STATE.md](STATE.md), not here.
 > **Appending:** use the `decision-log` skill — it carries the format, the word budget, and the rules that keep entries grep-safe.
 > **Archive boundary:** entries below the `ARCHIVE` rule predate the 2026-07-18 pivot and describe a superseded game design (hex grid, elevation, deploy zones, timed ultimate, fog-of-war, 5-heroes-plus-bench). Read them as history, not live rationale.
+> **Before trusting a hit:** check the dropped-systems list below, then search the hit entry's title; a later entry's **Replaces** may have overturned it.
+> **Tags:** `[game]` is what the player gets (rules, numbers, units, UI, art). `[workflow]` is how we work (context files, skills, logging, process). List one kind with `^## .*\[workflow\]`.
 >
-> Entry format: `## [YYYY-MM-DD] Title` → **Decision** / **Why** / **Replaces**.
+> Entry format: `## [YYYY-MM-DD] [game|workflow] Title` → **Decision** / **Why** / **Replaces**.
+>
+> **Dropped systems** (a hit on one of these is history, not live rationale; the list is not exhaustive, and unlike entries it is edited in place):
+> - Merge heroes, dropped 2026-10-23: [the dropping entry](#2026-10-23-game-merge-heroes-are-dropped-variety-that-arrives-late-and-by-luck-is-not-a-new-hero-or-weapon). It overturns the entries of 2026-10-19, 2026-10-20 and 2026-10-21 that rest on merge heroes.
+> - Six named heroes and the 5-fight run, replaced 2026-09-23: [three roles and a 20-round run](#2026-09-23-game-three-roles-and-a-20-round-run-replace-six-named-heroes-and-a-5-fight-run).
+> - The cross-run Collection, dropped 2026-10-02: [entry](#2026-10-02-game-the-cross-run-collection-is-dropped).
+> - Flinch, cut 2026-09-19: [entry](#2026-09-19-game-flinch-is-cut-built-measured-found-nearly-inert).
+> - CLOCK and WOUNDED, removed 2026-08-27: [entry](#2026-08-27-game-clock-and-wounded-removed-entirely--a-progress-keyed-tax-cannot-be-a-burst-tax).
+> - Fatigue pips, replaced by eyes 2026-10-14: [entry](#2026-10-14-game-fatigue-is-shown-as-eyes-on-the-body-not-as-pips).
+> - The shield screen, dropped 2026-10-15: [entry](#2026-10-15-game-the-fight-screen-shows-only-what-the-fight-needs-and-the-shield-screen-is-dropped).
+> - The post-win round summary screen, dropped 2026-10-16: [entry](#2026-10-16-game-the-post-win-round-summary-screen-is-dropped).
 
 ---
 
-## [2026-10-23] Army runs never offer the plain squad's role abilities
+## [2026-10-23] [workflow] Entries are tagged game or workflow, and a dropped-systems list marks history
+
+- **Decision:**
+  - Every entry heading carries `[game]` (what the player gets) or `[workflow]` (how we work).
+  - The header of this file holds a dropped-systems list; a grep hit on a listed system is history.
+  - After a grep hit I also search the entry's title for a later entry that replaces it.
+  - The list is edited in place; entries still are never edited.
+  - Not settled: nothing.
+- **Why:**
+  - Tu asked if the log's length was a problem for me; at 181 entries (13 on one day) the size is fine, but a hit looks the same whether the entry is live or replaced.
+  - An archive line cannot mark the merge-hero entries, because they are spread from 2026-10-19 to 2026-10-23.
+  - Tu picked the list over a "Replaced by" line on old entries, which would end append-only.
+  - Tu asked for the tag so a search can skip one kind.
+- **Replaces:**
+  - Nothing. The one-time retag of the 181 existing headings changed only the heading prefix, and the 18 `BETS.md` link anchors were rewritten to match.
+
+## [2026-10-23] [workflow] A decision that breaks a verified bet is flagged before it is logged
+
+- **Decision:**
+  - Before a decision of Tu's is logged, it is checked against the verified list in `BETS.md`.
+  - If it breaks a verified bet, it is flagged to Tu first: which bet, how it breaks, the proof link.
+  - Tu then picks: keep the bet (the decision is changed or dropped) or drop the bet (the decision is logged with a new entry saying the bet is overturned).
+  - A decision that breaks no verified bet is logged at once, as before.
+  - Not settled: nothing.
+- **Why:**
+  - Verified bets are the quality standard; a logged decision that quietly contradicts one leaves the standard and the log disagreeing.
+  - The old rule only stopped me rewording a verified line, not a decision of Tu's that clashes with one.
+- **Replaces:**
+  - Nothing; it adds an exception to step 1 of the DECISION protocol in `CLAUDE.md`, and a step to the `decision-log` skill.
+
+## [2026-10-23] [game] Mage runes must act on the orbs, not the marks
+
+- **Decision:**
+  - A Mage rune must stop making sense when "orb" is swapped for "hit"; a rune that still works with the orbs taken out gives the army no identity.
+  - The three mark-reading Mage runes (Static, Leech, Tempo) are reworked into orb runes, each keeping its mage.
+  - The Mage runes pull toward two or three rival orb builds: big merges, many merges, and the core orb.
+  - A Mage run always puts one Mage rune among the three offers after a win, when one is open.
+  - Merged shots still leave Burn, Frozen and Shield, so the plain rune pool stays open to Mage runs.
+  - Mage bet #1 stays unverified: the synergy is there, the identity is weak.
+  - Not settled: every rune's rule and number; the draft is in the plan, the tuning is for the batch (`sim/config.ts`).
+- **Why:**
+  - Tu played a Mage run: runes combined, but the marks were what connected them, so any other mechanic with those marks would play the same.
+  - Swap test, 2026-10-23: Static, Leech and Tempo have the same shape as Rend, Rot and Winter; only Echo and Overload need orbs.
+  - Tu confirmed three causes: rune shape, too few Mage runes among the offers, and nothing to build around.
+  - Tu felt it at both the rune pick and the fight payoff.
+  - Tu picked rework of all three, one guaranteed Mage offer, and rival builds.
+- **Replaces:**
+  - The "each rune reads a mark another mage leaves" line of the 2026-10-23 entry "Mage runs get marks from merged shots only"; its other lines stand.
+  - Not covered: nothing is built, so no run has shown the identity returns.
+
+## [2026-10-23] [game] Army runs never offer the plain squad's role abilities
 
 - **Decision:**
   - The "gains an ability" offer (Scorch, Frostbolt, Siphon and the other roles' options) is plain squad only.
@@ -26,7 +88,7 @@
 - **Replaces:**
   - The "offers … work unchanged" clause of the 2026-10-21 entry "An army picked before round 1 shapes the run", for role-ability offers only; its other lines stand.
 
-## [2026-10-23] Mage runs get marks from merged shots only, four Mage runes and two duos
+## [2026-10-23] [game] Mage runs get marks from merged shots only, four Mage runes and two duos
 
 - **Decision:**
   - Only a merged shot leaves a mark; core-orb and loose-orb beats leave none.
@@ -48,7 +110,7 @@
   - Answers the three "Not settled" lines of the 2026-10-23 "armies will feed the rune engine" entry, for the Mages only.
   - Not covered: nothing is built, so no run has shown the moment returns.
 
-## [2026-10-23] Bets sit under four pillars and one top test
+## [2026-10-23] [workflow] Bets sit under four pillars and one top test
 
 - **Decision:**
   - `BETS.md` groups the bets under four pillars, each one sentence a player would say.
@@ -68,7 +130,7 @@
   - The flat layout of `BETS.md` from the 2026-10-23 "Bets get their own file" entry; that entry's other rules stand.
   - The rules for tagging and moving bets are in `CLAUDE.md`, "Keeping BETS.md current".
 
-## [2026-10-23] Merge heroes are dropped: variety that arrives late and by luck is not a new hero or weapon
+## [2026-10-23] [game] Merge heroes are dropped: variety that arrives late and by luck is not a new hero or weapon
 
 - **Decision:**
   - The merge heroes are removed from the game and the design canvas.
@@ -88,7 +150,7 @@
   - The 2026-10-19 and 2026-10-20 merge-hero entries, and the "merge heroes stay off while an army is picked" line of 2026-10-21; all stay as history.
   - The BETS.md unverified bet "Merge heroes add run variety" is removed with it.
 
-## [2026-10-23] Bets get their own file: verified bets are the quality standard, unverified bets are ordered
+## [2026-10-23] [workflow] Bets get their own file: verified bets are the quality standard, unverified bets are ordered
 
 - **Decision:**
   - The bets move out of `STATE.md` into `BETS.md`.
@@ -107,7 +169,7 @@
   - Replaces the "Unverified bets" section of `STATE.md`, now a pointer.
   - Not covered: the wording of the seeded bets is the scan's reading of each entry; Tu audits it.
 
-## [2026-10-23] Armies will feed the rune engine both ways: skills leave marks, and each army gets its own runes
+## [2026-10-23] [game] Armies will feed the rune engine both ways: skills leave marks, and each army gets its own runes
 
 - **Decision:**
   - Army runs lack the synergy moment, because the runes do not fit what an army does.
@@ -129,7 +191,7 @@
   - Nothing; it answers the open question "do the old runes read right with skills that leave no mark?".
   - Not covered: nothing has been built, so no run has shown the moment returns.
 
-## [2026-10-23] Tu is the only judge for now; friend playtests are paused
+## [2026-10-23] [workflow] Tu is the only judge for now; friend playtests are paused
 
 - **Decision:**
   - The test of the game for now is whether it looks like a good game to Tu.
@@ -143,7 +205,7 @@
   - Drops the playtest-friend step from STATE's Next up.
   - Does not undo "A new player should win about 1 run in 4"; that target waits for playtests.
 
-## [2026-10-23] The lead moment holds in plain runs, in two forms; rune synergy is the stronger
+## [2026-10-23] [game] The lead moment holds in plain runs, in two forms; rune synergy is the stronger
 
 - **Decision:**
   - The lead moment still lands in the current build, in plain runs.
@@ -157,7 +219,7 @@
   - Settles the bet "chains every fight still feel unpredictable" for plain runs.
   - Leaves open whether the moment holds in army runs; see the entry above.
 
-## [2026-10-23] A "feels wrong" note is named and diagnosed before anything is built
+## [2026-10-23] [workflow] A "feels wrong" note is named and diagnosed before anything is built
 
 - **Decision:**
   - When Tu says something feels wrong, the gap is named first: what he expected, what he felt, at which moment.
@@ -178,7 +240,7 @@
   - Nothing; it adds a step before the build in the existing loop.
   - Not covered: no run has yet shown that the step makes iteration less random.
 
-## [2026-10-23] Mages: a mage's damage is its orbs' work, and a Storm zap counts as a hit for runes
+## [2026-10-23] [game] Mages: a mage's damage is its orbs' work, and a Storm zap counts as a hit for runes
 
 - **Decision:**
   - A mage's `damage` stat is what one of its orbs does on a beat: a Storm orb's zap, a Frost orb's shield, a Life orb's drain.
@@ -195,7 +257,7 @@
 - **Replaces:**
   - Nothing; it completes "Mages: no normal attack, a core orb, and the Life Mage drains".
 
-## [2026-10-23] Mages: no normal attack, a core orb, and the Life Mage drains
+## [2026-10-23] [game] Mages: no normal attack, a core orb, and the Life Mage drains
 
 - **Decision:**
   - Every mage starts each fight with one core orb. It never leaves: a merge and a backfire pop both spare it.
@@ -216,7 +278,7 @@
   - From "Mages built: orbs that merge and strike" and "a merge fires one shot": the mages' normal attack, the Life Mage's beat heal, Life orbs healing the tank, and the Life merge healing every unit.
   - Its other lines stand.
 
-## [2026-10-22] Beasts built: one pack bar, one pounce
+## [2026-10-22] [game] Beasts built: one pack bar, one pounce
 
 - **Decision:**
   - The Beasts are built as frame 12.0C draws them: no beast has a skill bar of its own, and everything the pack does fills one PACK bar.
@@ -236,7 +298,7 @@
   - The Beasts lines of "Each army fights its own way" are now built; its other lines stand.
   - Roar, Pack Bite, Herd, and the Pack rule's "every hit fills the others' skill bars" are gone.
 
-## [2026-10-22] Mages: a merge fires one shot and the orbs start again
+## [2026-10-22] [game] Mages: a merge fires one shot and the orbs start again
 
 - **Decision:**
   - A skill hit that finds 3 orbs out merges them into one big shot that fires at once; the big orb is gone straight away.
@@ -253,7 +315,7 @@
 - **Replaces:**
   - From "Mages built: orbs that merge and strike": the big orb that grows and strikes again on every later hit, the clear when a merged skill ends, and the big-orb step on a backfire.
 
-## [2026-10-22] Mages built: orbs that merge and strike
+## [2026-10-22] [game] Mages built: orbs that merge and strike
 
 - **Decision:**
   - The Mages are the third army, built as frame 12.0D draws them: Frost Mage (Tank), Storm Mage (Damage), Life Mage (Healer), each with an orb skill.
@@ -272,7 +334,7 @@
 - **Replaces:**
   - The Mages line of "Each army fights its own way" (an orb past the cap pushes the oldest out and bursts); its other lines stand.
 
-## [2026-10-21] Undead built: what the build settled about skeletons
+## [2026-10-21] [game] Undead built: what the build settled about skeletons
 
 - **Decision:**
   - The Undead are built as frame 12.0B draws them: Raise (Bone Priest, warrior skeletons), Bone Wall (Bone Knight, shield skeletons), Command (Wraith).
@@ -292,7 +354,7 @@
 - **Replaces:**
   - The Undead lines of "Each army fights its own way" (now built), and the open points in "Undead skeletons: who takes enemy hits, the limit, and upgrades"; its other lines stand.
 
-## [2026-10-21] Undead skeletons: who takes enemy hits, the limit, and upgrades
+## [2026-10-21] [game] Undead skeletons: who takes enemy hits, the limit, and upgrades
 
 - **Decision:**
   - Enemy normal hits go to shield skeletons first, then warrior skeletons, then the Bone Knight.
@@ -310,7 +372,7 @@
 - **Replaces:**
   - The 2026-10-21 entry "Each army fights its own way" line "shield skeletons take slams for the squad"; its other lines stand.
 
-## [2026-10-21] Each army fights its own way: skeletons, a pack pounce, orbs
+## [2026-10-21] [game] Each army fights its own way: skeletons, a pack pounce, orbs
 
 - **Decision:**
   - Each army changes what its skills leave on the field, not only numbers. Tu picked canvas frames 12.0B, 12.0C and 12.0D.
@@ -333,7 +395,7 @@
 - **Replaces:**
   - The Undead and Beasts rules and skills in the 2026-10-21 entry "An army picked before round 1 shapes the run"; its other lines stand.
 
-## [2026-10-21] An army picked before round 1 shapes the run; merge heroes stay off while one is picked
+## [2026-10-21] [game] An army picked before round 1 shapes the run; merge heroes stay off while one is picked
 
 - **Decision:**
   - A run opens on a pick between two armies, Undead and Beasts, before round 1.
@@ -353,7 +415,7 @@
 - **Replaces:**
   - Merge heroes as what shapes a run (2026-10-19 and 2026-10-20 entries); those stay as history.
 
-## [2026-10-20] A backfired freeze skips the unit using it
+## [2026-10-20] [game] A backfired freeze skips the unit using it
 
 - **Decision:**
   - A backfired freeze (Tank's Freeze, Damage's Frostbolt, Healer's Chill) never picks the unit using it.
@@ -371,7 +433,7 @@
   - Nothing; it narrows the 2026-08-14 backfire rule "a freeze turned on yourself" to "a freeze turned on a squadmate".
   - Cheat sheet line updated; no canvas change.
 
-## [2026-10-20] A merge is the reward for a mini-boss win, and must leave a full squad
+## [2026-10-20] [game] A merge is the reward for a mini-boss win, and must leave a full squad
 
 - **Decision:**
   - A win over a mini-boss (rounds 7 and 14) offers a merge in place of the usual three offers.
@@ -393,7 +455,7 @@
   - Nothing; it adds to the 2026-10-19 entry and resolves its "start squad" point.
   - Rules and screens: `design/HANDOFF.md` sections 8 and 9, frame 8.0.
 
-## [2026-10-19] Run variety comes from merge heroes: three units become one hero
+## [2026-10-19] [game] Run variety comes from merge heroes: three units become one hero
 
 - **Decision:**
   - Three basic units (Tank, Damage, Healer) merge into one hero; the three leave the squad.
@@ -417,7 +479,7 @@
   - Nothing; the rune pool stays and heroes add to it.
   - Rules live in `design/HANDOFF.md` sections 8–9; `design/tools/gen-heroes.js` redraws the frames.
 
-## [2026-10-17] Wanderer is removed from the first picks, leaving five
+## [2026-10-17] [game] Wanderer is removed from the first picks, leaving five
 
 - **Decision:**
   - The round 1 pick draws 3 of 5 runes: Pyre, Rime, Augur, Citadel, Frenzy.
@@ -432,7 +494,7 @@
 - **Replaces:**
   - Wanderer's squad spot in "A run starts with two of each role, and Wanderer gives a squad spot" (2026-10-17).
 
-## [2026-10-17] A new player should win about 1 run in 4; the bot's target comes from real players
+## [2026-10-17] [game] A new player should win about 1 run in 4; the bot's target comes from real players
 
 - **Decision:**
   - The aim is that a new player wins about 1 run in 4.
@@ -446,7 +508,7 @@
   - The 17–22% bot completion target from September.
   - STATE's open item "pick a target for run completion".
 
-## [2026-10-17] A run starts with two of each role, and Wanderer gives a squad spot
+## [2026-10-17] [game] A run starts with two of each role, and Wanderer gives a squad spot
 
 - **Decision:**
   - A run starts with six units: two Tank, two Damage, two Healer. Three are fielded, three wait on the bench from round 1.
@@ -464,7 +526,7 @@
   - "A run starts from three units" in the 2026-09-23 entry on three roles.
   - Wanderer's old text, "a fourth unit of a random role joins your squad".
 
-## [2026-10-17] Your squad stands in two rows of one size, named FRONT and BACK
+## [2026-10-17] [game] Your squad stands in two rows of one size, named FRONT and BACK
 
 - **Decision:**
   - A Tank stands alone in a front row. Everyone else stands in a row behind it.
@@ -483,7 +545,7 @@
 - **Replaces:**
   - The big Tank with smaller, dimmer units flanking it. Squad frames on the canvas were redrawn to match.
 
-## [2026-10-17] Normal enemy hits lock on the tank until it dies; only three enemy groups slip past
+## [2026-10-17] [game] Normal enemy hits lock on the tank until it dies; only three enemy groups slip past
 
 - **Decision:**
   - A normal hit from an enemy goes to the first living Tank, with no dice, until that Tank dies.
@@ -498,7 +560,7 @@
 - **Replaces:**
   - The rule that every enemy's normal hit rolled tank 3-to-1 and spread once the Tank was low. That roll now serves slams, the three groups above, and Tankless squads.
 
-## [2026-10-17] On the squad screen a unit can be dragged to swap, alongside the two taps
+## [2026-10-17] [game] On the squad screen a unit can be dragged to swap, alongside the two taps
 
 - **Decision:**
   - A living row, fighting or benched, can be dragged. Dropping it on another row swaps them, and dropping a bench unit on an empty slot fills it.
@@ -515,7 +577,7 @@
 - **Replaces:**
   - The "a swap is two taps" line under 4.1 in `design/HANDOFF.md`. The taps still work, but they are no longer the only way.
 
-## [2026-10-16] In a fight, a tap on a status or the skill bubble pauses and opens its explainer card
+## [2026-10-16] [game] In a fight, a tap on a status or the skill bubble pauses and opens its explainer card
 
 - **Decision:**
   - A tap on a status pill on a unit opens that word's term card: Exposed, Burn, frozen seconds, shield number, guard pips, a bruiser's SLAM bar.
@@ -531,7 +593,7 @@
 - **Replaces:**
   - The "no tapping during a fight" line under 3.1 in `design/HANDOFF.md`, already reversed for the fighter popup.
 
-## [2026-10-16] The runes box has a RUNES title row with the count at its right
+## [2026-10-16] [game] The runes box has a RUNES title row with the count at its right
 
 - **Decision:**
   - The box below the squad box on the round screen has a small grey `RUNES` title at its top-left and the count at its right, on one line, with the emblems below.
@@ -544,7 +606,7 @@
 - **Replaces:**
   - The "no title" and "label on the box's top edge" lines of the entry "Cards are called upgrades, drawn as one round emblem, in their own section".
 
-## [2026-10-16] Runes are named with one short mythic word each
+## [2026-10-16] [game] Runes are named with one short mythic word each
 
 - **Decision:**
   - 38 of the 40 runes were renamed to one short word each, for example Frost crown → Rime, Shatter → Rend, Execute → Doom, Second wind → Vigil. Aegis and Phoenix kept.
@@ -559,7 +621,7 @@
 - **Replaces:**
   - Nothing. Older entries here keep the old names; read them through the table in `design/HANDOFF.md`.
 
-## [2026-10-16] Relics and upgrades are one thing, called runes; the first one counts toward the limit
+## [2026-10-16] [game] Relics and upgrades are one thing, called runes; the first one counts toward the limit
 
 - **Decision:**
   - On screen "relic" and "upgrade" are both "rune". The round 1 pick is just the first rune.
@@ -580,7 +642,7 @@
   - From the entry "Cards are called upgrades, drawn as one round emblem, in their own section": the word "upgrade", the gold-ring relic set apart by a divider, and the count that left the relic out.
   - Its round emblem, its own box and the `+N All ›` fold still hold.
 
-## [2026-10-16] Cards are called upgrades, drawn as one round emblem, in their own section
+## [2026-10-16] [game] Cards are called upgrades, drawn as one round emblem, in their own section
 
 - **Decision:**
   - On screen a card is an "upgrade". Role abilities, stats, recruits and recovery keep their names; "card" stays for the explainer cards.
@@ -601,7 +663,7 @@
 - **Replaces:**
   - The text-chip "CARDS n/cap" row, "Your cards (n/cap)" on the pick, the run-over chips, and the shelf inside the squad box.
 
-## [2026-10-16] The post-win round summary screen is dropped
+## [2026-10-16] [game] The post-win round summary screen is dropped
 
 - **Decision:**
   - After a won fight, `Continue` on the result overlay (5.6) goes straight to the reward: the relic pick on round 1, the offer screen after.
@@ -617,7 +679,7 @@
 - **Replaces:**
   - The 900 ms switch from the result overlay to a text recap, and the second `Continue` after it.
 
-## [2026-10-16] A unit that falls in the fight takes ✕ eyes on its own colour
+## [2026-10-16] [game] A unit that falls in the fight takes ✕ eyes on its own colour
 
 - **Decision:**
   - When a unit falls in a fight, its face becomes the two ✕ eyes of the fallen popup (2.6).
@@ -635,7 +697,7 @@
 - **Replaces:**
   - The fight's fallen look: the live face with only a fade.
 
-## [2026-10-16] The charge shows as a border round one fixed-size skill bubble
+## [2026-10-16] [game] The charge shows as a border round one fixed-size skill bubble
 
 - **Decision:**
   - When a unit's bar is full and its skill fires, one bubble pops over the unit. It is the same size for every skill and every count.
@@ -655,7 +717,7 @@
   - The sim rule in that entry (charge held while the skill plays, restart at zero) stands.
   - The tag sizes (small, bigger, biggest) of the 2026-10-15 fight redraw.
 
-## [2026-10-16] A unit's charge bar stays full while its skill plays, and is yellow only when full
+## [2026-10-16] [game] A unit's charge bar stays full while its skill plays, and is yellow only when full
 
 - **Decision:**
   - A unit's charge bar is held full for the whole time its skill plays, and restarts at zero when the skill ends.
@@ -673,7 +735,7 @@
   - The reset to zero at the moment a skill starts (2026-08-14 chain rebuild).
   - The near-full pulse at 85% (2026-08-14 dread beat).
 
-## [2026-10-16] A slam ends on a strike beam, a longer lunge, a shockwave, a heavier shake and a bigger number
+## [2026-10-16] [game] A slam ends on a strike beam, a longer lunge, a shockwave, a heavier shake and a bigger number
 
 - **Decision:**
   - On release the slam's aim line snaps into a thick beam, and the hit lands at that instant.
@@ -693,7 +755,7 @@
   - The six-option frame, 5.8, which is dropped.
   - Not settled: frame 5.3B still draws the old hit.
 
-## [2026-10-16] A hit is drawn as a quick growing line, not a travelling dot
+## [2026-10-16] [game] A hit is drawn as a quick growing line, not a travelling dot
 
 - **Decision:**
   - Every hit, heal and chain hit is a thin glowing line that grows from the attacker to the target, then fades.
@@ -710,7 +772,7 @@
   - The travelling-dot tracer (the 2026-08-06 attribution pass).
   - The curved path for a back-rank attacker's own shot.
 
-## [2026-10-16] Units have names of their own, drawn from a fixed pool by the run seed
+## [2026-10-16] [game] Units have names of their own, drawn from a fixed pool by the run seed
 
 - **Decision:**
   - Each unit gets a short name from a fixed pool when it is made, such as Bram, Ivy or Sol.
@@ -726,7 +788,7 @@
   - The open question "where do unit names come from" in STATE.
   - Units named from the role label and an ordinal ("Tank 2"), set in `sim/roles.ts`.
 
-## [2026-10-16] A dead unit's slot stays empty, and Fight waits for the player to fill it
+## [2026-10-16] [game] A dead unit's slot stays empty, and Fight waits for the player to fill it
 
 - **Decision:**
   - When a fielded unit dies, its slot is empty on the next round screen, drawn as a dashed "Empty / Tap to fill" ring.
@@ -742,7 +804,7 @@
   - Fight is no longer accept-default in that one case.
   - Not settled: two units dead at once is not drawn; with no living bench unit the run already ends (`canFieldSquad`).
 
-## [2026-10-16] The fight announces a skill with a tag on the unit that uses it; tapping a fighter pauses
+## [2026-10-16] [game] The fight announces a skill with a tag on the unit that uses it; tapping a fighter pauses
 
 - **Decision:**
   - A speech-bubble tag on the performer replaces the top chain banner, its pips and its running total.
@@ -760,7 +822,7 @@
   - The fight HUD and end card in `render/fightView.ts`.
   - Not settled: whether the tag alone teaches ×N; ask the playtest friend.
 
-## [2026-10-16] Same-kind enemies share one popup chip with a count, and the chip row scrolls past seven
+## [2026-10-16] [game] Same-kind enemies share one popup chip with a count, and the chip row scrolls past seven
 
 - **Decision:**
   - In the fighter popup's switcher, enemies of one kind share a single chip with a ×N badge.
@@ -775,7 +837,7 @@
   - A chip per enemy body.
   - The squad cap is `maxSlots` in `sim/config.ts`; not restated here.
 
-## [2026-10-16] A fallen fighter has a popup: grey face, greyed skill, the way back in place of Fatigue
+## [2026-10-16] [game] A fallen fighter has a popup: grey face, greyed skill, the way back in place of Fatigue
 
 - **Decision:**
   - A dead fighter's popup has the layout of a living one, with a grey body and ✕ eyes and no FALLEN tag.
@@ -791,7 +853,7 @@
   - Revive HP is `reviveHpFraction` in `sim/config.ts`, and which unit a Revive names is in `sim/offers.ts` (the last fallen in roster order, not the last to die); neither is restated here.
   - Not settled: how the popup opens from the round screen; whether a greyed tile reads "lost" or "not ready"; what a held Phoenix does. Canvas only, not built.
 
-## [2026-10-16] A dead squad member stays in the squad's chip row, greyed, never set apart
+## [2026-10-16] [game] A dead squad member stays in the squad's chip row, greyed, never set apart
 
 - **Decision:**
   - In the fighter popup's switcher, a fallen fighter keeps its place among the squad chips, greyed, with ✕ eyes.
@@ -803,7 +865,7 @@
   - The first take of frame 2.6 (canvas version 75), which put the fallen unit after the enemy chips; never logged.
   - Not settled: how the popup opens from the round screen, where 1.5 still keeps dead units on the bench shelf.
 
-## [2026-10-15] The fight text never says "chain"
+## [2026-10-15] [game] The fight text never says "chain"
 
 - **Decision:**
   - Fight text names a skill use by its skill and a count (`EXPOSE ×3`); the word "chain" does not appear.
@@ -817,7 +879,7 @@
   - Builds on the 2026-10-15 entry "The move is a skill; chain means only that the skill goes again".
   - Not settled: whether `×N` and the skill name are clear without a caption; a first-run caption is not drawn.
 
-## [2026-10-15] A skill is announced by a tag on the unit that uses it, with no top banner
+## [2026-10-15] [game] A skill is announced by a tag on the unit that uses it, with no top banner
 
 - **Decision:**
   - The announcement is a speech-bubble tag on the performer's head, its tail pointing at the body; beside the body when its column is full.
@@ -833,7 +895,7 @@
   - A top banner `NAME · SKILL ×N`, drawn and replaced the same day, never logged.
   - Not settled: readability of a tag over a 30px back-rank body on a real phone.
 
-## [2026-10-15] Tapping a fighter during a fight pauses it and opens its popup
+## [2026-10-15] [game] Tapping a fighter during a fight pauses it and opens its popup
 
 - **Decision:**
   - A tap on a fighter mid-fight pauses the fight and opens that fighter's popup (2.1 to 2.3).
@@ -846,7 +908,7 @@
   - The rule "no tapping during a fight" (`design/HANDOFF.md`, under 3.1) and its open call 10a.
   - Not settled: whether a first-time player finds the tap without a hint.
 
-## [2026-10-15] The fight screen shows only what the fight needs, and the shield screen is dropped
+## [2026-10-15] [game] The fight screen shows only what the fight needs, and the shield screen is dropped
 
 - **Decision:**
   - The fight screen has no round strip, no ENEMY / YOUR SQUAD zones or tags, no VS pill and no enemy badges.
@@ -861,7 +923,7 @@
   - The two-phone fight frame (old 5.1) and the shield-bar frame (old 5.2, then 5.7). Open call 5 closes; call 6 stays.
   - Not settled: whether a first-time player reads the sides without tags.
 
-## [2026-10-15] The switcher row scrolls sideways past 7 chips
+## [2026-10-15] [game] The switcher row scrolls sideways past 7 chips
 
 - **Decision:**
   - When the fighter popup's switcher has more chips than fit, it stays one line and scrolls sideways.
@@ -878,7 +940,7 @@
   - Nothing drawn; the row had no overflow rule.
   - Not settled: whether a fade alone tells a player more fighters are hidden. The sixth fighter and the 6-fielded backdrop are made up; nothing in the game fields six.
 
-## [2026-10-15] Same-kind enemies share one switcher chip with a ×N count
+## [2026-10-15] [game] Same-kind enemies share one switcher chip with a ×N count
 
 - **Decision:**
   - In the fighter popup's switcher, enemies of one kind share a single chip with a ×N badge.
@@ -894,7 +956,7 @@
   - One chip per body, and the Anvil popup at 2.4.
   - Not settled: whether `×2` reads as "two of these" at 9px; the ‹ › stepping through grouped units is not drawn.
 
-## [2026-10-15] The popup's Skill card is an ability tile, not a block of text
+## [2026-10-15] [game] The popup's Skill card is an ability tile, not a block of text
 
 - **Decision:**
   - The Skill card in the fighter popup is drawn as a game ability tile.
@@ -911,7 +973,7 @@
   - The flat card of a label, a name, a headline and a paragraph, from earlier the same day.
   - Not settled: not tested with a first-time player or on a real phone. Drawn on canvas frames 2.1, 2.2, 2.3 and 2.5; the styles are in `design/HANDOFF.md`.
 
-## [2026-10-15] A Fatigue card heads the Chain and Backfire odds and shows what fatigue changed
+## [2026-10-15] [game] A Fatigue card heads the Chain and Backfire odds and shows what fatigue changed
 
 - **Decision:**
   - Chain and Backfire sit in a Fatigue card under the Skill card.
@@ -928,7 +990,7 @@
   - The plain fatigue line above the Skill card and the odds at the card's foot, from earlier the same day.
   - Not settled: the Fatigue term card (3.9) has no Chain column yet.
 
-## [2026-10-15] Chain and Backfire are written for each role, the popup drops Upgrades, and Damage gets frame 2.3
+## [2026-10-15] [game] Chain and Backfire are written for each role, the popup drops Upgrades, and Damage gets frame 2.3
 
 - **Decision:**
   - Each fighter's Chain and Backfire lines say what its own skill does, read from `sim/fight.ts`.
@@ -946,7 +1008,7 @@
   - The role-neutral wording of the first popup pass and the old popup frame order.
   - `design/HANDOFF.md` holds the old-to-new frame map.
 
-## [2026-10-15] The move is a skill; chain means only that the skill goes again
+## [2026-10-15] [game] The move is a skill; chain means only that the skill goes again
 
 - **Decision:**
   - A unit's move is called a skill.
@@ -961,7 +1023,7 @@
   - The popup's CHAIN header and the "Bram's chain" tag.
   - Not settled: reward frame 6.1 (the `CHAIN` rail and "Tank chain — gains an ability"), the fight text ("IVY'S CHAIN ×N"), the code names (`chainEffectLines`, "chain abilities") and `CHEATSHEET.md` still say chain for the move. Tracked as call 12 in `design/HANDOFF.md`.
 
-## [2026-10-14] Guard pips and the freeze countdown sit above the body, off the face
+## [2026-10-14] [game] Guard pips and the freeze countdown sit above the body, off the face
 
 - **Decision:**
   - The guard-pip pill sits just above the head of a hero.
@@ -977,7 +1039,7 @@
   - The 2026-10-02 MarkSlots choice (option A) for where the guard pips and the countdown sit.
   - Not settled: the transient hero status popups use the same strip above a body, and the pips above the front-rank Tank touch the centre line. Both are noted in `design/HANDOFF.md`, not fixed.
 
-## [2026-10-14] Enemies get villain eyes, a different kind of eye from the squad's
+## [2026-10-14] [game] Enemies get villain eyes, a different kind of eye from the squad's
 
 - **Decision:**
   - Enemy bodies get eyes; Tu chose this over eyes on his own heroes only.
@@ -994,7 +1056,7 @@
   - The heroes-only and eyes-only-when-tired variants from the same day's fight-screen comparison.
   - Not settled: which villain style; legibility on a real phone has not been tested.
 
-## [2026-10-14] Fatigue is shown as eyes on the body, not as pips
+## [2026-10-14] [game] Fatigue is shown as eyes on the body, not as pips
 
 - **Decision:**
   - Each squad member's body carries two eyes whose lids drop as fatigue rises, with the whites going red-rimmed at the top tiers.
@@ -1012,7 +1074,7 @@
   - The tier-pip display of 2026-09-30, once built; and the "two directions to draw" step of the entry below, which this pick settles.
   - Not tested with a first-time player or on a real phone.
 
-## [2026-10-14] The chain charge moves to a bar under the HP bar, and the ring around the body goes
+## [2026-10-14] [game] The chain charge moves to a bar under the HP bar, and the ring around the body goes
 
 - **Decision:**
   - The chain charge becomes a thin bar under the HP bar.
@@ -1026,7 +1088,7 @@
   - The ring-shaped chain meter of 2026-09-29.
   - Not settled: the bar's look. The prototype is unchanged.
 
-## [2026-10-14] Fatigue is drawn as a gamble, not a penalty, and the pip stack is up for replacement
+## [2026-10-14] [game] Fatigue is drawn as a gamble, not a penalty, and the pip stack is up for replacement
 
 - **Decision:**
   - The fatigue display must say "stronger but riskier", so a player sees a reason to push a tired fighter as well as a reason to rest it.
@@ -1042,7 +1104,7 @@
 - **Replaces:**
   - Nothing yet: the tier-pip display chosen on 2026-09-30 stays until a direction is picked and a later entry replaces it.
 
-## [2026-10-13] Round-screen stats are icons, and the Healer shows Heal, not Damage
+## [2026-10-13] [game] Round-screen stats are icons, and the Healer shows Heal, not Damage
 
 - **Decision:**
   - HP is a small drawn heart and Damage a small drawn sword, each followed by its number, on one line.
@@ -1061,7 +1123,7 @@
   - The Healer's Damage chip on frame 1.1.
   - Not covered: a first-time player may not know the heart and sword before the first tap; no playtest has checked it.
 
-## [2026-10-13] A badge says an enemy has something special; the popup says what
+## [2026-10-13] [game] A badge says an enemy has something special; the popup says what
 
 - **Decision:**
   - An enemy with a special move wears a small badge on its body: a burst for a slam, a green plus for a heal.
@@ -1078,7 +1140,7 @@
   - Not covered: the badges are emoji and render differently per phone.
   - Not covered: the popup for an enemy with a slam or a heal is not drawn yet.
 
-## [2026-10-11] Tapping a fighter opens a popup; the chain rows leave the round screen
+## [2026-10-11] [game] Tapping a fighter opens a popup; the chain rows leave the round screen
 
 - **Decision:**
   - The CHAINS rows are gone from the round screen.
@@ -1100,7 +1162,7 @@
   - Not covered: whether the fight pauses while a popup is open.
   - Not covered: drawn on canvas only, not built, not playtested.
 
-## [2026-10-11] Tappable terms carry a dotted underline instead of the circled i
+## [2026-10-11] [game] Tappable terms carry a dotted underline instead of the circled i
 
 - **Decision:**
   - A tappable term is bold, in its own colour, with a dotted underline in that colour.
@@ -1112,7 +1174,7 @@
   - The line "a bold coloured word followed by a small circled i" in the tappable-terms entry below; that entry stays as written.
   - Not covered: no playtest has checked that a first-time player reads an underline as tappable.
 
-## [2026-10-11] The bench is a small preview shelf inside the squad box
+## [2026-10-11] [game] The bench is a small preview shelf inside the squad box
 
 - **Decision:**
   - On the round screen the bench is a shelf inside the YOUR SQUAD box, under the fighters.
@@ -1134,7 +1196,7 @@
   - Not covered: frames 10 and 11 still show the old strip.
   - Not covered: no playtest has checked whether players now notice the bench.
 
-## [2026-10-11] Term cards do not link to each other
+## [2026-10-11] [game] Term cards do not link to each other
 
 - **Decision:**
   - Words inside a term card keep their colour but have no circled i and cannot be tapped.
@@ -1152,7 +1214,7 @@
   - Not covered: drawn on canvas frames 13–21 only, not built.
   - Not covered: no playtest has checked that a card reads well without its linked terms.
 
-## [2026-10-11] Game terms are tappable, and each opens an animated explainer card
+## [2026-10-11] [game] Game terms are tappable, and each opens an animated explainer card
 
 - **Decision:**
   - Nine terms get an explainer: Slam, Guard, Exposed, Frozen, Burn, Shield, Chain, Backfire, Fatigue.
@@ -1176,7 +1238,7 @@
   - Not covered: the term colour, the enemy unit named "Guard" and other points are open in `design/HANDOFF.md` call 9.
   - Not covered: no playtest has checked that players find and tap the marks.
 
-## [2026-10-10] Units get names of their own; the round screen draws the squad as fighters, not a role list
+## [2026-10-10] [game] Units get names of their own; the round screen draws the squad as fighters, not a role list
 
 - **Decision:**
   - Each unit has a name of its own; its role shows as a small coloured tag, not as the name.
@@ -1196,7 +1258,7 @@
   - Not covered: drawn on frame 9 only, with made-up names (Bram, Ivy, Sol); frames 10–12 still show role names.
   - Not covered: where names come from in the game (a fixed pool, random, or chosen) is not decided.
 
-## [2026-10-10] The round screen becomes a face-off, with the bench on its own squad screen
+## [2026-10-10] [game] The round screen becomes a face-off, with the bench on its own squad screen
 
 - **Decision:**
   - The round screen draws the two sides as the fight screen does: a named ENEMY zone on top, a VS line, a named YOUR SQUAD zone below.
@@ -1220,7 +1282,7 @@
   - Not covered: drawn on canvas frames 9–12 only, not built, and Tu has not approved the look.
   - Open points are in `design/HANDOFF.md` under "Open calls for Tu" (item 8).
 
-## [2026-10-10] The next push is making the game explain itself, after the first outside playtest
+## [2026-10-10] [game] The next push is making the game explain itself, after the first outside playtest
 
 - **Decision:**
   - Next work is making the game self-explaining to a new player, ahead of card firing and rebalance.
@@ -1239,7 +1301,7 @@
   - Re-orders STATE's Next up: card firing and rebalance move behind it, still wanted.
   - Not covered: the cause is read from code and the testers' words; no second playtest has checked a fix.
 
-## [2026-10-02] The pick screen keeps last round's squad
+## [2026-10-02] [game] The pick screen keeps last round's squad
 
 - **Decision:**
   - The round screen pre-ticks the squad fielded last round, minus any hero who has died.
@@ -1255,7 +1317,7 @@
   - With a rested hero on the bench no Rest offer is forced, because `restForceAnyAt` ships off (2026-10-02 fatigue entry).
   - Not covered: batch numbers model a bot that rotates, so a tap-Play player's fatigue is unmeasured.
 
-## [2026-10-02] Marks and guard pips are drawn on the body, not in a row
+## [2026-10-02] [game] Marks and guard pips are drawn on the body, not in a row
 
 - **Decision:**
   - Exposed/Burn badges and a guarding tank's pips are overlays on the unit's body, out of layout.
@@ -1275,7 +1337,7 @@
   - The in-flow `.mark-row` and `.guard-pips` rows from the 2026-09-30 marks pass and the 2026-09-15 guard-visibility pass.
   - Not covered: how it reads on a phone with real stack sizes is unchecked until played.
 
-## [2026-10-02] Ease fatigue and backfire, keep Recruit common, make enemies pay for it
+## [2026-10-02] [game] Ease fatigue and backfire, keep Recruit common, make enemies pay for it
 
 - **Decision:**
   - Fatigue and backfire stay the run's main risk, but the player gets real ways out.
@@ -1297,7 +1359,7 @@
   - The fatigue and backfire numbers from the 2026-09-30 entry "Fatigue replaces per-role backfire odds"; its mechanism stands.
   - Not covered: the greedy bot takes Recruit readily, so how a person feels this is unchecked until played.
 
-## [2026-10-02] The cross-run Collection is dropped
+## [2026-10-02] [game] The cross-run Collection is dropped
 
 - **Decision:**
   - The Collection screen, its saved record of met cards, and its buttons are removed from the prototype.
@@ -1312,7 +1374,7 @@
   - The "collection screen shows unfound duos as silhouettes" line in the build-depth entry.
   - Players' old `autobattler.collection.v1` browser entry is left in place, unread.
 
-## [2026-10-02] Mend is not a Shield source, so Shield cards wait for a real one
+## [2026-10-02] [game] Mend is not a Shield source, so Shield cards wait for a real one
 
 - **Decision:**
   - A chain ability counts as a source of a mark only if it leaves that mark reliably.
@@ -1330,7 +1392,7 @@
   - Which abilities count as a mark source in the 2026-09-30 entry "A payoff card is offered only after the player has met every mark it reads".
   - Not covered: a Shield ability that was shown but declined still opens the Shield cards.
 
-## [2026-10-02] Brittle pays out as a freeze lands, not when it ends
+## [2026-10-02] [game] Brittle pays out as a freeze lands, not when it ends
 
 - **Decision:**
   - Brittle exposes an enemy each time a freeze lands, by the seconds of that freeze.
@@ -1348,7 +1410,7 @@
   - The "when a freeze ends" Brittle in the card pool of the 2026-10-01 entry "Build depth comes from cards on a "when X, do Y" engine, built all at once".
   - Not covered: Glass, Deep freeze, and the other cards that fire in under half their held fights.
 
-## [2026-10-01] A stranded round 1 win ends the run, and Collection sits on the run-end screens
+## [2026-10-01] [game] A stranded round 1 win ends the run, and Collection sits on the run-end screens
 
 - **Decision:**
   - A round 1 win that leaves too few units to field a squad ends the run. It gets no relic and no safety-net offer.
@@ -1363,7 +1425,7 @@
   - Settles the Collection placement left open in "No relic is pre-selected, and Collection appears after the first run".
   - Not covered by the safety net in `sim/offers.ts`, which still applies from the round 2 win on.
 
-## [2026-10-01] No relic is pre-selected, and Collection appears after the first run
+## [2026-10-01] [game] No relic is pre-selected, and Collection appears after the first run
 
 - **Decision:**
   - No relic is pre-selected on the relic screen. The player taps one.
@@ -1377,7 +1439,7 @@
   - Settles the "when does the Collection button first appear" item in that same entry.
   - Not built yet; this logs the design only.
 
-## [2026-10-01] The relic pick is the round 1 reward, and a relic's job is run identity
+## [2026-10-01] [game] The relic pick is the round 1 reward, and a relic's job is run identity
 
 - **Decision:**
   - The round 1 win's reward is the relic pick only.
@@ -1392,7 +1454,7 @@
   - Settles the "relic replaces or adds to the first card offer" question in the entry just below.
   - Not built yet; this logs the design only.
 
-## [2026-10-01] The relic pick moves from run start to right after the first win
+## [2026-10-01] [game] The relic pick moves from run start to right after the first win
 
 - **Decision:**
   - A run opens straight on round 1: default squad, Play. No screen asks for a choice first.
@@ -1412,7 +1474,7 @@
   - Not settled: when does the Collection button first appear?
   - Not settled: relic text needs a plain-language rewrite. Ember heart is hardest, since no backfire may have happened yet.
 
-## [2026-10-01] Shield shows as a segment on the HP bar in fights, not as a badge
+## [2026-10-01] [game] Shield shows as a segment on the HP bar in fights, not as a badge
 
 - **Decision:**
   - In a fight, Shield is a teal segment on the unit's HP bar. The badge row no longer carries it.
@@ -1434,7 +1496,7 @@
   - The "BLOCKED N" absorb popup.
   - Not built yet; this logs the design only.
 
-## [2026-10-01] Build depth comes from cards on a "when X, do Y" engine, built all at once
+## [2026-10-01] [game] Build depth comes from cards on a "when X, do Y" engine, built all at once
 
 - **Decision:**
   - A fight raises events (a mark lands, a shield breaks, a freeze ends, a unit dies, a chain starts).
@@ -1455,7 +1517,7 @@
   - The eight hard-coded payoff branches in the fight code.
   - Evidence: a 2026-10-01 batch (n=3000) ranked cards and pairs by win over expected, and showed one relic far ahead until tuned.
 
-## [2026-09-30] Fatigue shows as tier pips beside each unit, on both screens
+## [2026-09-30] [game] Fatigue shows as tier pips beside each unit, on both screens
 
 - **Decision:**
   - A unit's fatigue tier shows as a stack of 4 pips beside its token (pick screen) and its body (fight screen).
@@ -1477,7 +1539,7 @@
   - The pick-screen charge ring in the canvas frames.
   - The per-role backfire dots in the canvas frames.
 
-## [2026-09-30] A slam already aimed at the guardian counts as a full block
+## [2026-09-30] [game] A slam already aimed at the guardian counts as a full block
 
 - **Decision:**
   - A slam that is already aimed at the guarding tank when it lands is a block, the same as one Guard pulls over.
@@ -1497,7 +1559,7 @@
   - The same-target no-op in the guard logic of `prototype/src/sim/fight.ts`.
   - The redirect-only guard count in the batch report.
 
-## [2026-09-30] Fatigue replaces per-role backfire odds; it persists per unit across fights
+## [2026-09-30] [game] Fatigue replaces per-role backfire odds; it persists per unit across fights
 
 - **Decision:**
   - Each unit carries its own fatigue, kept across fights for the whole run.
@@ -1518,7 +1580,7 @@
   - The per-role backfire chance from the 2026-08-19 affinity-as-risk pass.
   - Live values will sit in `prototype/src/sim/config.ts`.
 
-## [2026-09-30] Chains fire every fight: charge resets per fight and fills faster
+## [2026-09-30] [game] Chains fire every fight: charge resets per fight and fills faster
 
 - **Decision:**
   - Charge starts at zero every fight and no longer carries over.
@@ -1538,7 +1600,7 @@
   - Run-long charge persistence from the 2026-08-14 chain rebuild.
   - Live values will sit in `prototype/src/sim/config.ts`.
 
-## [2026-09-30] A payoff card is offered only after the player has met every mark it reads
+## [2026-09-30] [game] A payoff card is offered only after the player has met every mark it reads
 
 - **Decision:**
   - A payoff card enters the offer draw only once every mark it reads has been introduced.
@@ -1557,7 +1619,7 @@
 - **Replaces:**
   - Loosens the 2026-09-30 payoff-card entry's draw: unmet cards no longer draw at a low weight.
 
-## [2026-09-30] Chain abilities are redesigned to leave marks; chain +N adds stacks
+## [2026-09-30] [game] Chain abilities are redesigned to leave marks; chain +N adds stacks
 
 - **Decision:**
   - The six chain abilities each leave a mark (Exposed, Frozen, Burn, Shield) instead of only
@@ -1576,7 +1638,7 @@
   - The 2026-09-23 "chain upgrades stack abilities" entry's ability set and its `+N` meaning.
     Its add-don't-swap rule and the "never say level" rule are unchanged.
 
-## [2026-09-30] Upgrades become set-up and pay-off combos: marks plus squad-wide payoff cards
+## [2026-09-30] [game] Upgrades become set-up and pay-off combos: marks plus squad-wide payoff cards
 
 - **Decision:**
   - New offer kind, "payoff cards": squad-wide passives that react to marks (for example, a hit
@@ -1597,7 +1659,7 @@
   - Nothing removed. Narrows the 2026-09-23 offer pool's role: number cards no longer carry the
     run's growth on their own.
 
-## [2026-09-24] The round screen drops its fight prediction
+## [2026-09-24] [game] The round screen drops its fight prediction
 
 - **Decision:**
   - The round screen (pick squad, then Play) no longer shows the SAFE/TIGHT verdict word or the
@@ -1613,7 +1675,7 @@
     comfortable/tight/losing projection) to the recap only — the projection mechanism itself, and
     the tank-line/ignition-gate rule that entry also established, are untouched.
 
-## [2026-09-23] HP moves to the round-screen bar, charge moves to the ring
+## [2026-09-23] [game] HP moves to the round-screen bar, charge moves to the ring
 
 - **Decision:**
   - On the round screen, a hero's HP is shown by the bar under its circle; charge is shown by the
@@ -1628,7 +1690,7 @@
   - Qualifies the 2026-09-21 entry ("Current HP outranks the charge bar on the field-pick row") —
     keeps its rule that HP must be the loudest signal, changes which shape carries it.
 
-## [2026-09-23] Round-screen ability card opens on press-and-hold
+## [2026-09-23] [game] Round-screen ability card opens on press-and-hold
 
 - **Decision:**
   - The round screen's expanded per-role card (full ability sentences, backfire risk in words) opens
@@ -1643,7 +1705,7 @@
   - Nothing built yet — `render/roundScreen.ts` has no press/hold interaction today, only a click
     handler on each unit token for picking/dropping it.
 
-## [2026-09-23] Chain upgrades stack abilities; "stronger" shown as +N, never "level"
+## [2026-09-23] [game] Chain upgrades stack abilities; "stronger" shown as +N, never "level"
 
 - **Decision:**
   - A role's chain gains abilities additively — a "gains" offer adds a new ability alongside
@@ -1663,7 +1725,7 @@
   - The round-screen pips next to each role label, described as "its level as pips" in
     `design/HANDOFF.md`.
 
-## [2026-09-23] Three roles and a 20-round run replace six named heroes and a 5-fight run
+## [2026-09-23] [game] Three roles and a 20-round run replace six named heroes and a 5-fight run
 
 - **Decision:**
   - The six named heroes, the run-start draft, and the coin economy are cut.
@@ -1688,7 +1750,7 @@
     spend as live design — those entries stay as history of the superseded build, same convention
     as the pre-2026-07-18 archive boundary.
 
-## [2026-09-23] The offer draw guarantees a way back when the roster has no cushion
+## [2026-09-23] [game] The offer draw guarantees a way back when the roster has no cushion
 
 - **Decision:**
   - `sim/offers.ts`'s `drawOffers` always includes a revive (or, if nobody's fallen, a recruit for
@@ -1706,7 +1768,7 @@
   - Refines the same-day "three roles and a 20-round run" entry's `drawOffers` behavior — that
     entry didn't specify this guarantee.
 
-## [2026-09-23] The 20-round curve was pulled back to be completable at all
+## [2026-09-23] [game] The 20-round curve was pulled back to be completable at all
 
 - **Decision:**
   - `sim/rounds.ts`'s round-to-round scale and the new boss encounter's own stats were both cut
@@ -1720,7 +1782,7 @@
   - n/a — first pass; no prior entry to supersede. Current numbers live in `sim/rounds.ts` and
     `sim/encounters.ts`, not restated here.
 
-## [2026-09-21] A chain's spread comes from length at 13:1, not 40:1
+## [2026-09-21] [game] A chain's spread comes from length at 13:1, not 40:1
 
 - **Decision:**
   - The escalation curve flattens to one near-linear slope, and every
@@ -1751,7 +1813,7 @@
     size; the 2026-09-13 rebuild removed identity from magnitude entirely, so
     the steepness was guarding a threat that no longer existed.
 
-## [2026-09-21] Healers triage by missing HP, not lowest absolute HP
+## [2026-09-21] [game] Healers triage by missing HP, not lowest absolute HP
 
 - **Decision:**
   - Every heal picks the living body missing the most HP — the per-beat heal and
@@ -1776,7 +1838,7 @@
   - Marks the 2026-09-20 difficulty pass's Warden measurements stale — they were
     taken with this defect live.
 
-## [2026-09-21] Current HP outranks the charge bar on the field-pick row
+## [2026-09-21] [game] Current HP outranks the charge bar on the field-pick row
 
 - **Decision:**
   - A hero's current HP is the loudest element on the field-pick row, and a
@@ -1802,7 +1864,7 @@
   - Qualifies the 2026-08-25 entry, which found the charge bar the only lever
     reaching "change it" — reading well is not the same as being the right input.
 
-## [2026-09-20] Difficulty pass goes before the multi-answer chain build
+## [2026-09-20] [game] Difficulty pass goes before the multi-answer chain build
 
 - **Decision:**
   - The 2026-09-20 difficulty pass — giving every encounter real stakes, not
@@ -1821,7 +1883,7 @@
     matter.
 - **Replaces:** Reorders, does not cancel, STATE.md's "Next up #1."
 
-## [2026-09-20] Champion is the difficulty pass's reference fight
+## [2026-09-20] [game] Champion is the difficulty pass's reference fight
 
 - **Decision:**
   - Every other encounter's damage was tuned toward Champion's own win-rate
@@ -1842,7 +1904,7 @@
     the entry).
 - **Replaces:** None.
 
-## [2026-09-20] Anvil's shape, not its numbers, is the open question
+## [2026-09-20] [game] Anvil's shape, not its numbers, is the open question
 
 - **Decision:**
   - Anvil's damage was raised as far as this pass's damage-only approach
@@ -1859,7 +1921,7 @@
     entry) — a shape a damage number alone can't turn into real jeopardy.
 - **Replaces:** None.
 
-## [2026-09-20] The coin economy's known gap is closed, not left open for further work
+## [2026-09-20] [game] The coin economy's known gap is closed, not left open for further work
 
 - **Decision:** No further work is planned on the coin spend's protective
   value against backfire — the gap the 2026-08-14 chain rebuild flagged
@@ -1880,7 +1942,7 @@
 - **Replaces:** Closes, without editing, the 2026-08-14 chain rebuild entry's
   "KNOWN GAP" note on this topic.
 
-## [2026-09-19] Flinch is cut: built, measured, found nearly inert
+## [2026-09-19] [game] Flinch is cut: built, measured, found nearly inert
 
 - **Decision:**
   - Flinch (a chain hit mid-wind-up knocking a bruiser's pending slam down) is
@@ -1911,7 +1973,7 @@
 - **Replaces:** Extends, not supersedes, the 2026-09-18 "Chain answers must be
   enemy-anchored" entry — same rule, one failed implementation of it removed.
 
-## [2026-09-18] Chain answers must be enemy-anchored, and a threat must take more than one route
+## [2026-09-18] [game] Chain answers must be enemy-anchored, and a threat must take more than one route
 
 - **Decision:**
   - A chain effect earns its place by naming something the *enemy* has — a state, a trait — never a
@@ -1931,7 +1993,7 @@
 - **Replaces:** Extends, not supersedes, the 2026-09-13 "Chain identity: effect, not magnitude"
   entry.
 
-## [2026-09-15] Hollow's freeze becomes provable — snapshot-driven countdown, additive links, backfire tagged distinctly
+## [2026-09-15] [game] Hollow's freeze becomes provable — snapshot-driven countdown, additive links, backfire tagged distinctly
 
 - **Decision:**
   - The frozen tell is now driven off the snapshot every tick (`render/fightView.ts`'s
@@ -1961,7 +2023,7 @@
   - Extends, not supersedes, the 2026-09-13 "Chain identity: effect, not magnitude" entry and this
     same date's guard entry below — same treatment now applied to stun.
 
-## [2026-09-15] Bracer's guard becomes provable — charge count, steered aim, backfire tagged distinctly
+## [2026-09-15] [game] Bracer's guard becomes provable — charge count, steered aim, backfire tagged distinctly
 
 - **Decision:**
   - Guard's per-rung value changes from a time window to a charge count: one slam covered per rung,
@@ -1993,7 +2055,7 @@
   - Extends, not supersedes, the 2026-09-13 "Chain identity: effect, not magnitude" entry below —
     guard's identity is unchanged, only whether its effect is provable.
 
-## [2026-09-13] Chain identity: effect, not magnitude — replaces all four prior levers
+## [2026-09-13] [game] Chain identity: effect, not magnitude — replaces all four prior levers
 
 - **Decision:**
   - Heroes now differ by chain EFFECT — what the chain does (`strikeAll`, `poundBiggest`, `guard`,
@@ -2022,7 +2084,7 @@
 
 ---
 
-## [2026-09-04] Backfire-as-risk fails as a chain-identity lever — four candidates now closed
+## [2026-09-04] [game] Backfire-as-risk fails as a chain-identity lever — four candidates now closed
 
 - **Decision:**
   - Backfire risk (chainAffinity -> backfireChanceFor) does not create a real pick-time choice,
@@ -2051,7 +2113,7 @@
 
 ---
 
-## [2026-09-02] Chain shape replaced by chain targeting — where a chain aims, not when it lands
+## [2026-09-02] [game] Chain shape replaced by chain targeting — where a chain aims, not when it lands
 
 - **Decision:**
   - Chain shape is replaced: what varied "when damage arrives" per hero now varies "where it
@@ -2084,7 +2146,7 @@
 - **Replaces:** the six chain-shape entries below this one describing per-hero fuse-shape design;
   those now describe a superseded mechanic.
 
-## [2026-09-02] Chain targeting: three questions deferred to one measurement pass
+## [2026-09-02] [game] Chain targeting: three questions deferred to one measurement pass
 
 - **Decision:**
   - Three open questions about chain targeting are deferred, to be answered from one batch
@@ -2102,7 +2164,7 @@
     (`CHAIN_SHAPE_TARGETING_PLAN.md` Q5, Q7, Q8) and share one answer: run the batch rig once
     targeting ships, decide from what it reports.
 
-## [2026-09-02] Chain targeting failed its own measurement gate — chainTargetingEnabled stays off
+## [2026-09-02] [game] Chain targeting failed its own measurement gate — chainTargetingEnabled stays off
 
 - **Decision:**
   - The four attacker targeting rules (previous entry, same date) were built and measured at full
@@ -2129,7 +2191,7 @@
 
 ---
 
-## [2026-08-27] CLOCK and WOUNDED removed entirely — a progress-keyed tax cannot be a burst tax
+## [2026-08-27] [game] CLOCK and WOUNDED removed entirely — a progress-keyed tax cannot be a burst tax
 
 - **Decision:**
   - CLOCK and WOUNDED are removed from the game; nothing scales enemy damage over the course of a
@@ -2166,7 +2228,7 @@
 
 ---
 
-## [2026-08-27] CLOCK/WOUNDED cannot price chain shape's tempo tradeoff — shape needs a different lever
+## [2026-08-27] [game] CLOCK/WOUNDED cannot price chain shape's tempo tradeoff — shape needs a different lever
 
 - **Decision:**
   - CLOCK/WOUNDED does not and cannot price chain shape's tempo tradeoff at any tuning.
@@ -2183,7 +2245,7 @@
 
 ---
 
-## [2026-08-26] Enrage split into two visible, telegraphed threats — CLOCK and WOUNDED — replacing the silent continuous ramp
+## [2026-08-26] [game] Enrage split into two visible, telegraphed threats — CLOCK and WOUNDED — replacing the silent continuous ramp
 
 - **Decision:**
   - The single continuous enrage multiplier (`sim/fight.ts`'s `enrageMultiplierAt`) is replaced by two discrete, named threats: CLOCK (staged wall-clock tiers — the grinder's tax) and WOUNDED (a one-time spike on enemy HP lost — the burster's tax).
@@ -2201,7 +2263,7 @@
 
 ---
 
-## [2026-08-25] Attribution test played: attribution reads, but only the charge bar is a complete lever
+## [2026-08-25] [game] Attribution test played: attribution reads, but only the charge bar is a complete lever
 
 - **Decision:**
   - `ATTRIBUTION_TEST.md` was run on the fixed build — 11 cards, the lever x link grid, both
@@ -2229,7 +2291,7 @@
 
 ---
 
-## [2026-08-22] Projection survival solves the real enrage ramp instead of clamping a divide-by-zero
+## [2026-08-22] [game] Projection survival solves the real enrage ramp instead of clamping a divide-by-zero
 
 - **Decision:**
   - `surviveSec` and `tankHoldsSec` (`sim/projection.ts`) no longer divide HP by `max(netIncoming, 0.01)` — that guard, once healing met or exceeded mean incoming DPS, was silently returned as a fabricated survival time in the tens of thousands of seconds.
@@ -2244,7 +2306,7 @@
 
 ---
 
-## [2026-08-20] Chain magnitude becomes uniform per kind; shape (fuse length + escalation curve) becomes the pick-time axis
+## [2026-08-20] [game] Chain magnitude becomes uniform per kind; shape (fuse length + escalation curve) becomes the pick-time axis
 
 - **Decision:**
   - `chainAffinity` is volatility-only now (feeds `backfireChanceFor` exclusively) — no longer scales chain payoff magnitude.
@@ -2259,7 +2321,7 @@
 
 ---
 
-## [2026-08-19] Attribution fix scope: honest CHAIN pips + price chainAffinity as backfire risk, not a full rebalance
+## [2026-08-19] [game] Attribution fix scope: honest CHAIN pips + price chainAffinity as backfire risk, not a full rebalance
 
 - **Decision:**
   - The CHAIN pip meter (squad/field pick) now ranks heroes by chain-output coefficient (damage or healPerBeat x chainAffinity), not raw chainAffinity.
@@ -2276,7 +2338,7 @@
 
 ---
 
-## [2026-08-17] Prototype #1 played and judged: the shape lands, the read fails on perception and attribution
+## [2026-08-17] [game] Prototype #1 played and judged: the shape lands, the read fails on perception and attribution
 
 - **Decision:**
   - Prototype #1 was played and judged by Tu for the first time, resolving STATE.md's "Next up #1" gate.
@@ -2292,7 +2354,7 @@
 
 ---
 
-## [2026-08-17] Chain perception fix: dilated inter-hit gaps, a dedicated chain HUD, an end card on every chain
+## [2026-08-17] [game] Chain perception fix: dilated inter-hit gaps, a dedicated chain HUD, an end card on every chain
 
 - **Decision:**
   - `render/playback.ts` now advances sim-time at a dilated rate during a chain's inter-hit gaps only; impacts stay at normal wall-clock speed, since their tracer/flinch/popup timing was already decoupled from sim-time.
@@ -2309,7 +2371,7 @@
 
 ---
 
-## [2026-08-16] STATE.md is sized by a reader framework, not a word budget
+## [2026-08-16] [workflow] STATE.md is sized by a reader framework, not a word budget
 
 - **Decision:**
   - `STATE.md` is now two layers in one file: layer 1 is a self-contained 60-second re-orientation read; layer 2 is a working index (status by piece, unverified bets, open questions, how to work here).
@@ -2328,7 +2390,7 @@
 
 ---
 
-## [2026-08-15] Run-to-run depth comes from an expanding option pool, not a difficulty ladder
+## [2026-08-15] [game] Run-to-run depth comes from an expanding option pool, not a difficulty ladder
 
 - **Decision:**
   - The answer to "nothing left to explore after a few runs" is widening the space a run draws from, not re-posing fixed content as a harder question.
@@ -2348,7 +2410,7 @@
 
 ---
 
-## [2026-08-15] The run's fights are drawn from a tiered encounter deck, not a fixed sequence
+## [2026-08-15] [game] The run's fights are drawn from a tiered encounter deck, not a fixed sequence
 
 - **Decision:**
   - A run draws its fights from an authored pool tiered early/mid/finale, instead of playing one fixed order every time.
@@ -2370,7 +2432,7 @@
 
 ---
 
-## [2026-08-15] The chain's payoff spread moves from hero identity to chain length
+## [2026-08-15] [game] The chain's payoff spread moves from hero identity to chain length
 
 - **Decision:**
   - How long a chain runs — decided live, hit by hit — is the dominant source of payoff spread.
@@ -2391,7 +2453,7 @@
 
 ---
 
-## [2026-08-15] Chain spectacle gets an intermediate tier, and scales to the firing hero
+## [2026-08-15] [game] Chain spectacle gets an intermediate tier, and scales to the firing hero
 
 - **Decision:**
   - A chain hit below the tell threshold still gets only a slightly bigger number — no callout, same as before this pass.
@@ -2409,7 +2471,7 @@
 
 ---
 
-## [2026-08-15] Chain rebuild: persistent charge bar replaces heat/ignition-roll; backfire coin flip replaces gift-flow
+## [2026-08-15] [game] Chain rebuild: persistent charge bar replaces heat/ignition-roll; backfire coin flip replaces gift-flow
 
 - **Decision:**
   - The chain trigger is deterministic: the highest-charge living hero fires the instant its charge crosses `chargeThreshold` — no candidate roll, no ignition-chance PRD table.
@@ -2428,7 +2490,7 @@
 
 ---
 
-## [2026-08-09] Boring-middle root-cause pass: roster/bench replaces deathPolicy, authored encounters replace one scaled archetype, heat flows between heroes
+## [2026-08-09] [game] Boring-middle root-cause pass: roster/bench replaces deathPolicy, authored encounters replace one scaled archetype, heat flows between heroes
 
 - **Decision:**
   - Death stays permanent for the run (explicit call, overriding this pass's own initial "downed one fight" proposal). The difficulty cliff is fixed by widening what's drafted vs. fielded instead — `sim/roster.ts` (new): a roster drafts once at run start, a smaller squad fields fresh each fight, so a fight is never short-handed even as deaths narrow the draft. `DeathPolicy` (`downAtFightEnd`/`onlyOnLoss`) is removed from `config.ts`, replaced outright by the roster/field split.
@@ -2448,7 +2510,7 @@
 
 ---
 
-## [2026-08-08] DECISIONS.md entries are historical evidence, not a live config mirror — closes the 5-vs-3 squad-size gap
+## [2026-08-08] [workflow] DECISIONS.md entries are historical evidence, not a live config mirror — closes the 5-vs-3 squad-size gap
 
 - **Decision:**
   - `prototype/src/sim/config.ts` and `heroes.ts` are the sole authority for current tuning constants.
@@ -2464,37 +2526,37 @@
 
 ---
 
-## [2026-08-08] Dominant-squad fix: equal-throughput pool rebalance, a target-relative heal cap, HP-destroyed enrage, and a single-tank aggro cap
+## [2026-08-08] [game] Dominant-squad fix: equal-throughput pool rebalance, a target-relative heal cap, HP-destroyed enrage, and a single-tank aggro cap
 
 - **Decision:** Four changes, made together against the open "bracer+vex+cairn / vex+cairn+ward stay near-100%" gap this pool docstring had been carrying: (1) Vex's DPS is walked down to near-parity with Rook (17.1 → 7.2, via a slower cadence not a smaller hit) and its maxHp raised (45 → 70) so the slower cadence doesn't just trade one death spiral for another; Hollow's maxHp raised (130 → 180) so its HP-for-affinity trade is a real choice; Ward's heal cut (4 → 3) so its hybrid flexibility costs something; Bracer's maxHp trimmed (280 → 195) and damage raised (5 → 7). (2) A new `healMaxFractionOfTargetMaxHp` (0.11) caps a single heal beat at a fraction of the *target's* own maxHp, not a flat amount — a healer can no longer fully erase a squishy attacker's fragility for free. (3) A new `enrageFromEnemyHpLostFactor` (0.25) adds a second enrage term keyed to the fraction of enemy HP already destroyed, alongside the existing wall-clock term — a burst comp now still reaches the "angry" phase, via damage dealt instead of seconds elapsed, so killing fast no longer removes all exposure at once. (4) `fight.ts`'s weighted targeting now caps the tank aggro bonus to the *first* living holding tank — found mid-pass: it had been applying to every living holding tank at once, so a Bracer+Hollow double-tank pick stacked additively and was ~90-100% unloseable by a third route this pool rebalance alone didn't touch. Global difficulty (`difficultyRampFactor` 1.12→1.06, `difficultyDamageRampFactor` 1.045, enemy `bruiser`/`grunt` HP 190/60→155/48, `autoRecoverFraction` unchanged at 0.55) was recompensated downward throughout, since every change above made the base fight harder.
 - **Why:** The player's diagnosis, given directly: this comb [sic] is "still too overwhelm that I can spam blindly and win the game and it's boring." A full 20-squad batch sweep (n=400-500) confirmed and widened the known gap: it wasn't 2 squads, it was 5 (bracer+vex+cairn, vex+cairn+ward, bracer+vex+ward all ≥98%; bracer+rook+ward, rook+cairn+ward both ≥93%), and the dominant comp was structurally the one LEAST able to deliver the game's own lead moment — bracer+vex+cairn fired 0.0% of its cascades from below 40% pool, because it won too fast and too safely for the fight's jeopardy beats (dip, wind-up, enrage) to ever engage. Root cause: every enemy threat is time-metered (attack cadence, a 5s wind-up, a 20s enrage clock), so damage output was ALSO the best defensive stat — killing faster reduced ALL of them at once, and nothing charged a price for DPS. A second, independent root cause surfaced mid-tuning: Bracer+Hollow's aggro weights were stacking additively, making any double-tank pick separately unloseable regardless of the third slot. After the fix (20-squad sweep, n=500): 18 of 20 squads land between 21-59% run completion (no blind-spam winner, no near-impossible pick), and the best comp now fires ~30-35% of its cascades from below 40% pool — every one of the 20 squads clears ≥25% on this metric, versus the old best comp's 0.0%. Two squads remain documented exceptions the pass's levers couldn't reach without re-inflating the other 18 back out of band: `rook+vex+ward` (no tank, weak healer, ~0%) and `bracer+cairn+ward` (near-zero real damage output — Cairn's own `damage` stat is decorative, it never attacks while `healPerBeat` is set — ~5-8%). Both are pinned individually in `checks/chaindist.ts`'s new "no dominant squad" sweep rather than silently ignored.
 - **Replaces:** Closes the open gap left by the 2026-08-08 "difficulty retuned so the best squad can actually lose" entry below, which explicitly named this as unsolved and requiring a hero-stat-level change. Also flips `checks/projection.ts`'s "default roster bands comfortable" assertion to "bands tight" (the default pick is deliberately no longer a blind-safe win) and retires the old "risk dial: comfortable > tight > greedy" strict-ordering check in `checks/chaindist.ts` — Hollow's higher chainAffinity is now a genuine alternate path to survival rather than a strictly worse HP trade, so "tight" (hollow+rook+cairn) now completes MORE runs than "comfortable" (bracer+rook+cairn), 37.0% vs. 22.6% at n=2000. That ordering assumption no longer holds by design, not by accident.
 
-## [2026-08-08] Every hero gets a visible chainAffinity stat — squad choice becomes the cascade's steering wheel; the hero pool is rebalanced off a dominance ladder
+## [2026-08-08] [game] Every hero gets a visible chainAffinity stat — squad choice becomes the cascade's steering wheel; the hero pool is rebalanced off a dominance ladder
 
 - **Decision:** Every hero in the pool now carries a `chainAffinity` value, shown as pips at squad-pick time, that multiplies both how fast that hero's heat accrues (how *often* it gets a shot at the cascade) and how big its chain hits land (how *big* the payoff is). Rook and Vex are re-cut to trade on this axis instead of Vex simply out-DPS-ing Rook for free (Rook: highest affinity, frequent/modest chains; Vex: high damage, moderate affinity, rare/enormous chains); Hollow and Bracer likewise split on the same axis for the tank role, and Cairn/Ward for support. Ward additionally gains `attacksWhileHealing` — it now attacks and heals on the same beat instead of the heal replacing the attack, so a two-support comp is no longer an automatic loss.
 - **Why:** The player's own diagnostic, given directly: they could see the cascade happen "once in a while" and could name the shape of the moment they wanted (low-HP near-wipe turned around by a damage spike), but had no way to *aim* for it — the explicit reference was a Dota player choosing to build Daedalus on Gyrocopter, or picking Phantom Assassin, because he knows that choice buys a specific kind of fun. Measured against the running build: squad choice moved the cascade's full-spectacle rate by only ~4 points across all 20 possible 3-hero squads (21–25%) — there was no steering wheel. Separately, the pool itself was a dominance ladder rather than a set of tradeoffs: Vex out-DPS'd Rook 17.1 vs 6.7 for near-zero cost, and every comp containing both Cairn and Ward completed 0% of runs (two non-attacking supports is a guaranteed loss). After the fix, chainAffinity spread the full-spectacle rate to 20–68% across squads (a ~47-point range), and Rook/Ward both appear in the top 5 comps by spectacle rate — squad choice now visibly changes the cascade's odds and size, not just whether the run survives.
 - **Replaces:** Nothing structural — extends the 2026-08-06 "squad pick is the risk dial" entry with a second, cascade-specific axis (that entry's projection/risk-band mechanism is about survival odds; this is about the cascade's odds and size specifically). Also fixes a stale docstring in `heroes.ts` that had documented a Hollow-vs-Bracer dip-rate tuning gap now superseded by this re-cut (see the new pool docstring for the current, still-open gap).
 
-## [2026-08-08] Heat is spent on every ignition roll, not latched once per fight — ties the cascade to danger instead of decoupling from it
+## [2026-08-08] [game] Heat is spent on every ignition roll, not latched once per fight — ties the cascade to danger instead of decoupling from it
 
 - **Decision:** The ignition eligibility check no longer latches after one roll per fight. Instead, whichever living hero has the *highest* heat (not simply the first one over threshold in role order) rolls, and its heat resets to 0 immediately after the roll — win or lose — so it must rebuild before it can roll again. A single persistent PRD counter (`ignitionChanceByAttemptsSinceIgnition`, replacing the old per-fight `ignitionChanceByFightsSince`) tracks failed attempts across rolls rather than across fights, since a fight can now contain several.
 - **Why:** The player's cherished moment, stated directly: "my only DPS or Tanker HP gets very low, but then the damage gets much higher, like a critical buff, and they wipe the enemies with near death" — a cascade firing *from a losing position*, not a routine one. Under the previous one-roll-per-fight rule, winning squads took 0.00 deaths per run, so a fight's danger and its cascade opportunity could never co-occur — the cascade was common (~24% of fights) but the *moment* the player wanted was absent. Because heat already accrues partly from damage *soaked*, a squad taking real punishment now rebuilds heat and earns multiple attempts within one fight, while a fast clean win earns one — the tie between danger and the cascade falls out of the mechanism rather than being scripted. Batch-verified on the default squad: `fractionChainsWhileLosing` (ignition firing while the pool is below 40% of its fight-start max) went from ≈0% to 43.6%, against a ≥35% target.
 - **Replaces:** The `heatFired` once-per-fight latch introduced in the 2026-08-07 fight-causality rebuild (see that entry, backfilled below) — the heat *mechanism* (per-hero meter, weighted by dealt/soaked/restored) is unchanged, only how many times it can fire per fight.
 
-## [2026-08-08] Auto-recovery between fights is a fraction of each hero's own max HP, not a flat amount — fixes an inverted risk dial and restores real attrition
+## [2026-08-08] [game] Auto-recovery between fights is a fraction of each hero's own max HP, not a flat amount — fixes an inverted risk dial and restores real attrition
 
 - **Decision:** `autoRecoverHp` (a flat HP amount added to every hero between fights, capped at their own max) is replaced by `autoRecoverFraction` (a fraction of each hero's *own* max HP recovered instead). The difficulty ramp also gained a second, much gentler axis: enemy per-hit damage now scales slightly per fight index (`difficultyDamageRampFactor`) alongside the existing HP-only ramp (`difficultyRampFactor`, raised 1.06 → 1.12).
 - **Why:** Two problems, found in sequence while retuning difficulty upward to fix the "the game cannot be lost" complaint (below). First: at any flat recovery amount low enough to matter, every hero with maxHp below that amount (Rook, Vex, Ward) was topped off to full every single fight regardless of squad, while the tank (by far the highest-maxHp hero) alone carried forward permanent attrition — so cutting the flat amount from 200 toward something meaningful *inverted* the intended risk dial: the tank-based "comfortable" squad collapsed to 3.5% run completion while the glass-cannon "greedy" squad rose to 65.9%, exactly backwards. A fraction-of-own-max recovery heals every hero proportionally instead. Second: even after that fix, two squads (bracer+vex+cairn, vex+cairn+ward — the safest tank, the highest-damage dealer, and a real healer, together) stayed near-100% run completion regardless of how hard the HP-only ramp was pushed, because they kill fast enough that neither more enemy HP nor more exposure time bites — a small damage-ramp axis is what actually threatens a fast, well-protected comp, since it lands regardless of fight length.
 - **Replaces:** Nothing named directly, but is the mechanism behind retuning the underlying complaint that the default squad (and 4 others) completed 100% of runs with 0.00 deaths — see the umbrella entry below.
 
-## [2026-08-08] Difficulty retuned so the best squad can actually lose — "the game cannot be lost" was the root cause of "it feels like a solved puzzle"
+## [2026-08-08] [game] Difficulty retuned so the best squad can actually lose — "the game cannot be lost" was the root cause of "it feels like a solved puzzle"
 
 - **Decision:** Retuned `difficultyRampFactor` (1.06 → 1.12) and `difficultyDamageRampFactor` (new, 1.05) together with the autoRecoverFraction change above, targeting the default/"comfortable" squad landing around 45–65% run completion instead of ~100%. Also redefined the batch harness's `greedy` squad preset (`vex+rook+hollow`, a true no-healer glass build) since Ward's new `attacksWhileHealing` made the old preset (`vex+rook+ward`) nearly as safe as "comfortable."
 - **Why:** The player's diagnosis, given directly: "the optimal choices are obvious from the start... the rest is garbage... I just abuse these combinations round to round and get bored." Measured against the running build: the default squad, and 4 of the 20 possible 3-hero squads, completed 100% of runs with 0.00 deaths — the run was structurally unlosable for a well-built comp, which is what makes any single choice feel "solved" rather than risky. After retuning: default squad run completion 65.4%, mean deaths per run 1.18 (was 0.00), and the risk-dial regression (comfortable > tight > greedy by a real margin) holds with comfortable at 65% vs. tight at 16.9% and greedy at 5.3%.
 - **Replaces:** Nothing directly — this is the umbrella motivation for the two entries above (chainAffinity's rebalance and the recovery-model fix), which are the actual mechanisms. One known gap remains, undecided and left open: `bracer+vex+cairn` and `vex+cairn+ward` still complete ~100% of runs regardless of ramp (see `heroes.ts`'s pool docstring) — fixing it needs a hero-stat-level change, not another global-ramp pass.
 
-## [2026-08-07] Fight causality rebuild (backfilled 2026-08-08): the tank-break pity gate is replaced by a per-hero heat meter; a bruiser wind-up and an in-fight enrage clock are added
+## [2026-08-07] [game] Fight causality rebuild (backfilled 2026-08-08): the tank-break pity gate is replaced by a per-hero heat meter; a bruiser wind-up and an in-fight enrage clock are added
 
 - **Decision:** Backfilled into the log after the fact — this rebuild shipped in code on 2026-08-07 but was never logged as a decision at the time; reconstructed here from the shipped code's own docstrings (`sim/config.ts`, `sim/fight.ts`) so DECISIONS.md stops being behind the code it's supposed to explain. Four changes, shipped together: (1) the 2026-08-06 ignition gate — reachable only once the player's tank line had broken, or the squad was tankless — is replaced by a per-hero HEAT meter (accruing from each hero's own dealt/soaked/restored, weighted by `heatWeightDealt/Soaked/Restored`); the first living hero to cross `heatThreshold` (110) triggers one ignition roll for the fight (later revised same-day-plus-one, see the 2026-08-08 "heat is spent" entry above). (2) The enemy bruiser gains a telegraphed wind-up: it periodically stops attacking, telegraphs against a weighted-random target for `windupTelegraphSec`, then lands `windupDamageMultiplier`× its own damage. (3) An in-fight enrage clock ramps enemy damage 1× → higher, linearly, after `enrageStartSec`, resetting every fight (not compounding across the run). (4) The chain's bonus-hit damage becomes multiplicative off the hot hero's own damage stat (`chainHitMultiplier` × hit index), replacing a flat 20/40/60/80/100 table, with a hard cap (`chainMaxHits`) added after the multiplicative version was found to run chains to 15-16 hits unchecked.
 - **Why:** Per the shipped docstrings: the 2026-08-06 tank-break gate made the cascade structurally unreachable on a winning path, and *inverted* — the fastest, riskiest squad had the LOWEST full-spectacle rate (batch-verified at 0.5–0.9%) because it killed the enemy before its own pool could fall far enough to open the gate. Heat-based eligibility lets a fast dealer earn its shot by doing its own job, not by the squad nearly losing. The wind-up and enrage clock were added as the mechanisms that make fragility and slowness cost something now that the tank-break gate no longer structurally forces jeopardy.
@@ -2502,25 +2564,25 @@
 
 ---
 
-## [2026-08-06] The squad pick becomes the run's risk dial; the cascade is only reachable from a broken tank line
+## [2026-08-06] [game] The squad pick becomes the run's risk dial; the cascade is only reachable from a broken tank line
 
 - **Decision:** The player's squad composition determines how dangerous a fight is, via a pre-fight projection (comfortable / tight / losing) computed from mean-value DPS/HP math. The ignition gate (see the same day's "spectacle" entry) is only reachable once the squad's own tank line has broken (or, for tankless comps, the squad is projected to lose from the current position) — not from arithmetic pool-draining alone.
 - **Why:** The player named the missing ingredient directly: "these moments have value because they happen once in a while, and the player needs to take a risk to earn that." A safe, balanced comp (tank/damage/support) should win clean and boring, with no cascade available to it. A greedy comp (e.g. two damage dealers, no tank) buys access to the big moment by accepting real danger. This gives "assemble your squad" a mechanical consequence beyond flavor, partially answering the open question of what the optional layer is allowed to modify in the fight.
 - **Replaces:** Nothing directly, but changes how the eligibility gate (2026-07-29) is reached — see the "spectacle gated on payoff" and "jeopardy no longer mandatory" entries below, which this decision depends on.
 
-## [2026-08-06] Spectacle (shake, callout, glow, escalating numbers) is gated on the chain's actual length, not on the ignition roll
+## [2026-08-06] [game] Spectacle (shake, callout, glow, escalating numbers) is gated on the chain's actual length, not on the ignition roll
 
 - **Decision:** The full visual spectacle — screen shake, name callout, permanent hero glow, escalating damage font — fires only once a chain reaches a length threshold (3+), not the instant the ignition roll succeeds. A length-1 chain gets a slightly bigger damage number and nothing else; a length-2 chain adds a small callout and a glow. Ordinary attacks and heals gain their own small damage/heal numbers so they're legible without needing the spectacle vocabulary at all.
 - **Why:** Measured directly from the running build: `npm run check:chaindist` showed an ignition rate of 64.65% against a chain≥3 rate of 7.30% — meaning the full light show fired roughly nine times for every one time the payoff it advertised actually happened (confirmed in a sampled run: two consecutive fights returned `ignited=true, chain=0` — full fireworks, zero effect). The player reported exactly the predicted consequence: "I don't even know what they are... it feels like a script fight." Gating spectacle on the outcome rather than the trigger means the rare, real payoff is the only time the game performs it, which is what makes it legible as rare.
 - **Replaces:** The 2026-08-04 legibility rewrite's ignition tell (`fightView.ts`'s `showIgnition`, which fired shake+callout+permanent-glow on every successful ignition roll regardless of resulting chain length).
 
-## [2026-08-06] In-fight jeopardy is no longer mandatory every fight
+## [2026-08-06] [game] In-fight jeopardy is no longer mandatory every fight
 
 - **Decision:** The eligibility gate — and therefore the possibility of a dip/comeback beat at all — is no longer guaranteed to open every fight. Whether a fight has jeopardy now depends on the squad's composition (see the same day's "squad pick is the risk dial" entry): a comfortable comp can win a fight with no dip, no gate, no ignition roll, ever. Target funnel: roughly 3 in 4 fights are completely undramatic.
 - **Why:** Reverses the 2026-07-28 stakes-shape decision's "in-fight jeopardy mandatory" clause. The player's own diagnosis: "these moments have value because they happen once in a while... right now it happens every fight so I feel no emotion for that and feel scripted." Verified in the code: the eligibility gate (pool ≤ 40% of fight-start max) was reached by arithmetic in nearly every fight regardless of play; `checks/beatsheet.ts` had to hand-pick a seed specifically because the gate didn't open on 4 of the first 10 seeds tried. A guaranteed near-loss is not a comeback — it's a cutscene the player learns to sit through. Rarity, bought with an elected risk at squad-pick time, is what restores the moment's value.
 - **Replaces:** The mandatory-jeopardy clause of `[2026-07-28] Stakes' shape`. The run-scoped economy, permanent-loss ban, and both PRD tables named in that entry are unaffected.
 
-## [2026-08-06] Per-hero HP bars replace the two aggregate side meters
+## [2026-08-06] [game] Per-hero HP bars replace the two aggregate side meters
 
 - **Decision:** Both sides render six (or fewer, post-attrition) individual, proportionally-sized HP bars instead of one aggregate meter per side. Bar width scales with each hero's maxHp, so a 200 HP tank's bar is visibly ~4x a 45 HP glass cannon's — this gives a shared scale across bars (total bar-pixels on a side still reads as that side's total remaining HP) while also making each hero's individual state legible.
 - **Why:** The player's core complaint — "I never know if my tanker takes damage... my dealer deals good damage... my healer is doing his job" — is a direct consequence of per-hero HP being encoded as circle opacity between 0.4 and 1.0, the least legible channel available, while the only prominent readout (the two aggregate meters) throws away exactly the per-hero information the player's squad plan needs to be checked against. Per-hero HP bars, plus job counters (soaked/dealt/restored) added the same day, are what let the player verify their plan actually happened.
@@ -2528,7 +2590,7 @@
 
 ---
 
-## [2026-08-04] Legibility rewrite: per-hero combat, a visible enemy bruiser, and wipe-only resolution replace side-level DPS, the timed dip, and the coin-flip tie-break
+## [2026-08-04] [game] Legibility rewrite: per-hero combat, a visible enemy bruiser, and wipe-only resolution replace side-level DPS, the timed dip, and the coin-flip tie-break
 
 - **Decision:** Replace the fight's side-level DPS model with per-hero attack beats (attacker → target, visible); replace the enemy-DPS-decay curve with a single dominant "bruiser" enemy as the dip's cause; resolve every fight by wipe instead of a 30s timer; add three hero roles (tank/damage/support); add a run-start squad pick (3 of 6, default pre-filled) and a pre-fight enemy read.
 - **Why:** The first playable build was judged not fun — no visible cause for HP loss, an unexplainable turnaround, nothing to assemble. Root cause: the fight had no actors, only two meters moved by a hidden formula. This is a change to the fight's mechanism, not to the lead moment itself; it puts real pressure on "the cascade is the big win, not the only win" (per-hero combat can snowball), guarded by a new batch metric (`fractionWinsWithNoChain`, currently ≈79%) rather than by hope.
@@ -2536,7 +2598,7 @@
 
 ---
 
-## [2026-07-31] Prototype #1 scoped: a vehicle covering a full 5-fight run, with attrition, an in-run coin economy, and one optional-layer lever
+## [2026-07-31] [game] Prototype #1 scoped: a vehicle covering a full 5-fight run, with attrition, an in-run coin economy, and one optional-layer lever
 
 - **Decision:** Nine commitments that turn the specified *fight* into a buildable *loop*, and fix what the first build is for:
   1. **Prototype #1 is a vehicle, not a hypothesis test.** Its job is to actualize the lead moment so it can be judged and adjusted, not to pass or fail a stated claim. Its success criteria are correspondingly different: it works if watching it produces **specific, differentiated reactions** ("the chain ended flat," "the dip is too long"), and if it can **surprise its makers** — if it can only show what was already specified, it is a rendering of the docs rather than an instrument.
@@ -2560,7 +2622,7 @@
   - **Point 9** keeps the cascade the player's signature rather than a weather system, and keeps the win-rate math tractable for a first build. Deliberately cheap to reverse.
 - **Replaces:** **Supersedes** the "fresh every fight" strawman for hero persistence in the core loop. **Reverses** [2026-07-11] "unit attrition deferred" — attrition is now in scope. **Partially resolves OQ-13**: retry is per-*run*, not per-fight. **Answers STATE's top open question** — what the optional layer is allowed to modify — as: coin, spent on healing and damage upgrades. **Executes** the 2026-07-28 run-scoped stakes decision by giving it its first concrete devices. **Pulls forward** the bench question (deferred in `FIGHT_SCRIPT.md` §5): DD-style permanent death is survivable in DD because of a large roster, and with three heroes and no bench it may spiral — to be settled by building. **Leaves to the build**, per the standing 2026-07-26 rule: all tuning constants (now drafted in `FIGHT_SCRIPT.md` and the prototype build doc), whether the passive completion rate lands near its ~25% target, and whether the dip still reads as losing.
 
-## [2026-07-29] The core loop's fight is specified: 30s, two HP meters, escalating proc chain, PRD-gated ignition, and the cascade as the big win rather than the only win
+## [2026-07-29] [game] The core loop's fight is specified: 30s, two HP meters, escalating proc chain, PRD-gated ignition, and the cascade as the big win rather than the only win
 
 - **Decision:** Five commitments that turn the core loop from a set of relationships ("RNG triggers, emergence amplifies") into a buildable fight. Drafted as strawmen in `FIGHT_SCRIPT.md`, reacted to, and settled:
   1. **Fight length is ~30 seconds**, beat-sheeted as: opening exchange (~8s) → visible dip (~8s) → ignition (~4s) → chain (~7s) → resolve (~3s). Accepted as drafted, without a competing case being argued.
@@ -2577,7 +2639,7 @@
   - **Accepted cost of point 5, named going in:** if the dip is sometimes survivable by ordinary play, it is not reliably *scary*. This puts real pressure on the mandatory-jeopardy commitment (2026-07-28) — the "looked like it might fail first" clause now depends on the dip being tuned so it still *reads* as losing even when it is in fact escapable. If that tuning proves impossible, point 5 is the piece to revisit first.
 - **Replaces:** Replaces nothing — this is the first specification of the core loop's fight at the mechanic level, and it supersedes only the corresponding strawmen in `FIGHT_SCRIPT.md` §1–§4. **Executes** the 2026-07-28 stakes-shape decision's mandatory-jeopardy commitment by giving it a concrete mechanism (the deterministic eligibility gate is what makes "looks lost first" true without staging it). **Advances** STATE.md "Next up" step 1. **Leaves open, to be settled by building rather than by further specification** (per the standing 2026-07-26 "learn by building, not by pre-validating" rule): the eligibility threshold; all specific PRD and chain constants, which are strawmen for tuning by feel; what the optional layer is permitted to modify in the proc chain (base chance, escalation step, cap, which hero can go hot, or what a bonus hit does); and the squad-pick step, explicitly deferred.
 
-## [2026-07-28] Stakes shape chosen: in-fight jeopardy is mandatory, and the stakes economy is run-scoped, never permanent
+## [2026-07-28] [game] Stakes shape chosen: in-fight jeopardy is mandatory, and the stakes economy is run-scoped, never permanent
 
 - **Decision:** The stakes mechanism left open on 2026-07-26 is resolved at the level of **shape** (concrete devices still to be picked during the build). Two commitments:
   1. **In-fight visible jeopardy is mandatory.** The fight must *look* like it is being lost before the cascade turns it — squad down, health in the red, then the dice fire. This is a pacing/presentation constraint on cascade timing, not an economy: it costs the player nothing, requires zero reading, and is what actually delivers the lead moment's "looked like it might fail first" clause.
@@ -2587,7 +2649,7 @@
   - Permanence is ruled out because it would break the standing **"mastery is a ceiling, never a gate"** rule (2026-07-19): any stake that makes the non-reading player progressively worse off inverts the ceiling into a gate, and on a casual mobile game it is also a retention bug — a bad session must never cost something the player cannot re-enter in ~30 seconds.
 - **Replaces:** Resolves the top-priority "Stakes mechanism" open question in STATE.md (the loss-on-fail / jackpot / bot-comparison fork) at the shape level, and closes the "mechanism not chosen" flag on the Stakes row of STATE.md's Design status table. Executes, does not reopen, the 2026-07-26 adoption of stakes in principle. Leaves open, deliberately and per that same entry's "learn by building, not by pre-validating" rule: whether an **elected bank-or-push** escalation button is included (it would be the one decision allowed in an otherwise zero-decision core loop — nerve, not reading — and would need a safe auto-default), whether a **rival-bot scoreboard** is added as a legibility skin on the score, and whether **attachment/permadeath stakes** appear in the optional layer as ceiling content. Also leaves open whether run-scoped loss satisfies the friend's unprompted "lose something on failure" ask or whether that ask meant permanent loss — worth one cheap direct question, given this project's standing rule that observed play outranks self-report (observed play was gain-chasing: 200+ rounds for a bare high score).
 
-## [2026-07-26] Stop probing, adopt stakes, and stop trying to blend floor and ceiling into one mechanic — move to building the real game
+## [2026-07-26] [game] Stop probing, adopt stakes, and stop trying to blend floor and ceiling into one mechanic — move to building the real game
 
 - **Decision:** Three things adopted together, closing the discovery-phase probe loop opened 2026-07-18/19:
   1. **Stakes** (the shared moment's untested "looked like it might fail first" clause) is adopted without a further dedicated probe. The friend asked for it unprompted (lose something on failure / a casino-style big reward / compete against a bot for score), it matches a long-observed pattern in him (Darkest Dungeon stress-reversal was his own independently-named design ideal, per the 2026-07-19 alignment entry), and Tu has no objection. The exact mechanism (loss-on-fail vs. jackpot-style reward vs. bot-comparison) is left open to be decided during build, not pre-specified here.
@@ -2596,7 +2658,7 @@
 - **Why:** The project's own history (the "fun = mastery + chaos" reset, DECISIONS 2026-07-18) already showed a plausible, agreed-on-in-conversation idea can fail once built — so the bar for "stop probing" isn't zero remaining uncertainty, it's having independently validated the two halves separately (ceiling: emergence-only lean-in, 2026-07-22; floor: RNG-only lean-in, tonight — see entry below) plus a structural reason (four failed blend attempts) to expect further blending probes to keep failing the same way. Open-ended re-probing of the blended-mechanic shape was the actual risk raised; the fix is changing the shape being tested, not testing longer.
 - **Replaces:** Supersedes the "wired-together" arm as the target shape for combining floor and ceiling (STATE.md Probe status table, all rows) — the wired arm and its decision-layer iterations are not pursued further as-is. Does not reopen the 2026-07-19/07-20 floor/ceiling division-of-labor finding — confirms and executes it, via layering instead of blending. Advances STATE.md "Next up" step 3 ("cast the lead, derive further mechanics, resync").
 
-## [2026-07-26] Friend-validation session run — RNG confirmed cleanly; friend's behavior shows he doesn't self-generate variety
+## [2026-07-26] [game] Friend-validation session run — RNG confirmed cleanly; friend's behavior shows he doesn't self-generate variety
 
 - **Decision:** Ran the friend-validation session (`probe/FRIEND_TEST_PROTOCOL.md`), fixed order RNG → Emergence → Wired-base, blind framing, ~10-20 rounds per arm. Session logs weren't captured; Tu observed directly instead (shared screen + face on a live call). Results, read against the protocol's own outcome tables:
   - **RNG-only:** clean confirmation of the predicted result. Strong engagement (200+ unprompted rounds, played while carrying on a separate conversation) plus attribution absent — "realized it's RNG after all," stopped reading card text, just spammed Play for a high score. Matches §8's "chases hard but 'the dice did it'" row: the cleanest possible result, confirms RNG-alone fails "claim as mine" on its own and motivates pairing it with a ceiling layer rather than shipping it solo.
@@ -2606,44 +2668,44 @@
 
 ---
 
-## [2026-07-26] Decision-density criterion sharpened: three ways a "recurring decision" turns out fake
+## [2026-07-26] [game] Decision-density criterion sharpened: three ways a "recurring decision" turns out fake
 
 - **Decision:** Tu played all three decision-layer sketches in `probe/wired/layers.html` and rejected all three, but the rejections aren't scattered complaints — each names a different, specific way a recurring decision fails to deliver decision-density (the sustaining pleasure named 2026-07-24) even though a decision is nominally there every round. **Draft** (swap a token into the row each round) failed because the offered tokens are drawn from the same pool the row/reroll already ranges over — nothing new enters the space, so the "choice" is a reroll wearing a decision costume; Tu's own fix instinct (offer only tokens never seen at setup, capped to 3, revealed gradually) independently re-derives Balatro's expanding-joker-pool pattern, this project's #1 reference game. **Routing** (aim every spark/surge as it fires) failed because the no-choice default — a trigger firing all events at once — is strictly more powerful than any routed outcome; a decision that only costs power relative to doing nothing is a tax, not agency, and directly inverts the existing "mastery is a ceiling, never a gate" clause into a gate. **Spend** (rescue a roll with scarce charges) failed because, even with real scarcity nominally present (5 charges), the dominant play — find the single highest-EV piece, dump every charge as force-surge into it — is discoverable and then correct every round, the same collapse-to-a-solved-policy failure already diagnosed in the emergence-only (2026-07-22) and RNG-only (2026-07-24) arms; Tu's own read ("could be better if more limited") names tighter scarcity as the fix. **The sharpened criterion:** a recurring decision only produces real decision-density if it (a) draws on genuinely new information/options not already inferable from the current state, (b) never leaves the passive/default outcome better than engaging, and (c) resists converging to one repeatable optimal move.
 - **Why:** Without this, "add a recurring decision" is not an actionable design constraint — all three sketches nominally added one and all three still felt bad, for three different mechanical reasons. Naming the three failure shapes (recombination-without-novelty, choice-as-tax, spammable-to-a-solve) turns "decision-density" from a diagnosis into a checkable filter for the next iteration of this probe, and for any future mechanic proposed against the shared lead moment.
 - **Replaces:** Sharpens (does not overturn) the 2026-07-24 "Tu's core pleasure is decision-density" entry — that entry established *that* an open recurring-decision space is the sustaining pleasure; this entry establishes *what makes a proposed decision space fake* even when a decision is nominally present every round. Does not resolve STATE.md's open "pick which decision-layer shape to build first" question — narrows the design space that next pick must satisfy.
 
-## [2026-07-24] Tu's core pleasure is decision-density, not chance or comprehension per se — RNG is seasoning, not the engine
+## [2026-07-24] [game] Tu's core pleasure is decision-density, not chance or comprehension per se — RNG is seasoning, not the engine
 
 - **Decision:** Reflecting on the wired probe (`probe/wired/`), Tu named the actual defect for himself: playing it felt like "spam spark and hope for surge," and after several attempts he felt dread because "there's not much more to explore" — the dominant strategy resolves to defaulting Berserker first (highest rate of triggering the amplifier chain) and re-rolling. He initially attributed this to bad RNG design and asked to be proven wrong. The diagnostic move: propose three sketches that each add exactly one *recurring* decision on top of the exact same, untouched surge dice (between-round draft / live event-routing / spend-after-you-see interventions) and check Tu's reaction. Result: **all three excited him, despite none being built or played yet**, and specifically because they "give the game more room to explore, to think strategically" — with the RNG held constant across all three. Since the one shared variable was "a decision was added" and the one thing *not* varied was randomness, the excitement isolates **decision-density / size of the strategic space** as Tu's sustaining pleasure — not the dice, and not raw comprehension-of-a-solved-system either (which is what the emergence-only arm supplied, and which also burned out once solved, per 2026-07-22). This refines rather than contradicts the 2026-07-24 RNG-only-arm entry ("comprehension/mastery of an open problem" was the read there) — the sharper version is: Tu is pulled by an **open space of decisions**, and dread/boredom is what happens once that space is fully mapped, regardless of whether RNG or a deterministic build was what closed it.
 - **Why:** Tu asked to be proven wrong that the RNG itself is the flaw. The proof is structural, not rhetorical: three sketches held the randomness bit-for-bit fixed and varied only "is there a recurring decision," and excitement tracked the decision, not the dice. This reframes the wired probe's flatness — it isn't that the surge mechanic is bad, it's that the probe hands the player exactly one decision (build the row) and then only re-rolls it forever, so the roll is *terminal* (nothing sits between dice and outcome) and the space is *non-renewing* (solve it once, every future run is the same row re-rolled). Both defects trace to "one decision, never revisited," which is now read as the actual thing to fix, with RNG's role narrowed to seasoning/floor rather than primary surprise source — consistent with, and now given a mechanism for, the 2026-07-20 floor/ceiling division of labor.
 - **Caveat — this is Tu-only, unverified against the friend.** The friend's stated floor need ("a highlight reachable even playing badly") could be satisfied by exactly the low-agency jackpot-chase feeling Tu is describing as boring for himself (same asymmetry flagged in the 2026-07-24 RNG-only entry) — a design that maximizes decision-density for Tu risks *raising* the skill floor and eroding the friend's half of the shared moment. Also, per this project's own standing rule, excitement at an untried idea is weaker evidence than play (Tu felt the same pull about the original prototype from a design doc, which then bored him once built) — this entry records a taste signal to point the next probe at, not a validated result.
 - **Replaces:** Sharpens (does not overturn) the 2026-07-24 "RNG-only arm" entry's framing of Tu's sustaining pleasure from "comprehension/mastery of an open problem" to the more specific "decision-density / recurring strategic choice." Does not close the wired-together arm (still "not built" per STATE.md Probe status) — motivates its next iteration and the still-open choice of which recurring-decision shape (draft / routing / spend-after) to build first.
 
-## [2026-07-24] STATE.md restructured for redundancy; CLAUDE.md gains a "live status lives in one place" rule + a stable section skeleton
+## [2026-07-24] [workflow] STATE.md restructured for redundancy; CLAUDE.md gains a "live status lives in one place" rule + a stable section skeleton
 
 - **Decision:** STATE.md had grown to ~190 lines partly because live facts were being restated in multiple sections — most visibly, each probe arm's result was told 3–4 times (in "How we decide," "The shared lead moment," OQ-0, and "Next up"), and the floor/ceiling and RNG-triggers/emergence-amplifies resolutions were each stated 2–3 times. This was a full STATE regeneration (not a line-edit) that: (1) collapsed all probe-arm results into a single **Probe status** table, the sole source of truth, with every other section pointing to it instead of restating it; (2) moved rationale/evidence that already lives in DECISIONS (the "why it felt flat" essay, the `toy.mjs explore` numbers, the who-can-judge-what note) out of STATE into one-line pointers; (3) compressed the working-hypotheses list and reference-games table to one line each, dropping elaboration but keeping every fact checkable. Result: 191 → 130 lines, no content lost, no new file (stayed two-file: STATE + DECISIONS — a third REFERENCE.md was considered and rejected, see Why). CLAUDE.md's Guardrails section gains two additions to keep this from re-bloating: **"Live status lives in exactly one place"** (an evolving fact gets one home; other mentions point to it, never restate it) and a **fixed 11-section skeleton** that a future resync regenerates into.
 - **Why:** Redundancy isn't just length — it's a correctness risk. When the same fact lives in four places, a future sync can update some copies and miss others, producing silent contradictions, which is exactly what the existing "never repeat a fact in STATE" guardrail already warned against; this decision makes that guardrail concrete (one table, not a rule with no mechanism) and extends it with a named skeleton so section structure stays stable across rewrites. A separate REFERENCE.md was considered for the bulkier hypothesis/reference-game detail but rejected: it would break the clean present-truth/history binary between STATE and DECISIONS, create a third document with no `Last synced` audit contract (this project already has two such casualties — STRATEGY.md and PROTOTYPE_PLAN.md are both stale), and fall outside the READ protocol's "STATE first" default, meaning the AI would either read it every session (no context savings) or skip it and silently lose filters it currently uses to reject proposed mechanics (e.g. the working-hypotheses list).
 - **Replaces:** No prior decision reversed — this is a structural/process change to how STATE.md and CLAUDE.md's guardrails work, not a change to any game-design content. All probe results, hypotheses, and reference-game facts carried forward unchanged in meaning, only in shorter form.
 
-## [2026-07-24] RNG-only arm played: fun is real but non-renewing — mastery/comprehension, not chance, sustains Tu
+## [2026-07-24] [game] RNG-only arm played: fun is real but non-renewing — mastery/comprehension, not chance, sustains Tu
 
 - **Decision:** Tu's own play of the RNG-only probe is fun but on different terms than emergence, and the difference is diagnostic, not just a vibe note. The RNG probe's fun moment is a **jackpot chase**: a light strategic choice (pick the highest-reward pieces to sequence) followed by repeated Play-spam hoping for the top score. That fun is real (a genuine jackpot high) but **collapses fast** — around 30-40 rows, once Tu concludes he can't beat his high score *and* the "best sequence" is solved (just pick the biggest pieces). Diagnosis: the boredom trigger isn't "luck ran out," it's "the strategy space closed" — once the optimal policy is nameable, only chance is left, and chance alone doesn't hold Tu's attention. This reads as a **player-type signal, not just a probe-tuning note**: Tu's sustaining pleasure is comprehension/mastery of an *open* problem, not the reward hit itself — which lines up with why the emergence arm hooked him (2026-07-22 entry) even though it produced its own, later burnout. Provisional read pending the wired-together arm: **RNG is a weak primary surprise source for Tu specifically** (finite, external, exhausts itself once modeled) vs. **emergent combination is a stronger one** (structural, renews as long as the interaction space stays unsolved) — RNG's likelier role is seasoning the inputs to the emergent puzzle, not carrying the moment on its own.
 - **Why:** Same session, same instinct as the 2026-07-22 emergence entry — Tu's own reaction to a toy he built is useful signal but knowingly asymmetric: this is **Tu's read of his own play only**, not yet checked against the friend (the RNG-favoring half of the team per the 2026-07-19 alignment). The friend's floor need is explicitly "a highlight reachable even playing badly" — that could be satisfied by exactly the jackpot-chase feeling Tu is describing as boring for himself. So this entry records a real, load-bearing observation about Tu-as-player, but it is **not** a verdict that RNG-only fails as an arm until the friend's play is checked.
 - **Replaces:** Adds a second data point to the three-arm probe alongside the 2026-07-22 emergence-only finding; does not close arm 2 (RNG-only) the way arm 1 was closed, and does not yet resolve the 2026-07-20 "both, wired together" division-of-labor question — that resolution still waits on the RNG-triggers-emergence arm and, importantly, on the friend's independent play of these same probes.
 
-## [2026-07-22] Emergence-only arm complete — burnout is the structural ceiling, not a balance problem
+## [2026-07-22] [game] Emergence-only arm complete — burnout is the structural ceiling, not a balance problem
 
 - **Decision:** The emergence-only arm of the three-arm probe (`probe/emergence/toy.mjs`, `play.html`, `rules.mjs` v2) is judged **complete** based on Tu's own play, not further balance passes. Tu reported a genuine lean-in — "the desire to play more to find the best combo" — which is the exact positive signal this arm existed to test for. The burnout that followed ("only Crit combo is strong," rules felt too complex to parse) is diagnosed as the arm's **predicted structural ceiling**, not a tunable imbalance: a deterministic system means same input → same output forever, so once a build is solved it is solved *permanently* — there is no amount of token rebalancing that keeps a solved puzzle replayable. This is exactly the failure mode the three-arm plan's bridge hypothesis exists to fix (RNG decides *whether/when* a cascade fires, so a known-best build can't go stale on repeat). **Stop optimizing/rebalancing this toy; move to building the RNG-only arm next, then the wired-together arm.**
 - **Why:** Two signals from the same session point opposite directions and had to be weighed differently. The lean-in is trustworthy self-report — Tu is the emergence-*skeptical* half of the team by his own stated favorite (RNG), so building hooking him even briefly is real evidence for the shared moment. The burnout is *not* equally trustworthy on its own terms: per the 2026-07-19 alignment finding, a maker who designed the puzzle already knows the solve, so his own boredom is unreliable evidence against the building/puzzle moment specifically — it needed to be checked against what the arm was structurally capable of before treating it as a verdict. Checked via `node toy.mjs explore 5 200000`: the v2 redesign (5 slots/15 tokens, real scarcity, cost/anti-synergy tokens) already passed its own diversity bar (top-decile runaway 6.0x, obvious build only 43% of best, 2 build families) — so the "only Crit is strong" feeling isn't an undiscovered balance bug so much as every token in the pool being scaffolding around one underlying crit/kill engine (confirmed: only F/B/U/T score anything solo; every other token is inert outside the crit chain). Further tuning would not change that a deterministic engine, once solved, stays solved — the ceiling is structural, not numeric.
 - **Replaces:** Executes STATE.md's "Next up" step 2 (three-arm comparison) — closes out **arm 1 of 3 (emergence-only)** with a verified result and redirects the active work to arm 2 (RNG-only). Does not reopen or overturn the 2026-07-20 "division of labor" decision — it supplies the empirical confirmation for *why* emergence needs RNG paired with it, rather than being a standalone viable arm.
 
-## [2026-07-20] The RNG-vs-emergence knob is not a fork — both, with a division of labor
+## [2026-07-20] [game] The RNG-vs-emergence knob is not a fork — both, with a division of labor
 
 - **Decision:** Reframe the "open knob" from a *choice* (RNG **or** emergent combination as the surprise source) to a **wiring diagram**: the game uses **both**, each doing a different job. **RNG triggers** — decides *when/whether* a cascade fires (the friend's need, and the source of the floor: a highlight reachable even playing badly). **Emergent combination amplifies** — decides *what the cascade becomes* once triggered (Tu's need, and the source of the ceiling: reward for playing better). This is the same shape already committed in the 2026-07-19 floor/ceiling resolution (RNG = floor, synergy-depth = ceiling) and the same shape as every 🥇 reference game (Balatro, Slay the Spire, Into the Breach all run RNG + emergent systems together, never one alone). The probe step is **not** reframed as "pick RNG or emergence" — it now tests **execution of the bridge hypothesis** (does a dice-triggered cascade satisfy both the RNG-lover and the emergence-lover?) via a three-arm comparison: RNG-only, emergence-only, and RNG-triggers-emergence-together, judged by lean-in for *both* makers.
 - **Why:** "Choose one" was never actually forced by the design — it conflated two different things (a *source* of unpredictability vs. a *structure* of system interaction) that aren't mutually exclusive, and the shared-moment work already resolved the underlying maker-taste tension as floor-vs-ceiling, not an either/or. Treating "both" as a real division of labor (not a treaty where each maker gets his favorite mechanic bolted on separately) keeps the probe's attribution discipline intact — the risk being guarded against is unattributable fun (the original flat-prototype failure), not the number of engines used, so a probe testing the *wired-together* bridge hypothesis explicitly (not each half in isolation as the deliverable) is what preserves that discipline.
 - **Replaces:** Sharpens (does not overturn) the 2026-07-19 "open knob" language in STATE.md and the "Co-founder alignment reached" DECISIONS entry — the underlying floor/ceiling finding is unchanged; only the "RNG vs. emergence, unresolved" framing of the probe question is corrected to "both, wired together, execution is the open question."
 
-## [2026-07-19] Co-founder alignment reached: one shared lead moment found
+## [2026-07-19] [game] Co-founder alignment reached: one shared lead moment found
 
 - **Decision:** Both makers' independent recalls (Tu's in `ALIGNMENT_PREP.md`; friend's given verbally — Dota Gyrocopter/Daedalus, RNG-skill heroes, Darkest Dungeon stress-reversal, WoW/Dota battleground "I told you so") converge on **one shared lead moment**: *"I assemble my squad, press play, and watch it pay off far bigger than I expected — a cascade I set in motion but couldn't fully predict, that looked like it might fail first, and that I can still claim as mine."* Sub-findings that make up this convergence:
   - **Attribution is shared** — both makers want legible credit when the payoff lands (Tu: "unmistakably mine to have built"; friend: "I decided to build Daedalus," "my call was right"). **Skill-gating is not shared** and is resolved as **floor vs. ceiling, not a fork**: variance/RNG is the **floor** (a highlight is reachable even playing badly — the friend's stated need), synergy-depth is the **ceiling** (rewards playing better — Tu's need). **Mastery is a ceiling, never a gate**, on this game.
@@ -2655,13 +2717,13 @@
 - **Why:** Closes the alignment step opened by the 2026-07-18/07-19 decisions — both makers have now independently recalled and revealed, and the outcome is convergence (not the flagged divergence risk), with one genuine open knob (RNG vs. emergence) rather than a fork in the lead moment itself.
 - **Replaces:** Resolves the co-founder-alignment sub-part of OQ-0 (STATE.md). Does **not** resolve OQ-0's personal/probe-validation sub-part — that remains open and becomes the next active work (fun probes, testing the RNG-triggers-legible-chains bridge hypothesis with stakes restored). Supersedes the "friend's recall still pending" status recorded in the 2026-07-19 alignment-candidate working notes.
 
-## [2026-07-19] The alignment deliverable is a single lead *moment*, not an engine or a mechanic
+## [2026-07-19] [game] The alignment deliverable is a single lead *moment*, not an engine or a mechanic
 
 - **Decision:** The co-founder alignment step produces **one shared lead *moment*** — a concrete, remembered *felt beat* (a few seconds, with a shape: anticipation→payoff or dread→relief) that the game exists to deliver — **not** a "lead engine" and **not** a mechanic/feature. The three-engine lens (watching / building / gambling / character-drama) is **demoted from the thing you choose to a sorting label**: you name moments first, then tag each with an engine afterward and use the lens only to check whether the two makers' moments secretly match or secretly conflict. Process: **both makers** (not just the friend) each **independently** recall **3–5 moments** — *only moments they have actually felt in a game they played*, not moments they imagine could be fun — reveal, then **rank to one lead moment or name an explicit divergence**. Mechanics are derived *after* the moment is chosen and judged by one test: does this serve the moment?
 - **Why:** Naming a pole ("mastery") or a mechanic first can **reject no feature**, so it fails to constrain design — the exact altitude that produced the flat prototype (a pile of locally-justified mechanics — hex sim, full-info, deterministic, free retry — aimed at no shared feeling). A *moment* is concrete enough to say no to features, so mechanics fall out of it instead of piling up under it. It also **exposes co-founder divergence that an engine/mechanic list hides**: two makers can agree on mechanics ("a draft, positioning, watch the fight") while secretly wanting different feelings, and converge on a compromise that is "technically fine, secretly boring." An engine is a category with the same rejection-nothing weakness as "mastery"; it survives only as a post-hoc label.
 - **Replaces:** Sharpens the 2026-07-18 discovery decision: the alignment output is now a **moment**, with **engine demoted to a sorting label**, and the recall **scope broadened from the friend's homework to both makers** with an explicit 3–5-candidates / one-lead / only-felt-moments discipline. Does not reopen the 2026-07-18 "fun is unverified / building not theorizing" stance — it operationalizes it.
 
-## [2026-07-18] Fun is unverified — demote the "Settled" list to hypotheses; switch to discovery-by-probes + co-founder alignment
+## [2026-07-18] [workflow] Fun is unverified — demote the "Settled" list to hypotheses; switch to discovery-by-probes + co-founder alignment
 
 - **Decision:** The core fun was **theorized, never verified by play**; STATE's "core insight" is a hypothesis, not a finding. Therefore: (1) the entire **"Settled — do not re-litigate" list is demoted to working hypotheses**, reopenable until play earns each one back; (2) **no new do-not-re-litigate decisions** are minted until play produces a lean-in; (3) the next work is **discovery, not construction** — starting with co-founder alignment, then small disposable probes that each isolate one autobattler fun-engine (watching / building / gambling), judged only by "do I not want to stop?"; (4) because this is a two-person team, a **co-founder alignment step runs first** to surface where the two makers' visions diverge before anything is built.
 - **Why:** An extensive design + a faithful prototype produced boredom — evidence that more theorizing is the wrong tool and fun is empirical. Keeping the "Settled" list binding protects an *unverified* direction, which is worse than no discipline. The reference games (Balatro/StS/ItB) were themselves found by play, and two of them contradict the settled determinism + free-same-difficulty-retry choices. Two makers with fuzzy, possibly divergent visions (friend's DD + TFT + "chaos" clips point at three different engines) risk a compromise that is "technically fine, secretly boring."
@@ -2672,158 +2734,158 @@
 > ## ARCHIVE — entries below predate the 2026-07-18 pivot
 > Everything below this line describes the pre-pivot game design (hex-grid tactics, elevation, authored deploy zones, timed-ultimate mid-fight decisions, fog-of-war, a 5-hero-plus-bench roster). The entry immediately above suspended all of it. Kept for the historical record of *why* the pivot happened — not current, not live rationale.
 
-## [2026-07-15] OQ-6 (form) resolved: pre-fight setup is on-map placement into an authored bounded deploy zone
+## [2026-07-15] [game] OQ-6 (form) resolved: pre-fight setup is on-map placement into an authored bounded deploy zone
 
 - **Decision:** Squad setup happens **on the battle map itself**, not on a separate screen — setup and battlefield share one view so the player places while reading the terrain they're countering. The player **drag-places** each fielded hero onto **any legal hex inside an authored, bounded deployment zone** (free placement *within* the zone, TFT-style). This rejects three alternatives at once: the current **separate-screen dropdown** setup (illegible — you pick a lane name blind to the map), **coarse row×lane slots**, and **free-place-anywhere**. The **deployment zone is the per-encounter balancing knob** — its size and shape control elevation access, whether any single setup is a dominant no-brainer, and how much placement can carry relative to the draft. Legal hexes exclude walls, the enemy side, and (by default authoring) enemy-held high ground; the zone is authored per map. Zone *size/expressiveness* is a dial tuned in the prototype, not fixed here.
 - **Why:** The old separate-screen dropdown setup contradicts the game's own spine — the whole premise is *reading and countering a visible board* with positioning-as-the-solve, yet the player was setting up blind to the terrain. On-map placement fixes that directly and cheaply. **Free-within-zone over coarse row×lane** is required because the encounter model authors *specific* terrain counters — a flank gap, a chokepoint, a route onto elevation — and row×lane is too coarse to express "get an archer onto *that* hex"; the prototype's deployment slots already had to be hand-pinned to exact meaningful hexes, so the coarse abstraction was already leaking. **Bounded over free-place-anywhere** because an unbounded space is where players find author-unintended degenerate positions that trivialize the puzzle and break the 4-point authoring test, and because the zone is the single knob that also governs elevation access and the placement-vs-draft power balance. TFT is the proof the input is casual-mobile-viable and the placement decisions are conscious and attributable; the residual attribution risk of a large continuous placement space is a *zone-size* concern, not a reason to go coarse. A cheap safeguard for clean between-retry attribution (surface a ghost of the previous attempt's placement so the player's change is visible) is noted but not committed.
 - **Replaces:** Resolves the **FORM** half of OQ-6 and **overturns the PROTOTYPE_PLAN.md provisional answer** ("row × lane — coarse placement, not free hex-drop"), which was an unexamined default rather than a considered decision. Narrows OQ-6 to one remaining dial: **how large/expressive the deploy zone is** — the attribution↔expression tradeoff, and whether rich placement starts to **swallow the draft** as the lever that decides fights (mastery must stay distributed, not collapse onto positioning). Interacts with the elevation decision logged alongside this one.
 
-## [2026-07-15] Elevation is intrinsically risk/reward, not pure upside
+## [2026-07-15] [game] Elevation is intrinsically risk/reward, not pure upside
 
 - **Decision:** High ground (and elevation generally) must grant its advantage **and a matching exposure** — a unit on high ground reaches/sees further **but also takes more incoming / is targetable from more of the map.** It is never pure upside. Concretely in the prototype sim, the existing `+range` bonus gains a symmetric downside (e.g. no cover, increased damage taken, or greater visibility to enemies); the **specific parameter values are a prototype tuning dial**, not fixed here. Consequence: **occupying high ground is a bet** (more reach for more risk), so neither starting on it nor racing to it is ever a free or dominant choice — the balance is intrinsic to the tile, independent of the map.
 - **Why:** A choice is a no-brainer only when it has upside and no cost; the sim's current high-ground bonus (`+1 range`, `combat.ts`) is exactly that — pure upside — which is what would make "put the archer on the hill" a dominant, puzzle-collapsing pick. The clean fix is **not** a global "can't start on high ground" rule (a blunt ban that would be wrong on maps where starting elevated is the intended fair setup) but making elevation **self-balancing**: attach a downside that scales with the upside so it is a risk/reward decision on *every* map automatically, without the author having to remember to punish it. This directly satisfies the standing OQ-16 test — *a terrain feature must raise a question with several answers, never announce its own answer.* Because combat is watch-only, the exposure must be **legible** at placement time and in the recap ("my archer took the hill and got focused down"), which the range-ring telegraph and attribution recap already support.
 - **Replaces:** Rejects the floated "players cannot start on high ground" rule. Sharpens the OQ-16 terrain-as-structure and OQ-19 anti-solution model (elevation is a counter-paired lever, not a stat). Deploy-zone authoring (from the OQ-6 form decision) remains the per-encounter control over *whether* the high ground is a start option; this decision governs *what standing there costs.*
 
-## [2026-07-14] OQ-19 resolved: encounters are authored as anti-solutions — terrain+threat counter-pairs, validated by "the deathball dies legibly"
+## [2026-07-14] [game] OQ-19 resolved: encounters are authored as anti-solutions — terrain+threat counter-pairs, validated by "the deathball dies legibly"
 
 - **Decision:** An encounter is authored by designing **anti-solutions, not solutions.** Each encounter = **one primary threat + a terrain feature the enemy exploits + a different terrain feature that lets the player counter** (terrain authored in *counter-pairs*). The set of setups that avoid every anti-solution *is* the solution space — which makes it multi-solution automatically and makes each death point at one fixable cause. Threats are composed from a small reusable **library of "threat primitives"** (AoE artillery → punishes clumping; backline assassin → punishes exposed squishies; tank wall → punishes a frontal DPS race; high-ground archers → punish ignoring elevation; kite/skirmisher → punishes a slow deathball). **Difficulty scales by the number of *simultaneously interacting* threats, never by bigger stats** — early rounds = one threat / one lesson; later rounds = two threats that make a single counter insufficient so levers must be combined. Every authored encounter must pass a **4-point authoring test**: (1) name the intended lesson in one sentence; (2) the naive deathball loses, and loses *to that named lesson*, loudly — not to a diffuse stat gap; (3) ≥2 *distinct* setups win (genuinely different levers — where you stand / who you send / how you bait — not two flavors of one); (4) a wrong setup loses *readably* (one dominant cause of death). Because the sim is deterministic (hex, no in-fight hazards), this test is runnable, not a vibe: run the deathball + candidate solves and check.
 - **Why:** With annihilate contributing zero spatial pressure (OQ-15) and terrain-as-structure carrying the whole positioning burden (OQ-16), the open risk was authoring stat-checks or single-solution key-locks by accident. Designing anti-solutions instead of solutions is what *structurally guarantees* the three required properties at once — deathball fails, multiple solves exist, and the loss is attributable — which is exactly what the watch-only retry loop needs to teach cleanly. It also turns authoring into **composition** (pick primitives + a counter-paired map) rather than per-encounter invention, and the 4-point test is a concrete gate a 2-person team can actually apply. This directly discharges the "raise a question with several answers, never announce its own answer" test handed forward from OQ-16.
 - **Worked example (illustrative, not locked):** "The Plaza" — enemy AoE **Mage** + 2 tanky Grunts on a map whose obvious route funnels the player through a **narrow gap into an open plaza** (the kill zone), with **side walls** offering a longer flank route. Naive deathball clumps in the plaza and dies to two telegraphed fireballs landing on the bunched squishies (healer first → cascade). Three distinct solves: **split the approach** (positioning), **flank-snipe the Mage with a fast unit** (who-you-send), **bait the AoE onto the tank** (composition). Escalation: round 2 adds a backline **Assassin** that makes split-and-snipe conflict, forcing combined levers. The 5 illustrative starter heroes used to sanity-check this (tank / melee-DPS / fast-flanker / archer / healer) and the specific map are **illustrations, not committed content** — the *method* is what's decided here.
 - **Replaces:** Resolves OQ-19, the last of the 🔨 prototype-spec gate ({OQ-16, OQ-17} → OQ-19). The prototype spec is now unblocked; next step is building the minimal core-loop prototype. Consumes the "several answers, not one" test from the OQ-16 entry and the positioning-burden constraint from OQ-15.
 
-## [2026-07-13] OQ-17 resolved: discrete hex-grid simulation + continuous MOBA-style rendering (sim/skin split)
+## [2026-07-13] [game] OQ-17 resolved: discrete hex-grid simulation + continuous MOBA-style rendering (sim/skin split)
 
 - **Decision:** Spatial resolution is a **fine hex grid at the simulation layer**, rendered as **continuous, real-time, MOBA-style motion at the presentation layer** — the two layers are deliberately decoupled. The engine reasons in discrete hex cells (range, AoE, pathing, adjacency, chokepoints); the player sees smooth interpolated movement over an arena skin, with the **grid hidden except on telegraph** (range rings, AoE footprints, aggro lines). The grid is **fine-grained** so interpolated motion reads continuous, not steppy. Chosen resolution is **hex, not square.** Both **continuous-2D-as-a-simulation-model** and **square grid** are dropped. Visual anchors: **Heroes 3** (hex/turn logic under an arena skin) and **TFT** (hex outlines fade out in combat + smooth hex-to-hex movement).
 - **Why:** The player wants the MOBA look, **not** a continuous-positioning *mechanic* — and a look can be painted over a discrete sim, so there was never a real conflict; the two just live on different layers. A discrete sim is what the load-bearing constraints need: readability, authorability, determinism, and clean attribution for the watch-only retry loop. Continuous *simulation* is uniquely toxic here because combat is **watch-only** — the AI, not the player, makes every pathing choice and the player can't correct it, so fine-grained continuous space becomes an unreadable black box ("was it my setup or the pathfinder?"), which breaks attribution. Real-time interpolated rendering beats Heroes 3's turn-based snapping, so we expect to read *less* boardgamey than Heroes 3, not merely as good. **Hex over square** because hex's 6 equidistant neighbors give uniform distance and roughly **circular** ranges/AoE — directly serving the make-or-break readability constraint and the MOBA look — whereas square forces the diagonal-distance compromise (blocky diamonds or unrealistically cheap diagonals); hex also reads more organic and animates more fluidly. Accepted cost: hex is harder to author/tool (axial/cube coordinates, custom map editor), but it's a bounded, one-time, well-documented cost, small given only a *small* hand-authored map library.
 - **Replaces:** the prior **"lean toward continuous 2D"** recorded under OQ-17. Resolves OQ-17 and sharpens OQ-10 (combat look). The continuous MOBA feel survives strictly as a **visual/presentation** layer, consistent with "chaos = visual-only."
 
-## [2026-07-13] OQ-16 resolved: terrain-as-structure in the prototype, hand-authored, in-fight hazards deferred
+## [2026-07-13] [game] OQ-16 resolved: terrain-as-structure in the prototype, hand-authored, in-fight hazards deferred
 
 - **Decision:** **Terrain-as-structure is in the first prototype** — real authored geometry (chokepoints, thin corridors, high ground, impassable walls) that gives positioning consequence and carries the positioning burden the annihilate win condition can't (per the OQ-15 constraint). Terrain is **hand-authored**, drawn from a **small library of maps** — **not procedural.** **"Variance" here means a different authored map per round** (a new puzzle each round), **not** in-fight random hazards. **In-fight random hazards (the OQ-8 sense of terrain-as-variance) stay deferred/parked** and are not mixed into the prototype. Standing design test for terrain features: a terrain feature must **raise a question with several answers, never announce its own answer** — a chokepoint that only rewards AoE is a single-solution stat-check, not a puzzle.
 - **Why:** With annihilate contributing zero spatial pressure, terrain must supply it, and *structural* geometry (not random hazards) is what creates readable, authorable positioning consequence. Hand-authored over procedural because the Into the Breach model (our #1 ref) hand-authors precisely because reliably generating *fair, multi-solution* puzzles procedurally is an unsolved hard problem; a small authored library also keeps difficulty controllable for the same-difficulty retry loop. Hazards are deferred because dropping random in-fight events on top of structure would **muddy attribution** (was it my squad change or the random hazard?) and add build cost — they're a good *later* injector, not a prototype ingredient. The "different map per round" reading is what keeps each round a fresh puzzle without touching within-round determinism (retries stay same-difficulty because the map is fixed across retries and varies only between rounds).
 - **Replaces:** Resolves OQ-16 and keeps it distinct from OQ-8 (terrain-as-variance/hazards, still deferred). Carries forward the OQ-15 constraint and hands the "several answers, not one" test into OQ-19 (puzzle authoring).
 
-## [2026-07-13] OQ-15 resolved: annihilate is the prototype win condition; alternate objectives deferred as a per-encounter variety lever
+## [2026-07-13] [game] OQ-15 resolved: annihilate is the prototype win condition; alternate objectives deferred as a per-encounter variety lever
 
 - **Decision:** The fight's win condition for the prototype is **annihilate** — wipe the enemy squad. The other three candidates (**rout-the-commander, breakthrough-to-the-edge, hold-or-survive**) are **not dropped**; they are **deferred as a per-encounter variety/content lever** to add later. A standing constraint follows from this choice: because annihilate is the most stat-dominant objective and contributes **zero** spatial pressure of its own, **terrain (OQ-16) and encounter authoring (OQ-19) now own 100% of the positioning burden** — they must be what makes the naive deathball fail and multiple solves exist.
 - **Why:** The objective type is not where strategic depth lives — Slay the Spire (a 🥇 reference) is pure-annihilate and deeply strategic; the depth is in the composition puzzle, not the goal. Annihilate is the *honest* prototype baseline precisely because it injects no free positional structure: an objective like rout-the-commander can paper over weak encounter design by handing you an artificial spatial goal, whereas annihilate forces terrain + authoring to carry the puzzle — testing the hardest thing first. Deferring the other three costs almost nothing in reachable design space: they return later as encounter-type variety ("this one is breakthrough, the boss is rout-the-commander"), which is *content*, not *depth*.
 - **Replaces:** Resolves OQ-15 (previously "never actually decided"). Feeds a hard constraint into the still-open OQ-16 and OQ-19.
 
-## [2026-07-11] Primary prototype loop = watch-only combat + retry-and-tune; mid-fight decision demoted to a secondary experiment
+## [2026-07-11] [game] Primary prototype loop = watch-only combat + retry-and-tune; mid-fight decision demoted to a secondary experiment
 
 - **Decision:** The first prototype's core loop is **watch-only combat + a retry-and-tune learn loop**: the player sets up a squad, watches a readable fight resolve autonomously, and if it fails, **diagnoses why, adjusts the squad, and retries.** The **mid-fight tactical decision is demoted from a hard constraint to a parked secondary experiment** — revisited only if the retry-and-tune loop proves too thin. **Substitution is dropped** as the committed mid-fight form.
 - **Why:** Retry-and-tune is the tightest expression of the education hook — watch → diagnose → change one thing → retest, with feedback in seconds instead of a whole round. It answers the old worry that PvE setup-only is too thin (it is *many* setup iterations with instant feedback, not one shot). Substitution lost its meaning once fog-of-war was dropped, and whether combat *develops* emergently enough to make any mid-fight reaction worthwhile is a prototype question, not a whiteboard one — so mid-fight is parked, not killed.
 - **Replaces:** [2026-07-11] "Mid-fight decision retained — but it is NOT the timed ultimate," which made a mid-fight decision a **hard constraint**. Mid-fight is no longer a hard constraint; it is a secondary experiment. Distributed mastery still holds, but mastery now spans **draft + pre-fight setup + between-attempt tuning** rather than an in-fight call.
 
-## [2026-07-11] Retry loop rationed by a limited number of attempts; unit attrition deferred
+## [2026-07-11] [game] Retry loop rationed by a limited number of attempts; unit attrition deferred
 
 - **Decision:** The retry-and-tune loop is rationed by a **limited number of attempts** at a round, chosen so that **each retry is the same difficulty** (constant-difficulty retries → the loop teaches cleanly and outcomes stay attributable to the player's change). **Unit attrition** (units wearing out / being lost across the run) is **deferred to a later, separate mechanic**, added only after the core loop is proven fun.
 - **Why:** Attrition-per-attempt curves experimentation backwards (abundant when content is easy, scarce when it's hard), risks a death spiral for the very player trying to learn, and muddies attribution by changing roster strength between tries. A flat attempt budget keeps difficulty constant across retries, so the player can isolate *their* change as the variable. Attrition is a good *second* economy (buy/upgrade trade-offs, stories-from-failure) but must not sabotage the core learn loop, so it comes later and separate.
 - **Replaces:** Narrows the open "how is the retry loop rationed?" question. Leaves open whether the attempt budget is **per-round or per-run**.
 
-## [2026-07-11] OQ-11 resolved: roster model — unlock widens the pool, every run starts from a default starter, power is built in-run
+## [2026-07-11] [game] OQ-11 resolved: roster model — unlock widens the pool, every run starts from a default starter, power is built in-run
 
 - **Decision:** This is a **roguelike, not a collection RPG.** Every run **starts from a fixed default starter squad**; all hero power is **built inside the run** via the draft. The unlocked hero **pool is unlimited** and grows via **run-completion rewards and buying** — but unlocking/buying only **widens the variety of heroes that can appear**, it never hands over pre-leveled power. Before a run, the player **brings a limited subset** of the unlocked pool as this run's draftable heroes (a strategic pre-run choice).
 - **Why:** Keeps power inside the run, so mastery stays in *play*, not in an out-of-run wallet — avoiding the Heroes Charge trap where all mastery leaks into the collection/gear meta. Unlocking-as-variety is exactly the education refill bill (more combinatorial offers) without turning the game into a gacha.
 - **Replaces:** OQ-11's open "where do new heroes come from / is this a collection game" framing. Leaves open **how tight the pre-run curation is** (the "adapt to what's offered" vs "pre-plan a build" dial) and the exact default-starter composition.
 
-## [2026-07-11] OQ-11 resolved: per-hero persistence (build-up welds to the individual)
+## [2026-07-11] [game] OQ-11 resolved: per-hero persistence (build-up welds to the individual)
 
 - **Decision:** Within a run, run-long build-up **attaches to the individual hero**, not to the fielded slot. A benched hero **keeps everything they earned** and returns to the field **fully built**. (Everything resets to the default starter at the start of each new run.)
 - **Why:** Makes rotating heroes cheap and keeps the bench meaningful — a hero you invested in is still worth what you put in when you bring them back. Aligns with "the 5 are individual characters": investment sticks to a person.
 - **Replaces:** OQ-11's open "per-hero persistence vs. lost-on-bench" sub-question.
 
-## [2026-07-11] OQ-12 resolved (info model): fog-of-war dropped; opponent squads are readable puzzles with multiple solutions
+## [2026-07-11] [game] OQ-12 resolved (info model): fog-of-war dropped; opponent squads are readable puzzles with multiple solutions
 
 - **Decision:** The player **always sees the opponent squad** — no hidden-information / fog-of-war. Enemy squads are designed as **readable puzzles with multiple valid solutions**, and building a counter should reward **creativity** (multiple viable ways to crack each encounter). The skill is **reading and countering a visible board**, not guessing a hidden one. This is the Into the Breach model.
 - **Why:** "Guess the hidden enemy and bet" is a *suspense* mechanic (demoted to secondary) and, in PvE, evaporates on replay once the authored encounter is learned — and losing to hidden information isn't attributable to a player decision, which breaks the primary education/attributability hook. A visible, multi-solution puzzle keeps outcomes attributable and refills via combinatorial depth.
 - **Replaces:** The fog-of-war / "guess and bet on the opponent's strategy" idea floated under OQ-12. Confirms education-primary (OQ-5) rather than reopening it.
 
-## [2026-07-11] OQ-1 resolved: squad vs. squad on contained terrain
+## [2026-07-11] [game] OQ-1 resolved: squad vs. squad on contained terrain
 
 - **Decision:** The 5 are an **attacking squad that meets an enemy squad** on a contained battlefield — two squads meet in the middle of a terrain, no long march. Medieval-war framing: frontline tanks, backline ranged, mobile flankers striking from the side. *Not* a defended point holding off waves (no "hold the throne").
 - **Why:** Resolves the foundational spatial question. A contained meeting-on-terrain keeps the fight watchable (no march) and gives positioning/role structure (front/back/flank) something to bite on, while leaving room for terrain-as-variance.
 - **Replaces:** OQ-1's open defense-vs-offense framing (the "9 Kings hold-the-throne" option is dropped).
 
-## [2026-07-11] OQ-2 resolved: run-long build-up = draft offers feeding the fielded 5 + the bench
+## [2026-07-11] [game] OQ-2 resolved: run-long build-up = draft offers feeding the fielded 5 + the bench
 
 - **Decision:** The run-long build-up is a **9 Kings-style draft** — one simple choice per round, deep outcome. It feeds **both** the fielded 5 **and** the bench (recruit new heroes / upgrade existing ones). It is *one* choice per round, not three parallel systems.
 - **Why:** Keeps the simple-input / deep-output draft rhythm as the roguelike variety engine, now reconciled with the bench accepted on 2026-07-11: the draft is where both fielded and benched heroes get built up. Adapt to what's offered, not execute a pre-planned build.
 - **Replaces:** OQ-2's open framing (upgrade-5 vs. non-hero elements vs. recruit-from-bench). Narrows it to draft-offers feeding heroes (fielded + bench); leaves bench *scope* (size, source, build-up attachment) as the open follow-on question.
 
-## [2026-07-11] Mid-fight decision retained — but it is NOT the timed ultimate
+## [2026-07-11] [game] Mid-fight decision retained — but it is NOT the timed ultimate
 
 - **Decision:** A mid-fight decision layer is a **hard constraint** (PvE without PvP makes pre-fight setup alone too thin to carry depth). It is **not** ultimate-timing — that reflex-timing model is dropped. It is a small number of **rationed / condition-gated**, low-attention tactical calls. Candidate forms (not yet narrowed): re-instruct team strategy/stance, mid-fight items/consumables, terrain alteration, and FM-style substitutions. A **bench is accepted as in-scope**, so substitutions is a live candidate.
 - **Why:** Setup-only depth works in TFT / Super Auto Pets *only because they're (async) PvP* — the opponent keeps setup unsolved. In single-player PvE, all three reference games (Into the Breach, Slay the Spire, Balatro) put real decisions *inside* combat; removing ours makes the game more passive than its models. Rationing/gating keeps the attention cost that killed ult-timing from returning.
 - **Replaces:** [2026-07-04] "Mid-fight form = the Timed Ultimate." Leaves [2026-07-04] "Mastery is distributed" **valid** — mastery again spans draft + setup + mid-fight; only the mid-fight *form* changed. **Opens a new question:** accepting a bench reopens roster/bench scope (bench size, where bench heroes come from, how run-long build-up attaches to benched vs. fielded heroes).
 
-## [2026-07-11] Combat must be readable; "chaos" is visual-only
+## [2026-07-11] [game] Combat must be readable; "chaos" is visual-only
 
 - **Decision:** Combat must be **readable** — education (the core watch-hook) requires the player to trace what happened. "Chaotic/destructive" is redefined to mean **visual liveliness only**: free movement, multiple terrains, varied skills and unit types — *not* outcome-unpredictability, *not* illegibility. Light RNG stays wanted, but capped at the point where it never makes the fight unreadable.
 - **Why:** You can't learn a transferable lesson from an illegible swirl or a coin-flip. Readability is a precondition of the education loop.
 - **Replaces:** [2026-07-04] "Dropped: clean, readable, MOBA-style combat" (which said combat should be chaotic/destructive and *not* readable). Readability is now required; only the visual surface stays lively.
 
-## [2026-07-11] OQ-5 resolved: education-primary, PvE — not suspense/PvP
+## [2026-07-11] [game] OQ-5 resolved: education-primary, PvE — not suspense/PvP
 
 - **Decision:** The primary reason to watch a fight is **education** — the player reads what happens and applies the lesson to the next setup. The game is **single-player PvE**. **Suspense** ("will I win?") is demoted to a *secondary* effect (early-run, before content is learned; and execution-level, "can I pull the solve off under this random draw"), not the core hook. Primary references become **Into the Breach, Slay the Spire, Balatro**.
 - **Why:** PvE + education is a proven, small-team-shippable path (ItB, StS, Balatro — none PvP; Balatro was one dev). PvE + suspense is structurally hard: authored content stops surprising once learned, so *durable* suspense needs an adaptive opponent (PvP/async — every setup-and-watch suspense autobattler, e.g. Super Auto Pets / Mechabellum, is async-PvP for exactly this reason). Education's refill bill is *content*, not an opponent: combinatorial depth (synergy × enemy × terrain) + difficulty tiers that force re-solving. This also matches the "watch to learn for next setup" instinct held from the start.
 - **Replaces:** OQ-5's open "FM-style spectacle vs. 9 Kings-style solver" framing, and the implicit assumption that spectacle/suspense is the primary watch-hook. Sets aside the async-PvP autobattler cluster (Super Auto Pets, Mechabellum, Backpack Battles, The Bazaar) as PvP-dependent; async ghosts remain an optional *later* bolt-on, never the foundation.
 
-## [2026-07-04] Mastery is distributed, not concentrated in the ultimate
+## [2026-07-04] [game] Mastery is distributed, not concentrated in the ultimate
 
 - **Decision:** Player mastery spans the whole run — run-long build-up (the draft) + pre-fight setup + mid-fight ultimate timing. The ultimate is one lever among several.
 - **Why:** If all mastery rode on the ultimate, the rest of the loop would be passive. Distributing it keeps every phase meaningful.
 - **Replaces:** the earlier implicit assumption that the ultimate carried the whole mastery load.
 
-## [2026-07-04] Mid-fight form = the Timed Ultimate
+## [2026-07-04] [game] Mid-fight form = the Timed Ultimate
 
 - **Decision:** Each character has an ultimate that charges as they fight; the player's mid-fight decision is *when to fire it*. One simple tap; the "should I have waited?" tension is the mastery lever, chain reactions supply the chaos.
 - **Why:** Satisfies "simple input, deep decision." Heroes Charge / Dota Legends proves a charged manual-cast ultimate is readable and casual-viable.
 - **Replaces:** the open question of what the mid-fight control actually is. Note the cautionary half of the Heroes Charge lesson: its ult timing was so shallow it was auto-castable, so all mastery lived in the collection/gear meta. Our ultimate must have a trade-off that makes "fire the instant it's ready" sometimes wrong (see open question in STATE).
 
-## [2026-07-04] The 5 are individual characters, not anonymous groups/archetypes
+## [2026-07-04] [game] The 5 are individual characters, not anonymous groups/archetypes
 
 - **Decision:** The unit of play is an individual character.
 - **Why:** The ultimate-charging mechanic sticks to a *character*, so the unit must be an individual. Individuals also keep the Darkest Dungeon morale/rally drama available — a group can't have a personal breakdown you remember as a story.
 - **Replaces:** the earlier open framing of squads-as-groups/archetypes.
 
-## [2026-07-04] Core insight reframed: fun = the tension between mastery and chaos
+## [2026-07-04] [game] Core insight reframed: fun = the tension between mastery and chaos
 
 - **Decision:** The core fun is the balance between mastery (decisions visibly shape outcomes) and chaos (surprise, spectacle, replayability). An engaging outcome is both *surprising AND attributable*.
 - **Why:** Randomness alone isn't fun (a coin flip is max variance, zero fun); solved mastery is stale. The fun lives in the balance — pure chaos is a slot machine, pure mastery is a solved puzzle.
 - **Replaces:** the earlier framing that leaned on chaos/randomness as the primary fun source.
 
-## [2026-07-04] The "5 seconds to understand" rule is ad-creative-only, not a gameplay rule
+## [2026-07-04] [game] The "5 seconds to understand" rule is ad-creative-only, not a gameplay rule
 
 - **Decision:** The 5-second-comprehension metric applies to whether a video *ad* reads in 5 seconds — not to the core gameplay loop.
 - **Why:** Applied to gameplay it wrongly caps decision depth. Inputs stay simple, but the decision *behind* an input should out-complex the input.
 - **Replaces:** the old use of "5 seconds to understand a screen" as a core-loop design constraint (now deprecated as a gameplay rule).
 
-## [2026-07-04] Dropped: clean, readable, MOBA-style combat
+## [2026-07-04] [game] Dropped: clean, readable, MOBA-style combat
 
 - **Decision:** Combat should feel chaotic and destructive, not organized.
 - **Why:** Watching the fight is half the fun; a clean MOBA readout undercuts the spectacle.
 - **Replaces:** earlier preference for MOBA-style legible combat.
 
-## [2026-07-04] Dropped: top-down view as a core experience
+## [2026-07-04] [game] Dropped: top-down view as a core experience
 
 - **Decision:** Top-down is still aesthetically preferred but not a hill to die on.
 - **Why:** It's a look, not a load-bearing design choice.
 - **Replaces:** top-down-as-core-experience.
 
-## [2026-07-04] Dropped: scaling player actions for depth
+## [2026-07-04] [game] Dropped: scaling player actions for depth
 
 - **Decision:** Depth comes from making the *few* actions (pre-fight and mid-fight) impactful — not from adding more actions.
 - **Why:** More actions = more cognitive load = bad for casual mobile.
 - **Replaces:** the earlier "scale actions for depth" direction.
 
-## [2026-07-04] Dropped: TFT as a primary reference (synergy is KEPT)
+## [2026-07-04] [game] Dropped: TFT as a primary reference (synergy is KEPT)
 
 - **Decision:** TFT is no longer a primary reference (economy game, shared shop, trait synergies; too complex for the target audience, different fun source).
 - **Why:** The fun we're chasing (watchable, attributable chaos) differs from TFT's economy/optimization fun.
 - **Replaces:** TFT-as-primary-reference. **Important scope note:** this drops only the *TFT framing*. Synergy between characters/items is explicitly still wanted (see STATE) — it was never deprecated.
 
-## [2026-07-04] STRATEGY.md deprecated pending rewrite
+## [2026-07-04] [workflow] STRATEGY.md deprecated pending rewrite
 
 - **Decision:** `STRATEGY.md` is deprecated and will be rewritten from scratch later when needed. Do not treat it as current.
 - **Why:** Superseded by the current design direction; keeping it as-is avoids conflicting sources of truth.

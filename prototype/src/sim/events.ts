@@ -175,8 +175,8 @@ export type FightEvent =
   | { type: "skeletonUpgrade"; t: number; kind: SkeletonKind; level: number }
   /** Mages army (2026-10-21; fight.ts's `mageOrbHit`): a skill hit put a loose orb around mage `heroId`; `orbs` is how many it has now. */
   | { type: "orbAdd"; t: number; heroId: string; orbs: number }
-  /** A skill hit found the mage's orbs full: they flew together into one merged orb. The great shot follows at once as an `orbStrike`. */
-  | { type: "orbMerge"; t: number; heroId: string }
+  /** A skill hit found the mage's orbs full: the `orbs` loose ones flew together into one merged orb. The great shot follows at once as an `orbStrike`. */
+  | { type: "orbMerge"; t: number; heroId: string; orbs: number }
   /** The merged orb fired its one great shot; the mage has no orbs left. The hit itself follows as chainHit events. */
   | { type: "orbStrike"; t: number; heroId: string }
   /** One orb did its work on the shared beat: Storm hit `targetId` for `amount`, Frost shielded `targetId` (the mage) for `amount`, Life took

@@ -23,14 +23,14 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 ## Where it stands
 
-The moment lands in plain runs from two sources: a chain that goes unexpectedly well, and runes that combine well, the second stronger because the player built it. The three armies (Undead, Mages, Beasts) are built and fight differently, and they are where run variety comes from. The Mages leave marks on a merged shot and have runes of their own, batch-verified but unplayed; the Undead and Beasts have neither. No outside player has played the current build, and every canvas frame still awaits Tu's approval.
+The moment lands in plain runs from two sources: a chain that goes unexpectedly well, and runes that combine well, the second stronger because the player built it. The three armies (Undead, Mages, Beasts) are built and fight differently, and they are where run variety comes from. Tu's Mage play found the synergy but a weak army identity, so the Mage runes now act on the orbs themselves, in three rival builds (big merges, many merges, the core orb); they are batch-verified but unplayed. The Undead and Beasts have no runes of their own yet, no outside player has played the current build, and every canvas frame still awaits Tu's approval.
 
 ## Next up
 
-1. **Play a Mage run and judge the synergy moment:** `?army=mages`; does a Mage combo (Echo + Tempo, Leech + Static) bring the moment back (BETS unverified #1); also Tu's call on Mage balance, now above the old target; `DECISIONS.md` (2026-10-23, Mage marks and runes).
-2. **If it comes back, do the same for the Undead and Beasts;** if not, look again before building more.
+1. **Play a Mage run and judge the identity, not the synergy:** `?army=mages`; does picking a build (Vessel, Fuse or Kernel) change how the run plays, at the rune pick and in the fight (BETS unverified #3, and #1 stays open); also Tu's call on Mage balance, now above the old target, and on Vessel trailing Fuse; `DECISIONS.md` (2026-10-23, Mage runes must act on the orbs).
+2. **If it comes back, do the same for the Undead and Beasts** (their runes must act on their own mechanic, BETS verified B); if not, look again before building more.
 3. **Fix the rune pool's two known faults, then rebalance:** the "rarely fires" line of `npm run batch -- --offers build`, and `check:offers` failing on Rampart (Tu's call); then outlier first picks and a target for chains' share of damage; the bot's completion target waits for playtests (`DECISIONS.md`, 2026-10-17).
-4. **Fix what Tu's play shows on the army screens, then get the canvas frames approved:** open calls 8 to 12 and 10b in `design/HANDOFF.md`, frames 6.1 to 6.3 and 10.0A to 11.12; redraw frame 5.3 to the built slam; draw Static's jump and Overload's volley if they do not read.
+4. **Fix what Tu's play shows on the army screens, then get the canvas frames approved:** open calls 8 to 12 and 10b in `design/HANDOFF.md`, frames 6.1 to 6.3 and 10.0A to 11.12; redraw frame 5.3 to the built slam; draw Static's jump and Overload's volley if they do not read; look at Vessel's fourth orb place on a phone.
 
 ---
 
@@ -44,12 +44,12 @@ The moment lands in plain runs from two sources: a chain that goes unexpectedly 
 | Fatigue — per-unit, sets backfire odds and chain size | batch-verified | `sim/roster.ts`, `sim/config.ts`, `checks/fatigue.ts` |
 | Chain abilities — 12; each role has 3 ability options, 2 drawn per run; a backfired freeze never picks its own user | batch-verified | `sim/roles.ts`, `sim/progress.ts`, `checks/abilities.ts`, `DECISIONS.md` (2026-10-20, backfired freeze) |
 | Armies in code — Undead, Beasts and Mages: a pick before round 1, every unit re-skinned | batch-verified | `sim/armies.ts`, `sim/fight.ts`, `sim/config.ts`, `checks/armies.ts`, `DECISIONS.md` (2026-10-21, 2026-10-22, 2026-10-23) |
-| Mage runes — 4 runes and 2 duos, offered only in a Mages run, reading the orb hooks | batch-verified, not played | `sim/cards/defs/mage.ts`, `sim/offers.ts` (`CardDef.army`), `checks/armies.ts`, `DECISIONS.md` (2026-10-23, Mage marks and runes) |
-| Undead and Beasts runes — marks from army skills and runes that read each army's own thing | not started | `sim/armies.ts`, `sim/cards/defs/`, `DECISIONS.md` (2026-10-23, armies feed the rune engine) |
+| Mage runes — 7 runes and 2 duos in three builds (big merges, many merges, core orb), acting on the orbs; offered only in a Mages run, one of each win's three offers is always one | batch-verified, not played | `sim/cards/defs/mage.ts`, `sim/fight.ts` (`orbCapOf`), `sim/offers.ts` (`CardDef.army`, `armyOfferSlots`), `checks/armies.ts`, `DECISIONS.md` (2026-10-23, Mage runes must act on the orbs) |
+| Undead and Beasts runes — runes that act on each army's own mechanic, and marks from army skills | not started | `sim/armies.ts`, `sim/cards/defs/`, `DECISIONS.md` (2026-10-23, armies feed the rune engine) |
 | Undead fights — Raise, Bone Wall, Command; skeletons rise per skill hit, five at most, upgrade at the limit, soak enemy hits first | batch-verified | `sim/fight.ts` (`raiseArmySkeleton`, `skeletonWallTargetId`), `sim/config.ts` (`undead*`), `checks/armies.ts`, `DECISIONS.md` (2026-10-21, three Undead entries) |
 | Undead fight screen — warrior and shield bodies in the front row, HORDE count, rise ring, +N upgrade badge, a strike line per skeleton on Command | built | `render/fightView.ts`, `render/armyLook.ts` (`skeletonLook`), `style.css`, `design/HANDOFF.md` (12.0B) |
-| Mages fights — Frost Orb, Storm Orb, Life Orb; a core orb on every mage and no plain attack, every orb works on a 2 s beat, a hit that finds three loose out merges them; only a merged shot leaves a mark (Burn, Frozen, Shield) | batch-verified; Punish and Shield bash never fire for the Frost Mage | `sim/fight.ts` (`mageOrbHit`, `beatOrb`, `tickOrbs`), `sim/armies.ts` (`ARMY_UNITS`), `sim/config.ts` (`mage*`), `checks/armies.ts`, `DECISIONS.md` (2026-10-22, 2026-10-23) |
-| Mages fight screen — a core orb at each mage's left, loose orbs round the body, a merged orb to its right that shows only for the shot, a lightning bolt per zap, a green drain line per Life orb, pointed hats | built | `render/fightView.ts` (`buildOrbs`, `updateOrbs`, `showOrbTick`, `fireBolt`), `render/armyLook.ts`, `style.css`, `design/HANDOFF.md` (12.0D) |
+| Mages fights — Frost Orb, Storm Orb, Life Orb; a core orb on every mage and no plain attack, every orb works on a 2 s beat, a hit that finds the loose orbs full merges them; only a merged shot leaves a mark (Burn, Frozen, Shield) | batch-verified; Punish and Shield bash never fire for the Frost Mage | `sim/fight.ts` (`mageOrbHit`, `beatOrb`, `tickOrbs`), `sim/armies.ts` (`ARMY_UNITS`), `sim/config.ts` (`mage*`), `checks/armies.ts`, `DECISIONS.md` (2026-10-22, 2026-10-23) |
+| Mages fight screen — a core orb at each mage's left, loose orbs round the body (a fourth place above it with Vessel), a merged orb to its right that shows only for the shot, a lightning bolt per zap, a green drain line per Life orb, pointed hats | built | `render/fightView.ts` (`buildOrbs`, `updateOrbs`, `showOrbTick`, `fireBolt`), `render/armyLook.ts`, `style.css`, `design/HANDOFF.md` (12.0D) |
 | Beasts fights — no skill bar per beast; one PACK bar fills, a full bar sets off a pounce (Bear Pin, Wolves Maul, Stags Tend), led by the Bear, on the pack's average fatigue | batch-verified | `sim/fight.ts` (`pounceBeasts`, `resolvePounceHit`, the pack sweep in `runFightLoop`), `sim/config.ts` (`beast*`), `checks/armies.ts`, `DECISIONS.md` (2026-10-22, Beasts built) |
 | Beasts fight screen — PACK bar under the squad, POUNCE bubble over the Bear, a jump per beast, numbers pop as each lands | built | `render/fightView.ts` (`buildPackBar`, `updatePack`, `showPounce`), `style.css`, `design/HANDOFF.md` (12.0C) |
 | Army pick screen, bodies, popups and cards (canvas 10.x, 11.x) | built | `render/armyScreen.ts`, `render/armyLook.ts`, `render/fighterPopup.ts`, `render/armyCardData.ts` (made by `design/tools/gen-armies.js`), `design/HANDOFF.md` (10–11) |
@@ -69,11 +69,11 @@ The moment lands in plain runs from two sources: a chain that goes unexpectedly 
 | Skill naming — on popups, cards and the fight bubble; not on the reward pick or in `sim/` | built | `design/HANDOFF.md` (call 12) |
 | Unit names — seeded draw from a pool | built | `sim/roles.ts`, `render/runSession.ts` |
 | Marks — each chain ability leaves one | batch-verified | `sim/fight.ts`, `checks/marks.ts` |
-| Card engine — hooks, cascades, depth cap; four orb hooks for the Mages | batch-verified | `sim/cards/engine.ts`, `sim/cards/types.ts`, `checks/cards.ts` |
-| Rune pool (cards in code) — 34 later picks incl. 6 duos, plus the Mage-only cards above; names are one short word each | batch-verified | `sim/cards/defs/`, `checks/cardpool.ts` |
-| Rune intro gate — a rune waits for its marks; a duo waits for its parts; an army rune shows only in its army's run | built, `check:offers` fails on Rampart | `sim/offers.ts`, `sim/cards/index.ts`, `checks/offers.ts` |
+| Card engine — hooks, cascades, depth cap; five orb hooks for the Mages | batch-verified | `sim/cards/engine.ts`, `sim/cards/types.ts`, `checks/cards.ts` |
+| Rune pool (cards in code) — 34 later picks incl. 6 duos, plus the Mage-only runes above; names are one short word each | batch-verified | `sim/cards/defs/`, `checks/cardpool.ts` |
+| Rune intro gate — a rune waits for its marks; a duo waits for its parts; an army rune shows only in its army's run; Vessel and Fuse shut each other out | built, `check:offers` fails on Rampart | `sim/offers.ts`, `sim/cards/index.ts`, `checks/offers.ts` |
 | Rune fire rate — "rarely fires" line in the synergy block | batch-verified | `batch/synergy.ts` |
-| Offer pool — 3 per win, rune weight capped, Recruit kept common | batch-verified | `sim/offers.ts`, `render/offerScreen.ts` |
+| Offer pool — 3 per win, rune weight capped, Recruit kept common, one slot for the army's own rune in an army run | batch-verified | `sim/offers.ts`, `render/offerScreen.ts` |
 | Rune limit — the round 1 pick counts toward it and can be dropped | batch-verified | `sim/offers.ts`, `sim/progress.ts` (`heldCount`), `sim/config.ts` (`cardCap`) |
 | Rune text — mark words coloured, offer names where a needed mark comes from | built | `render/heroPickShared.ts`, `sim/offers.ts`, `design/HANDOFF.md` |
 | First picks — 5 runes, pick 1 of 3 as the round 1 reward | batch-verified | `sim/relics.ts`, `sim/cards/defs/relic.ts` |
@@ -84,7 +84,7 @@ The moment lands in plain runs from two sources: a chain that goes unexpectedly 
 | Offer safety net — a revive/recruit/Rest when the roster has no cushion | batch-verified | `sim/offers.ts` |
 | 20-round plan — mini-bosses at 7/14, boss at 20 | batch-verified | `sim/rounds.ts`, `checks/runShape.ts` |
 | Enemy shapes — the encounter pool | batch-verified | `sim/encounters.ts` |
-| Difficulty — plain squad 25.4% run completion with the build bot (n=1000, 2026-10-23); Undead 32% (n=800, 2026-10-21), Beasts 20.4% (n=800, 2026-10-22), Mages 31.3% with marks and runes (n=800, 2026-10-23) | batch-verified | `checks/runShape.ts`, `batch/cli.ts` (`--army`) |
+| Difficulty — plain squad 26.0% run completion with the build bot (n=400, 2026-10-23); Undead 32% (n=800, 2026-10-21), Beasts 20.4% (n=800, 2026-10-22), Mages 36.1% with the orb runes (n=800, 2026-10-23) | batch-verified | `checks/runShape.ts`, `batch/cli.ts` (`--army`) |
 | Real game build | not started | — |
 
 ## Bets
@@ -93,16 +93,16 @@ The four pillars, the top test, and the verified and unverified bets, in order, 
 
 ## Open questions
 
-- Do Static's jump and Overload's volley read on a phone with no motion of their own, and is a Mage run's 31% completion where it should sit? Answered by Tu's play, Next up #1.
+- Does picking a Mage build (big merges, many merges, core orb) change how a run plays, and does Vessel's build trail Fuse's only in the bot or in play too? Answered by Tu's play, Next up #1.
+- Do Static's jump, Overload's volley and Vessel's fourth orb place read on a phone with no motion of their own? Answered by Tu's play, Next up #4.
 - Do the Undead's five skeletons, the Mages' orbs and the Beasts' five jumps stay readable and fair on a phone? Answered by Tu's play, Next up #4.
-- Does an army chosen before the first fight give a run an identity, and does the round 1 rune pick still belong after it? Answered by Next up #1.
 - Does the Exposed build still win less than Burn or Frozen, and is that its runes or a multiplier on a flat damage number? Needed for Next up #3.
 - What fire rate is healthy for a rune that fires only on a moment (Heir, Vigil)? Needed for Next up #3.
 
 ## How to work here
 
-- Read order: this file → [REFERENCE.md](REFERENCE.md) for the game's shape (stale on the core loop) → [DECISIONS.md](DECISIONS.md) **by grep only**, never top-to-bottom; entries below its archive rule predate the 2026-07-18 pivot, and older entries use the old rune names (the old → new table is in `design/HANDOFF.md` under 6.1).
-- Decisions are proposed, never silently logged — on a confirmed yes, append via the `decision-log` skill. A "feels wrong" note is named and diagnosed before anything is built (`CLAUDE.md`, "When Tu says something feels wrong"). This file is regenerated only when asked, via the `state-sync` skill; `REFERENCE.md` is not.
+- Read order: this file → [REFERENCE.md](REFERENCE.md) for the game's shape (stale on the core loop) → [DECISIONS.md](DECISIONS.md) **by grep only**, never top-to-bottom; every entry is tagged `[game]` or `[workflow]`, its header lists the dropped systems, entries below its archive rule predate the 2026-07-18 pivot, and older entries use the old rune names (the old → new table is in `design/HANDOFF.md` under 6.1).
+- Decisions Tu states are logged at once via the `decision-log` skill, except one that breaks a verified bet: that is flagged to Tu first (`CLAUDE.md`, DECISION protocol). A "feels wrong" note is named and diagnosed before anything is built (`CLAUDE.md`, "When Tu says something feels wrong"). This file is regenerated at the end of a task that logged a decision, via the `state-sync` skill; `REFERENCE.md` is not.
 - Branch: all current work is on `dev/merge-heroes`, which carries the armies; `main` is behind it, and merging to `main` is not decided.
 - Commands: `npm run dev` to play (`?army=undead`, `?army=beasts`, `?army=mages` or `?army=none` skips the pick; the corner `export` link saves the run as JSON), `npm run check` for regressions, `npm run batch -- --n 1000 --offers build` for the bot; every dev link and batch flag is in `prototype/COMMANDS.md`. The lab (`?lab=1`) has no army, so a Mage rune is tried in a `?army=mages` run.
 - Code: `prototype/src/sim/` (`config.ts` holds every tunable, `rounds.ts` the round plan, `armies.ts` the armies, `cards/` the card engine and definitions), `src/render/`, `src/batch/`, `src/checks/`, `src/log/` (the export).

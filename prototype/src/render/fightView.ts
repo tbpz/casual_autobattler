@@ -221,7 +221,7 @@ const SKELETON_BODY_PX = 24;
 const ORB_COLOR: Record<string, string> = { stormMage: "#ffe36a", frostMage: "#8fd3ff", lifeMage: "#6ee7a0" };
 /** Where the loose orbs sit round a Mage's body, as degrees from the right, clockwise: upper left, upper right, right (clear of the skill bubble
  * above and the name below); the core orb takes the left (canvas 12.0E). */
-const ORB_ANGLES = [-150, -30, 0];
+const ORB_ANGLES = [-150, -30, 0, -90];
 const CORE_ORB_ANGLE = 180;
 /** How far out from the body's centre an orb sits, as a share of the body's size. */
 const ORB_RADIUS = 0.62;
@@ -1378,8 +1378,10 @@ export class FightView {
     coreOrb.style.top = `${(50 + cdy * 100).toFixed(1)}%`;
     core.appendChild(coreOrb);
     const loose: HTMLElement[] = [];
-    for (let i = 0; i < this.cfg.mageOrbMax; i++) {
-      const [dx, dy] = orbOffset(ORB_ANGLES[i % ORB_ANGLES.length]!);
+    // One place per orb a mage can hold: the usual limit, or Vessel's higher one (a place stays hidden until the snapshot says an orb is there).
+    const places = Math.min(ORB_ANGLES.length, Math.max(this.cfg.mageOrbMax, this.cfg.vesselOrbMax));
+    for (let i = 0; i < places; i++) {
+      const [dx, dy] = orbOffset(ORB_ANGLES[i]!);
       const orb = document.createElement("div");
       orb.className = "orb";
       orb.style.setProperty("--orb", color);
@@ -2018,7 +2020,7 @@ export class FightView {
         // The loose orbs fly together into one merged orb, which flares and is gone (the `shot` animation); the orbs are already 0 in the snapshot.
         const refs = this.playerHeroes.get(e.heroId);
         if (refs?.orbs) {
-          this.flyOrbsIntoBig(refs, this.cfg.mageOrbMax);
+          this.flyOrbsIntoBig(refs, e.orbs);
           pulseClass(refs.orbs.big, "shot", ORB_SHOT_MS);
         }
         break;

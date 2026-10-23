@@ -5,7 +5,7 @@ import { CINDER_SHIELD, FORTRESS, GLASS, KILLING_FROST, PHOENIX, THERMAL_SHOCK }
 import { CRACK, EXECUTE, HUNTER_MARK, LAY_BARE, PUNISH, WEAK_SPOT } from "./defs/exposed.js";
 import { BRITTLE, COLD_SNAP, DEEP_FREEZE, FROSTBITE, PERMAFROST, SHATTER } from "./defs/frozen.js";
 import { BLOODLUST, IRON_HIDE, MOMENTUM, SECOND_WIND } from "./defs/general.js";
-import { ECHO, LEECH, OVERLOAD, STATIC, TEMPO, WELLSPRING } from "./defs/mage.js";
+import { ECHO, FUSE, KERNEL, LEECH, OVERLOAD, STATIC, TEMPO, VESSEL, WELLSPRING } from "./defs/mage.js";
 import { BASTION, EMBER_HEART, FROST_CROWN, HUNTERS_EYE, RESTLESS } from "./defs/relic.js";
 import { AEGIS, BULWARK, OVERFLOW, SHATTERGUARD, SHIELD_BASH, SPIKED_SHIELD } from "./defs/shield.js";
 import type { CardDef, CardId } from "./types.js";
@@ -59,6 +59,9 @@ export const CARD_DEFS: Record<CardId, CardDef> = {
   cinderShield: CINDER_SHIELD,
   glass: GLASS,
   phoenix: PHOENIX,
+  vessel: VESSEL,
+  fuse: FUSE,
+  kernel: KERNEL,
   echo: ECHO,
   static: STATIC,
   leech: LEECH,

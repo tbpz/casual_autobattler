@@ -249,6 +249,7 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       eligible: (progress, roster) =>
         !progress.cards.includes(id) &&
         (def.army === undefined || def.army === progress.army) &&
+        !(def.excludedBy ?? []).some((rival) => progress.cards.includes(rival)) &&
         (isDuo
           ? duoUnlocked(id, squadChainEffects(progress, roster), heldCards(progress))
           : cardConnects(id, progress.introduced, heldCards(progress))),
@@ -541,6 +542,13 @@ export function drawOffers(rng: Rng, progress: RunProgress, roster: SideState, c
     chosen.push(pick.t);
     pool.splice(pool.indexOf(pick), 1);
   };
+  // An army run always shows its own rune (2026-10-23, DECISIONS.md "Mage runes must act on the orbs"): the first cfg.armyOfferSlots slots
+  // draw from the army's open runes, when it has any. Armies without runes yet, and plain runs, skip this.
+  for (let g = 0; g < cfg.armyOfferSlots && chosen.length < cfg.offersPerWin; g++) {
+    const armyRunes = pool.filter((p) => p.t.size === "card" && p.t.card !== undefined && progress.army !== undefined && CARD_DEFS[p.t.card].army === progress.army);
+    if (armyRunes.length === 0) break;
+    draw(armyRunes);
+  }
   for (let g = 0; g < cfg.buildOffersGuaranteed && chosen.length < cfg.offersPerWin; g++) {
     const pieces = pool.filter((p) => isBuildPiece(p.t));
     if (pieces.length === 0) break;

@@ -633,11 +633,21 @@ export interface FightConfig {
    * turns the HP a unit had no room for into Shield on that unit. Orb beats leave none. Made-up first numbers. */
   mageStormMergeBurn: number;
   mageFrostMergeFreezeSec: number;
-  /** The Mage runes (sim/cards/defs/mage.ts): Leech multiplies a Life orb's drain on a burning enemy by `leechMult`; Tempo multiplies the gap
-   * between beats by `tempoGapMult` while any enemy is frozen; Wellspring turns `wellspringFraction` of the HP a Life orb drained but nobody
-   * could take in into shield, shared over the living units. */
-  leechMult: number;
-  tempoGapMult: number;
+  /** The Mage runes (sim/cards/defs/mage.ts; they act on the orbs, 2026-10-23, DECISIONS.md "Mage runes must act on the orbs, not the marks").
+   * Big merges: Vessel lifts a mage's loose-orb limit to `vesselOrbMax` and its merged shot by `vesselShotMult`; Static makes a Storm zap jump
+   * while its mage holds `staticMinOrbs` loose orbs or more. Many merges: Fuse drops the limit to `fuseOrbMax` and scales the shot by
+   * `fuseShotMult`. Core: Kernel makes the core orb work `kernelStep` more per beat it has
+   * already worked this fight, `kernelMax` beats at most, and a merge sets it back to none. Tempo makes every core orb work a second time on a
+   * beat, that second time at `tempoSecondBeat` of the usual amount (a full second beat finished 56% of Mage runs, twice the target). Wellspring turns `wellspringFraction` of the HP a
+   * Life orb drained but nobody could take in into shield, shared over the living units. Made-up first numbers. */
+  vesselOrbMax: number;
+  vesselShotMult: number;
+  fuseOrbMax: number;
+  fuseShotMult: number;
+  kernelStep: number;
+  kernelMax: number;
+  staticMinOrbs: number;
+  tempoSecondBeat: number;
   wellspringFraction: number;
 }
 
@@ -904,6 +914,8 @@ export interface RunConfig {
   /** 2026-10-23: a rune that belongs to one army (`CardDef.army`) is offered only in that army's run, and its draw weight is multiplied by
    * `armyCardBoost` there (on top of the connect or duo tilt), so the army's own runes are seen. */
   armyCardBoost: number;
+  /** 2026-10-23: how many of a win's offers are always one of the run's own army runes, when the army has any open (sim/offers.ts). */
+  armyOfferSlots: number;
   /** The most the whole card group may weigh in one draw (sim/offers.ts's
    * drawOffers). Cards draw at flat per-card weights, so without a cap a bigger
    * pool crowds the number offers out of the three on screen; past the cap every
@@ -1231,8 +1243,17 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   // First take for the marks and runes (2026-10-23); not yet tuned with the batch.
   mageStormMergeBurn: 3,
   mageFrostMergeFreezeSec: 1.5,
-  leechMult: 2,
-  tempoGapMult: 0.5,
+  vesselOrbMax: 4,
+  // Tuned 2026-10-23 with `npm run batch -- --n 400 --offers build --army mages` (the first take, 1.5 / 1 / 10 / 1 / a full second beat, finished
+  // 56% of runs; without Tempo the pool finished 26%): Tempo's second beat at 0.3, Kernel 0.5 a beat to 6 beats, Vessel 2x finish about 36%.
+  // Vessel still trails Fuse in the bot's numbers: a Vessel run gives up Fuse and the Overload duo.
+  vesselShotMult: 2,
+  fuseOrbMax: 2,
+  fuseShotMult: 0.6,
+  kernelStep: 0.5,
+  kernelMax: 6,
+  staticMinOrbs: 2,
+  tempoSecondBeat: 0.3,
   wellspringFraction: 1,
 };
 
@@ -1260,6 +1281,7 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   cardConnectBoost: 1.5,
   duoBoost: 6,
   armyCardBoost: 1.5,
+  armyOfferSlots: 1,
   cardGroupWeightCap: 12,
   borrowWeightFraction: 0.25,
   // 2026-10-02: a Recruit offer used to fade from weight 1 to 0.4 over the run,

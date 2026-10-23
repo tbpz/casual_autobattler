@@ -16,6 +16,18 @@
 
 ---
 
+### [2026-10-23 #3] Proposed moving the archive line at each pivot, but replaced entries are scattered through the log
+
+- **Said:** When Tu asked about DECISIONS.md length, I suggested putting a new archive line in place
+  when something big is dropped (like the merge heroes), so the replaced era sits below it.
+- **Actually:** An archive line only marks off entries that sit together at the bottom of the file.
+  The merge-hero entries are spread across 2026-10-19 to 2026-10-23, mixed in with live ones, and
+  moving them would break the append-only rule and the BETS.md links.
+- **Caught by:** Myself, while working out the edit to apply it.
+- **Why:** I thought of a pivot as a point in time, but entries are replaced one at a time, not in
+  one block.
+- **Tag:** proposed a fix without checking it against how the file is actually laid out
+
 ### [2026-10-23 #2] Recommended the Life Mage feeding other mages' orbs, but chains already fill them fast
 
 - **Said:** After Tu rejected the lifeline idea, I put "Orb feeder" first as the recommended Life

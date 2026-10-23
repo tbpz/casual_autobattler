@@ -242,6 +242,14 @@ function mageStrikeBase(cfg: FightConfig, effect: ChainEffect): number {
   return effect === "stormOrb" ? cfg.mageStormMergeDamage : effect === "frostOrb" ? cfg.mageFrostMergeShield : cfg.mageLifeMergeDrain;
 }
 
+/** How many loose orbs `mage` holds before the next hit merges them, and how big the merged shot is next to the usual one. The orbCap hook
+ * lets Vessel and Fuse change both (2026-10-23, Mage runes act on the orbs). */
+function orbCapOf(c: FightCtx, mage: HeroState): { cap: number; shotMult: number } {
+  const payload = { mage, cap: c.cfg.mageOrbMax, shotMult: 1 };
+  runHook(c, "orbCap", payload);
+  return { cap: payload.cap, shotMult: payload.shotMult };
+}
+
 /** One hit of a Mages skill. A backfire pops the newest orb; with nothing to pop it returns null, which ends the skill. Otherwise the hit
  * adds a loose orb, or (finding them full) merges them into one great shot that fires and leaves no orb behind. A shot with nobody to hit
  * or help returns null and leaves the orbs as they were. */
@@ -255,16 +263,17 @@ function mageOrbHit(c: FightCtx, effect: ChainEffect, hero: HeroState, backfire:
     c.events.push({ type: "orbPop", t: c.t, heroId: hero.id, orbs: hero.orbs });
     return [orbEntry];
   }
-  if (orbs < cfg.mageOrbMax) {
+  const { cap, shotMult } = orbCapOf(c, hero);
+  if (orbs < cap) {
     hero.orbs = orbs + 1;
     c.events.push({ type: "orbAdd", t: c.t, heroId: hero.id, orbs: hero.orbs });
     return [orbEntry];
   }
-  // The shot goes through escalatedMagnitude at hit 1, so fatigue and the size runes apply.
-  const raw = escalatedMagnitude(cfg, mageStrikeBase(cfg, effect), 1, boost);
+  // The shot goes through escalatedMagnitude at hit 1, so fatigue and the size runes apply; Vessel and Fuse scale it by shotMult.
+  const raw = Math.round(escalatedMagnitude(cfg, mageStrikeBase(cfg, effect), 1, boost) * shotMult);
   const fire = (): void => {
     hero.orbs = 0;
-    c.events.push({ type: "orbMerge", t: c.t, heroId: hero.id });
+    c.events.push({ type: "orbMerge", t: c.t, heroId: hero.id, orbs });
     c.events.push({ type: "orbStrike", t: c.t, heroId: hero.id });
   };
   const merged = (orbKind: "storm" | "frost" | "life"): void => runHook(c, "orbsMerged", { mage: hero, orbKind });
@@ -437,7 +446,7 @@ function makeCardApi(c: () => FightCtx): CardApi {
     addOrb: (mage) => {
       const cx = c();
       const orbs = mage.orbs ?? 0;
-      if (mage.army !== "mages" || !mage.alive || orbs >= cx.cfg.mageOrbMax) return false;
+      if (mage.army !== "mages" || !mage.alive || orbs >= orbCapOf(cx, mage).cap) return false;
       mage.orbs = orbs + 1;
       cx.events.push({ type: "orbAdd", t: cx.t, heroId: mage.id, orbs: mage.orbs });
       return true;

@@ -25,6 +25,8 @@ The `decision-log`, `state-sync`, `cheatsheet-update`, `canvas-update` and `brow
 3. **Read `REFERENCE.md` only when you need the game's mechanical shape** — it is stable, so re-reading it every session is wasted.
    Read `CHEATSHEET.md` when you need a card, relic, mark or ability number — it is current by rule.
 4. **Do not read `DECISIONS.md` top-to-bottom.** Only grep it to answer a "why did we decide X?" question.
+   - Every entry is tagged `[game]` or `[workflow]` in its heading; search `\[game\]` for game rationale and `\[workflow\]` for how we work.
+   - Before trusting a hit, check the dropped-systems list in the file's header, then grep the hit entry's title. A later entry whose **Replaces** names it wins.
 5. **Staleness check:** if `DECISIONS.md` has entries newer than `STATE.md`'s `Last synced` date, STATE is behind — trust the newer DECISIONS entries, tell the user in one line that STATE is stale, and re-sync it (see "Rewriting STATE.md").
 6. `STRATEGY.md` is deprecated pending a rewrite; do not treat it as current.
 7. `DECISIONS.md` has an in-place archive boundary: entries below the `ARCHIVE` rule predate the 2026-07-18 pivot and describe a superseded game design. Discount grep hits below that line as history, not live rationale, unless the question is specifically about the pre-pivot era.
@@ -34,6 +36,10 @@ The `decision-log`, `state-sync`, `cheatsheet-update`, `canvas-update` and `brow
 Tu has said logging a decision needs no sign-off. Log without asking, but only what he said or chose.
 
 1. When Tu states or picks something that settles a choice (*X over Y*), **invoke the `decision-log` skill** and append one entry to `DECISIONS.md` immediately — no "Log it?" question, do not batch it, and do not edit `STATE.md` for it.
+   - **Exception — check the verified list in `BETS.md` first.** If the decision breaks a verified bet, do not log it yet and do not build on it. Tell Tu in plain words which bet breaks, how it breaks, and give the link to that bet's proof entry. Then he picks:
+     - **Keep the bet:** the decision is changed or dropped. Nothing is logged.
+     - **Drop or replace the bet:** log the decision, plus a new entry saying the bet is overturned and why. The verified line comes out of `BETS.md` (or is replaced) in the same change.
+   - A decision that breaks no verified bet is logged at once, as before. If unsure whether it breaks one, flag it.
    - The skill carries the entry format, the word budget, and the rules that keep entries small and grep-safe. Never write a DECISIONS.md entry freehand.
    - If the decision settles or adds a bet, `BETS.md` changes in the same step (see "Keeping BETS.md current").
 2. Tell him in one line what was logged (the entry's heading).
@@ -109,7 +115,9 @@ the decision itself was already logged.
   definition, `[7]: DECISIONS.md#<heading-anchor>`, goes in the block at the bottom of the file, so
   no long anchor sits in a list line. Check the anchor matches a real heading.
 - A line in the verified list is never reworded to fit a new idea. If a new decision contradicts one,
-  say so to Tu first; it is a decision, not an edit.
+  say so to Tu first; it is a decision, not an edit. The same holds for Tu's own decisions: one that
+  breaks a verified bet is flagged before it is logged, never silently overriding it (see step 1 of
+  "During the session — the DECISION protocol").
 
 ## Keeping CHEATSHEET.md current
 

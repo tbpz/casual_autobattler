@@ -122,7 +122,7 @@ const SCENARIOS: Partial<Record<CardId, Scenario>> = {
 // --- Every card in the registry has a scenario or a reason not to.
 {
   // The Mage runes (2026-10-23) need orbs, which this file's plain squad has none of; checks/armies.ts plays each one.
-  const mageRunes: CardId[] = ["echo", "static", "leech", "tempo", "overload", "wellspring"];
+  const mageRunes: CardId[] = ["vessel", "fuse", "kernel", "echo", "static", "leech", "tempo", "overload", "wellspring"];
   const already = new Set<CardId>(["execute", "punish", "shatter", "deepFreeze", "spread", "openWound", "spikedShield", "bulwark", ...mageRunes]);
   const missing = CARD_IDS.filter((id) => !SCENARIOS[id] && !already.has(id) && id !== "aegis");
   check("every new card has a scenario here", missing.length === 0, missing.join(","));

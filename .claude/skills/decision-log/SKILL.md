@@ -21,12 +21,14 @@ Append-only means entries are never edited or deleted once written. That makes w
 ## The append protocol
 
 1. Only fires for a choice Tu stated or picked (`CLAUDE.md` DECISION protocol) — never for my own un-adopted suggestion, never batched. No "log it?" question first.
-2. Draft the entry in the standard format: `## [YYYY-MM-DD] Title` → **Decision** / **Why** / **Replaces**, each field as short one-claim bullets rather than a single dense paragraph.
-3. Apply both tests above while drafting — cut diff-shaped lines, cut anything `git log -p` already has, point at code for live constants instead of quoting them.
-4. **Hold the budget: ~250 words / ~1,800 bytes per entry, hard cap 350 words.** Report the word count in the one-line note that says what was logged — a measurement, not a feeling, same discipline `state-sync` uses for `STATE.md`'s cap.
-5. Insert at the **top** of the log, immediately below the header block — never at the bottom, never mixed into the middle.
-6. **If the decision settles or adds a bet, update `BETS.md` in the same change** — the rules are in `CLAUDE.md`, "Keeping BETS.md current". A verified bet needs a link to the entry just written: a reference-style link with the date as its text, the heading anchor in the definition block at the bottom of `BETS.md`; check the anchor exists.
-7. Never edit, reorder, or delete an existing entry to make room. If an existing entry is now stale or contradicted, that's handled by a *new* entry that says so and points at the current source of truth — not by touching the old one.
+2. **Check the decision against the verified list in `BETS.md`.** If it breaks a verified bet, stop and flag it to Tu as `CLAUDE.md`'s DECISION protocol says (which bet, how it breaks, the proof link). Do not write the entry until he answers. If he drops or replaces the bet, the entry says the bet is overturned.
+3. Draft the entry in the standard format: `## [YYYY-MM-DD] [game|workflow] Title` → **Decision** / **Why** / **Replaces**, each field as short one-claim bullets rather than a single dense paragraph. Tag `[game]` when it settles what the player gets (rules, numbers, units, UI, art) and `[workflow]` when it settles how we work (context files, skills, logging, process). The tag is part of the heading, so a `BETS.md` link anchor includes it (`2026-10-23-game-title-words`).
+4. Apply both tests above while drafting — cut diff-shaped lines, cut anything `git log -p` already has, point at code for live constants instead of quoting them.
+5. **Hold the budget: ~250 words / ~1,800 bytes per entry, hard cap 350 words.** Report the word count in the one-line note that says what was logged — a measurement, not a feeling, same discipline `state-sync` uses for `STATE.md`'s cap.
+6. Insert at the **top** of the log, immediately below the header block — never at the bottom, never mixed into the middle.
+7. **If the decision settles or adds a bet, update `BETS.md` in the same change** — the rules are in `CLAUDE.md`, "Keeping BETS.md current". A verified bet needs a link to the entry just written: a reference-style link with the date as its text, the heading anchor in the definition block at the bottom of `BETS.md`; check the anchor exists.
+8. **If the decision drops or replaces a whole system** (a mechanic, screen or unit kind), add one line to the "Dropped systems" list in the `DECISIONS.md` header: the system, the date, and a link to the new entry. That list is not an entry and is edited in place; it is how a later grep hit on the old entries is recognised as history.
+9. Never edit, reorder, or delete an existing entry to make room. If an existing entry is now stale or contradicted, that's handled by a *new* entry that says so and points at the current source of truth — not by touching the old one.
 
 ## Guardrails
 

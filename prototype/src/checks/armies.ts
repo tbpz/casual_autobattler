@@ -432,59 +432,84 @@ const shotSize = (base: number): number => Math.round(base * run.fight.chainHitM
     const plain = solo(held([charged(unit("mages", "damage")), unit("mages", "tank")], []), 7, { chainMaxHits: 4, ...noBeat });
     check("Echo: without it a merge leaves none", mageIn(plain, plain.snapshots[0]!.playerHeroes.find((h) => h.kind === "stormMage")!.id).orbs === 0);
   }
+  const firstBeat = (r: FightResult, id: string) => eventsOf(r, "orbTick").filter((e) => e.heroId === id && e.t < run.fight.mageOrbFirstBeatSec + 0.2);
+  const atFirstBeat = (r: FightResult, card: CardId) => triggers(r, card).filter((e) => e.t < run.fight.mageOrbFirstBeatSec + 0.2);
   {
-    // Static.
-    const burning = (enemy: SideState): void => {
-      three(enemy);
-      enemy.heroes.forEach((h) => (h.maxHp = h.hp = 1e12));
-      enemy.heroes[0]!.marks = { exposed: 0, burn: 1e6, shield: 0 };
-    };
-    let mismatches = 0, jumps = 0, wrongSize = 0;
-    for (let seed = 1; seed <= 12; seed++) {
-      const storm = unit("mages", "damage");
-      storm.orbs = 2;
-      const r = solo(held([storm, unit("mages", "tank")], ["static"], burning), seed);
-      const zapsOnBurning = eventsOf(r, "orbTick").filter((e) => e.orbKind === "storm" && e.targetId === r.snapshots[0]!.enemyHeroes[0]!.id).length;
-      const tr = triggers(r, "static");
-      if (tr.length !== zapsOnBurning) mismatches++;
-      jumps += tr.length;
-      if (tr.some((e) => e.targetId === r.snapshots[0]!.enemyHeroes[0]!.id || e.amount !== storm.damage)) wrongSize++;
-    }
-    check("Static: a zap on the burning enemy jumps, for the same amount, to one of the others; a zap on any other does not", mismatches === 0 && jumps > 0 && wrongSize === 0, `${jumps} jumps, ${mismatches} off, ${wrongSize} wrong`);
-    const withKindling = solo(held([unit("mages", "damage"), unit("mages", "tank")], ["static", "kindling"], burning), 3);
-    const first = eventsOf(withKindling, "cardTriggered").filter((e) => e.card === "kindling");
-    const ticks = eventsOf(withKindling, "orbTick").filter((e) => e.orbKind === "storm");
-    check("Static: the jump is not a Damage unit's hit, so Tinder fires once per zap and not once more per jump", first.length === ticks.length, `${first.length} burns, ${ticks.length} zaps`);
+    // Vessel: a mage holds one more loose orb before they merge, and the merged shot is bigger.
+    const storm = charged(unit("mages", "damage"));
+    const r = solo(held([storm, unit("mages", "tank")], ["vessel"]), 7, { chainMaxHits: 6, ...noBeat });
+    const adds = eventsOf(r, "orbAdd").map((e) => e.orbs).join();
+    const shot = r.events.find((e) => e.type === "chainHit" && e.sourceId === storm.id && e.kind === "damage");
+    check("Vessel: the orbs reach four before the 5th hit merges them (1, 2, 3, 4, then 1 again)", adds === "1,2,3,4,1" && eventsOf(r, "orbMerge").length === 1 && eventsOf(r, "orbMerge")[0]!.orbs === run.fight.vesselOrbMax, adds);
+    check("Vessel: the merged shot is bigger by the set share", shot?.type === "chainHit" && shot.intended === Math.round(shotSize(run.fight.mageStormMergeDamage) * run.fight.vesselShotMult), shot?.type === "chainHit" ? String(shot.intended) : "no shot");
   }
   {
-    // Leech.
-    const burning = (enemy: SideState): void => {
-      calmBig(enemy);
-      enemy.heroes.forEach((h) => {
-        h.maxHp = h.hp = 1e12; // the burn ticks for 3e6 a time, which would end a 1e6-HP enemy before the first beat
-        h.marks = { exposed: 0, burn: 1e6, shield: 0 };
-      });
-    };
+    // Fuse: a mage's loose orbs merge after two, and the merged shot is smaller.
+    const storm = charged(unit("mages", "damage"));
+    const r = solo(held([storm, unit("mages", "tank")], ["fuse"]), 7, { chainMaxHits: 6, ...noBeat });
+    const adds = eventsOf(r, "orbAdd").map((e) => e.orbs).join();
+    const shots = r.events.filter((e) => e.type === "chainHit" && e.sourceId === storm.id && e.kind === "damage");
+    check("Fuse: the orbs merge at two (1, 2, merge, 1, 2, merge)", adds === "1,2,1,2" && eventsOf(r, "orbMerge").length === 2, adds);
+    check("Fuse: each merged shot is smaller by the set share", shots.length === 2 && shots.every((e) => e.type === "chainHit" && e.intended === Math.round(shotSize(run.fight.mageStormMergeDamage) * run.fight.fuseShotMult)), shots.map((e) => (e.type === "chainHit" ? e.intended : 0)).join());
+    const plain = solo(held([charged(unit("mages", "damage")), unit("mages", "tank")], []), 7, { chainMaxHits: 6, ...noBeat });
+    check("Vessel and Fuse: without either, the limit and the shot are the usual ones", eventsOf(plain, "orbAdd").map((e) => e.orbs).join() === "1,2,3,1,2" && eventsOf(plain, "orbMerge").length === 1);
+  }
+  {
+    // Kernel: the core orb works one more per beat it has worked, and a merge sets it back to none.
+    const cfgKernel = { chargeTricklePerSec: 0, chainMaxHits: 1 };
+    const storm = unit("mages", "damage");
+    storm.orbs = 3;
+    const r = fight(held([storm, unit("mages", "tank")], ["kernel"]), 7, cfgKernel);
+    const core = eventsOf(r, "orbTick").filter((e) => e.heroId === storm.id && e.index === -1).map((e) => e.amount);
+    const want = [0, 1, 0, 1].map((n) => storm.damage + n * run.fight.kernelStep);
+    check("Kernel: the core orb adds the step each beat it has worked, and a merge sets it back to none", eventsOf(r, "orbMerge").length >= 1 && want.every((w, i) => core[i] === w), core.slice(0, 5).join());
+    const base = fight(held([unit("mages", "damage"), unit("mages", "tank")], []), 7, { chargeTricklePerSec: 0 });
+    check("Kernel: without it the core orb works the same on every beat", eventsOf(base, "orbTick").filter((e) => e.index === -1 && e.orbKind === "storm").every((e) => e.amount === storm.damage));
+    // No chain in this fight (solo puts none of the orb work into the bar), so nothing merges and the count only climbs.
+    const long = solo(held([unit("mages", "damage"), unit("mages", "tank")], ["kernel"], calmBig), 7, { mageOrbBeatSec: 0.5, mageOrbFirstBeatSec: 0.5 });
+    const top = Math.max(...eventsOf(long, "orbTick").filter((e) => e.index === -1 && e.orbKind === "storm").map((e) => e.amount));
+    check("Kernel: the bonus stops at the limit", top === ARMY_UNITS.mages.damage.damage + run.fight.kernelMax * run.fight.kernelStep, String(top));
+  }
+  {
+    // Static: while a Storm Mage holds two loose orbs or more, each of its zaps jumps to a second enemy.
+    const fullStorm = unit("mages", "damage");
+    fullStorm.orbs = 3;
+    const r = solo(held([fullStorm, unit("mages", "tank")], ["static"], three), 7);
+    const jumps = atFirstBeat(r, "static");
+    const zaps = firstBeat(r, fullStorm.id);
+    check("Static: with the loose orbs out every zap (the core's too) jumps, for the same amount", zaps.length === 4 && jumps.length === 4 && jumps.every((e) => e.amount === fullStorm.damage), `${jumps.length} jumps, ${zaps.length} zaps`);
+    const notFull = unit("mages", "damage");
+    notFull.orbs = run.fight.staticMinOrbs - 1;
+    const q = solo(held([notFull, unit("mages", "tank")], ["static"], three), 7);
+    check("Static: with fewer loose orbs than the set number nothing jumps", atFirstBeat(q, "static").length === 0);
+    const withKindling = solo(held([(() => { const s = unit("mages", "damage"); s.orbs = 3; return s; })(), unit("mages", "tank")], ["static", "kindling"], three), 3);
+    const burns = eventsOf(withKindling, "cardTriggered").filter((e) => e.card === "kindling" && e.t < run.fight.mageOrbFirstBeatSec + 0.2);
+    check("Static: the jump is not a Damage unit's hit, so Tinder fires once per zap and not once more per jump", burns.length === 4, `${burns.length} burns`);
+  }
+  {
+    // Leech: when another mage's orbs merge, the Life Mage gains a loose orb.
+    const frost = charged(unit("mages", "tank"));
     const life = unit("mages", "support");
-    const r = solo(held([life, unit("mages", "tank")], ["leech"], burning), 7);
-    const ticks = eventsOf(r, "orbTick").filter((e) => e.heroId === life.id && e.t < run.fight.mageOrbFirstBeatSec + 0.2);
-    check("Leech: a Life orb drains a burning enemy for double", ticks.length === 1 && ticks[0]!.drained === life.damage * run.fight.leechMult && triggers(r, "leech").length >= 1, ticks.map((e) => e.drained).join(","));
-    const cold = solo(held([unit("mages", "support"), unit("mages", "tank")], ["leech"]), 7);
-    check("Leech: an enemy that is not burning is drained for the normal amount", eventsOf(cold, "orbTick").filter((e) => e.orbKind === "life").every((e) => e.drained === life.damage) && triggers(cold, "leech").length === 0);
+    const r = solo(held([frost, life], ["leech"]), 7, { chainMaxHits: 4, ...noBeat });
+    check("Leech: when the Frost Mage's orbs merge, the Life Mage gains a loose orb", mageIn(r, life.id).orbs === 1 && triggers(r, "leech").length === 1 && triggers(r, "leech")[0]!.targetId === life.id);
+    const own = charged(unit("mages", "support"));
+    const ownRun = solo(held([own, unit("mages", "tank")], ["leech"]), 7, { chainMaxHits: 4, ...noBeat });
+    check("Leech: the Life Mage's own merge gives it nothing", eventsOf(ownRun, "orbMerge").length === 1 && mageIn(ownRun, own.id).orbs === 0 && triggers(ownRun, "leech").length === 0);
+    const none = solo(held([charged(unit("mages", "tank")), unit("mages", "support")], []), 7, { chainMaxHits: 4, ...noBeat });
+    check("Leech: without it a merge gives the Life Mage nothing", none.snapshots[none.snapshots.length - 1]!.playerHeroes.find((h) => h.kind === "lifeMage")!.orbs === 0);
   }
   {
-    // Tempo.
-    const frozen = (enemy: SideState): void => {
-      calmBig(enemy);
-      enemy.heroes[0]!.stunnedUntilT = 1e6;
-    };
-    const quick = solo(held([unit("mages", "damage"), unit("mages", "tank")], ["tempo"], frozen), 7);
-    const slow = solo(held([unit("mages", "damage"), unit("mages", "tank")], [], frozen), 7);
-    const times = (r: FightResult) => [...new Set(eventsOf(r, "orbTick").map((e) => Math.round(e.t * 100) / 100))].slice(0, 3);
-    const gap = run.fight.mageOrbBeatSec * run.fight.tempoGapMult;
-    check("Tempo: while an enemy is frozen the beat comes in the shortened gap", times(quick).join() === [run.fight.mageOrbFirstBeatSec, run.fight.mageOrbFirstBeatSec + gap, run.fight.mageOrbFirstBeatSec + 2 * gap].join() && times(slow)[1] === run.fight.mageOrbFirstBeatSec + run.fight.mageOrbBeatSec, `${times(quick)} vs ${times(slow)}`);
-    const calmOnes = solo(held([unit("mages", "damage"), unit("mages", "tank")], ["tempo"]), 7);
-    check("Tempo: with nothing frozen the gap is the normal one", times(calmOnes)[1] === run.fight.mageOrbFirstBeatSec + run.fight.mageOrbBeatSec && triggers(calmOnes, "tempo").length === 0);
+    // Tempo: the core orbs work twice on every beat; the loose ones once.
+    const storm = unit("mages", "damage");
+    storm.orbs = 2;
+    const r = solo(held([storm, unit("mages", "tank")], ["tempo"]), 7);
+    check("Tempo: the core orb works twice on the first beat, then each loose orb once", firstBeat(r, storm.id).map((e) => e.index).join() === "-1,-1,0,1", firstBeat(r, storm.id).map((e) => e.index).join());
+    check("Tempo: the second core beat is the set share of the first", Math.abs(firstBeat(r, storm.id)[1]!.amount - storm.damage * run.fight.tempoSecondBeat) < 0.01 && firstBeat(r, storm.id)[0]!.amount === storm.damage, firstBeat(r, storm.id).map((e) => e.amount).join());
+    check("Tempo: the extra beat does not double again (one trigger per mage's core orb)", atFirstBeat(r, "tempo").length === 2, `${atFirstBeat(r, "tempo").length} triggers`);
+    const plain = unit("mages", "damage");
+    plain.orbs = 2;
+    const q = solo(held([plain, unit("mages", "tank")], []), 7);
+    check("Tempo: without it the core orb works once", firstBeat(q, plain.id).map((e) => e.index).join() === "-1,0,1");
   }
   {
     // Overload: a merge by the Frost Mage makes the Storm Mage's two loose orbs work once at once, and they stay.
@@ -517,23 +542,24 @@ const shotSize = (base: number): number => Math.round(base * run.fight.chainHitM
 
 // --- Mage runes are offered only in a Mages run.
 {
-  const MAGE_CARDS: CardId[] = ["echo", "static", "leech", "tempo", "overload", "wellspring"];
-  const seen = (army: ArmyKind | undefined): Set<CardId> => {
-    const cards = new Set<CardId>();
+  const MAGE_CARDS: CardId[] = ["vessel", "fuse", "kernel", "echo", "static", "leech", "tempo", "overload", "wellspring"];
+  const draws = (army: ArmyKind | undefined, cards: CardId[] = []): CardId[][] => {
+    const all: CardId[][] = [];
     for (let seed = 1; seed <= 300; seed++) {
-      const progress = makeInitialProgress(run, undefined, army);
+      const progress = { ...makeInitialProgress(run, undefined, army), cards };
       const roster = makeArmyRoster(army ?? "mages", progress.bonus);
-      for (const o of drawOffers(new Rng(seed), progress, roster, run, 3)) {
-        if (o.kind === "card" && o.card && MAGE_CARDS.includes(o.card)) cards.add(o.card);
-      }
+      all.push(drawOffers(new Rng(seed), progress, roster, run, 3).flatMap((o) => (o.kind === "card" && o.card ? [o.card] : [])));
     }
-    return cards;
+    return all;
   };
+  const seen = (army: ArmyKind | undefined, cards: CardId[] = []): Set<CardId> => new Set(draws(army, cards).flat().filter((id) => MAGE_CARDS.includes(id)));
   const mages = seen("mages");
-  check("offers: a Mages run is offered Mage runes, and never a duo before its parts are held", mages.size >= 3 && !mages.has("overload") && !mages.has("wellspring"), [...mages].join(","));
+  check("offers: a Mages run is offered Mage runes, and never a duo before its parts are held", mages.size >= 5 && !mages.has("overload") && !mages.has("wellspring"), [...mages].join(","));
   check("offers: a Beasts, an Undead and a plain run are never offered a Mage rune", (["beasts", "undead", undefined] as (ArmyKind | undefined)[]).every((a) => seen(a).size === 0));
-  check("offers: Static, Leech and Tempo each wait for the mark a Mage skill makes; Echo waits for none", cardConnects("static", ["stormOrb"]) && !cardConnects("static", ["frostOrb"]) && cardConnects("leech", ["stormOrb"]) && cardConnects("tempo", ["frostOrb"]) && !cardConnects("tempo", ["lifeOrb"]) && cardConnects("echo", []));
-  check("duos: Overload needs Echo and Tempo held; Wellspring needs Leech and Brim held", !duoUnlocked("overload", ["frostOrb"], ["echo"]) && duoUnlocked("overload", ["frostOrb"], ["echo", "tempo"]) && !duoUnlocked("wellspring", ["lifeOrb"], ["leech"]) && duoUnlocked("wellspring", ["lifeOrb"], ["leech", "overflow"]));
+  check("offers: every win in a Mages run puts at least one Mage rune among the offers", draws("mages").every((cards) => cards.some((id) => MAGE_CARDS.includes(id))));
+  check("offers: Vessel and Fuse shut each other out", !seen("mages", ["vessel"]).has("fuse") && !seen("mages", ["fuse"]).has("vessel") && seen("mages", ["kernel"]).has("vessel") && seen("mages", ["kernel"]).has("fuse"));
+  check("offers: Static, Leech and Tempo each wait for the Mage skill whose orb they work on; the rest wait for none", cardConnects("static", ["stormOrb"]) && !cardConnects("static", ["frostOrb"]) && cardConnects("leech", ["lifeOrb"]) && !cardConnects("leech", ["stormOrb"]) && cardConnects("tempo", ["frostOrb"]) && !cardConnects("tempo", ["lifeOrb"]) && (["vessel", "fuse", "kernel", "echo"] as CardId[]).every((id) => cardConnects(id, [])));
+  check("duos: Overload needs Echo and Fuse held; Wellspring needs Leech and Brim held", !duoUnlocked("overload", ["frostOrb"], ["echo"]) && !duoUnlocked("overload", ["frostOrb"], ["echo", "vessel"]) && duoUnlocked("overload", ["frostOrb"], ["echo", "fuse"]) && !duoUnlocked("wellspring", ["lifeOrb"], ["leech"]) && duoUnlocked("wellspring", ["lifeOrb"], ["leech", "overflow"]));
 }
 
 // --- An army run is never offered the plain squad's role abilities (2026-10-23): Scorch, Frostbolt, Siphon and the rest of ROLE_UPGRADE_POOL.

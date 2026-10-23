@@ -54,6 +54,9 @@ export type CardId =
   | "glass"
   | "phoenix"
   // Mage army cards (sim/cards/defs/mage.ts): offered only in a Mages run.
+  | "vessel"
+  | "fuse"
+  | "kernel"
   | "echo"
   | "static"
   | "leech"
@@ -129,6 +132,8 @@ export interface HookPayloads {
   orbBeat: { mage: HeroState; orbKind: "storm" | "frost" | "life"; loose: boolean; target?: HeroState; applied: number; wasted: number };
   /** Before the gap to the next shared orb beat is set, in seconds. */
   orbGap: { sec: number /* mutable */ };
+  /** Whenever `mage`'s loose-orb limit is read: `cap` is how many it holds before the next hit merges them, `shotMult` scales the merged shot. */
+  orbCap: { mage: HeroState; cap: number /* mutable */; shotMult: number /* mutable */ };
   /** A mage's loose orbs just merged and the great shot fired; the orbs are gone. */
   orbsMerged: { mage: HeroState; orbKind: "storm" | "frost" | "life" };
 }
@@ -159,9 +164,8 @@ export interface CardApi {
   addCharge(h: HeroState, amount: number): void;
   /** A number in [0, 1) from the fight's random stream (a rune that picks a target at random). */
   random(): number;
-  /** Mages army: puts one loose orb round `mage` (`mageOrbMax` at most). Returns whether one was added. */
-  addOrb(mage: HeroState): boolean;
-  /** Mages army: one of `mage`'s loose orbs (index 0 up) works once now, outside the beat; the orb stays. Returns false when the fight was
+  /** Mages army: puts one loose orb round `mage` (its orb limit at most). Returns whether one was added. */
+  addOrb(mage: HeroState): boolean;  /** Mages army: one of `mage`'s loose orbs (index 0 up) works once now, outside the beat; the orb stays. Returns false when the fight was
    * won by it (no enemy left). */
   beatOrb(mage: HeroState, index: number): boolean;
   /** Per-fight counters, for cards that build up (Momentum, Inferno). */
@@ -214,6 +218,8 @@ export interface CardDef {
   needs?: CardNeeds;
   /** A card that belongs to one army: offered only in that army's run, and drawn at `armyCardBoost` there (sim/offers.ts). */
   army?: ArmyKind;
+  /** Rival runes: this card is not offered while any of these is held (Vessel and Fuse pull opposite ways). */
+  excludedBy?: CardId[];
   /** True for a card that works as a standing rule and raises no cardTriggered
    * of its own (Aegis), so the batch's fire-rate line leaves it out. */
   passive?: true;
