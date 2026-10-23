@@ -5,7 +5,7 @@
  * the old prototype's sim/engine.ts + render/playback.ts).
  */
 import type { ChainEffect } from "./config.js";
-import type { ArmyKind, HeroKind, Marks, Role, SkeletonKind, UnitKind } from "./types.js";
+import type { ArmyKind, Marks, Role, SkeletonKind, UnitKind } from "./types.js";
 import type { CardId } from "./cards/index.js";
 
 export type Side = "player" | "enemy";
@@ -167,8 +167,8 @@ export type FightEvent =
   | { type: "burnTick"; t: number; side: Side; targetId: string; amount: number }
   /** A Shield absorbed part or all of a hit (2026-09-30). */
   | { type: "shieldAbsorb"; t: number; side: Side; targetId: string; amount: number }
-  /** A Necromancer's Raise, or an Undead army's Raise or Bone Wall, filled an empty place: skeleton `heroId` is now standing on
-   * the player side (2026-10-20; fight.ts's raiseSkeleton and raiseArmySkeleton). `kind` is set for an army skeleton. */
+  /** An Undead army's Raise or Bone Wall filled an empty place: skeleton `heroId` is now standing on
+   * the player side (2026-10-20; fight.ts's raiseArmySkeleton). `kind` says which kind it is. */
   | { type: "raise"; t: number; heroId: string; kind?: SkeletonKind }
   /** The Undead horde was full, so a Raise or Bone Wall hit upgraded every skeleton of `kind` instead (2026-10-21);
    * `level` is how many upgrades that kind has had this fight. */
@@ -219,11 +219,6 @@ export interface HeroSnapshot {
   /** How many of this hero's chains backfired this fight — the roster folds it
    * into fatigue (sim/roster.ts's applyFightResultToRoster). */
   backfires: number;
-  /** Merge hero (2026-10-20): which one, the roles it was made from (its look and row), and — Dragon only —
-   * its growth stage. Undefined on a basic unit. */
-  hero?: HeroKind;
-  madeFrom?: ("tank" | "damage" | "support")[];
-  stage?: number;
   /** Army unit (2026-10-20): which army and which of its six units this is. Undefined on a plain unit. */
   army?: ArmyKind;
   kind?: UnitKind;
@@ -233,7 +228,7 @@ export interface HeroSnapshot {
   skeletonLevel?: number;
   /** Mages army (2026-10-21): the loose orbs as of this instant, so the screen can draw them after a pause or a jump. */
   orbs?: number;
-  /** A Necromancer skeleton place. Not alive and `maxHp` 0 until Raise fills it, so the screen can draw
+  /** An Undead army skeleton place. Not alive and `maxHp` 0 until Raise fills it, so the screen can draw
    * the places in advance and hide the empty ones. */
   skeleton?: boolean;
   /** Enemy bruiser only (2026-09-13 slam-visibility pass) — mirrors

@@ -25,7 +25,8 @@ Append-only means entries are never edited or deleted once written. That makes w
 3. Apply both tests above while drafting — cut diff-shaped lines, cut anything `git log -p` already has, point at code for live constants instead of quoting them.
 4. **Hold the budget: ~250 words / ~1,800 bytes per entry, hard cap 350 words.** Report the word count when presenting the drafted entry — a measurement, not a feeling, same discipline `state-sync` uses for `STATE.md`'s cap.
 5. Insert at the **top** of the log, immediately below the header block — never at the bottom, never mixed into the middle.
-6. Never edit, reorder, or delete an existing entry to make room. If an existing entry is now stale or contradicted, that's handled by a *new* entry that says so and points at the current source of truth — not by touching the old one.
+6. **If the decision settles or adds a bet, update `BETS.md` in the same change** — the rules are in `CLAUDE.md`, "Keeping BETS.md current". A verified bet needs a link to the entry just written: a reference-style link with the date as its text, the heading anchor in the definition block at the bottom of `BETS.md`; check the anchor exists.
+7. Never edit, reorder, or delete an existing entry to make room. If an existing entry is now stale or contradicted, that's handled by a *new* entry that says so and points at the current source of truth — not by touching the old one.
 
 ## Guardrails
 

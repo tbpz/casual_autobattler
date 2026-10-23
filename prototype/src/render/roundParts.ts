@@ -10,7 +10,7 @@ import { ROUND_PLAN } from "../sim/rounds.js";
 import type { EncounterKind } from "../sim/encounters.js";
 import { DEAD_BODY, villainFace } from "./faces.js";
 import { ICON_SKULL_BOSS, ICON_SKULL_DONE, ICON_SKULL_MINI, statLineHtml } from "./icons.js";
-import { GOLD, crownOnBody, fangsHtml, unitBodyBg, unitBodyStyle, unitFaceHtml, unitUnderHtml } from "./heroLook.js";
+import { unitBodyBg, unitBodyStyle, unitFaceHtml, unitUnderHtml } from "./heroLook.js";
 import { armyBodyPx } from "./armyLook.js";
 import { unitTitle } from "../sim/armies.js";
 
@@ -114,14 +114,12 @@ export function squadBodyHtml(h: HeroState, cfg: RunConfig, layout: SquadLayout)
   const z = squadSizes(layout.slots);
   // An army unit (2026-10-20): its own look, title and, in a Beasts squad, a smaller body (the Bear 36, the rest 30).
   const size = armyBodyPx(h.kind, SQUAD_BODY_PX);
-  // A merge hero (2026-10-20): its body wears the recipe and a crown, and its tag says HERO in gold.
   const hex = ROLE_HEX[role];
   const tier = fatigueTier(cfg.fight, h.fatigue);
   const frac = h.maxHp > 0 ? Math.max(0, Math.min(1, h.hp / h.maxHp)) : 0;
   const stat = statLineHtml(Math.round(h.hp), Math.round(h.damage), role === "support" ? h.healPerBeat : undefined);
-  const crown = h.hero ? crownOnBody(size) : "";
-  const tag = h.hero ? `<div class="fo-tag" style="color:${GOLD}">HERO</div>` : `<div class="fo-tag" style="color:${hex}">${h.kind ? unitTitle(h) : ROLE_LABEL[role]}</div>`;
-  return `<div class="fo-col" data-fighter="${esc(h.id)}" data-side="squad" style="width:${z.col}px"><div class="fo-eb" style="width:${size}px;height:${size}px"><div class="fo-sh" style="top:${Math.round(size * 0.85)}px;width:${Math.round(size * 0.82)}px;height:${Math.max(5, Math.round(size * 0.13))}px"></div>${unitUnderHtml(h, size)}<div class="fo-body" style="width:${size}px;height:${size}px;background:${unitBodyBg(h)};${unitBodyStyle(h)}">${unitFaceHtml(h, tier, size)}${fangsHtml(h)}${crown}</div></div><div class="fo-nm" style="font-size:${z.nameSize}px">${esc(h.name)}</div>${z.showTag || h.kind ? tag : ""}<div class="fo-hpbar"><div style="width:${(frac * 100).toFixed(0)}%"></div></div>${stat}</div>`;
+  const tag = `<div class="fo-tag" style="color:${hex}">${h.kind ? unitTitle(h) : ROLE_LABEL[role]}</div>`;
+  return `<div class="fo-col" data-fighter="${esc(h.id)}" data-side="squad" style="width:${z.col}px"><div class="fo-eb" style="width:${size}px;height:${size}px"><div class="fo-sh" style="top:${Math.round(size * 0.85)}px;width:${Math.round(size * 0.82)}px;height:${Math.max(5, Math.round(size * 0.13))}px"></div>${unitUnderHtml(h, size)}<div class="fo-body" style="width:${size}px;height:${size}px;background:${unitBodyBg(h)};${unitBodyStyle(h)}">${unitFaceHtml(h, tier, size)}</div></div><div class="fo-nm" style="font-size:${z.nameSize}px">${esc(h.name)}</div>${z.showTag || h.kind ? tag : ""}<div class="fo-hpbar"><div style="width:${(frac * 100).toFixed(0)}%"></div></div>${stat}</div>`;
 }
 
 /** An empty slot: a dashed ring with "Empty / Tap to fill" (frame 1.5). It sits in the back row. */
@@ -159,6 +157,5 @@ export function benchUnitHtml(h: HeroState): string {
     return `<div class="fo-bu fallen"><div style="position:relative"><div class="fo-bc" style="background:${DEAD_BODY};opacity:1"></div><div class="fo-fx">✕</div></div><div class="fo-bn">${esc(h.name)}</div><div class="fo-bb" style="background:transparent"></div></div>`;
   }
   const frac = h.maxHp > 0 ? Math.max(0, Math.min(1, h.hp / h.maxHp)) : 0;
-  // A hero on the bench wears its recipe and a small crown too (22px: the crown is 11px).
-  return `<div class="fo-bu"><div style="position:relative"><div class="fo-bc" style="background:${unitBodyBg(h)}"></div>${h.hero ? crownOnBody(22) : ""}</div><div class="fo-bn">${esc(h.name)}</div><div class="fo-bb"><div style="width:${(frac * 100).toFixed(0)}%"></div></div></div>`;
+  return `<div class="fo-bu"><div style="position:relative"><div class="fo-bc" style="background:${unitBodyBg(h)}"></div></div><div class="fo-bn">${esc(h.name)}</div><div class="fo-bb"><div style="width:${(frac * 100).toFixed(0)}%"></div></div></div>`;
 }

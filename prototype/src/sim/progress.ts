@@ -77,7 +77,7 @@ export interface RunProgress {
    * the pick is made, or after it is dropped. */
   relic?: CardId;
   /** The army picked before round 1 (sim/armies.ts); undefined for a plain run (the lab, the batch `fight`
-   * command, most checks, and any dev link without `?army=`). Merge heroes are off while it is set. */
+   * command, most checks, and any dev link without `?army=`). */
   army?: ArmyKind;
 }
 

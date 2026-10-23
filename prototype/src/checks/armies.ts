@@ -1,6 +1,6 @@
 /**
  * The armies (2026-10-20; sim/armies.ts, canvas 10.x and 11.x). Each assertion runs a small hand-built fight (or a roster step)
- * and pins one rule: the two starting squads, merge heroes off, the Undead's horde (Raise and Bone Wall raise a skeleton per hit,
+ * and pins one rule: the two starting squads, the Undead's horde (Raise and Bone Wall raise a skeleton per hit,
  * five at most, then upgrade; the enemy's normal hits go to shields, then warriors, then the Bone Knight; Command; both backfires),
  * the Beasts' pounce (one PACK bar, the Bear leading, Pin, Maul, Tend, the backfire, gained skills), the Mages' orbs (the core orb, no plain attack,
  * add, merge, clear, the beat, the Life drain and its Great Drain, backfire), and that a whole run plays and
@@ -17,7 +17,6 @@ import { makeEnemySide, makeOfferPolicy, runRun } from "../sim/run.js";
 import type { FightEvent, FightResult } from "../sim/events.js";
 import type { ArmyKind, FightSetup, HeroState, SideState } from "../sim/types.js";
 import { makeInitialProgress } from "../sim/progress.js";
-import { mergeCandidates } from "../sim/heroes.js";
 import { ARMY_ORDER, ARMY_UNITS, makeArmyRoster, makeArmyUnit, unitTitle } from "../sim/armies.js";
 import { cardConnects, duoUnlocked } from "../sim/cards/index.js";
 import { drawOffers } from "../sim/offers.js";
@@ -73,8 +72,6 @@ const calm = (enemy: SideState): void => enemy.heroes.forEach((h) => (h.nextAtta
     return h.role === r && h.army === a && h.kind === ARMY_UNITS[a][r].kind && h.chainEffects?.[0] === ARMY_UNITS[a][r].baseChain;
   })));
   check("the unit title replaces the role word", unitTitle(unit("undead", "tank")) === "Bone Knight" && unitTitle(unit("beasts", "damage")) === "Wolf" && unitTitle({ role: "tank" }) === "Tank");
-  const start = makeArmyRoster("undead", progress("undead").bonus);
-  check("merge heroes are off while an army is picked", mergeCandidates(progress("undead"), start, run).length === 0 && mergeCandidates(makeInitialProgress(run), start, run).length > 0);
   check("a run's first skills are the army's", progress("beasts").chain.tank.effects[0] === "pin" && progress("beasts").chain.damage.effects[0] === "maul" && progress("beasts").chain.support.effects[0] === "tend" && progress("undead").chain.support.effects[0] === "raise" && progress("undead").chain.tank.effects[0] === "boneWall" && progress("undead").chain.damage.effects[0] === "command" && progress("mages").chain.tank.effects[0] === "frostOrb" && progress("mages").chain.damage.effects[0] === "stormOrb" && progress("mages").chain.support.effects[0] === "lifeOrb");
 }
 
@@ -487,7 +484,7 @@ const shotSize = (base: number): number => Math.round(base * run.fight.chainHitM
   const progress = makeInitialProgress(run, undefined, "beasts");
   const roster = makeArmyRoster("beasts", progress.bonus);
   const offers = drawOffers(new Rng(5), progress, roster, run, 3);
-  check("offers: titles use the army's names, and no merge line", offers.length > 0 && offers.every((o) => !/Completes/.test(o.worksWith ?? "")) && offers.every((o) => !/\b(tank|healer)\b/i.test(o.title) || o.kind === "card"), offers.map((o) => o.title).join(" | "));
+  check("offers: titles use the army's names", offers.length > 0 && offers.every((o) => !/\b(tank|healer)\b/i.test(o.title) || o.kind === "card"), offers.map((o) => o.title).join(" | "));
 }
 
 // --- A whole run plays for each army, and replays the same.
@@ -499,7 +496,7 @@ const shotSize = (base: number): number => Math.round(base * run.fight.chainHitM
     };
     const a = play(11), b = play(11);
     check(`${army}: a seed replays the same run`, JSON.stringify(a.rounds) === JSON.stringify(b.rounds) && a.roundsWon === b.roundsWon, `${a.roundsWon} rounds`);
-    check(`${army}: the run records its army and plays at least a few rounds`, a.finalProgress.army === army && a.rounds.length >= 1 && a.rounds.every((r) => !r.mergeTaken));
+    check(`${army}: the run records its army and plays at least a few rounds`, a.finalProgress.army === army && a.rounds.length >= 1);
   }
 }
 

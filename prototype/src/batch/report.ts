@@ -212,14 +212,6 @@ export interface BatchReport {
   /** 2026-10-01: which cards and pairs win fights beyond their round's own
    * win rate (batch/synergy.ts) — the way to find a combination nobody wrote. */
   synergy: SynergyReport;
-  /** 2026-10-20 (merge heroes): how many runs made at least one hero, how many of those finished, and for each
-   * hero how many runs made it and how many of those finished. Compare against the run completion rate. */
-  heroes: {
-    runsWithMerge: number;
-    completedWithMerge: number;
-    mergesTaken: number;
-    byHero: Partial<Record<string, { runs: number; completed: number }>>;
-  };
 }
 
 /**
@@ -271,10 +263,6 @@ export class BatchAggregator {
   private cardTriggers: Partial<Record<CardId, number>> = {};
   private cardTaken: Partial<Record<CardId, number>> = {};
   private synergy: SynergyTracker;
-  private runsWithMerge = 0;
-  private completedWithMerge = 0;
-  private mergesTaken = 0;
-  private byHero: Partial<Record<string, { runs: number; completed: number }>> = {};
   // One scalar per fight (fr.durationSec), not the fight's own per-tick
   // snapshot array — see this file's top docstring, 2026-08-26 entry.
   private durations: number[] = [];
@@ -294,18 +282,6 @@ export class BatchAggregator {
     this.n++;
     if (r.outcome === "complete") this.completed++;
     this.synergy.add(r);
-
-    const merged = r.rounds.flatMap((f) => (f.mergeTaken ? [f.mergeTaken] : []));
-    if (merged.length > 0) {
-      this.runsWithMerge++;
-      if (r.outcome === "complete") this.completedWithMerge++;
-      this.mergesTaken += merged.length;
-      for (const kind of new Set(merged)) {
-        const entry = (this.byHero[kind] ??= { runs: 0, completed: 0 });
-        entry.runs++;
-        if (r.outcome === "complete") entry.completed++;
-      }
-    }
 
     for (const f of r.rounds) {
       this.reachedCount[f.roundIndex] = (this.reachedCount[f.roundIndex] ?? 0) + 1;
@@ -355,9 +331,7 @@ export class BatchAggregator {
     // shrink-only count.
     let livingBefore = PLAYER_ROLES.length * this.cfg.startingPerRole;
     for (const f of r.rounds) {
-      // A merge takes three units out and puts one in: two fewer living units that are not deaths.
-      const mergedAway = f.mergeTaken ? 2 : 0;
-      const deathsThisFight = f.outcome === "win" ? Math.max(livingBefore - (f.livingHeroesAfter + mergedAway), 0) : livingBefore;
+      const deathsThisFight = f.outcome === "win" ? Math.max(livingBefore - f.livingHeroesAfter, 0) : livingBefore;
       this.totalDeaths += deathsThisFight;
       this.deathsByFightIndex[f.roundIndex] = (this.deathsByFightIndex[f.roundIndex] ?? 0) + deathsThisFight;
       livingBefore = f.outcome === "win" ? f.livingHeroesAfter : 0;
@@ -507,23 +481,8 @@ export class BatchAggregator {
       cardTriggers: this.cardTriggers,
       cardTaken: this.cardTaken,
       synergy: this.synergy.report(),
-      heroes: { runsWithMerge: this.runsWithMerge, completedWithMerge: this.completedWithMerge, mergesTaken: this.mergesTaken, byHero: this.byHero },
     };
   }
-}
-
-/** The merge-heroes block: how many runs made a hero, and each hero's completion rate against the run's. */
-function formatHeroes(report: BatchReport): string[] {
-  const h = report.heroes;
-  const pct = (a: number, b: number): string => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : "-");
-  const lines = [
-    `  merge heroes:          ${h.runsWithMerge} of ${report.n} runs made one (${pct(h.runsWithMerge, report.n)}), ${h.mergesTaken} merges; completion ${pct(h.completedWithMerge, h.runsWithMerge)} with a hero vs ${(report.runCompletionRate * 100).toFixed(1)}% overall`,
-  ];
-  const kinds = Object.keys(h.byHero).sort((a, b) => (h.byHero[b]?.runs ?? 0) - (h.byHero[a]?.runs ?? 0));
-  if (kinds.length > 0) {
-    lines.push(`  hero made / finished:  ${kinds.map((k) => `${k} ${h.byHero[k]!.runs} (${pct(h.byHero[k]!.completed, h.byHero[k]!.runs)})`).join("  ")}`);
-  }
-  return lines;
 }
 
 export function formatReport(report: BatchReport, label: string): string {
@@ -569,7 +528,6 @@ export function formatReport(report: BatchReport, label: string): string {
     `  rest cards taken:      ${report.restTaken}`,
     `  guard charges spent:   ${(report.fractionGuardChargesSpent * 100).toFixed(1)}%  (${report.slamsRedirected}/${report.guardChargesGranted} — bounded by opportunity, not by the mechanism; see this file's docstring)`,
     `  card triggers:       ${Object.keys(report.cardTaken).length === 0 ? "(none held)" : Object.keys(report.cardTaken).map((id) => `${id}=${report.cardTriggers[id as CardId] ?? 0} (taken ${report.cardTaken[id as CardId]}x)`).join("  ")}`,
-    ...formatHeroes(report),
     ...formatSynergy(report.synergy),
   ];
   return lines.join("\n");

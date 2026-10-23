@@ -38,7 +38,7 @@ export function renderArmyScreen(container: HTMLElement, onChoose: (army: ArmyKi
   screen.appendChild(h1);
 
   const intro = document.createElement("p");
-  intro.className = "merge-intro";
+  intro.className = "army-intro";
   intro.textContent = "Your whole squad changes: how it looks, what its skills do, and one rule in every fight. Round 1 comes next.";
   screen.appendChild(intro);
 

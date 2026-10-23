@@ -18,7 +18,7 @@ import type { FightEvent, FightResult } from "../sim/events.js";
 import type { RunProgress } from "../sim/progress.js";
 import type { RunSession, RoundLog, UnitReading } from "../render/runSession.js";
 
-export const RUN_LOG_SCHEMA_VERSION = 3;
+export const RUN_LOG_SCHEMA_VERSION = 4;
 
 export interface ChainSummary {
   t: number;
@@ -173,9 +173,6 @@ export interface RoundEntry {
     offersShown: unknown[];
     offerTaken: unknown | null;
     droppedCard: string | null;
-    /** The heroes the roster could merge after a mini-boss win (schema 3), and the one taken. */
-    mergeChoices: string[];
-    mergeTaken: string | null;
   };
 }
 
@@ -212,8 +209,6 @@ function roundEntry(r: RoundLog): RoundEntry {
       offersShown: r.offersShown,
       offerTaken: r.offerTaken,
       droppedCard: r.droppedCard,
-      mergeChoices: r.mergeChoices,
-      mergeTaken: r.mergeTaken,
     },
   };
 }

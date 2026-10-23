@@ -2534,8 +2534,7 @@ button:disabled {
 .guard-pips[data-term]::after { inset: -6px -12px; }
 .perf-tag[data-term]::after { inset: -8px; }
 
-/* Merge heroes (2026-10-20; render/heroLook.ts). A skeleton the Necromancer's Raise fills in pops up from the ground; the crown on a hero's
-   head pokes out above its body, so nothing around a body may clip it. */
+/* A skeleton the Undead army's Raise fills in pops up from the ground. */
 .body.raised {
   animation: skeleton-rise 0.7s ease-out;
 }
@@ -2554,38 +2553,14 @@ button:disabled {
   }
 }
 
-/* The merge pick (2026-10-20; render/mergeScreen.ts): the offer rows' frame with a gold rail holding the hero's own body. */
-.merge-intro {
+/* The army pick's intro line (render/armyScreen.ts). */
+.army-intro {
   margin: 4px 0 0;
   font-size: 12px;
   color: var(--muted);
 }
 
-.merge-row .offer-rail {
-  padding-top: 14px;
-}
-
-.merge-body {
-  position: relative;
-  display: block;
-  flex: none;
-  width: 40px;
-  height: 40px;
-  margin-top: 6px;
-  border-radius: 50%;
-}
-
-.merge-row .merge-row-tag {
-  --role-color: var(--muted);
-}
-
-.merge-label {
-  font-size: 9.5px;
-  letter-spacing: 0.05em;
-  color: var(--text);
-}
-
-/* A row of five or more (a Necromancer's four skeleton places, hidden until they rise, count) packs tighter and starts clear of the row's word. */
+/* A row of five or more (the Undead army's five skeleton places, hidden until they rise, count) packs tighter and starts clear of the row's word. */
 .rank-row.crowded {
   gap: 4px;
   padding-left: 30px;

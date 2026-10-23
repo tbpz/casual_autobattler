@@ -5,12 +5,11 @@ import { deadFace, villainFace } from "./faces.js";
 import { momentHtml, type BestMoment } from "./fightSummary.js";
 import { hpBarLayout } from "./hpBar.js";
 import { ARMY_SKILL_CARD, termFromTarget, type TermId } from "./terms.js";
-import { isFrontRow } from "../sim/heroes.js";
-import { DRAGON_SCALE, crownOnBody, fangsHtml, unitAccentHex, unitBodyBg, unitBodyStyle, unitFaceHtml, unitUnderHtml } from "./heroLook.js";
+import { unitBodyBg, unitBodyStyle, unitFaceHtml, unitUnderHtml } from "./heroLook.js";
 import { ARMY_ACCENT, armyBodyPx, skeletonLook } from "./armyLook.js";
 import { BUBBLE_H, BUBBLE_TAIL, BUBBLE_W, bubblePath, bubbleText, clampTailDx, type BubbleKind } from "./bubble.js";
 import type { FightEvent, HeroSnapshot, TickSnapshot } from "../sim/events.js";
-import { ROLE_SORT_PRIORITY } from "../sim/roles.js";
+import { ROLE_SORT_PRIORITY, isFrontRow } from "../sim/roles.js";
 import { MARK_CHIP, CARD_DEFS, type CardId } from "../sim/cards/index.js";
 
 /** Reads one custom property off :root — the single point where a number
@@ -403,8 +402,6 @@ const ROLE_ACCENT: Record<"tank" | "damage" | "support", string> = {
 };
 
 function accentForHero(hero: HeroSnapshot, side: "player" | "enemy", index: number): string {
-  // A merge hero's skill wears its main colour (gold for a Twin made of one of each).
-  if (side === "player" && hero.hero) return unitAccentHex(hero);
   if (side === "player" && (hero.role === "tank" || hero.role === "damage" || hero.role === "support")) {
     return ROLE_ACCENT[hero.role];
   }
@@ -446,8 +443,6 @@ export class FightView {
   private enemyHeroes: Map<string, HeroSlot> = new Map();
   private heroNames: Map<string, string> = new Map();
   private heroRoles: Map<string, string> = new Map();
-  /** Which merge hero each player unit is (2026-10-20), by id — the skill bubble opens that hero's own card. */
-  private heroKinds: Map<string, string> = new Map();
   /** Fixed for the whole fight (only current hp changes) — captured at
    * build time so a delayed impact (post-tracer-flight) can still scale its
    * flinch/flash by damage-as-a-fraction-of-maxHp. */
@@ -1066,16 +1061,6 @@ export class FightView {
       }
       if (side === "player" && hero.army === "mages" && hero.kind) refs.orbs = this.buildOrbs(refs.core, hero.kind);
       if (beastFight && hero.army === "beasts") refs.slot.classList.add("pack-beast");
-      if (side === "player" && hero.hero) {
-        // A merge hero wears its recipe and a crown (canvas 8.x); a Dragon grows with its stage.
-        const scale = hero.hero === "dragon" ? DRAGON_SCALE[Math.min(3, hero.stage ?? 0)]! : 1;
-        refs.body.style.background = unitBodyBg(hero);
-        refs.body.insertAdjacentHTML("beforeend", fangsHtml(hero) + crownOnBody(SQUAD_BODY_PX * scale));
-        if (scale !== 1) refs.slot.style.setProperty("--role-size", `${(SQUAD_BODY_PX * scale).toFixed(1)}px`);
-        this.heroKinds.set(hero.id, hero.hero);
-        // A hero's name is longer than a role's: its slot keeps enough width to read it.
-        refs.slot.style.minWidth = "58px";
-      }
       refs.slot.addEventListener("click", () => this.onFighterTap?.(hero.id));
       for (const el of refs.slot.querySelectorAll<HTMLElement>("[data-term]")) this.bindTermTap(el);
       // Direct fraction of the two sides' combined maxHp (see render()'s
@@ -1084,8 +1069,8 @@ export class FightView {
       refs.slot.style.width = `${((hero.maxHp / bothSidesMaxHp) * 100).toFixed(3)}%`;
       refs.slot.style.flex = "0 0 auto";
       if (hero.skeleton) {
-        // A Necromancer's empty place: hidden until Raise fills it (updateSide), a fixed width since it has no HP to scale by.
-        refs.slot.style.width = undeadFight ? `${SKELETON_BODY_PX + 8}px` : "44px";
+        // An Undead army's empty place: hidden until Raise fills it (updateSide), a fixed width since it has no HP to scale by.
+        refs.slot.style.width = `${SKELETON_BODY_PX + 8}px`;
         refs.slot.style.display = "none";
         refs.slot.classList.add("is-skeleton");
         refs.body.style.background = "#d7dae3";
@@ -1279,12 +1264,11 @@ export class FightView {
     this.chainHud.style.setProperty("--skill", refs?.accent ?? "var(--chain)");
     // A tap on the bubble opens its card: Backfire while it reads a backfire, otherwise the skill's own (EXPOSE → expose).
     const skillTerm = skill.toLowerCase();
-    const heroKind = this.heroKinds.get(heroId);
     const term = t.backfire
       ? "backfire"
       : skillTerm === "guard" || skillTerm === "mend" || skillTerm === "expose"
         ? skillTerm
-        : (ARMY_SKILL_CARD[skillTerm] ?? (heroKind ? `hero-${heroKind}` : ""));
+        : (ARMY_SKILL_CARD[skillTerm] ?? "");
     if (term) this.chainHud.dataset.term = term;
     else delete this.chainHud.dataset.term;
     this.ptName.textContent = t.name;
@@ -1560,8 +1544,8 @@ export class FightView {
       // An empty skeleton place stays hidden until it is filled (and again if the fight is rewound).
       if (hero.skeleton) {
         const army = refs.slot.classList.contains("undead-skel");
-        // An army skeleton that falls leaves the field (its place is free for the next one); a Necromancer's stays down.
-        const filled = hero.maxHp > 0 && (!army || hero.alive);
+        // A skeleton that falls leaves the field (its place is free for the next one).
+        const filled = hero.maxHp > 0 && hero.alive;
         refs.slot.style.display = filled ? "" : "none";
         if (army) this.dressSkeleton(refs, hero, filled);
         if (!filled) continue;

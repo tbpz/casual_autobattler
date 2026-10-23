@@ -9,7 +9,6 @@ import { PLAYER_ROLES, ROLE_LABEL, ROLE_UPGRADE_POOL } from "./roles.js";
 import { ARMY_ORDER, baseChainFor, makeUnitFor, roleLabelFor } from "./armies.js";
 import { heldCards, heldCount, type RunProgress } from "./progress.js";
 import { defaultFieldPick } from "./roster.js";
-import { HERO_POOL, recipesCompletedBy, resetDragon } from "./heroes.js";
 
 /**
  * 2026-09-23 (roles/rounds rebuild — see DECISIONS.md and STATE.md).
@@ -193,21 +192,14 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       key: `recruit:${role}`,
       size: "small",
       eligible: (_progress, roster) => roster.heroes.length < cfg.maxRosterSize,
-      build: (progress, roster) => {
+      build: (progress) => {
         const label = labelFor(progress);
-        // Merge heroes (2026-10-20): name the hero this unit would make possible, while a merge can still
-        // happen (the run makes at most two heroes; none while an army is picked).
-        const completes =
-          cfg.mergeEnabled && !progress.army && roster.heroes.filter((h) => h.hero).length < 2
-            ? recipesCompletedBy(roster, role).map((k) => HERO_POOL[k].name)
-            : [];
         return {
           kind: "recruit",
           role,
           headline: `+1 ${label}`,
           title: `Recruit a ${label.toLowerCase()}`,
           detail: `Adds a fresh ${label.toLowerCase()} to your roster.`,
-          ...(completes.length > 0 ? { worksWith: `Completes ${completes.join(" or ")}` } : {}),
         };
       },
     });
@@ -610,10 +602,8 @@ export function applyOffer(
     case "recruit": {
       const role = offer.role!;
       const ordinal = roster.heroes.filter((h) => h.role === role).length + 1;
-      // The id's number is the next one past every id in use, not the roster's length: a merge takes three
-      // units out and puts one in, so the length can fall back onto a number a living unit already has.
-      const nextIndex = roster.heroes.reduce((max, h) => Math.max(max, Number(/^u(\d+)_/.exec(h.id)?.[1] ?? -1) + 1), roster.heroes.length);
-      const unit = makeUnitFor(progress.army, role, ordinal, `u${nextIndex}_${role}`, progress.bonus[role]);
+      // Units never leave the roster and ids count up from u0, so the roster's length is the next free number.
+      const unit = makeUnitFor(progress.army, role, ordinal, `u${roster.heroes.length}_${role}`, progress.bonus[role]);
       return { progress, roster: { ...roster, heroes: [...roster.heroes, unit] } };
     }
     case "heal": {
@@ -623,9 +613,7 @@ export function applyOffer(
     case "revive": {
       const heroes = roster.heroes.map((h) => {
         if (h.id !== offer.unitId) return h;
-        // A fallen Dragon comes back a Baby: its growth is lost with it.
-        const base = h.hero === "dragon" ? resetDragon(h, progress.bonus[h.role as PlayerRole]) : h;
-        return { ...base, alive: true, hp: Math.round(base.maxHp * cfg.reviveHpFraction) };
+        return { ...h, alive: true, hp: Math.round(h.maxHp * cfg.reviveHpFraction) };
       });
       return { progress, roster: { ...roster, heroes } };
     }

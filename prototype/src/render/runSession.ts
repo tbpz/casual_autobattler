@@ -1,6 +1,6 @@
 import { Rng } from "../sim/rng.js";
 import type { RunConfig } from "../sim/config.js";
-import type { ArmyKind, FightSetup, HeroKind, SideState } from "../sim/types.js";
+import type { ArmyKind, FightSetup, SideState } from "../sim/types.js";
 import { sideHp, sideMaxHp } from "../sim/types.js";
 import { makeStartingRoster, nameUnits } from "../sim/roles.js";
 import { encounterAt } from "../sim/encounters.js";
@@ -22,7 +22,6 @@ import { applyRelic, drawRelicChoices } from "../sim/relics.js";
 import { applyOffer, drawOffers, noteIntroduced, type Offer } from "../sim/offers.js";
 import type { CardId } from "../sim/cards/index.js";
 import { summarizeLoss, summarizeWin, type RoundSummary } from "../sim/run.js";
-import { applyMerge, mergeCandidates, type MergeOption } from "../sim/heroes.js";
 import { makeArmyRoster } from "../sim/armies.js";
 
 /** A fielded unit as it stood going into a round — the readings an export log
@@ -37,8 +36,6 @@ export interface UnitReading {
   fatigue: number;
   chainEffects: string[];
   chainLevel: number;
-  /** Which merge hero this is (2026-10-20), null for a basic unit. */
-  hero: string | null;
   /** Which army unit this is (2026-10-20), null for a plain unit. */
   unit: string | null;
 }
@@ -65,9 +62,6 @@ export interface RoundLog {
   offersShown: Offer[];
   offerTaken: Offer | null;
   droppedCard: CardId | null;
-  /** The heroes the roster could merge on a mini-boss win (empty on every other round), and the one taken. */
-  mergeChoices: HeroKind[];
-  mergeTaken: HeroKind | null;
 }
 
 /**
@@ -117,11 +111,6 @@ export class RunSession {
    * run is waiting on. False when that win left too few units to field a squad:
    * there is nothing to pick, and resolveOffer(null) ends the run. */
   awaitingRelic = false;
-  /** The merges on offer after a mini-boss win (2026-10-20; sim/heroes.ts's mergeCandidates), while the pick is
-   * the reward the run is waiting on. Empty on every other round. The round's offers are already drawn into
-   * pendingOffers and show if the player says "not now" (resolveMerge(null)). */
-  mergeChoices: MergeOption[] = [];
-  awaitingMerge = false;
 
   /** `army` is the army picked before round 1 (sim/armies.ts); undefined plays the plain squad (dev links, checks). */
   constructor(cfg: RunConfig, seed: number, army?: ArmyKind) {
@@ -263,7 +252,6 @@ export class RunSession {
       fatigue: h.fatigue,
       chainEffects: [...(h.chainEffects ?? [])],
       chainLevel: h.chainLevel ?? 1,
-      hero: h.hero ?? null,
       unit: h.kind ?? null,
     }));
     const progressBefore = structuredClone(this.progressValue);
@@ -287,8 +275,6 @@ export class RunSession {
       offersShown: [],
       offerTaken: null,
       droppedCard: null,
-      mergeChoices: [],
-      mergeTaken: null,
     });
 
     if (result.outcome === "loss") {
@@ -310,42 +296,10 @@ export class RunSession {
       this.pendingOffers = [];
       return result;
     }
-    // Drawn either way, so a seed keeps its offer stream whether or not a merge is taken.
     this.pendingOffers = drawOffers(this.offerRng, this.progressValue, this.roster, this.cfg, this.roundIndex);
-    // A mini-boss win offers a merge first (2026-10-20). The offers wait, and count as shown only if the
-    // player says "not now" — the same rule as sim/run.ts's runRun.
-    if (roundDef(this.roundIndex).kind === "miniboss") {
-      const candidates = mergeCandidates(this.progressValue, this.roster, this.cfg);
-      if (candidates.length > 0) {
-        this.mergeChoices = candidates;
-        this.awaitingMerge = true;
-        this.roundLogs[this.roundLogs.length - 1]!.mergeChoices = candidates.map((c) => c.kind);
-        return result;
-      }
-    }
     this.progressValue = noteIntroduced(this.progressValue, this.pendingOffers);
     this.roundLogs[this.roundLogs.length - 1]!.offersShown = [...this.pendingOffers];
     return result;
-  }
-
-  /** Takes the merge picked after a mini-boss win (its three units leave, the hero joins) and ends the round, or,
-   * with null ("not now"), leaves the round's normal offers to be shown. Ignored unless a merge is pending. */
-  resolveMerge(kind: HeroKind | null): void {
-    if (!this.awaitingMerge) return;
-    const chosen = kind ? this.mergeChoices.find((c) => c.kind === kind) : undefined;
-    if (kind && !chosen) return;
-    this.awaitingMerge = false;
-    this.mergeChoices = [];
-    const log = this.roundLogs[this.roundLogs.length - 1];
-    if (chosen) {
-      this.roster = this.withNames(applyMerge(this.progressValue, this.roster, chosen));
-      this.pendingOffers = [];
-      if (log) log.mergeTaken = chosen.kind;
-      this.finishRound(null, undefined, chosen.kind);
-      return;
-    }
-    this.progressValue = noteIntroduced(this.progressValue, this.pendingOffers);
-    if (log) log.offersShown = [...this.pendingOffers];
   }
 
   /** Applies the player's (or the default) offer pick for the round that
@@ -372,10 +326,10 @@ export class RunSession {
   /** Closes the round just won — records its summary, then advances to the
    * next round, or to run-complete or run-over. Shared by resolveOffer and
    * pickRelic. */
-  private finishRound(offer: Offer | null, relicTaken?: CardId, mergeTaken?: HeroKind): RoundSummary {
+  private finishRound(offer: Offer | null, relicTaken?: CardId): RoundSummary {
     const result = this.lastFightResult;
     if (!result) throw new Error("finishRound called before playNextRound");
-    const summary = summarizeWin(this.roundIndex, result, offer, this.roster, this.fieldedThisRound, relicTaken, mergeTaken);
+    const summary = summarizeWin(this.roundIndex, result, offer, this.roster, this.fieldedThisRound, relicTaken);
     this.rounds.push(summary);
 
     this.roundIndex++;

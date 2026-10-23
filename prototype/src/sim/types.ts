@@ -9,19 +9,6 @@ import type { CardId } from "./cards/index.js";
 
 export type Role = "tank" | "damage" | "support" | "bruiser" | "grunt";
 
-/** The ten merge heroes (DECISIONS.md 2026-10-19): three basic units become one hero. */
-export type HeroKind =
-  | "golem"
-  | "berserker"
-  | "paladin"
-  | "assassin"
-  | "dragon"
-  | "necromancer"
-  | "priest"
-  | "treant"
-  | "vampire"
-  | "twin";
-
 /** The three armies (2026-10-20; Mages 2026-10-21; sim/armies.ts): a run picks one at the start and every unit is re-skinned into it. */
 export type ArmyKind = "undead" | "beasts" | "mages";
 
@@ -217,32 +204,17 @@ export interface HeroState {
    * freeze from an earlier fight never reads as a fresh thaw. */
   thawSeenT?: number;
 
-  /** Set on a merge hero (sim/heroes.ts). Its gift is read off this field in fight.ts; its skill is its
-   * own `chainEffects`. `role` is the hero's main role (the one most of its pieces had), so role-wide
-   * stat offers and the Tank rules reach it. Undefined on a basic unit. */
-  hero?: HeroKind;
-  /** The three roles this hero was merged from, in recipe order. Decides its row: two or more Tanks
-   * stand in front (sim/heroes.ts's isFrontRow). */
-  madeFrom?: ("tank" | "damage" | "support")[];
-  /** Dragon only: fights it has been fielded in and won. Four wins make a stage (roster.ts). */
-  heroWins?: number;
-  /** Dragon only: its growth stage from `heroWins` — 0 Baby, 1 Young, 2 Adult, 3 Elder (sim/heroes.ts's
-   * dragonStage). Breath reads it. */
-  heroStage?: number;
-  /** A skeleton the Necromancer's Raise fills in mid-fight. Every fight with a fielded Necromancer starts
-   * with a few empty places (maxHp 0, not alive) so the screen can draw them in advance. Never part of the
-   * roster, never charges a chain, and not counted as a unit when a side is wiped. */
+  /** An Undead army skeleton (fight.ts's raiseArmySkeleton). Every Undead fight starts with a few empty places (maxHp 0,
+   * not alive) so the screen can draw them in advance. Never part of the roster, never charges a chain, and not counted
+   * as a unit when a side is wiped. */
   skeleton?: boolean;
-  /** Assassin only, per fight: a kill landed during the chain now running, so its bar is full
-   * again when that chain ends. */
-  lustKill?: boolean;
 
   /** Set on a unit of an army (sim/armies.ts). `role` stays tank / damage / support, so every rule and rune that
    * reads a role keeps working; these two only change its name, look and skill. Undefined on a plain unit. */
   army?: ArmyKind;
   kind?: UnitKind;
   /** Undead army skeleton (2026-10-21; fight.ts's raiseArmySkeleton): which kind this place holds once it is filled. A warrior
-   * (Raise) hits; a shield (Bone Wall) soaks the enemy's normal hits first. Undefined on a Necromancer's skeleton. */
+   * (Raise) hits; a shield (Bone Wall) soaks the enemy's normal hits first. */
   skeletonKind?: SkeletonKind;
   /** Mages army (2026-10-21; fight.ts's orb code): the loose orbs this mage has now, 0 to `mageOrbMax`. They stay between skills, also
    * after a skill ends, and work on a shared beat. A merge fires one great shot and sets this back to 0 at once. Undefined on anyone else. */

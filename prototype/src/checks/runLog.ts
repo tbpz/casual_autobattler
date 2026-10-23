@@ -30,9 +30,6 @@ function playSession(seed: number): RunSession {
     if (session.status !== "in-progress") break; // lost the round
     if (session.awaitingRelic) {
       session.pickRelic(session.relicChoices[0]!);
-    } else if (session.awaitingMerge) {
-      // The accept-default merge: the first hero the roster can make (sim/run.ts's defaultMergePick).
-      session.resolveMerge(session.mergeChoices[0]!.kind);
     } else if (session.pendingOffers.length === 0) {
       session.resolveOffer(null);
     } else {

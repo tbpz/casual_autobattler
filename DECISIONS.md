@@ -10,6 +10,136 @@
 
 ---
 
+## [2026-10-23] Bets sit under four pillars and one top test
+
+- **Decision:**
+  - `BETS.md` groups the bets under four pillars, each one sentence a player would say.
+  - A, the fight moment: "It blew up bigger than I expected, and I made that happen."
+  - B, the run: "My choices in this run mattered."
+  - C, coming back: "One more run; the next one will be different, and I keep getting better."
+  - D, pick up and play: "I got it in minutes on my phone, and a run fits my sitting."
+  - One top test sits above them: someone not on the team finishes a run and starts another without being asked.
+  - Verified bets are grouped by pillar; unverified bets stay one ordered list, each tagged with its pillar or [Top].
+  - A bet that serves no pillar widens the game and does not deepen it.
+  - A new pillar, or a change to one, is Tu's call and a decision.
+- **Why:**
+  - The bets were one flat list, so none could be checked against what the game must be great at.
+  - The top test names what the four pillars have to add up to.
+  - The "feels wrong" rule (2026-10-23) already asks which bet a fix serves; the pillars give that question an answer.
+- **Replaces:**
+  - The flat layout of `BETS.md` from the 2026-10-23 "Bets get their own file" entry; that entry's other rules stand.
+  - The rules for tagging and moving bets are in `CLAUDE.md`, "Keeping BETS.md current".
+
+## [2026-10-23] Merge heroes are dropped: variety that arrives late and by luck is not a new hero or weapon
+
+- **Decision:**
+  - The merge heroes are removed from the game and the design canvas.
+  - A mini-boss win gives the usual three offers again.
+  - Armies are the source of run variety from here on.
+  - Deleted: the hero code, the 21 canvas frames (8.0, 8.1–8.10, 9.1–9.10) and their two generator scripts; git history keeps them.
+  - Section numbers 8 and 9 stay unused, so frame numbers in older entries still match.
+- **Why:**
+  - Tu: a hero that arrives late in a run, by luck of the offers, cannot feel like a new hero in Slay the Spire or a new weapon in Hades.
+  - Those change how the run plays from the first fight; a merge hero first appeared at round 7.
+  - Tu's playtest in the 2026-10-21 entry already found it: rounds 1 to 6 were unchanged, and a new player never learns it exists.
+  - An army is picked before round 1 and changes every unit from the first fight.
+  - Evidence, build bot, 2026-10-20: run completion 26.1% with merges and 25.6% without, so the heroes did not change difficulty either.
+  - Evidence, build bot, 2026-10-23, after removal (n=1000): plain squad run completion 25.4%.
+  - Rejected: keeping the heroes dormant on the branch, or returning them as a late reward inside an army run (the open question in STATE); Tu chose removal.
+- **Replaces:**
+  - The 2026-10-19 and 2026-10-20 merge-hero entries, and the "merge heroes stay off while an army is picked" line of 2026-10-21; all stay as history.
+  - The BETS.md unverified bet "Merge heroes add run variety" is removed with it.
+
+## [2026-10-23] Bets get their own file: verified bets are the quality standard, unverified bets are ordered
+
+- **Decision:**
+  - The bets move out of `STATE.md` into `BETS.md`.
+  - `BETS.md` has two lists: verified bets, and unverified bets from first to last to verify.
+  - Each verified bet carries a proof link to the DECISIONS entry that settled it.
+  - The verified list is read before any design solution is proposed, as the game's quality standard.
+  - Each bet is one short line with no explanation, and the file carries a `Last updated` line.
+  - The rules for keeping it current are in `CLAUDE.md`, "Keeping BETS.md current".
+  - Where a new bet ranks in the unverified list is Tu's call.
+- **Why:**
+  - A bet confirmed in `STATE.md` was deleted at the next sync, so nothing recorded what had passed.
+  - Without that record, a new design could break something already proven without anyone seeing it.
+  - Tu wants the passed bets to reflect the quality he expects from the game.
+  - Seeded 2026-10-23 from a scan of the DECISIONS entries above the archive rule.
+- **Replaces:**
+  - Replaces the "Unverified bets" section of `STATE.md`, now a pointer.
+  - Not covered: the wording of the seeded bets is the scan's reading of each entry; Tu audits it.
+
+## [2026-10-23] Armies will feed the rune engine both ways: skills leave marks, and each army gets its own runes
+
+- **Decision:**
+  - Army runs lack the synergy moment, because the runes do not fit what an army does.
+  - The fix is both halves: army skills leave existing marks, and each army gets a few runes that read its own thing.
+  - Built next session, not now; this entry records the direction only.
+  - Rollout is Mages first; Undead and Beasts follow only if the Mages show a synergy moment.
+  - Not settled: which mark each army skill leaves.
+  - Not settled: how many army runes, and which of them are pairs.
+  - Not settled: the new card-engine events an army rune needs (orbs merging first; skeleton rises and the pounce later).
+- **Why:**
+  - Tu's play: in army runs the runes do not combine with what the army does, so the moment is missing.
+  - Read from `CHEATSHEET.md` 2026-10-23: of the army skills only Pin leaves a mark.
+  - A rune waits for the marks it reads, so mark-reading runes and duos are mostly shut out of army runs.
+  - Punish and Shield bash never fire for the Frost Mage.
+  - Marks alone would leave an army building like the plain squad in new bodies.
+  - Army runes alone would leave the whole existing rune pool closed to armies.
+  - Mages first because their orbs are the most central thing a rune can read.
+- **Replaces:**
+  - Nothing; it answers the open question "do the old runes read right with skills that leave no mark?".
+  - Not covered: nothing has been built, so no run has shown the moment returns.
+
+## [2026-10-23] Tu is the only judge for now; friend playtests are paused
+
+- **Decision:**
+  - The test of the game for now is whether it looks like a good game to Tu.
+  - Friend playtests are paused until that holds.
+  - First-time-player questions wait; they stay in `design/HANDOFF.md` for when playtests resume.
+  - The rule that the bot's target comes from real players' runs is unchanged and waits too.
+- **Why:**
+  - Tu's call: judge the game himself first, then bring in outside players.
+  - The 2026-10-10 push to make the game explain itself rested on an outside playtest, and no second one has checked it.
+- **Replaces:**
+  - Drops the playtest-friend step from STATE's Next up.
+  - Does not undo "A new player should win about 1 run in 4"; that target waits for playtests.
+
+## [2026-10-23] The lead moment holds in plain runs, in two forms; rune synergy is the stronger
+
+- **Decision:**
+  - The lead moment still lands in the current build, in plain runs.
+  - It arrives two ways: a chain that goes unexpectedly well, and runes that combine well.
+  - Rune synergy is the stronger form.
+- **Why:**
+  - Tu's play of the current build.
+  - A rune combo is something Tu built, so it carries the "claim it as mine" feeling that chain luck does not.
+  - The 2026-08-17 verdict judged the old five-fight game; the build has been rebuilt since, and this is the first judgement of the rebuilt one.
+- **Replaces:**
+  - Settles the bet "chains every fight still feel unpredictable" for plain runs.
+  - Leaves open whether the moment holds in army runs; see the entry above.
+
+## [2026-10-23] A "feels wrong" note is named and diagnosed before anything is built
+
+- **Decision:**
+  - When Tu says something feels wrong, the gap is named first: what he expected, what he felt, at which moment.
+  - Then 2–3 possible causes are offered, each with the cheapest way to tell them apart (a replay, an `export` file, a batch number, a throwaway probe).
+  - The note is tied to an open question or unverified bet in `STATE.md`, or said plainly to serve none.
+  - Code is written only after Tu picks a cause, with the check for "it worked" stated up front.
+  - The rule lives in `CLAUDE.md`, section "When Tu says something feels wrong".
+  - A clearly scoped change request ("make it 20% faster") is not a feeling and is just done.
+  - A new big system is flagged before building while the last one has been played by no one but Tu.
+- **Why:**
+  - Iteration had become feel a symptom, build a fix, feel the next one, with nothing recording whether a fix worked.
+  - Read 2026-10-23: one outside playtest (2026-10-09) in about three months, while around 40 UI decisions followed it.
+  - Read 2026-10-23: all five unverified bets in `STATE.md` were still unverified.
+  - Merge heroes were built on 2026-10-19 and 2026-10-20, then switched off on 2026-10-21 before any outside play.
+  - Building is nearly free with AI; judging by real play is the scarce step, and the loop was organised around building.
+  - Earlier work (Aug–Sep) cut ideas that failed a measured check; that habit faded once work moved to UI and armies.
+- **Replaces:**
+  - Nothing; it adds a step before the build in the existing loop.
+  - Not covered: no run has yet shown that the step makes iteration less random.
+
 ## [2026-10-23] Mages: a mage's damage is its orbs' work, and a Storm zap counts as a hit for runes
 
 - **Decision:**

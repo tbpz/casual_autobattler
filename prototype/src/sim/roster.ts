@@ -4,7 +4,6 @@ import { sideHp, sideMaxHp } from "./types.js";
 import type { FightResult } from "./events.js";
 import { ROLE_SORT_PRIORITY } from "./roles.js";
 import type { RunProgress } from "./progress.js";
-import { dragonStage, isFrontRow } from "./heroes.js";
 
 /**
  * The run-level roster — units drafted over the course of the run (starting
@@ -80,11 +79,7 @@ export function carryOverWithGaps(roster: RosterState, fieldSize: number, previo
   if (previous.length === 0) return pickSquad(roster, fieldSize, []);
   const living = new Set(livingRosterHeroes(roster).map((h) => h.id));
   const kept = [...new Set(previous)].filter((id) => living.has(id)).slice(0, fieldSize);
-  // A unit that is no longer in the roster at all was merged into a hero (2026-10-20): its slot is not a death, so it fills
-  // by default like a slot that has just appeared.
-  const inRoster = new Set(roster.heroes.map((h) => h.id));
-  const merged = previous.filter((id) => !inRoster.has(id)).length;
-  const newSlots = Math.max(0, fieldSize - previous.length) + merged;
+  const newSlots = Math.max(0, fieldSize - previous.length);
   return newSlots === 0 ? kept : pickSquad(roster, kept.length + newSlots, kept);
 }
 
@@ -134,24 +129,9 @@ function stampProgressOntoSquad(side: SideState, progress: RunProgress): SideSta
   const stamped = side.heroes.map((h) => {
     const roleProgress = h.role === "tank" || h.role === "damage" || h.role === "support" ? progress.chain[h.role] : undefined;
     if (!roleProgress) return h;
-    // A merge hero keeps its own skill (a role's new abilities do not change it) but takes the role's
-    // "stronger" level, so those offers still reach it.
-    return h.hero ? { ...h, chainLevel: roleProgress.level } : { ...h, chainEffects: roleProgress.effects, chainLevel: roleProgress.level };
+    return { ...h, chainEffects: roleProgress.effects, chainLevel: roleProgress.level };
   });
-  return { ...side, heroes: copyForTwin(stamped) };
-}
-
-/** The Twin's Mirror (2026-10-20): it uses the skill of the unit next to it in the back row, or of the
- * front unit when it stands alone in the back. Read after the stamp above, so it copies the neighbour's
- * current abilities. A fresh copy each fight, so a changed neighbour changes the Twin. The Twin keeps its
- * own role for runes and stat offers (copying the role as well is not built). */
-function copyForTwin(heroes: HeroState[]): HeroState[] {
-  return heroes.map((h) => {
-    if (h.hero !== "twin") return h;
-    const others = heroes.filter((o) => o !== h);
-    const source = others.find((o) => !isFrontRow(o)) ?? others[0];
-    return source?.chainEffects ? { ...h, chainEffects: [...source.chainEffects], chainLevel: source.chainLevel ?? 1 } : h;
-  });
+  return { ...side, heroes: stamped };
 }
 
 /** Builds one round's SideState from the chosen roster members — copies (not
@@ -214,22 +194,8 @@ export function applyFightResultToRoster(
     } else {
       fatigue = clampFatigue(h.fatigue - cfg.fatigueBenchRest);
     }
-    let afterFight: HeroState = final ? { ...h, hp: final.hp, alive: final.alive, charge: 0, fatigue } : { ...h, fatigue };
+    const afterFight: HeroState = final ? { ...h, hp: final.hp, alive: final.alive, charge: 0, fatigue } : { ...h, fatigue };
     if (!afterFight.alive) return afterFight; // just died this fight — no recovery tick
-    // A Dragon that was fielded and won grows (Growth, 2026-10-20): every cfg.heroDragonWinsPerStage wins is a
-    // stage, each adding max HP (healed in at once) and damage. Resting it on the bench does not count.
-    if (final && afterFight.hero === "dragon") {
-      const wins = (afterFight.heroWins ?? 0) + 1;
-      const grown = dragonStage(wins, cfg) - dragonStage(wins - 1, cfg);
-      afterFight = {
-        ...afterFight,
-        heroWins: wins,
-        heroStage: dragonStage(wins, cfg),
-        maxHp: afterFight.maxHp + grown * cfg.heroDragonHpPerStage,
-        hp: afterFight.hp + grown * cfg.heroDragonHpPerStage,
-        damage: afterFight.damage + grown * cfg.heroDragonDamagePerStage,
-      };
-    }
     const fraction = wasFielded ? cfg.autoRecoverFraction : cfg.benchedRecoverFraction;
     return { ...afterFight, hp: Math.min(afterFight.maxHp, afterFight.hp + afterFight.maxHp * fraction) };
   });

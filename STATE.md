@@ -10,6 +10,7 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 
 - Team: 2 people (+ a friend contributing) + AI. Platform: mobile, casual audience.
 - Prototype #1 is a vehicle for judging the lead moment, not the real game.
+- Tu is the only judge for now; outside playtests are paused.
 
 ## What we're betting on
 
@@ -18,18 +19,18 @@ A **casual mobile roguelike autobattler**, single-player PvE (hypothesis, not se
 - **Watch-native** — a run opens on one choice, the army, then a fight, and every screen after it but the round 1 rune pick is accept-default.
 - **Unpredictable** — chain length is the loudest dice; per-hit variance, backfire, and the encounter draw are the rest.
 - **Losable** — a run can genuinely be lost, and a backfire can create a losing position outright.
-- **Attributable** — the round screen and fighter popup name each role's skill and the enemy before the player picks who fights.
+- **Attributable** — a rune combo the player built is the strongest source of "mine"; the round screen and fighter popup also name each role's skill and the enemy before the player picks who fights.
 
 ## Where it stands
 
-A run opens on a pick between three armies, all built: the Undead raise skeletons, five at most; the Mages fight through orbs from the first second, with a core orb on every mage and no plain attack, and the Life Mage drains the enemy to heal; the Beasts fill one shared PACK bar, and a full bar sends the whole pack on one enemy at once. Merge heroes are built on the branch `dev/merge-heroes`, not merged into `main`, and are off while an army is picked. No first-time player has played any of it, and every canvas frame still awaits Tu's approval.
+The moment lands in plain runs from two sources: a chain that goes unexpectedly well, and runes that combine well, the second stronger because the player built it. The three armies (Undead, Mages, Beasts) are built and fight differently, and they are where run variety comes from, but an army run lacks that moment because the runes do not fit what an army does. No outside player has played the current build, and every canvas frame still awaits Tu's approval.
 
 ## Next up
 
-1. **Play each rebuilt army:** `npm run dev` on a phone, then with the playtest friend; all three armies are ready now; send the `export` file from each play; the questions to ask are under "Options sets" in `design/HANDOFF.md`.
-2. **Fix what the play shows, then get the canvas frames approved:** open calls 8 to 12 and 10b in `design/HANDOFF.md`, frames 6.1 to 6.3 and 10.0A to 11.12; redraw frame 5.3 to the built slam.
-3. **Decide what happens to the merge heroes now that an army switches them off:** leave them dormant, bring them back as a late reward inside an army run, or drop the branch.
-4. **Fix the rune pool's two known faults, then rebalance:** the "rarely fires" line of `npm run batch -- --offers build`, and `check:offers` failing on Rampart (Tu's call); then outlier first picks, a target for chains' share of damage, and the bot's completion target (a new player should win about 1 run in 4, `DECISIONS.md`).
+1. **Build army runes for the Mages, then play it:** Mage skills leave existing marks, the Mages get runes of their own, and the card engine gains an event for orbs merging; judge whether the synergy moment comes back; `DECISIONS.md` (2026-10-23, armies feed the rune engine).
+2. **If it comes back, do the same for the Undead and Beasts;** if not, look again before building more.
+3. **Fix the rune pool's two known faults, then rebalance:** the "rarely fires" line of `npm run batch -- --offers build`, and `check:offers` failing on Rampart (Tu's call); then outlier first picks and a target for chains' share of damage; the bot's completion target waits for playtests (`DECISIONS.md`, 2026-10-17).
+4. **Fix what Tu's play shows on the army screens, then get the canvas frames approved:** open calls 8 to 12 and 10b in `design/HANDOFF.md`, frames 6.1 to 6.3 and 10.0A to 11.12; redraw frame 5.3 to the built slam.
 
 ---
 
@@ -43,6 +44,7 @@ A run opens on a pick between three armies, all built: the Undead raise skeleton
 | Fatigue — per-unit, sets backfire odds and chain size | batch-verified | `sim/roster.ts`, `sim/config.ts`, `checks/fatigue.ts` |
 | Chain abilities — 12; each role has 3 ability options, 2 drawn per run; a backfired freeze never picks its own user | batch-verified | `sim/roles.ts`, `sim/progress.ts`, `checks/abilities.ts`, `DECISIONS.md` (2026-10-20, backfired freeze) |
 | Armies in code — Undead, Beasts and Mages: a pick before round 1, every unit re-skinned | batch-verified | `sim/armies.ts`, `sim/fight.ts`, `sim/config.ts`, `checks/armies.ts`, `DECISIONS.md` (2026-10-21, 2026-10-22, 2026-10-23) |
+| Army runes — marks from army skills and runes that read each army's own thing; Mages first | not started | `sim/armies.ts`, `sim/cards/defs/`, `DECISIONS.md` (2026-10-23, armies feed the rune engine) |
 | Undead fights — Raise, Bone Wall, Command; skeletons rise per skill hit, five at most, upgrade at the limit, soak enemy hits first | batch-verified | `sim/fight.ts` (`raiseArmySkeleton`, `skeletonWallTargetId`), `sim/config.ts` (`undead*`), `checks/armies.ts`, `DECISIONS.md` (2026-10-21, three Undead entries) |
 | Undead fight screen — warrior and shield bodies in the front row, HORDE count, rise ring, +N upgrade badge, a strike line per skeleton on Command | built | `render/fightView.ts`, `render/armyLook.ts` (`skeletonLook`), `style.css`, `design/HANDOFF.md` (12.0B) |
 | Mages fights — Frost Orb, Storm Orb, Life Orb; a core orb on every mage and no plain attack, loose orbs add per skill hit, every orb works on a 2 s beat from 1 s in, a hit that finds three loose out merges them (Life: a Great Drain), orbs left at a skill's end stay | batch-verified; Punish and Shield bash never fire for the Frost Mage | `sim/fight.ts` (`mageOrbHit`, `tickOrbs`), `sim/armies.ts` (`ARMY_UNITS`), `sim/config.ts` (`mage*`), `checks/armies.ts`, `DECISIONS.md` (2026-10-22, 2026-10-23, two entries each) |
@@ -51,7 +53,7 @@ A run opens on a pick between three armies, all built: the Undead raise skeleton
 | Beasts fight screen — PACK bar under the squad, POUNCE bubble over the Bear, a jump per beast, numbers pop as each lands | built | `render/fightView.ts` (`buildPackBar`, `updatePack`, `showPounce`), `style.css`, `design/HANDOFF.md` (12.0C) |
 | Army pick screen, bodies, popups and cards (canvas 10.x, 11.x) | built | `render/armyScreen.ts`, `render/armyLook.ts`, `render/fighterPopup.ts`, `render/armyCardData.ts` (made by `design/tools/gen-armies.js`), `design/HANDOFF.md` (10–11) |
 | Starting squad — a plain run starts with six units, three fielded; Undead and Mages start with six, Beasts with seven and field five | batch-verified | `sim/roles.ts` (`makeStartingRoster`), `sim/armies.ts` (`makeArmyRoster`), `sim/config.ts` (`startingPerRole`, `packSlots`), `checks/squadPick.ts`, `checks/armies.ts` |
-| Squad rows — the Tank in front (a hero with two or more Tank pieces too), the rest behind, one 36px size (30px for Beasts but the Bear), FRONT and BACK words, on the round and fight screens | built | `render/fightView.ts` (`appendSquadRows`), `render/roundParts.ts` (`squadRowsHtml`), `design/HANDOFF.md` |
+| Squad rows — the Tank in front, the rest behind, one 36px size (30px for Beasts but the Bear), FRONT and BACK words, on the round and fight screens | built | `render/fightView.ts` (`appendSquadRows`), `render/roundParts.ts` (`squadRowsHtml`), `design/HANDOFF.md` |
 | Fight screen — bare arena, a fixed-size skill bubble with the charge flowing into it, thin charge bar, ⏸ and tap to pause, result overlay with best moment | built | `render/fightView.ts`, `render/bubble.ts`, `render/app.ts`, `render/pauseClock.ts`, `design/HANDOFF.md` |
 | Hit lines and slam finish — a quick drawn line per hit; a slam ends on a strike beam, lunge, ring and heavy shake | built | `render/fightView.ts`, `style.css`, `design/HANDOFF.md` |
 | Shield on the HP bar — segment, ghosts, break flash | built | `render/hpBar.ts`, `render/fightView.ts`, `checks/hpBar.ts` |
@@ -60,7 +62,7 @@ A run opens on a pick between three armies, all built: the Undead raise skeleton
 | Runes display — round emblem, a box with a RUNES title row and count, `+N` fold, full list stating the limit, drop step at the limit | built | `render/upgrades.ts`, `render/offerScreen.ts`, `render/roundScreen.ts`, `design/HANDOFF.md` |
 | Fighter popup — switcher, skill tile, fatigue card; an ARMY tile above the skill tile for an army unit; fallen units open it from the fight only | built | `render/fighterPopup.ts` |
 | Term marks and explainer cards — 11 cards, scenes generated from the canvas | built | `render/termCards.ts`, `design/tools/port-term-cards.js` |
-| Win flow — the result overlay's Continue goes straight to the reward (rune pick on round 1, merge pick after a mini-boss in a plain run, offers after) | built | `render/app.ts` |
+| Win flow — the result overlay's Continue goes straight to the reward (rune pick on round 1, offers after) | built | `render/app.ts` |
 | Run over screen — how close it was, best moment of the run, runes, squad | built | `render/runOverScreen.ts`, `render/fightSummary.ts` |
 | Face style — fatigue eyes (hollow glowing eyes for Undead), villain eyes, ✕ eyes on a fallen unit in a fight, charge bar, guard pips at the body's side | built | `render/faces.ts`, `render/fightView.ts`, `design/tools/faces.js` |
 | Skill naming — on popups, cards and the fight bubble; not on the reward pick or in `sim/` | built | `design/HANDOFF.md` (call 12) |
@@ -76,36 +78,32 @@ A run opens on a pick between three armies, all built: the Undead raise skeleton
 | First picks — 5 runes, pick 1 of 3 as the round 1 reward | batch-verified | `sim/relics.ts`, `sim/cards/defs/relic.ts` |
 | Opening — the army pick, then round 1, rune pick as the round 1 reward | built | `render/app.ts`, `render/armyScreen.ts`, `render/relicScreen.ts`, `render/runSession.ts`, `sim/run.ts` |
 | Run export — `export` link on every screen writes the run as JSON, army included | played-verified | `render/app.ts`, `log/runLog.ts`, `checks/runLog.ts` |
-| Synergy report — best runes and pairs, per-first-pick rounds, merge-hero lines | batch-verified | `batch/synergy.ts`, `batch/report.ts` |
+| Synergy report — best runes and pairs, per-first-pick rounds | batch-verified | `batch/synergy.ts`, `batch/report.ts` |
 | Rest card — cuts one unit's fatigue | batch-verified | `sim/offers.ts`, `checks/fatigue.ts` |
 | Offer safety net — a revive/recruit/Rest when the roster has no cushion | batch-verified | `sim/offers.ts` |
 | 20-round plan — mini-bosses at 7/14, boss at 20 | batch-verified | `sim/rounds.ts`, `checks/runShape.ts` |
 | Enemy shapes — the encounter pool | batch-verified | `sim/encounters.ts` |
-| Difficulty — plain squad 25.5% run completion with the build bot (n=3000, 2026-10-17); Undead 32% (n=800, 2026-10-21), Beasts 20.4% with the pounce (n=800, 2026-10-22) and Mages 24.6% with the core-orb rework (n=800, 2026-10-23) | batch-verified | `checks/runShape.ts`, `batch/cli.ts` (`--army`) |
-| Merge heroes — a mini-boss win offers three units into one of ten heroes; built, off while an army is picked | built on branch `dev/merge-heroes`, not merged; `check:heroes` passes | `sim/heroes.ts`, `sim/fight.ts`, `render/mergeScreen.ts`, `render/heroLook.ts`, `design/HANDOFF.md` (8–9), `DECISIONS.md` (2026-10-20) |
+| Difficulty — plain squad 25.4% run completion with the build bot (n=1000, 2026-10-23); Undead 32% (n=800, 2026-10-21), Beasts 20.4% with the pounce (n=800, 2026-10-22) and Mages 24.6% with the core-orb rework (n=800, 2026-10-23) | batch-verified | `checks/runShape.ts`, `batch/cli.ts` (`--army`) |
 | Real game build | not started | — |
 
-## Unverified bets
+## Bets
 
-- Chains every fight still feel unpredictable, rather than averaging out into a steady trade.
-- Push or rest stays a real choice, and players bench a tired hero by hand and notice the bench shelf.
-- An army picked before the first fight gives a run an identity a new player feels from fight 1, and runes, first picks and duos add a goal worth chasing.
-- A cascade stays readable on a phone screen, and skeletons, a pack pounce and orbs make each army fight differently from the plain squad.
-- A first-time player finds the underlined terms, the stat icons and the enemy badges, taps a fighter to pause and open its popup, reads the eyes as fatigue, enemy and fallen, links a skill to its unit from the bubble, reads the squad as a front row and a back row, and sees a slam as the biggest hit, without being told.
+The four pillars, the top test, and the verified and unverified bets, in order, live in [BETS.md](BETS.md). The first-time-player questions are under `## Options sets` in `design/HANDOFF.md`.
 
 ## Open questions
 
-- Does the face-off round screen let a first-time player say who fights whom and what each side can do, does the fight's bubble name who did what, and does an empty slot that blocks Fight break accept-default? Answered by Next up #1.
-- Does an army chosen before the first fight give a run an identity a first-time player feels, and does the round 1 rune pick still belong after it? Answered by Next up #1.
-- Do the Undead's five skeletons, the Mages' orbs and the Beasts' five jumps stay readable and fair on a phone (the merged orb beside a neighbour's body, the bolts, the pounce numbers, the one bubble over the Bear), and do the old runes read right with skills that leave no mark? Answered by Next up #1.
-- Does the Exposed build still win less than Burn or Frozen, and is that its runes or a multiplier on a flat damage number? Needed for Next up #4.
-- What fire rate is healthy for a rune that fires only on a moment (Heir, Vigil)? Needed for Next up #4.
+- Which marks the Mage skills leave, how many Mage runes there are and which are pairs, and which engine events they read. Needed for Next up #1.
+- Do the Undead's five skeletons, the Mages' orbs and the Beasts' five jumps stay readable and fair on a phone? Answered by Tu's play, Next up #4.
+- Does an army chosen before the first fight give a run an identity, and does the round 1 rune pick still belong after it? Answered by Next up #1.
+- Does the Exposed build still win less than Burn or Frozen, and is that its runes or a multiplier on a flat damage number? Needed for Next up #3.
+- What fire rate is healthy for a rune that fires only on a moment (Heir, Vigil)? Needed for Next up #3.
 
 ## How to work here
 
 - Read order: this file → [REFERENCE.md](REFERENCE.md) for the game's shape (stale on the core loop) → [DECISIONS.md](DECISIONS.md) **by grep only**, never top-to-bottom; entries below its archive rule predate the 2026-07-18 pivot, and older entries use the old rune names (the old → new table is in `design/HANDOFF.md` under 6.1).
-- Decisions are proposed, never silently logged — on a confirmed yes, append via the `decision-log` skill.
+- Decisions are proposed, never silently logged — on a confirmed yes, append via the `decision-log` skill. A "feels wrong" note is named and diagnosed before anything is built (`CLAUDE.md`, "When Tu says something feels wrong").
 - This file is regenerated only when asked, via the `state-sync` skill; `REFERENCE.md` is not.
+- Branch: all current work is on `dev/merge-heroes`, which carries the armies; `main` is behind it, and merging to `main` is not decided.
 - Commands: `npm run dev` to play (`?army=undead`, `?army=beasts`, `?army=mages` or `?army=none` skips the pick; the corner `export` link saves the run as JSON), `npm run check` for regressions, `npm run batch -- --n 1000 --offers build` for the bot; every dev link and batch flag is in `prototype/COMMANDS.md`.
-- Code: `prototype/src/sim/` (`config.ts` holds every tunable, `rounds.ts` the round plan, `armies.ts` the armies, `heroes.ts` the merge heroes, `cards/` the card engine and definitions), `src/render/`, `src/batch/`, `src/checks/`, `src/log/` (the export).
+- Code: `prototype/src/sim/` (`config.ts` holds every tunable, `rounds.ts` the round plan, `armies.ts` the armies, `cards/` the card engine and definitions), `src/render/`, `src/batch/`, `src/checks/`, `src/log/` (the export).
 - Design: canvas at https://claude.ai/artifact/73dix2PGsz2Y7BBDMNbzny, sources in `design/canvas/`; what is built where, the open calls and the publish recipe are in [design/HANDOFF.md](design/HANDOFF.md), which also maps the old frame numbers that `DECISIONS.md` still uses to the new ones.

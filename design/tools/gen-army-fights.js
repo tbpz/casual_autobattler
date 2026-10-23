@@ -556,7 +556,7 @@ ${scene}
 }
 
 // ---------- write the files and patch canvas.json ----------
-const Y = 19000, FRAMES = [];
+const Y = 16300, FRAMES = [];
 OPTIONS.forEach((o, i) => {
   fs.writeFileSync(path.join(CANVAS, o.file), frame(o, i));
   FRAMES.push({ file: o.file, x: 550 * i, y: Y, w: 390, h: 600, label: `${o.id} ${o.title.slice(4)} (${o.labelNote || (o.tag === "A" ? "today, kept for comparison" : "picked 2026-10-21, to build")})` });

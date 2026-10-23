@@ -17,9 +17,8 @@ import { renderRoundScreen } from "./roundScreen.js";
 import { renderSquadScreen } from "./squadScreen.js";
 import { renderOfferScreen } from "./offerScreen.js";
 import { renderRelicScreen } from "./relicScreen.js";
-import { renderMergeScreen } from "./mergeScreen.js";
 import { renderArmyScreen } from "./armyScreen.js";
-import type { ArmyKind, HeroKind } from "../sim/types.js";
+import type { ArmyKind } from "../sim/types.js";
 import { downloadRunLog } from "../log/download.js";
 
 const cfg = DEFAULT_RUN_CONFIG;
@@ -47,8 +46,6 @@ const jumpToRunOver = urlParams.get("runover") === "1";
 const fallCount = Number(urlParams.get("fall")) || 0;
 /** ?offer=N: plays to round N, wins it if it can, and opens that win's reward pick (the upgrades screen). A no-op when absent. */
 const jumpToOffer = Number(urlParams.get("offer")) || 0;
-/** ?merge=berserker (with ?round=N or ?offer=N): the hero the skipped mini-boss rewards take, when the roster can make it; otherwise the first it can make. */
-const jumpMerge = urlParams.get("merge");
 /** ?fight=1 (with ?round=N): starts that round's fight at once with the default squad, to look at the fight screen. */
 const jumpToFight = urlParams.get("fight") === "1";
 /** ?army=undead|beasts|mages starts the run as that army without the pick screen; ?army=none plays the plain squad (the game before armies). A dev link that jumps
@@ -140,9 +137,6 @@ export function mountApp(root: HTMLElement): void {
       if (session.status !== "in-progress") break;
       if (session.awaitingRelic) {
         session.pickRelic(session.relicChoices[0]!);
-      } else if (session.awaitingMerge) {
-        // The accept-default merge: the first hero the roster can make (sim/run.ts's defaultMergePick).
-        session.resolveMerge((session.mergeChoices.find((c) => c.kind === jumpMerge) ?? session.mergeChoices[0]!).kind);
       } else if (session.pendingOffers.length === 0) {
         session.resolveOffer(null);
       } else {
@@ -279,9 +273,6 @@ export function mountApp(root: HTMLElement): void {
         healPerBeat: base.get(h.id)?.healPerBeat,
         reachesBackline: base.get(h.id)?.reachesBackline,
         fatigue: h.fatigue,
-        hero: h.hero,
-        madeFrom: h.madeFrom,
-        stage: h.stage,
         army: h.army,
         kind: h.kind,
         skeleton: h.skeleton,
@@ -332,18 +323,7 @@ export function mountApp(root: HTMLElement): void {
   // falls through to the offer path with nothing to show, which ends the run.
   function showReward(): void {
     if (session.awaitingRelic) showRelicScreen();
-    else if (session.awaitingMerge) showMergeScreen();
     else showOfferScreen();
-  }
-
-  // A mini-boss win's reward (2026-10-20): make a hero, or "not now" for the round's usual offers.
-  function showMergeScreen(): void {
-    renderMergeScreen(root, session.currentRoster, session.mergeChoices, (kind: HeroKind | null) => {
-      session.resolveMerge(kind);
-      if (kind) afterRoundResolved();
-      else showOfferScreen();
-    });
-    appendSeedBadge(root, session);
   }
 
   function showOfferScreen(): void {

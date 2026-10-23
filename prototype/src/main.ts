@@ -1,6 +1,5 @@
 import "./screens.css";
 import "./termCards.css";
-import "./heroCards.css";
 import "./armyCards.css";
 import { mountApp } from "./render/app.js";
 import { mountLab } from "./lab/labScreen.js";

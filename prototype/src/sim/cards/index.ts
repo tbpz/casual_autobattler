@@ -97,17 +97,6 @@ export const ABILITY_MARKS: Record<ChainEffect, MarkId[]> = {
   siphon: ["shield"],
   cauterize: ["burn"],
   chill: ["frozen"],
-  // Merge heroes' skills: only the two that put a shield on a body leave a mark; the rest leave none, so a
-  // rune that reads Exposed, Burn or Frozen still has to be fed by a basic unit's ability.
-  fortify: ["shield"],
-  cleave: [],
-  bless: ["shield"],
-  execute: [],
-  breath: [],
-  horde: [],
-  prayer: [],
-  bloom: [],
-  bite: [],
   // The armies' base skills (2026-10-20) leave the marks of the skill they stand in for, so a run with an army still
   // meets Exposed from its Tank and Damage unit (the Beasts' pounce skills, below, are the exception: Pin freezes).
   // The Undead's skills (2026-10-21) leave none either: a renamed mark is not a new thing on screen, so an Undead unit

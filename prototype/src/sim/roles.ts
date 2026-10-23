@@ -86,6 +86,11 @@ export function findRoleDef(role: PlayerRole): RoleDef {
   return ROLE_POOL[role];
 }
 
+/** Whether a unit stands in the front row: only the Tank. */
+export function isFrontRow(h: Pick<HeroState, "role">): boolean {
+  return h.role === "tank";
+}
+
 /** Builds a fresh, full-health unit of `role`. `ordinal` (1-based) is baked
  * into its display name ("Tank 2") at creation time and never recomputed —
  * a fallen "Tank 1" stays "Tank 1" even after a new tank is recruited, same

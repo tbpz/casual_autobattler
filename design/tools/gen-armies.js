@@ -9,7 +9,7 @@
 //   11.1-11.12    ArmyCard<Name>             the looping explain cards: six skills, the two army rules, then the Mages' three skills and rule
 //                                            (the Beasts' three skill cards, 11.4 to 11.6, are Pin, Maul and Tend: each is one part of the pack's pounce)
 // Run:  node design/tools/gen-armies.js     (writes the frames and patches canvas.json)
-// Toolkit (scene helpers, popup shell, card shell) is cut from gen-heroes.js; the popup shell and backdrop from
+// Toolkit (scene helpers, popup shell, card shell) is written here; the popup shell and backdrop from
 // FighterPopupIvy.dc.html, the round screen from RoundFaceOff.dc.html, the card backdrop from TermExpose.dc.html.
 // Every number (HP, damage, 17, 9 and so on) is made up for the picture; the rules are what is being judged.
 // Every animated part keeps its key moment as its plain (animation off) style, so a frame reads as a still.
@@ -422,7 +422,7 @@ ${POPUP_BACKDROP}<div style="position: absolute; top: 40px; left: 20px; width: 3
 }
 
 // =====================================================================================================
-// 11.x — the scene toolkit (copied from gen-heroes.js, with art behind the disc)
+// 11.x — the scene toolkit (with art behind the disc)
 // =====================================================================================================
 function makeCtx(prefix) {
   const rules = []; let n = 0;
@@ -925,7 +925,7 @@ ${rows}
 // =====================================================================================================
 const FRAMES = []; // { file, x, y, w, h, label }
 const w = (file, html, x, y, h, label, hh = h) => { fs.writeFileSync(path.join(CANVAS, file), html); FRAMES.push({ file, x, y, w: 390, h: hh, label }); };
-const Y_PICK = 11800, Y_UND = 13200, Y_BEA = 14700, Y_CARD = 16100, Y_MAG = 17500;
+const Y_PICK = 9100, Y_UND = 10500, Y_BEA = 12000, Y_CARD = 13400, Y_MAG = 14800;
 w("ArmyPickA.dc.html", pickFile("A"), 0, Y_PICK, 1060, "10.0A Pick before round 1 (option, awaiting Tu's pick)");
 w("ArmyPickB.dc.html", pickFile("B"), 550, Y_PICK, 1140, "10.0B Pick after the round 1 win, in place of the rune pick (option)");
 w("ArmySquadUndead.dc.html", squadFile("undead"), 0, Y_UND, 880, "10.1 Undead squad — round screen (proposal)");
@@ -966,7 +966,7 @@ console.log("wrote", FRAMES.length, "frames and patched canvas.json");
 
 // ---------- the game's copy of the army cards (2026-10-20) ----------
 // The same scenes, written for the prototype: render/armyCardData.ts holds each card's scene and text (the shell, close and Got it, is
-// render/termCards.ts), armyCards.css its keyframes and loop length. Generated like the hero cards (design/tools/gen-heroes.js): do not
+// render/termCards.ts), armyCards.css its keyframes and loop length. Generated, so do not
 // edit the two output files by hand, change the scene above and run this again.
 {
   const GAME = path.join(__dirname, "..", "..", "prototype", "src");

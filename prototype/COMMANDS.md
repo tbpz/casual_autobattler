@@ -17,9 +17,6 @@ npm run batch -- --n 1000 --offers greedy
 npm run batch -- --n 300 --offers greedy --set chargeThreshold=45,enemyHpScale=1.8
                                     # --set key=number,... overrides numeric fight/run config for this
                                     # invocation only (a tuning sweep without editing config.ts)
-npm run batch -- --n 1000 --offers build --set mergeEnabled=0
-                                    # the same with merge heroes turned off, to compare (mergeEnabled=1 is the default);
-                                    # the report's "merge heroes" lines show how many runs made a hero and how they finished
 npm run batch -- --n 1000 --offers build --army undead
                                     # the same as an army run: --army undead|beasts|mages|none (none, or no flag, is the plain squad)
 npm run build                      # tsc + vite production build
@@ -73,14 +70,8 @@ export from the same run is a superset of an earlier one. Built by `src/log/runL
 pinned by `check:runlog`.
 
 
-**Merge heroes (2026-10-20, branch dev/merge-heroes).** `check:heroes` pins each hero's gift and skill in a small fight, the
-merge rules (when it is offered, which units it uses, the full-squad rule), Dragon growth and the Twin's copy. Dev links:
-`?offer=7&seed=10` opens the merge pick (round 7 is the first mini-boss), `?round=8&merge=necromancer&seed=10` plays on to round 8
-having taken that hero (the first it can make if it cannot make that one), and `&fight=1` starts that round's fight at once.
-Seeds that reach round 7 with the default picks: 10, 11, 21, 23, 24, 30.
-
-**Armies (2026-10-20, branch dev/merge-heroes).** A run opens on a pick between Undead, Beasts and Mages (`render/armyScreen.ts`); every unit is then that army's
-own (`sim/armies.ts`). `check:armies` pins the starting squads, the Undead's horde (Raise, Bone Wall, Command, the five-skeleton limit and upgrade, the order of enemy hits, both backfires), the Beasts' pounce (one PACK bar, the Bear leading, Pin, Maul, Tend, gained skills, the backfire), the Mages' orbs (the core orb, no plain attack, add, merge, clear, the beat, the Life drain and Great Drain, backfire) and that a seed replays the same run for each army. Merge heroes are off while an army is picked. Dev links: `?army=undead`, `?army=beasts` or
+**Armies (2026-10-20).** A run opens on a pick between Undead, Beasts and Mages (`render/armyScreen.ts`); every unit is then that army's
+own (`sim/armies.ts`). `check:armies` pins the starting squads, the Undead's horde (Raise, Bone Wall, Command, the five-skeleton limit and upgrade, the order of enemy hits, both backfires), the Beasts' pounce (one PACK bar, the Bear leading, Pin, Maul, Tend, gained skills, the backfire), the Mages' orbs (the core orb, no plain attack, add, merge, clear, the beat, the Life drain and Great Drain, backfire) and that a seed replays the same run for each army. Dev links: `?army=undead`, `?army=beasts` or
 `?army=mages` starts as that army without the pick, `?army=none` plays the plain squad; a link that jumps ahead (`?round=`, `?offer=`, `?fight=1`,
-`?runover=1`, `?fall=`) skips the pick and plays the plain squad unless it names an army, so the merge links above still work. Army cards are
+`?runover=1`, `?fall=`) skips the pick and plays the plain squad unless it names an army. Army cards are
 generated from the canvas by `node design/tools/gen-armies.js` (it also redraws canvas frames 10.x and 11.x).

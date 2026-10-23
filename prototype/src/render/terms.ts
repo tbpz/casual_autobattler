@@ -2,14 +2,6 @@
 // A tappable term is bold, coloured and dotted-underlined (`.term.tap`); inside a card it stays coloured but is not tappable.
 // DOM-free: every export is data or a string.
 
-import type { HeroKind } from "../sim/types.js";
-import { HERO_ORDER } from "../sim/heroes.js";
-
-/** A merge hero's own card (2026-10-20, canvas 9.x): "hero-golem" and so on. Opened from the skill bubble and the popup's "See it in action". */
-export type HeroCardId = `hero-${HeroKind}`;
-
-export const HERO_CARD_IDS: HeroCardId[] = HERO_ORDER.map((k): HeroCardId => `hero-${k}`);
-
 /** An army's cards (2026-10-20, canvas 11.x): one per army skill and one per army rule. Opened from the skill bubble and from the popup's "See it in action". */
 export type ArmyCardId = `army-${"boneWall" | "command" | "raise" | "pin" | "maul" | "tend" | "stormOrb" | "frostOrb" | "lifeOrb" | "undead" | "beasts" | "mages"}`;
 
@@ -45,10 +37,9 @@ export type TermId =
   | "chain"
   | "backfire"
   | "fatigue"
-  | HeroCardId
   | ArmyCardId;
 
-export const TERM_IDS: TermId[] = ["slam", "guard", "mend", "expose", "exposed", "frozen", "burn", "shield", "chain", "backfire", "fatigue", ...HERO_CARD_IDS, ...ARMY_CARD_IDS];
+export const TERM_IDS: TermId[] = ["slam", "guard", "mend", "expose", "exposed", "frozen", "burn", "shield", "chain", "backfire", "fatigue", ...ARMY_CARD_IDS];
 
 /** The colour class a term's word wears; `""` is the shared term green. Backfire and Fatigue use the warning orange. */
 const TERM_CLASS: Partial<Record<TermId, string>> = {

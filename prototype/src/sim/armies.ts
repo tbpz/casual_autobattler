@@ -13,7 +13,7 @@ import { PLAYER_ROLES, ROLE_LABEL, ROLE_POOL, makeUnitState, type PlayerRole } f
  *   Mages, Orbs: every mage has a core orb that never leaves and makes no plain attack; every skill hit puts a loose orb around the mage (3 at
  *   most); every orb works alone on a shared beat (1 s in, then every 2 s); a 4th hit merges the loose orbs into one great shot that fires at
  *   once, then they start again from none (fight.ts's mageOrbHit, tickOrbs). The Life Mage's orbs drain the front enemy to heal.
- * Merge heroes (sim/heroes.ts) are off while an army is picked. Every number is a made-up first take, like ROLE_POOL's.
+ * Every number is a made-up first take, like ROLE_POOL's.
  */
 
 export const ARMY_ORDER: ArmyKind[] = ["undead", "beasts", "mages"];

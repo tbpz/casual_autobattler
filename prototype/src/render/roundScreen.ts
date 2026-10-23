@@ -1,12 +1,11 @@
 import type { RunConfig } from "../sim/config.js";
-import { type PlayerRole } from "../sim/roles.js";
+import { isFrontRow, type PlayerRole } from "../sim/roles.js";
 import type { RunProgress } from "../sim/progress.js";
 import { CARD_DEFS, DUO_IDS, cardConnects, duoUnlocked, type CardId } from "../sim/cards/index.js";
 import { squadChainEffects } from "../sim/offers.js";
 import { heldCards } from "../sim/progress.js";
 import type { RosterState } from "../sim/roster.js";
 import { roundEnemySide } from "../sim/rounds.js";
-import { isFrontRow } from "../sim/heroes.js";
 import type { EncounterKind } from "../sim/encounters.js";
 import { markWordsHtml } from "./heroPickShared.js";
 import { ICON_SKULL_MINI } from "./icons.js";
@@ -251,7 +250,7 @@ export function renderRoundScreen(
     const fighter = target.closest("[data-fighter]") as HTMLElement | null;
     if (fighter) {
       closePopover();
-      openFighterPopup({ cfg, squad: fielded.map((h) => ({ ...h, stage: h.heroStage })), enemies: enemy.heroes, openId: fighter.dataset.fighter!, progress, fierceEnemies: fierce });
+      openFighterPopup({ cfg, squad: fielded, enemies: enemy.heroes, openId: fighter.dataset.fighter!, progress, fierceEnemies: fierce });
     }
   });
 
