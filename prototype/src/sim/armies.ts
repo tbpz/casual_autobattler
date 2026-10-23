@@ -157,8 +157,8 @@ export const ARMY_TEXT: Record<ArmyKind, ArmyText> = {
     pitch: "Orbs do the work, from the first second.",
     ruleName: "Orbs",
     ruleHead: "Every mage fights through orbs.",
-    ruleLines: ["Each starts with a core orb that stays. Every 2 seconds each orb works on its own.", "Every skill hit adds an orb, up to 3. A 4th merges them into one big shot."],
-    ruleCard: "Every mage has a core orb that never leaves, and makes no plain attack: all the work is the orbs'. Every 2 seconds, starting 1 second into the fight, each orb works on its own: Storm orbs zap an enemy, Frost orbs shield the Frost Mage, Life orbs take HP from the front enemy and heal your most hurt unit with it. Every skill hit adds an orb around the mage, up to 3. A 4th orb merges them into one big shot that fires at once, and then they start again from none. The core orb stays, and so do orbs still out when the skill ends.",
+    ruleLines: ["Each starts with a core orb that stays. Every 2 seconds each orb works on its own.", "Every skill hit adds an orb, up to 3. A 4th merges them into one big shot that leaves a mark."],
+    ruleCard: "Every mage has a core orb that never leaves, and makes no plain attack: all the work is the orbs'. Every 2 seconds, starting 1 second into the fight, each orb works on its own: Storm orbs zap an enemy, Frost orbs shield the Frost Mage, Life orbs take HP from the front enemy and heal your most hurt unit with it. Every skill hit adds an orb around the mage, up to 3. A 4th orb merges them into one big shot that fires at once and leaves a mark (Storm burns, Frost freezes, Life shields), and then they start again from none. Only a merged shot leaves a mark. The core orb stays, and so do orbs still out when the skill ends.",
   },
 };
 
@@ -214,20 +214,20 @@ export const UNIT_TEXT: Record<UnitKind, UnitText> = {
   frostMage: {
     title: "Frost Mage", job: "The Mage Tank. Wraps itself in shield orbs.",
     skillName: "Frost Orb", skillHead: "Adds an orb that shields the Frost Mage.", skillChips: ["Shield orb", "Whole squad"],
-    skillLines: ["Each hit adds a shield orb. Every orb, the core one too, gives the Frost Mage 8 shield every 2 seconds.", "A 4th orb merges the loose ones: the whole squad gets a shield, then they start again."],
-    skillCard: "Adds an orb around the Frost Mage. Every 2 seconds each orb, the core one included, gives it 8 shield. A 4th loose orb merges them into one big shot that shields the whole squad at once, and then they start again.",
+    skillLines: ["Each hit adds a shield orb. Every orb, the core one too, gives the Frost Mage 8 shield every 2 seconds.", "A 4th orb merges the loose ones: the whole squad gets a shield and every enemy is frozen a moment, then they start again."],
+    skillCard: "Adds an orb around the Frost Mage. Every 2 seconds each orb, the core one included, gives it 8 shield. A 4th loose orb merges them into one big shot that shields the whole squad and freezes every enemy for a moment, and then they start again.",
   },
   stormMage: {
     title: "Storm Mage", job: "The Mage Damage unit. Orbs zap on their own.",
     skillName: "Storm Orb", skillHead: "Adds an orb that zaps an enemy.", skillChips: ["One random enemy", "Front enemy"],
-    skillLines: ["Each hit adds a storm orb. Every orb, the core one too, zaps one enemy for 8 every 2 seconds.", "A 4th orb merges the loose ones into a big zap on the front enemy, then they start again."],
-    skillCard: "Adds an orb around the Storm Mage. Every 2 seconds each orb, the core one included, zaps one random enemy for 8; two orbs can pick the same one. A 4th loose orb merges them into one big shot that strikes the front enemy at once, and then they start again.",
+    skillLines: ["Each hit adds a storm orb. Every orb, the core one too, zaps one enemy for 8 every 2 seconds.", "A 4th orb merges the loose ones into a big zap that sets the front enemy burning, then they start again."],
+    skillCard: "Adds an orb around the Storm Mage. Every 2 seconds each orb, the core one included, zaps one random enemy for 8; two orbs can pick the same one. A 4th loose orb merges them into one big shot that strikes the front enemy at once and sets it burning, and then they start again.",
   },
   lifeMage: {
     title: "Life Mage", job: "The Mage Healer. Its orbs drain the enemy to heal your squad.",
     skillName: "Life Orb", skillHead: "Adds an orb that drains the front enemy.", skillChips: ["Front enemy", "Most hurt unit"],
-    skillLines: ["Each hit adds a life orb. Every orb, the core one too, takes 5 HP from the front enemy every 2 seconds and heals the most hurt unit with it.", "A 4th orb merges the loose ones: one Great Drain, shared over the whole squad, then they start again."],
-    skillCard: "Adds an orb around the Life Mage. Every 2 seconds each orb, the core one included, takes 5 HP from the front enemy and heals your most hurt unit with it. A 4th loose orb merges them into one Great Drain that takes 45 from the front enemy and shares it over the whole squad, and then they start again.",
+    skillLines: ["Each hit adds a life orb. Every orb, the core one too, takes 5 HP from the front enemy every 2 seconds and heals the most hurt unit with it.", "A 4th orb merges the loose ones: one Great Drain, shared over the whole squad; what a unit cannot take in becomes its shield. Then they start again."],
+    skillCard: "Adds an orb around the Life Mage. Every 2 seconds each orb, the core one included, takes 5 HP from the front enemy and heals your most hurt unit with it. A 4th loose orb merges them into one Great Drain that takes 45 from the front enemy and shares it over the whole squad (what a unit cannot take in becomes its shield), and then they start again.",
   },
 };
 

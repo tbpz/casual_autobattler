@@ -1,6 +1,6 @@
 import type { ChainEffect, FightConfig, MarkId } from "../config.js";
 import type { Side } from "../events.js";
-import type { HeroState, SideState } from "../types.js";
+import type { ArmyKind, HeroState, SideState } from "../types.js";
 
 /**
  * 2026-10-01 (cards on a "when X, do Y" engine — see DECISIONS.md and the
@@ -53,6 +53,13 @@ export type CardId =
   | "cinderShield"
   | "glass"
   | "phoenix"
+  // Mage army cards (sim/cards/defs/mage.ts): offered only in a Mages run.
+  | "echo"
+  | "static"
+  | "leech"
+  | "tempo"
+  | "overload"
+  | "wellspring"
   // Relics: one is picked as the round 1 reward and held after that (sim/relics.ts).
   | "emberHeart"
   | "frostCrown"
@@ -113,6 +120,17 @@ export interface HookPayloads {
   chainStacks: { hero: HeroState; stacks: number /* mutable */ };
   /** A chain just ended, `length` hits long. */
   chainEnd: { hero: HeroState; backfire: boolean; length: number };
+  /** Mages army (fight.ts's `beatOrb`): before one orb works on the shared beat. `loose` is false for the core orb. `target` is who a Storm
+   * zap will hit or whose HP a Life orb will take (the front enemy); a Frost orb has none. `amount` is what the orb does (the mage's
+   * damage). */
+  beforeOrbBeat: { mage: HeroState; orbKind: "storm" | "frost" | "life"; loose: boolean; target?: HeroState; amount: number /* mutable */ };
+  /** An orb just worked. `applied` is the HP a Storm zap or a Life drain removed, or the shield a Frost orb added. `wasted` is what a Life
+   * orb took that nobody could take in (0 for the others). */
+  orbBeat: { mage: HeroState; orbKind: "storm" | "frost" | "life"; loose: boolean; target?: HeroState; applied: number; wasted: number };
+  /** Before the gap to the next shared orb beat is set, in seconds. */
+  orbGap: { sec: number /* mutable */ };
+  /** A mage's loose orbs just merged and the great shot fired; the orbs are gone. */
+  orbsMerged: { mage: HeroState; orbKind: "storm" | "frost" | "life" };
 }
 
 export type HookName = keyof HookPayloads;
@@ -139,6 +157,13 @@ export interface CardApi {
    * first). Returns the seconds actually frozen. */
   freeze(target: HeroState, sec: number): number;
   addCharge(h: HeroState, amount: number): void;
+  /** A number in [0, 1) from the fight's random stream (a rune that picks a target at random). */
+  random(): number;
+  /** Mages army: puts one loose orb round `mage` (`mageOrbMax` at most). Returns whether one was added. */
+  addOrb(mage: HeroState): boolean;
+  /** Mages army: one of `mage`'s loose orbs (index 0 up) works once now, outside the beat; the orb stays. Returns false when the fight was
+   * won by it (no enemy left). */
+  beatOrb(mage: HeroState, index: number): boolean;
   /** Per-fight counters, for cards that build up (Momentum, Inferno). */
   counter(key: string): number;
   bump(key: string, by?: number): number;
@@ -187,6 +212,8 @@ export interface CardDef {
   needsEffects?: ChainEffect[];
   /** Duo cards only. */
   needs?: CardNeeds;
+  /** A card that belongs to one army: offered only in that army's run, and drawn at `armyCardBoost` there (sim/offers.ts). */
+  army?: ArmyKind;
   /** True for a card that works as a standing rule and raises no cardTriggered
    * of its own (Aegis), so the batch's fire-rate line leaves it out. */
   passive?: true;

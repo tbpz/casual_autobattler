@@ -25,19 +25,20 @@ The `decision-log`, `state-sync`, `cheatsheet-update`, `canvas-update` and `brow
 3. **Read `REFERENCE.md` only when you need the game's mechanical shape** — it is stable, so re-reading it every session is wasted.
    Read `CHEATSHEET.md` when you need a card, relic, mark or ability number — it is current by rule.
 4. **Do not read `DECISIONS.md` top-to-bottom.** Only grep it to answer a "why did we decide X?" question.
-5. **Staleness check:** if `DECISIONS.md` has entries newer than `STATE.md`'s `Last synced` date, STATE is behind — trust the newer DECISIONS entries, tell the user STATE is stale, and offer to re-sync.
+5. **Staleness check:** if `DECISIONS.md` has entries newer than `STATE.md`'s `Last synced` date, STATE is behind — trust the newer DECISIONS entries, tell the user in one line that STATE is stale, and re-sync it (see "Rewriting STATE.md").
 6. `STRATEGY.md` is deprecated pending a rewrite; do not treat it as current.
 7. `DECISIONS.md` has an in-place archive boundary: entries below the `ARCHIVE` rule predate the 2026-07-18 pivot and describe a superseded game design. Discount grep hits below that line as history, not live rationale, unless the question is specifically about the pre-pivot era.
 
 ## During the session — the DECISION protocol
 
-I cannot reliably detect on my own when a decision is final — in design talk, things that sound settled often get reversed. So: **propose, don't silently commit.**
+Tu has said logging a decision needs no sign-off. Log without asking, but only what he said or chose.
 
-1. When something sounds like a decision, **surface it**: "That sounds like a decision: *X over Y*. Log it?"
-2. **Only on the user's confirmation**, append one entry to `DECISIONS.md` immediately — do not batch it, and do not edit `STATE.md` for it.
-   - **Invoke the `decision-log` skill**, which carries the entry format, the word budget, and the rules that keep entries small and grep-safe. Never write a DECISIONS.md entry freehand.
+1. When Tu states or picks something that settles a choice (*X over Y*), **invoke the `decision-log` skill** and append one entry to `DECISIONS.md` immediately — no "Log it?" question, do not batch it, and do not edit `STATE.md` for it.
+   - The skill carries the entry format, the word budget, and the rules that keep entries small and grep-safe. Never write a DECISIONS.md entry freehand.
    - If the decision settles or adds a bet, `BETS.md` changes in the same step (see "Keeping BETS.md current").
-3. Never auto-write a decision the user hasn't confirmed. Their confirmation is what makes the log auditable.
+2. Tell him in one line what was logged (the entry's heading).
+3. Only log what Tu said or chose. My own suggestion he has not taken up is not a decision, and neither is a passing idea in design talk. If a logged decision is later reversed, write a new entry that supersedes it — never edit the old one.
+4. STATE catches up at the end of the task (see "Rewriting STATE.md").
 
 ## When Tu says something feels wrong
 
@@ -83,7 +84,7 @@ triggered by this file alone.
 
 ## Rewriting STATE.md
 
-`STATE.md` is regenerated **only when the user asks** ("sync", "update the state") — never automatically, because a wholesale rewrite is high-stakes and the user should be present to audit it. When asked, **invoke the `state-sync` skill**, which carries the reader framework, the section skeleton, and the four sizing rules. Never regenerate `STATE.md` freehand.
+`STATE.md` is regenerated **without asking**, at the end of any task that logged one or more decisions (once per task, not once per entry), when it is found stale at session start, and whenever the user says "sync" or "update the state". Tu audits afterwards, so the reply shows the removal list in one short block and does not wait for sign-off. **Invoke the `state-sync` skill**, which carries the reader framework, the section skeleton, and the four sizing rules. Never regenerate `STATE.md` freehand.
 
 There is **no word budget**. Length is an output of the sizing rules, not a target: draft it once, applying the admission test per line as you write. Do not count words, do not report a count, and never do a second pass to trim to a number — a measure-then-trim loop re-emits the whole file for nothing, and the compression it forces is what made the old STATE unreadable.
 
@@ -92,7 +93,7 @@ Cutting lines is fine; cramming words into a line is not — the plain-language 
 ## Keeping BETS.md current
 
 Update `BETS.md` in the same change as the DECISIONS entry that settles a bet, **without asking** —
-the decision itself was already confirmed.
+the decision itself was already logged.
 
 - A bet is **verified** only by Tu's play, a played test, or a measurement, and every verified bet
   carries a proof link to the DECISIONS entry. No entry, no verified bet.
@@ -181,9 +182,9 @@ Tu cannot judge a look, a motion or a tap flow from a question in words. For the
   chosen. If there is only one sensible option it is not a choice: draw it as a proposal, as usual.
 - **In plan mode** the canvas cannot be edited, so the plan's first step is "draw the options on the
   canvas and publish, then stop for Tu's pick". Build steps come after his pick.
-- **Not affected:** "That sounds like a decision. Log it?" stays a text question (it confirms, it
-  does not choose between looks). Open points that can't be settled by looking (for example "check
-  on a real phone") stay as text in HANDOFF.
+- **Not affected:** Open points that can't be settled by looking (for example "check on a real
+  phone") stay as text in HANDOFF. Once Tu picks a drawn option, that is a decision: log it without
+  asking.
 
 **Invoke the `canvas-options` skill**, which carries the steps. It needs no DECISIONS entry until
 Tu picks.

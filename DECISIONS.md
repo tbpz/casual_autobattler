@@ -10,6 +10,44 @@
 
 ---
 
+## [2026-10-23] Army runs never offer the plain squad's role abilities
+
+- **Decision:**
+  - The "gains an ability" offer (Scorch, Frostbolt, Siphon and the other roles' options) is plain squad only.
+  - An army run (Undead, Beasts, Mages) never shows it.
+  - Borrowing another army unit's skill stays, so a Life Mage can still take the frost orb.
+  - Gate: `sim/offers.ts` (`chainGain` templates); check: `checks/armies.ts`.
+  - Not settled: whether army difficulty needs retuning after the loss of that power.
+- **Why:**
+  - Tu's run 17167007: the Storm Mage took Siphon and every skill hit also struck the weakest enemy, so it fought like a plain Damage unit.
+  - A mage's damage is meant to be its orbs' work (2026-10-23 Mage entries); a plain ability on top undoes that.
+  - The 2026-10-21 rule "offers work unchanged" never considered abilities stacking on an army skill.
+  - Evidence, build bot, n=200 each, 2026-10-23, run completion before → after: Mages 27.5% → 21.0%, Undead 30.5% → 18.5%, Beasts 22.0% → 16.0%.
+- **Replaces:**
+  - The "offers … work unchanged" clause of the 2026-10-21 entry "An army picked before round 1 shapes the run", for role-ability offers only; its other lines stand.
+
+## [2026-10-23] Mage runs get marks from merged shots only, four Mage runes and two duos
+
+- **Decision:**
+  - Only a merged shot leaves a mark; core-orb and loose-orb beats leave none.
+  - Storm Mage's merged shot leaves Burn.
+  - Life Mage's Great Drain turns HP nobody can take in into Shield.
+  - Frost Mage's merged shot leaves Frozen.
+  - Frost orbs' shield counts as a Shield source for the offer gate, because it is already real Shield in the fight.
+  - Four Mage-only runes: Echo (a merge leaves one loose orb), Static (a Storm zap on a burning enemy jumps to a second enemy), Leech (a Life orb on a burning enemy drains double), Tempo (orbs beat faster while any enemy is frozen).
+  - Two duos: Overload (Echo + Tempo: a merge makes the other mages' loose orbs fire at once), Wellspring (Leech + Brim: HP that cannot be drained becomes shield for the squad).
+  - Two new card-engine events: orbs merged, and an orb's beat.
+  - Not settled: how much likelier Mage runes are in a Mage run; every number is for the batch to tune, in `sim/config.ts`.
+- **Why:**
+  - Tu chose merged-only marks over marks from every orb.
+  - A merge needs loose orbs, which need skill hits, so marks follow chain length and a player can name the cause.
+  - Orbs beat every 2 s; marking each beat would break "the big payoff is rare".
+  - Each rune reads a mark another mage leaves, so combos come from mixing mages.
+  - Accepted cost: Exposed is never laid in a Mage run, so Exposed runes stay shut there; a fight with no merge leaves the Mage runes dark.
+- **Replaces:**
+  - Answers the three "Not settled" lines of the 2026-10-23 "armies will feed the rune engine" entry, for the Mages only.
+  - Not covered: nothing is built, so no run has shown the moment returns.
+
 ## [2026-10-23] Bets sit under four pillars and one top test
 
 - **Decision:**

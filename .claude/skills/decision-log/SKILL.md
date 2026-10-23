@@ -1,6 +1,6 @@
 ---
 name: decision-log
-description: Append one entry to DECISIONS.md after the user confirms a decision. Use whenever CLAUDE.md's DECISION protocol step 2 fires — "log it?" has been answered yes. Carries the entry budget, the one-claim-per-bullet formatting rule, and the decision-not-diff test that keeps entries small and grep-safe.
+description: Append one entry to DECISIONS.md when Tu states or picks a decision. Use whenever CLAUDE.md's DECISION protocol fires — no confirmation needed. Carries the entry budget, the one-claim-per-bullet formatting rule, and the decision-not-diff test that keeps entries small and grep-safe.
 ---
 
 # Appending to DECISIONS.md
@@ -20,10 +20,10 @@ Append-only means entries are never edited or deleted once written. That makes w
 
 ## The append protocol
 
-1. Only fires after the user has confirmed a proposed decision (`CLAUDE.md` DECISION protocol step 2) — never speculatively, never batched.
+1. Only fires for a choice Tu stated or picked (`CLAUDE.md` DECISION protocol) — never for my own un-adopted suggestion, never batched. No "log it?" question first.
 2. Draft the entry in the standard format: `## [YYYY-MM-DD] Title` → **Decision** / **Why** / **Replaces**, each field as short one-claim bullets rather than a single dense paragraph.
 3. Apply both tests above while drafting — cut diff-shaped lines, cut anything `git log -p` already has, point at code for live constants instead of quoting them.
-4. **Hold the budget: ~250 words / ~1,800 bytes per entry, hard cap 350 words.** Report the word count when presenting the drafted entry — a measurement, not a feeling, same discipline `state-sync` uses for `STATE.md`'s cap.
+4. **Hold the budget: ~250 words / ~1,800 bytes per entry, hard cap 350 words.** Report the word count in the one-line note that says what was logged — a measurement, not a feeling, same discipline `state-sync` uses for `STATE.md`'s cap.
 5. Insert at the **top** of the log, immediately below the header block — never at the bottom, never mixed into the middle.
 6. **If the decision settles or adds a bet, update `BETS.md` in the same change** — the rules are in `CLAUDE.md`, "Keeping BETS.md current". A verified bet needs a link to the entry just written: a reference-style link with the date as its text, the heading anchor in the definition block at the bottom of `BETS.md`; check the anchor exists.
 7. Never edit, reorder, or delete an existing entry to make room. If an existing entry is now stale or contradicted, that's handled by a *new* entry that says so and points at the current source of truth — not by touching the old one.

@@ -73,12 +73,13 @@ function look(key, size) {
       };
     }
     case "frost": case "storm": case "life": {
-      // a pointed hat behind the head, a star on it, a face on the disc
+      // a pointed hat with a star on it, drawn on the disc over the head with the face on top
       const star = { frost: "#d8f1ff", storm: "#ffe36a", life: "#c9ffd9" }[key];
+      const hat = `${VB}<polygon points="22,30 50,-46 78,30" fill="${dk}"/><ellipse cx="50" cy="26" rx="40" ry="9" fill="${dk}"/><path d="M50 -8 l3.4 8 8.6 .8 -6.6 5.8 2 8.4 -7.4 -4.6 -7.4 4.6 2 -8.4 -6.6 -5.8 8.6 -.8z" fill="${star}"/></svg>`;
       return {
-        under: `${VB}<polygon points="22,30 50,-46 78,30" fill="${dk}"/><ellipse cx="50" cy="26" rx="40" ry="9" fill="${dk}"/><path d="M50 -8 l3.4 8 8.6 .8 -6.6 5.8 2 8.4 -7.4 -4.6 -7.4 4.6 2 -8.4 -6.6 -5.8 8.6 -.8z" fill="${star}"/></svg>`,
+        under: "",
         bodyStyle: "",
-        inner: face(hex, size),
+        inner: hat + face(hex, size),
       };
     }
   }

@@ -628,6 +628,17 @@ export interface FightConfig {
   mageStormMergeDamage: number;
   mageFrostMergeShield: number;
   mageLifeMergeDrain: number;
+  /** What a merged shot leaves (2026-10-23, DECISIONS.md "Mage runs get marks from merged shots only"): the Storm shot lays
+   * `mageStormMergeBurn` Burn on the front enemy, the Frost shot freezes every living enemy `mageFrostMergeFreezeSec`, and the Great Drain
+   * turns the HP a unit had no room for into Shield on that unit. Orb beats leave none. Made-up first numbers. */
+  mageStormMergeBurn: number;
+  mageFrostMergeFreezeSec: number;
+  /** The Mage runes (sim/cards/defs/mage.ts): Leech multiplies a Life orb's drain on a burning enemy by `leechMult`; Tempo multiplies the gap
+   * between beats by `tempoGapMult` while any enemy is frozen; Wellspring turns `wellspringFraction` of the HP a Life orb drained but nobody
+   * could take in into shield, shared over the living units. */
+  leechMult: number;
+  tempoGapMult: number;
+  wellspringFraction: number;
 }
 
 /**
@@ -890,6 +901,9 @@ export interface RunConfig {
    * `borrowWeightFraction` scales `cardWeight` for a "borrow" offer (a role
    * taking another role's base ability), which is meant to be rare. */
   duoBoost: number;
+  /** 2026-10-23: a rune that belongs to one army (`CardDef.army`) is offered only in that army's run, and its draw weight is multiplied by
+   * `armyCardBoost` there (on top of the connect or duo tilt), so the army's own runes are seen. */
+  armyCardBoost: number;
   /** The most the whole card group may weigh in one draw (sim/offers.ts's
    * drawOffers). Cards draw at flat per-card weights, so without a cap a bigger
    * pool crowds the number offers out of the three on screen; past the cap every
@@ -1214,6 +1228,12 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   mageStormMergeDamage: 80,
   mageFrostMergeShield: 45,
   mageLifeMergeDrain: 45,
+  // First take for the marks and runes (2026-10-23); not yet tuned with the batch.
+  mageStormMergeBurn: 3,
+  mageFrostMergeFreezeSec: 1.5,
+  leechMult: 2,
+  tempoGapMult: 0.5,
+  wellspringFraction: 1,
 };
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {
@@ -1239,6 +1259,7 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   cardWeight: 1.2,
   cardConnectBoost: 1.5,
   duoBoost: 6,
+  armyCardBoost: 1.5,
   cardGroupWeightCap: 12,
   borrowWeightFraction: 0.25,
   // 2026-10-02: a Recruit offer used to fade from weight 1 to 0.4 over the run,

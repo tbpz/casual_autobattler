@@ -5,6 +5,7 @@ import { CINDER_SHIELD, FORTRESS, GLASS, KILLING_FROST, PHOENIX, THERMAL_SHOCK }
 import { CRACK, EXECUTE, HUNTER_MARK, LAY_BARE, PUNISH, WEAK_SPOT } from "./defs/exposed.js";
 import { BRITTLE, COLD_SNAP, DEEP_FREEZE, FROSTBITE, PERMAFROST, SHATTER } from "./defs/frozen.js";
 import { BLOODLUST, IRON_HIDE, MOMENTUM, SECOND_WIND } from "./defs/general.js";
+import { ECHO, LEECH, OVERLOAD, STATIC, TEMPO, WELLSPRING } from "./defs/mage.js";
 import { BASTION, EMBER_HEART, FROST_CROWN, HUNTERS_EYE, RESTLESS } from "./defs/relic.js";
 import { AEGIS, BULWARK, OVERFLOW, SHATTERGUARD, SHIELD_BASH, SPIKED_SHIELD } from "./defs/shield.js";
 import type { CardDef, CardId } from "./types.js";
@@ -58,6 +59,12 @@ export const CARD_DEFS: Record<CardId, CardDef> = {
   cinderShield: CINDER_SHIELD,
   glass: GLASS,
   phoenix: PHOENIX,
+  echo: ECHO,
+  static: STATIC,
+  leech: LEECH,
+  tempo: TEMPO,
+  overload: OVERLOAD,
+  wellspring: WELLSPRING,
   emberHeart: EMBER_HEART,
   frostCrown: FROST_CROWN,
   huntersEye: HUNTERS_EYE,
@@ -108,11 +115,12 @@ export const ABILITY_MARKS: Record<ChainEffect, MarkId[]> = {
   pin: ["frozen"],
   maul: [],
   tend: [],
-  // The Mages' skills (2026-10-21) leave none either, for the same reason: a Mage gets its marks from an upgrade.
-  // A Frost orb's shield still goes through addShield, so a rune that reads a shield landing sees it.
-  stormOrb: [],
-  frostOrb: [],
-  lifeOrb: [],
+  // The Mages' skills leave marks only on a merged shot (2026-10-23): Storm burns the front enemy, Frost freezes every enemy (and
+  // its orbs' shield is real Shield all fight), Life's Great Drain shields what the squad had no room to heal. A fight with no merge
+  // leaves none, but the offers wait for what a skill can make, not for what it did.
+  stormOrb: ["burn"],
+  frostOrb: ["frozen", "shield"],
+  lifeOrb: ["shield"],
 };
 
 /** `effects` plus the base skill each army skill stands in for, so a rune that needs "guard" or "mend" counts

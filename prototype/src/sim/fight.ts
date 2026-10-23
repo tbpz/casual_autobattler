@@ -27,6 +27,8 @@ interface FightCtx {
   api: CardApi;
   player: SideState;
   enemy: SideState;
+  /** The fight's random stream, for what a card or the orb beat must roll (a Storm zap's target). */
+  rng: Rng;
   /** Beasts' pounce (2026-10-22): the beast whose beat the running pounce rolls on, null when none runs. A freeze never lands on it, or its
    * own beat could not come round to end the pounce (the same trap as a unit freezing itself, see pickFreezeTarget). */
   pounceLeadId?: string | null;
@@ -231,7 +233,9 @@ function raiseArmySkeleton(c: FightCtx, kind: SkeletonKind): { slot?: HeroState;
 // skill puts a loose orb around it, `mageOrbMax` at most. `hero.orbs` counts the loose ones; the core is implied by the mage being alive.
 // Loose orbs stay between skills, and every orb works on one shared beat (`tickOrbs`). A skill hit that finds the loose orbs full merges
 // them into one great shot that fires at once, and they are gone straight away: the next hit starts again from none. Orbs still out when a
-// skill ends stay, and so does the core. The three skills leave no mark.
+// skill ends stay, and so does the core. Only a merged shot leaves a mark (2026-10-23, DECISIONS.md "Mage runs get marks from merged shots
+// only"): Storm burns the front enemy, Frost freezes every enemy, and Life's Great Drain turns the HP a unit had no room for into Shield.
+// Orb beats leave none. The Mage runes (sim/cards/defs/mage.ts) read the hooks raised here: beforeOrbBeat, orbBeat, orbGap, orbsMerged.
 
 /** What the merged orb's great shot is worth before fatigue and runes. */
 function mageStrikeBase(cfg: FightConfig, effect: ChainEffect): number {
@@ -263,24 +267,45 @@ function mageOrbHit(c: FightCtx, effect: ChainEffect, hero: HeroState, backfire:
     c.events.push({ type: "orbMerge", t: c.t, heroId: hero.id });
     c.events.push({ type: "orbStrike", t: c.t, heroId: hero.id });
   };
+  const merged = (orbKind: "storm" | "frost" | "life"): void => runHook(c, "orbsMerged", { mage: hero, orbKind });
   if (effect === "stormOrb") {
     const target = aliveOnSide(c.enemy, frontMostAliveId(c.enemy));
     if (!target) return null;
     fire();
     const { died, applied } = applyDamageFrom(c.enemy, target.id, raw, 0, false, { source: hero, chain: true });
     hero.dealt += applied;
-    return [{ kind: "damage", targetId: target.id, amount: applied, intended: raw, died }];
+    const entry: ChainHitEntry = { kind: "damage", targetId: target.id, amount: applied, intended: raw, died };
+    // The shot's mark: Burn on the front enemy, set by this mage so its ticks credit the mage (as Tinder does).
+    if (target.alive && target.hp > 0 && cfg.mageStormMergeBurn > 0) {
+      addBurn(target, cfg.mageStormMergeBurn);
+      target.burnFrom = hero.id;
+      entry.mark = "burn";
+      entry.markStacks = cfg.mageStormMergeBurn;
+    }
+    merged("storm");
+    return [entry];
   }
   const allies = c.player.heroes.filter((h) => h.alive && h.hp > 0 && !h.skeleton);
   if (allies.length === 0) return null;
   if (effect === "frostOrb") {
     fire();
-    return allies.map((target) => {
+    const entries: ChainHitEntry[] = allies.map((target) => {
       const shield = addShield(c, target, raw);
       return { kind: "heal" as const, targetId: target.id, amount: 0, intended: raw, died: [] as string[], ...(shield > 0 ? { mark: "shield" as const, markStacks: shield } : {}) };
     });
+    // The shot's mark: Frozen on every living enemy, for the rest of its own run (no chain hold).
+    for (const foe of c.enemy.heroes) {
+      if (!foe.alive || foe.hp <= 0) continue;
+      const sec = plainFreeze(c, foe, cfg.mageFrostMergeFreezeSec);
+      if (sec > 0) {
+        entries.push({ kind: "stun", targetId: foe.id, amount: 0, intended: 0, died: [], durationSec: sec, durationTotalSec: Math.max(0, (foe.stunnedUntilT ?? c.t) - c.t) });
+      }
+    }
+    merged("frost");
+    return entries;
   }
   // Life's Great Drain: `raw` HP taken from the front enemy, and what landed is shared out over the living units, each capped by its room.
+  // The share a unit had no room for becomes Shield on that unit (the shot's mark), up to the Shield cap.
   const foe = aliveOnSide(c.enemy, frontMostAliveId(c.enemy));
   if (!foe) return null;
   fire();
@@ -292,55 +317,77 @@ function mageOrbHit(c: FightCtx, effect: ChainEffect, hero: HeroState, backfire:
     const amount = Math.max(0, Math.min(share, ally.maxHp - ally.hp));
     ally.hp += amount;
     hero.restored += amount;
-    entries.push({ kind: "heal", targetId: ally.id, amount, intended: share, died: [] });
+    const shield = share - amount > 0 ? addShield(c, ally, share - amount) : 0;
+    entries.push({ kind: "heal", targetId: ally.id, amount, intended: share, died: [], ...(shield > 0 ? { mark: "shield" as const, markStacks: shield } : {}) });
   }
+  merged("life");
   return entries;
 }
 
-/** The shared orb beat: every orb of every living mage works once, the core orb (index -1, always out) first and then the loose ones. What an
- * orb does is the mage's own `damage`: a Storm orb zaps one random living enemy (two can pick the same) and counts as a hit by a Damage unit,
- * so the runes that read a normal hit (Kindling, Weak spot) see it; a Frost orb shields its own mage; a Life orb takes that much from the front
- * enemy and heals the most hurt unit with what it took. Each orb's work fills its mage's skill bar the way a normal hit would. Returns the
+/** One orb of `mage` works once. `index` -1 is the core orb (always out), 0 up are the loose ones. What an orb does is the mage's own
+ * `damage`: a Storm orb zaps one random living enemy (two can pick the same) and counts as a hit by a Damage unit, so the runes that read a
+ * normal hit (Kindling, Weak spot) see it; a Frost orb shields its own mage; a Life orb takes that much from the front enemy and heals the
+ * most hurt unit with what it took, and what nobody could take in is `wasted`. Each orb's work fills its mage's skill bar the way a normal hit
+ * would. The Mage runes see it through beforeOrbBeat (change the amount) and orbBeat. Returns "win" if the enemy was wiped, "idle" when there was
+ * nobody to work on (the mage's remaining orbs have nothing to do either), null otherwise. */
+function beatOrb(c: FightCtx, mage: HeroState, index: number): "win" | "idle" | null {
+  const loose = index >= 0;
+  if (mage.kind === "stormMage") {
+    const alive = c.enemy.heroes.filter((h) => h.alive && h.hp > 0);
+    if (alive.length === 0) return "idle";
+    const target = alive[Math.floor(c.rng.next() * alive.length)]!;
+    const pre = { mage, orbKind: "storm" as const, loose, target, amount: mage.damage };
+    runHook(c, "beforeOrbBeat", pre);
+    const swing = { hero: mage, isPlayerAttacker: true, victim: target, damage: pre.amount };
+    runHook(c, "beforeBasicAttack", swing);
+    const { died, applied } = applyDamageFrom(c.enemy, target.id, swing.damage, 0, false, { source: mage });
+    mage.dealt += applied;
+    mage.charge += applied * c.cfg.chargeWeightDealt;
+    c.events.push({ type: "orbTick", t: c.t, heroId: mage.id, index, orbKind: "storm", targetId: target.id, amount: applied });
+    for (const id of died) c.events.push({ type: "heroDown", t: c.t, side: "enemy", heroId: id });
+    runHook(c, "afterBasicAttack", { hero: mage, isPlayerAttacker: true, target, applied, killed: died.includes(target.id) });
+    runHook(c, "orbBeat", { mage, orbKind: "storm", loose, target, applied, wasted: 0 });
+    return isWiped(c.enemy) ? "win" : null;
+  }
+  if (mage.kind === "frostMage") {
+    const pre = { mage, orbKind: "frost" as const, loose, amount: mage.damage };
+    runHook(c, "beforeOrbBeat", pre);
+    const added = addShield(c, mage, pre.amount);
+    mage.charge += added * c.cfg.chargeWeightDealt;
+    c.events.push({ type: "orbTick", t: c.t, heroId: mage.id, index, orbKind: "frost", targetId: mage.id, amount: added });
+    runHook(c, "orbBeat", { mage, orbKind: "frost", loose, applied: added, wasted: 0 });
+    return null;
+  }
+  // No `heal` event here: the orbTick below is what the screen draws, so the drain is not announced twice.
+  const foe = aliveOnSide(c.enemy, frontMostAliveId(c.enemy));
+  if (!foe) return "idle";
+  const pre = { mage, orbKind: "life" as const, loose, target: foe, amount: mage.damage };
+  runHook(c, "beforeOrbBeat", pre);
+  const { died, applied } = applyDamageFrom(c.enemy, foe.id, pre.amount, 0, false, { source: mage });
+  mage.dealt += applied;
+  mage.charge += applied * c.cfg.chargeWeightDealt;
+  const patient = mostWoundedAliveHero(c.player);
+  const healed = patient ? Math.max(0, Math.min(applied, patient.maxHp - patient.hp)) : 0;
+  if (patient) {
+    patient.hp += healed;
+    mage.restored += healed;
+  }
+  c.events.push({ type: "orbTick", t: c.t, heroId: mage.id, index, orbKind: "life", targetId: patient?.id ?? mage.id, amount: healed, foeId: foe.id, drained: applied });
+  for (const id of died) c.events.push({ type: "heroDown", t: c.t, side: "enemy", heroId: id });
+  runHook(c, "orbBeat", { mage, orbKind: "life", loose, target: foe, applied, wasted: Math.max(0, applied - healed) });
+  return isWiped(c.enemy) ? "win" : null;
+}
+
+/** The shared orb beat: every orb of every living mage works once, the core orb first and then the loose ones (see beatOrb). Returns the
  * fight's outcome if a zap or a drain wiped the enemy. */
-function tickOrbs(c: FightCtx, rng: Rng): "win" | null {
+function tickOrbs(c: FightCtx): "win" | null {
   for (const mage of c.player.heroes) {
     if (mage.army !== "mages" || !mage.alive || mage.hp <= 0) continue;
     const n = mage.orbs ?? 0;
     for (let index = -1; index < n; index++) {
-      if (mage.kind === "stormMage") {
-        const alive = c.enemy.heroes.filter((h) => h.alive && h.hp > 0);
-        if (alive.length === 0) break;
-        const target = alive[Math.floor(rng.next() * alive.length)]!;
-        const swing = { hero: mage, isPlayerAttacker: true, victim: target, damage: mage.damage };
-        runHook(c, "beforeBasicAttack", swing);
-        const { died, applied } = applyDamageFrom(c.enemy, target.id, swing.damage, 0, false, { source: mage });
-        mage.dealt += applied;
-        mage.charge += applied * c.cfg.chargeWeightDealt;
-        c.events.push({ type: "orbTick", t: c.t, heroId: mage.id, index, orbKind: "storm", targetId: target.id, amount: applied });
-        for (const id of died) c.events.push({ type: "heroDown", t: c.t, side: "enemy", heroId: id });
-        runHook(c, "afterBasicAttack", { hero: mage, isPlayerAttacker: true, target, applied, killed: died.includes(target.id) });
-        if (isWiped(c.enemy)) return "win";
-      } else if (mage.kind === "frostMage") {
-        const added = addShield(c, mage, mage.damage);
-        mage.charge += added * c.cfg.chargeWeightDealt;
-        c.events.push({ type: "orbTick", t: c.t, heroId: mage.id, index, orbKind: "frost", targetId: mage.id, amount: added });
-      } else {
-        // No `heal` event here: the orbTick below is what the screen draws, so the drain is not announced twice.
-        const foe = aliveOnSide(c.enemy, frontMostAliveId(c.enemy));
-        if (!foe) break;
-        const { died, applied } = applyDamageFrom(c.enemy, foe.id, mage.damage, 0, false, { source: mage });
-        mage.dealt += applied;
-        mage.charge += applied * c.cfg.chargeWeightDealt;
-        const patient = mostWoundedAliveHero(c.player);
-        const healed = patient ? Math.max(0, Math.min(applied, patient.maxHp - patient.hp)) : 0;
-        if (patient) {
-          patient.hp += healed;
-          mage.restored += healed;
-        }
-        c.events.push({ type: "orbTick", t: c.t, heroId: mage.id, index, orbKind: "life", targetId: patient?.id ?? mage.id, amount: healed, foeId: foe.id, drained: applied });
-        for (const id of died) c.events.push({ type: "heroDown", t: c.t, side: "enemy", heroId: id });
-        if (isWiped(c.enemy)) return "win";
-      }
+      const r = beatOrb(c, mage, index);
+      if (r === "win") return "win";
+      if (r === "idle") break;
     }
   }
   return null;
@@ -385,6 +432,20 @@ function makeCardApi(c: () => FightCtx): CardApi {
     freeze: (target, sec) => plainFreeze(c(), target, sec),
     addCharge: (h, amount) => {
       h.charge += amount;
+    },
+    random: () => c().rng.next(),
+    addOrb: (mage) => {
+      const cx = c();
+      const orbs = mage.orbs ?? 0;
+      if (mage.army !== "mages" || !mage.alive || orbs >= cx.cfg.mageOrbMax) return false;
+      mage.orbs = orbs + 1;
+      cx.events.push({ type: "orbAdd", t: cx.t, heroId: mage.id, orbs: mage.orbs });
+      return true;
+    },
+    beatOrb: (mage, index) => {
+      const cx = c();
+      if (mage.army !== "mages" || !mage.alive || mage.hp <= 0) return true;
+      return beatOrb(cx, mage, index) !== "win";
     },
     counter: (key) => c().cards.counter(key),
     bump: (key, by = 1) => c().cards.bump(key, by),
@@ -1720,6 +1781,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
     api: makeCardApi(() => ctx!),
     player,
     enemy,
+    rng,
   };
   try {
     return runFightLoop(events, player, enemy, cfg, rng, seed);
@@ -2008,8 +2070,10 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
 
     // Mages' orbs (2026-10-21): after the burn tick, on their own shared beat.
     if (!outcome && t >= nextOrbT) {
-      nextOrbT += cfg.mageOrbBeatSec;
-      outcome = tickOrbs(ctx!, rng);
+      const gap = { sec: cfg.mageOrbBeatSec };
+      runHook(ctx!, "orbGap", gap);
+      nextOrbT += Math.max(0.1, gap.sec);
+      outcome = tickOrbs(ctx!);
     }
 
     // A tank's line can break (or recover, if healed back up) on any beat

@@ -114,13 +114,15 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
 
     // One template per ability in the role's pool (2026-10-01, roles branch),
     // offered only when this run drew it as one of the role's options and the
-    // role still has room for another upgrade.
+    // role still has room for another upgrade. Plain squad only (2026-10-23): an army unit's skill is what it does, so an army run
+    // is never offered these; it can still borrow another army unit's skill below.
     for (const upgrade of ROLE_UPGRADE_POOL[role]) {
       templates.push({
         key: `chainGain:${role}:${upgrade}`,
         size: "big",
         gainEffect: upgrade,
         eligible: (progress) =>
+          progress.army === undefined &&
           progress.upgradeOptions[role].includes(upgrade) &&
           !progress.chain[role].effects.includes(upgrade) &&
           progress.chain[role].effects.length - 1 < cfg.maxUpgradesPerRole,
@@ -243,8 +245,10 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       // reads — seen on an ability offer, made by the squad, or made by a card
       // already held — so no card asks for a judgment about a mark nothing has
       // introduced yet. A duo is offered only once all its parts are in hand.
+      // A rune of one army (CardDef.army) is offered only in that army's run (2026-10-23).
       eligible: (progress, roster) =>
         !progress.cards.includes(id) &&
+        (def.army === undefined || def.army === progress.army) &&
         (isDuo
           ? duoUnlocked(id, squadChainEffects(progress, roster), heldCards(progress))
           : cardConnects(id, progress.introduced, heldCards(progress))),
@@ -346,7 +350,7 @@ function cardWorksWith(id: CardId, sources: readonly EffectSource[], held: reado
     ];
     return `Duo: you hold ${parts.join(" + ")}`;
   }
-  if (def.reads.length === 0) return undefined;
+  if (def.reads.length === 0) return def.army === "mages" ? "Mages only" : undefined;
   if (!cardConnects(id, squad, held)) return undefined;
   if (def.needsEffects) return `Your squad has ${def.needsEffects.filter((e) => withFamilies(squad).includes(e)).map((e) => chainEffectChip(e).word).join(" + ")}`;
   // One source per mark it reads: the squad ability that leaves it, or — for a
@@ -444,8 +448,10 @@ export function drawOffers(rng: Rng, progress: RunProgress, roster: SideState, c
     );
   const cardWeight = (id: CardId): number => {
     const def = CARD_DEFS[id];
-    if (def.kind === "duo") return cfg.cardWeight * cfg.duoBoost;
-    return cfg.cardWeight * (def.reads.length > 0 && cardConnects(id, effects, heldCards(progress)) ? 1 + cfg.cardConnectBoost : 1);
+    // An army's own rune draws a little more often in its army's run, so the run sees what the army is built around.
+    const armyBoost = def.army !== undefined ? cfg.armyCardBoost : 1;
+    if (def.kind === "duo") return cfg.cardWeight * cfg.duoBoost * armyBoost;
+    return cfg.cardWeight * armyBoost * (def.reads.length > 0 && cardConnects(id, effects, heldCards(progress)) ? 1 + cfg.cardConnectBoost : 1);
   };
   const pool = eligible.map((t) => ({
     t,

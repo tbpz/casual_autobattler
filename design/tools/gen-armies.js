@@ -63,8 +63,8 @@ const ARMIES = {
     play: "You want a machine that builds up, then goes off.",
     rule: {
       name: "Orbs", head: "Every mage fights through orbs.",
-      lines: ["Each starts with a core orb that stays. Every 2 seconds each orb works on its own.", "Every skill hit adds an orb, up to 3. A 4th merges them into one big shot."],
-      card: "Every mage has a core orb that never leaves, and makes no plain attack: all the work is the orbs'. Every 2 seconds, starting 1 second into the fight, each orb works on its own: Storm orbs zap an enemy, Frost orbs shield the Frost Mage, Life orbs take HP from the front enemy and heal your most hurt unit with it. Every skill hit adds an orb around the mage, up to 3. A 4th orb merges them into one big shot that fires at once, and then they start again from none. The core orb stays, and so do orbs still out when the skill ends.",
+      lines: ["Each starts with a core orb that stays. Every 2 seconds each orb works on its own.", "Every skill hit adds an orb, up to 3. A 4th merges them into one big shot that leaves a mark."],
+      card: "Every mage has a core orb that never leaves, and makes no plain attack: all the work is the orbs'. Every 2 seconds, starting 1 second into the fight, each orb works on its own: Storm orbs zap an enemy, Frost orbs shield the Frost Mage, Life orbs take HP from the front enemy and heal your most hurt unit with it. Every skill hit adds an orb around the mage, up to 3. A 4th orb merges them into one big shot that fires at once and leaves a mark (Storm burns, Frost freezes, Life shields), and then they start again from none. Only a merged shot leaves a mark. The core orb stays, and so do orbs still out when the skill ends.",
     },
   },
 };
@@ -112,14 +112,14 @@ const SKILLS = {
     lines: ["Heals each unit 4. Every Stag in the pack tends.", "Each time the pounce goes again, it heals again."],
     card: "In a pounce, every Stag heals every unit 4 HP. Each time the pounce goes again, it heals again." },
   frostOrb: { name: "Frost Orb", icon: "frostorb", head: "Adds an orb that shields the Frost Mage.", chips: ["Shield orb", "Whole squad"],
-    lines: ["Each hit adds a shield orb. Every orb, the core one too, gives the Frost Mage 8 shield every 2 seconds.", "A 4th orb merges the loose ones: the whole squad gets a shield, then they start again."],
-    card: "Adds an orb around the Frost Mage. Every 2 seconds each orb, the core one included, gives it 8 shield. A 4th loose orb merges them into one big shot that shields the whole squad at once, and then they start again." },
+    lines: ["Each hit adds a shield orb. Every orb, the core one too, gives the Frost Mage 8 shield every 2 seconds.", "A 4th orb merges the loose ones: the whole squad gets a shield and every enemy is frozen a moment, then they start again."],
+    card: "Adds an orb around the Frost Mage. Every 2 seconds each orb, the core one included, gives it 8 shield. A 4th loose orb merges them into one big shot that shields the whole squad and freezes every enemy for a moment, and then they start again." },
   stormOrb: { name: "Storm Orb", icon: "bolt", head: "Adds an orb that zaps an enemy.", chips: ["One random enemy", "Front enemy"],
-    lines: ["Each hit adds a storm orb. Every orb, the core one too, zaps one enemy for 8 every 2 seconds.", "A 4th orb merges the loose ones into a big zap on the front enemy, then they start again."],
-    card: "Adds an orb around the Storm Mage. Every 2 seconds each orb, the core one included, zaps one random enemy for 8; two orbs can pick the same one. A 4th loose orb merges them into one big shot that strikes the front enemy at once, and then they start again." },
+    lines: ["Each hit adds a storm orb. Every orb, the core one too, zaps one enemy for 8 every 2 seconds.", "A 4th orb merges the loose ones into a big zap that sets the front enemy burning, then they start again."],
+    card: "Adds an orb around the Storm Mage. Every 2 seconds each orb, the core one included, zaps one random enemy for 8; two orbs can pick the same one. A 4th loose orb merges them into one big shot that strikes the front enemy at once and sets it burning, and then they start again." },
   lifeOrb: { name: "Life Orb", icon: "lifeorb", head: "Adds an orb that drains the front enemy.", chips: ["Front enemy", "Most hurt unit"],
-    lines: ["Each hit adds a life orb. Every orb, the core one too, takes 5 HP from the front enemy every 2 seconds and heals the most hurt unit with it.", "A 4th orb merges the loose ones: one Great Drain, shared over the whole squad, then they start again."],
-    card: "Adds an orb around the Life Mage. Every 2 seconds each orb, the core one included, takes 5 HP from the front enemy and heals your most hurt unit with it. A 4th loose orb merges them into one Great Drain that takes 45 from the front enemy and shares it over the whole squad, and then they start again." },
+    lines: ["Each hit adds a life orb. Every orb, the core one too, takes 5 HP from the front enemy every 2 seconds and heals the most hurt unit with it.", "A 4th orb merges the loose ones: one Great Drain, shared over the whole squad; what a unit cannot take in becomes its shield. Then they start again."],
+    card: "Adds an orb around the Life Mage. Every 2 seconds each orb, the core one included, takes 5 HP from the front enemy and heals your most hurt unit with it. A 4th loose orb merges them into one Great Drain that takes 45 from the front enemy and shares it over the whole squad (what a unit cannot take in becomes its shield), and then they start again." },
 };
 
 // ---------- unique svg ids ----------
@@ -190,12 +190,13 @@ function look(key, size) {
       };
     }
     case "frost": case "storm": case "life": {
-      // a pointed hat behind the head with a star on it, a face on the disc (the same art as render/armyLook.ts)
+      // a pointed hat with a star on it, drawn on the disc over the head with the face on top (the same art as render/armyLook.ts)
       const star = { frost: "#d8f1ff", storm: "#ffe36a", life: "#c9ffd9" }[key];
+      const hat = `${VB}<polygon points="22,30 50,-46 78,30" fill="${dk}"/><ellipse cx="50" cy="26" rx="40" ry="9" fill="${dk}"/><path d="M50 -8 l3.4 8 8.6 .8 -6.6 5.8 2 8.4 -7.4 -4.6 -7.4 4.6 2 -8.4 -6.6 -5.8 8.6 -.8z" fill="${star}"/></svg>`;
       return {
-        under: `${VB}<polygon points="22,30 50,-46 78,30" fill="${dk}"/><ellipse cx="50" cy="26" rx="40" ry="9" fill="${dk}"/><path d="M50 -8 l3.4 8 8.6 .8 -6.6 5.8 2 8.4 -7.4 -4.6 -7.4 4.6 2 -8.4 -6.6 -5.8 8.6 -.8z" fill="${star}"/></svg>`,
+        under: "",
         bodyStyle: "",
-        inner: face(hex, size),
+        inner: hat + face(hex, size),
       };
     }
   }
@@ -676,11 +677,15 @@ function mageScene(C, { who, rule = false }) {
   if (who === "storm") {
     h += bolt(C, { x1: G.mp[0], y1: G.mp[1] - 6, x2: SH[1][0], y2: SH[1][1] + 14, color: GOLD, at: SHOT, w: 4, base: 1 });
     h += floater(C, { x: 214, y: 28, text: "−80", color: "#fff", at: SHOT + 0.8, size: 16, glow: GOLD, show: true });
+    // the merged shot's mark (2026-10-23): the front enemy is left burning
+    h += floater(C, { x: 118, y: 42, text: "♨+3", color: "#ffb36b", at: SHOT + 1.4, size: 12, glow: "#ff7a2f", show: true });
   } else {
     Object.values(allies).forEach(([ax, ay], j) => { h += ring(C, { cx: ax, cy: ay, r: j === 0 ? 30 : 22, color: G.color, at: SHOT + 0.3, dur: 9 }); });
     // Life's merge is the Great Drain: 45 taken from the front enemy (the Warden), shared as 15 on each of the three units
     const txt = who === "frost" ? [["⛊+45", 161, 104], ["⛊+29", 92, 140], ["⛊+37", 230, 140]] : [["+15", 161, 104], ["+15", 92, 140], ["+15", 230, 140]];
     txt.forEach(([text, x, y]) => { h += floater(C, { x, y, text, color: G.color, at: SHOT + 0.8, size: 11, glow: who === "frost" ? "#4da6ff" : "#1b8a55", show: true }); });
+    // the merged shot's mark (2026-10-23): Frost freezes every enemy for a moment
+    if (who === "frost") SH.forEach(([sx, sy]) => { h += floater(C, { x: sx, y: sy + 24, text: "❄", color: "#cfeaff", at: SHOT + 1.2, size: 12, glow: "#4da6ff", show: true }); });
     if (who === "life") {
       h += beam(C, { x1: G.mp[0], y1: G.mp[1] - 6, x2: SH[1][0], y2: SH[1][1] + 18, color: LIFEC, at: SHOT, w: 3, dur: 7 });
       h += floater(C, { x: 214, y: 28, text: "−45", color: "#fff", at: SHOT + 0.8, size: 16, glow: LIFEC, show: true });

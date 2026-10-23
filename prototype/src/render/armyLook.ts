@@ -135,13 +135,15 @@ export function armyLook(kind: UnitKind, tier: FaceTier, size: number): ArmyLook
     case "frostMage":
     case "stormMage":
     case "lifeMage": {
-      // A pointed hat behind the head with a star on it, a face on the disc (canvas 12.0D, design/tools/gen-army-fights.js look()).
+      // A pointed hat with a star on it, drawn on the disc over the head with the face on top of it (canvas 12.0D, design/tools/gen-army-fights.js
+      // look()). It is part of the face, not the art behind the disc: behind the disc the body would hide the brim and half the star.
       const star = { frostMage: "#d8f1ff", stormMage: "#ffe36a", lifeMage: "#c9ffd9" }[kind];
+      const hat = `${VB}<polygon points="22,30 50,-46 78,30" fill="${dk}"/><ellipse cx="50" cy="26" rx="40" ry="9" fill="${dk}"/><path d="M50 -8 l3.4 8 8.6 .8 -6.6 5.8 2 8.4 -7.4 -4.6 -7.4 4.6 2 -8.4 -6.6 -5.8 8.6 -.8z" fill="${star}"/></svg>`;
       return {
         bg: hex,
-        under: `${VB}<polygon points="22,30 50,-46 78,30" fill="${dk}"/><ellipse cx="50" cy="26" rx="40" ry="9" fill="${dk}"/><path d="M50 -8 l3.4 8 8.6 .8 -6.6 5.8 2 8.4 -7.4 -4.6 -7.4 4.6 2 -8.4 -6.6 -5.8 8.6 -.8z" fill="${star}"/></svg>`,
+        under: "",
         bodyStyle: "",
-        face: wrap(squadFace(hex, tier, size)),
+        face: wrap(hat + squadFace(hex, tier, size)),
       };
     }
   }
