@@ -2,7 +2,7 @@
 
 This project's design context lives in five files with **different rules**:
 
-- **[BETS.html](BETS.html)** — the bets, under four pillars (what the game must be great at) and one top test. It is an HTML page (open it in a browser) so each unverified bet can fold open to its test questions. The verified bets are the game's quality standard, grouped by pillar; the unverified ones are one list ordered first to last to verify, each tagged with its pillar. One line per bet, no explanation. Every verified bet carries a proof link to the DECISIONS entry that settled it. Carries a `Last updated` line.
+- **[BETS.html](BETS.html)** — the bets and tuning targets, under four pillars (what the game must be great at). It is an HTML page (open it in a browser) so each open line can fold open to its test questions. The verified list is the game's quality standard, grouped by pillar; below it, the bets (choices, in test order) and the tuning targets (goals, in work order, the top test last), each tagged with its pillar. One line each, no explanation. Every verified line carries a proof link to the DECISIONS entry that settled it. Carries a `Last updated` line.
 - **[STATE.md](STATE.md)** — what is true *right now*, and what to do next. Present tense. Rewritten wholesale, never appended to. Two layers: layer 1 (above the rule) is a 60-second re-orientation read; layer 2 is the working index of status, open questions, and pointers. Bets live in BETS.html, not here.
 - **[DECISIONS.md](DECISIONS.md)** — the append-only history of decisions and their rationale. Dated, newest at top. Never edited or deleted, only added to.
 - **[REFERENCE.md](REFERENCE.md)** — the near-static material: the game's mechanical shape, reference games, standing constraints. Edited only when it is actually wrong; **a sync never regenerates it**.
@@ -20,8 +20,8 @@ The `decision-log`, `state-sync`, `cheatsheet-update`, `canvas-update` and `brow
 
 1. **Read `STATE.md` first, always.** It is the current direction. Layer 1 alone is enough to orient; read layer 2 when the task needs it.
 2. **Read the verified list in `BETS.html` before proposing any design solution.** It is the quality
-   standard. Say which verified bet a proposal could break, or that it breaks none. The unverified
-   list is read when deciding what to work on next.
+   standard. Say which verified bet a proposal could break, or that it breaks none. The bets and
+   tuning lists are read when deciding what to work on next.
 3. **Read `REFERENCE.md` only when you need the game's mechanical shape** — it is stable, so re-reading it every session is wasted.
    Read `CHEATSHEET.md` when you need a card, relic, mark or ability number — it is current by rule.
 4. **Do not read `DECISIONS.md` top-to-bottom.** Only grep it to answer a "why did we decide X?" question.
@@ -58,7 +58,7 @@ Before writing any code for it:
    a UI feeling — it asks what he felt, not which look he wants.
 2. **Offer 2–3 possible causes**, each with the cheapest way to tell them apart — often a replay,
    an `export` file, a batch number or a throwaway probe, not a build.
-3. **Tie it to the bet:** say which pillar in `BETS.html` and which unverified bet (or open question in
+3. **Tie it to the bet:** say which pillar in `BETS.html` and which bet or tuning target (or open question in
    `STATE.md`) this serves, and which verified bet the fix could break. If it serves none, say so
    plainly — it may be widening the game, not deepening it.
 4. **Build only after he picks a cause**, and say up front how we'll know it worked (his replay, a
@@ -98,24 +98,36 @@ Cutting lines is fine; cramming words into a line is not — the plain-language 
 
 ## Keeping BETS.html current
 
-Update `BETS.html` in the same change as the DECISIONS entry that settles a bet, **without asking** —
-the decision itself was already logged.
+Update `BETS.html` in the same change as the DECISIONS entry that settles a bet or tuning target,
+**without asking** — the decision itself was already logged.
 
-- A bet is **verified** only by Tu's play, a played test, or a measurement, and every verified bet
-  carries a proof link to the DECISIONS entry. No entry, no verified bet.
-- A verified bet moves from the unverified list to the verified list, under its pillar, with its link.
-- A bet that fails is removed from the unverified list; if it taught a standard, that standard goes
-  into the verified list under its pillar as its own line, linking the entry.
-- A new bet names its pillar and goes into the unverified list, tagged. One that fits no pillar is
-  flagged to Tu as widening the game, not deepening it. **Where it ranks is Tu's call**; propose a
-  position, never reorder the list silently.
+- **Bet or tuning target:** a bet is a choice a good game could reasonably make the other way. A
+  tuning target is a goal every good game must hit. A number inside a tuning target can be a bet of
+  its own. A new line is sorted by this test, and the sort is proposed to Tu, never decided silently.
+- A line is **verified** only by Tu's play, a played test, or a measurement, and every verified line
+  carries a proof link to the DECISIONS entry. No entry, no verified line.
+- A bet or tuning target that passes moves to the verified list, under its pillar, with its link.
+- **A bet** is tuned only until its test is fair (the thing happens, it shows, nothing broken hides
+  it; check with numbers before Tu plays), then played once. It is dropped, and we go the other way,
+  when it fails a fair test, cannot reach one in 3 tries, or what it rests on goes away. A bug,
+  something Tu could not see, or "didn't come up" does not count. If a dropped bet taught a standard,
+  that standard goes into the verified list as its own line, linking the entry.
+- **A tuning target** is never dropped: it is tuned until its Pass line holds, with 3 played tries.
+  Out of tries, look again at the bets under it, and tell Tu.
+- **Order:** bets are ranked by what rides on them, how unsure we are and how cheap the test is.
+  Tuning takes its place from the bet it serves: tuning that makes a bet's test fair comes just
+  before it, tuning under an unverified bet waits, tuning that blocks every test jumps the queue.
+- A new line names its pillar and is tagged. One that fits no pillar is flagged to Tu as widening
+  the game, not deepening it. **Where it ranks is Tu's call**; propose a position, never reorder a
+  list silently.
 - A new pillar, or a change to one, is Tu's call and a decision (propose it, then log it).
-- One line per bet, no explanation. Bump the `Last updated` date on every change.
-- Every unverified bet is a `<li><details>` fold in `BETS.html`: the bet line is the `<summary>`, and
-  the questions sit inside. At most 3 yes/no or few-word questions, answered once after the run,
-  never during it, plus a Play line and a Pass line. Never a per-fight tally or a grid; the heavy
-  attribution test made playing tiring. A new bet gets its fold in the same change; a verified or
-  removed bet loses its fold. Copy an existing fold as the template.
+- One line each, no explanation. Bump the `Last updated` date on every change.
+- Every open bet and tuning target is a `<li><details>` fold in `BETS.html`: the line is the
+  `<summary>`, and the questions sit inside. At most 3 yes/no or few-word questions, answered once
+  after the run, never during it, plus a Play line and a Pass line. A bet adds a "Fair test when:"
+  line; a tuning target adds a "Tries:" line once tried. Never a per-fight tally or a grid; the heavy
+  attribution test made playing tiring. A new line gets its fold in the same change; a verified or
+  dropped line loses its fold. Copy an existing fold as the template.
 - The proof is an inline link whose text is the entry's date, like
   `<a class="proof" href="DECISIONS.md#<heading-anchor>">2026-08-06</a>`, at the end of the bet's
   line. Check the anchor matches a real heading (GitHub slug: lowercase, punctuation dropped,

@@ -16,6 +16,28 @@
 
 ---
 
+### [2026-10-28 #2] Sorted bets from tuning by what a "no" would cause; Tu reversed all four calls
+
+- **Said:** A line is a bet if a "no" would make us drop or redirect something. On that test I
+  called "comes back right after" and "run 20 shows something new" bets, and "a new player wins
+  about 1 in 4" and "a run fits a short sitting" tuning, since each is a number.
+- **Actually:** A "no" on a goal every good game must hit changes how we reach it, never the goal.
+  And a number can hide a stance a good game could take the other way: let new players lose, or
+  build for a long evening. Tu's test: a bet is a choice a good game could make the other way.
+- **Caught by:** Tu, who answered the opposite on all four and asked for my reasoning.
+- **Why:** I judged by the consequence of a fail, and read the number instead of the choice behind it.
+- **Tag:** judged a line by its consequence instead of by whether a good game could choose otherwise
+
+### [2026-10-28 #1] Sorted the whole unverified bets list after reading only 6 of its 11 lines
+
+- **Said:** I gave a bet-or-tuning table for "the current unverified list" and a work order from
+  it. Tu agreed to it.
+- **Actually:** BETS.html has 11 unverified lines; the tag-stripped dump I read was cut at 120
+  lines, so the table missed the last five, including four that needed sorting.
+- **Caught by:** Myself, when reading the full file to make the edit.
+- **Why:** I treated a truncated read as the whole file and did not count the folds.
+- **Tag:** claimed a whole list from a truncated read
+
 ### [2026-10-23 #3] Proposed moving the archive line at each pivot, but replaced entries are scattered through the log
 
 - **Said:** When Tu asked about DECISIONS.md length, I suggested putting a new archive line in place

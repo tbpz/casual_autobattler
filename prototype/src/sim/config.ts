@@ -634,19 +634,23 @@ export interface FightConfig {
   mageStormMergeBurn: number;
   mageFrostMergeFreezeSec: number;
   /** The Mage runes (sim/cards/defs/mage.ts; they act on the orbs, 2026-10-23, DECISIONS.md "Mage runes must act on the orbs, not the marks").
-   * Big merges: Vessel lifts a mage's loose-orb limit to `vesselOrbMax` and its merged shot by `vesselShotMult`; Static makes a Storm zap jump
-   * while its mage holds `staticMinOrbs` loose orbs or more. Many merges: Fuse drops the limit to `fuseOrbMax` and scales the shot by
-   * `fuseShotMult`. Core: Kernel makes the core orb work `kernelStep` more per beat it has
-   * already worked this fight, `kernelMax` beats at most, and a merge sets it back to none. Tempo makes every core orb work a second time on a
-   * beat, that second time at `tempoSecondBeat` of the usual amount (a full second beat finished 56% of Mage runs, twice the target). Wellspring turns `wellspringFraction` of the HP a
-   * Life orb drained but nobody could take in into shield, shared over the living units. Made-up first numbers. */
+   * They sit in three rival builds, each with setup runes and one payoff that releases at the merge (2026-10-28, DECISIONS.md "Mage bet 1
+   * failed in play"). Big merges: Vessel lifts a mage's loose-orb limit to `vesselOrbMax` and its merged shot by `vesselShotMult`; the payoff
+   * Static makes a Storm Mage's merged shot also strike every other enemy for `staticSharePerOrb` of the shot per orb it merged. Many
+   * merges: Fuse drops the limit to `fuseOrbMax` (the shot stays full size); the payoff Overload merges every other mage holding
+   * `overloadMinOrbs` loose orbs or more when one merges (every other mage must hold that many). Core: Tempo makes every core orb work a
+   * second time on a beat, that second time at `tempoSecondBeat` of the usual amount (a full second beat finished 56% of Mage runs, twice the
+   * target); the payoff Kernel stores one charge per core-orb beat, and once it holds `kernelMax` the next merged shot is `kernelShotMult` times
+   * bigger and spends them all (a merge before the store is full leaves it as it is). Wellspring
+   * turns `wellspringFraction` of the HP a Life orb drained but nobody could take in into shield, shared over the living units. Made-up first
+   * numbers. */
   vesselOrbMax: number;
   vesselShotMult: number;
   fuseOrbMax: number;
-  fuseShotMult: number;
-  kernelStep: number;
+  kernelShotMult: number;
   kernelMax: number;
-  staticMinOrbs: number;
+  staticSharePerOrb: number;
+  overloadMinOrbs: number;
   tempoSecondBeat: number;
   wellspringFraction: number;
 }
@@ -1244,15 +1248,16 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   mageStormMergeBurn: 3,
   mageFrostMergeFreezeSec: 1.5,
   vesselOrbMax: 4,
-  // Tuned 2026-10-23 with `npm run batch -- --n 400 --offers build --army mages` (the first take, 1.5 / 1 / 10 / 1 / a full second beat, finished
-  // 56% of runs; without Tempo the pool finished 26%): Tempo's second beat at 0.3, Kernel 0.5 a beat to 6 beats, Vessel 2x finish about 36%.
-  // Vessel still trails Fuse in the bot's numbers: a Vessel run gives up Fuse and the Overload duo.
-  vesselShotMult: 2,
+  // Tempo's second beat at 0.3 was tuned 2026-10-23 with `npm run batch -- --n 400 --offers build --army mages` (a full second beat finished 56%
+  // of runs). The payoff rework of 2026-10-28 was tuned with `--build big|many|core` (the bot cannot pick a build, so each is forced in turn):
+  // Vessel 2.5x, Static 0.3 and Kernel 10 beats at 4x finished 28 / 46 / 33% (big / many / core). The many build still runs ahead: Echo with
+  // Fuse is about nine points of it (without Echo it finished 36%), and a rival build has only two runes to its five. Left for Tu's play.
+  vesselShotMult: 2.5,
   fuseOrbMax: 2,
-  fuseShotMult: 0.6,
-  kernelStep: 0.5,
-  kernelMax: 6,
-  staticMinOrbs: 2,
+  kernelShotMult: 4,
+  kernelMax: 10,
+  staticSharePerOrb: 0.3,
+  overloadMinOrbs: 2,
   tempoSecondBeat: 0.3,
   wellspringFraction: 1,
 };

@@ -22,6 +22,51 @@
 
 ---
 
+## [2026-10-28] [workflow] Bets are choices a good game could make the other way; must-hit goals are tuning targets
+
+- **Decision:**
+  - A bet is a choice a good game could reasonably make the other way; if it fails, we go the other way.
+  - A tuning target is a goal every good game must hit; never dropped, tuned until its Pass line holds.
+  - A number inside a tuning target can be a bet of its own (the 20 in "run 20 shows something new").
+  - A bet is tuned only to a fair test (it happens, it shows, nothing broken hides it), then played once.
+  - A bet is dropped when it fails a fair test, misses one in 3 tries, or what it rests on goes away.
+  - A tuning target gets 3 played tries; then the bets under it are looked at again.
+  - Tuning takes its place in the work order from the bet it serves.
+  - Bets, in order: push or rest; army identity; a run fits a short sitting; a new player wins about 1 in 4.
+  - The top test becomes the last tuning target.
+  - Undead and Beasts runes wait until the army bet passes on the Mages.
+  - Not settled: the new questions for the two new bets.
+- **Why:**
+  - Tu on Mage synergy: "obviously the thing to do… tuning it until it is good enough."
+  - Tu: coming back, and something new to come back for, are musts for any good game.
+  - Tu: letting new players win, and short sittings over a long evening, are stances a good game could reverse.
+  - The 2026-10-28 Mage run was not a fair test: most runes did not show.
+  - Building is cheap; Tu's play is the scarce step.
+- **Replaces:**
+  - The `CLAUDE.md` rule "a bet that fails is removed", which did not say when to fix or drop.
+  - "BETS unverified #1 stays first" in the entry below; that run is Mage synergy's try 1 of 3.
+  - The top test's own section in `BETS.html`.
+
+## [2026-10-28] [game] Mage bet 1 failed in play: Mage runes need a payoff and a build to choose
+
+- **Decision:**
+  - Each Mage build gets a payoff rune that stores up and releases at the merge; Static, Kernel and the Overload duo are reworked to be those.
+  - Fuse stops shrinking the merged shot.
+  - A Mage build is a fork: the first build rune taken shuts out the rival builds' runes, and the army offer slot then shows only that build.
+  - The look of each rune (cascade, Kernel's charge, Static's spread, the setup runes) is drawn as options on the canvas and picked by Tu before it is built.
+  - BETS unverified #1 stays first and is re-tested after the fix.
+  - Not settled: every number, the rarity of a payoff, and the looks (`sim/config.ts`, the batch, the canvas).
+- **Why:**
+  - Tu's run 992444560 (15 rounds, all won): the runes combined, but no big moment, and the build was not his.
+  - A Mage rune was taken on every win from round 1 to 7; he held 6 of the 7 Mage runes, so the three rival builds never competed.
+  - Every Mage rune changed a rate (more orbs, faster merges, an extra beat); none released stored power the way Smite or Quench do in plain runs.
+  - Run log: best 2 s of damage was about 2 to 3 times the fight's average in 12 of 15 fights.
+  - Fuse cut the merged shot, a mage's only spike, to 0.6x.
+  - Tu named the causes: rate with no payoff, effects he cannot see (only Echo and Fuse showed), and a collectable pool.
+- **Replaces:**
+  - The "pull toward two or three rival builds" line of the 2026-10-23 entry "Mage runes must act on the orbs", which let one squad hold every build; its other lines stand.
+  - Not covered: nothing is built, so no run has shown the moment returns.
+
 ## [2026-10-23] [workflow] The bets and their test questions are one HTML page, BETS.html, replacing the two markdown files
 
 - **Decision:**

@@ -1,5 +1,5 @@
 # Cheatsheet
-Last updated: 2026-10-23 17:40 (values from prototype/src/sim/config.ts). All marks last one fight.
+Last updated: 2026-10-28 21:57 (values from prototype/src/sim/config.ts). All marks last one fight.
 
 Effects:
 - Exposed: each stack makes the body take +12% damage from every hit, max 10 stacks.
@@ -50,13 +50,13 @@ Runes — later picks:
 + Vigil: a unit dropping below 30% HP gains 50% of a charge bar, once per fight.
 + Mantle: Tank's chain leaves +1 mark stack per 90 Tank max HP.
 + Thirst: when an enemy dies, your most worn unit gains 40% of a charge bar.
-- Mages (Mages run only; drawn 1.5x as often there, and one of the 3 offers after a win is always a Mage rune; an orb "beat" is one orb working). They act on the orbs, in three builds:
-+ Vessel (big merges; shuts out Fuse): a mage holds 4 loose orbs before they merge, and the merged shot is 2x.
-+ Static (big merges; waits for a Storm Mage skill): while a Storm Mage holds 2 loose orbs or more, each of its zaps jumps to a second random enemy for the same damage (not a Damage unit's hit).
-+ Fuse (many merges; shuts out Vessel): a mage's loose orbs merge after 2, and the merged shot is 0.6x.
+- Mages (Mages run only; drawn 1.5x as often there, and one of the 3 offers after a win is always a Mage rune; an orb "beat" is one orb working). They act on the orbs, in three builds. The first Mage rune held fixes the build: runes of the other two builds are never offered after it, and until one is held an army offer shows one rune from each build. Each build has setup runes and one payoff that releases at the merge:
++ Vessel (big merges): a mage holds 4 loose orbs before they merge, and the merged shot is 2.5x.
++ Static (big merges, payoff; waits for a Storm Mage skill): when a Storm Mage's orbs merge, the shot also strikes every other enemy for 30% of the shot per orb that merged (3 orbs: 72 each).
++ Fuse (many merges): a mage's loose orbs merge after 2; the shot stays full size.
 + Echo (many merges): when a Mage's orbs merge, one loose orb stays behind.
 + Leech (many merges; waits for a Life Mage skill): when another Mage's orbs merge, the Life Mage gains a loose orb.
-+ Kernel (core orb): a mage's core orb works +0.5 more per beat it has already worked this fight, 6 beats at most (+3); its orbs merging sets it back to none.
++ Kernel (core orb, payoff): a mage's core orb stores 1 charge per beat, 10 at most; once full, its next merged shot is 4x and spends all 10 (a merge before that leaves the charges as they are).
 + Tempo (core orb; waits for a Frost Mage skill): every core orb works a second time on each beat, at 0.3x; loose orbs still work once.
 - Duos (offered once both parts are held):
 + Bastion (Rampart + Ward): when Guard blocks a slam, every unit gets 25 more shield and the slammer takes 10% of the Tank's max HP.
@@ -65,8 +65,8 @@ Runes — later picks:
 + Cinder (Thorn + any burn): when a shield absorbs a hit, the attacker gets 2 burn.
 + Shard (Cleft + Fissure): when an exposed enemy's freeze ends, its exposed doubles.
 + Phoenix (Vigil + Mend): the first unit to fall each fight stands up at 30% HP with 20 shield.
-+ Overload (Echo + Fuse; Mages only): when a Mage's orbs merge, every other Mage's loose orbs each beat once at once (the orbs stay).
-+ Wellspring (Leech + Brim; Mages only): when a Life orb takes HP nobody can take in, that HP becomes shield, shared over the living units.
++ Overload (Echo + Fuse; Mages only; many merges, payoff): when a Mage's orbs merge while every other living Mage holds 2 loose orbs or more, they all merge at once, each shot full size.
++ Wellspring (Leech + Brim; Mages only; many merges): when a Life orb takes HP nobody can take in, that HP becomes shield, shared over the living units.
 - Role abilities (numbers per chain hit; a chain runs up to 7 hits, later hits up to 2.8x; each chain level adds +1 mark stack per hit):
 + Tank — Guard (base): takes the next slam for the squad, 1 per hit; the slammer gets exposed.
 + Tank — Freeze: freezes the front enemy 0.75s per hit, cancels its slam.

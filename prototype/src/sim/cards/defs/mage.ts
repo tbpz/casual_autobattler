@@ -3,19 +3,23 @@ import type { CardDef } from "../types.js";
 
 /**
  * The Mage army's own runes (2026-10-23, DECISIONS.md "Mage runs get marks from merged shots only, four Mage runes and two duos", reworked
- * the same day in "Mage runes must act on the orbs, not the marks"). Each is offered only in a Mages run (`army: "mages"`) and acts on the
- * orbs themselves, so it stops making sense when "orb" is swapped for "hit". They pull toward three rival builds:
- *   Big merges  (hold more, hit harder): Vessel, Static.
- *   Many merges (merge early and often): Fuse, Echo, Leech, and the duo Overload.
- *   Core orb    (the orb that never leaves): Kernel, Tempo.
- * Vessel and Fuse change the loose-orb limit through the `orbCap` hook and shut each other out of the offers (`excludedBy`). Every number is a
- * first take in config.ts for the batch to tune.
+ * the same day in "Mage runes must act on the orbs, not the marks", and again on 2026-10-28 in "Mage bet 1 failed in play"). Each is offered
+ * only in a Mages run (`army: "mages"`) and acts on the orbs themselves, so it stops making sense when "orb" is swapped for "hit". They sit
+ * in three rival builds (`build`): the first rune held from one build shuts out the others (sim/offers.ts), so a build is a choice. Each build
+ * has setup runes that speed it up and a payoff rune that stores power and releases it at the merge:
+ *   Big merges  (hold more, hit harder): Vessel; payoff Static.
+ *   Many merges (merge early and often): Fuse, Echo, Leech, Wellspring; payoff the duo Overload.
+ *   Core orb    (the orb that never leaves): Tempo; payoff Kernel.
+ * Vessel and Fuse change the loose-orb limit through the `orbCap` hook; the payoffs read `orbShot` and `orbsMerged`. Every number is a first
+ * take in config.ts for the batch to tune.
  */
 
-/** The counter key under which Kernel counts one mage's core-orb beats this fight. */
+/** The counter key under which Kernel counts one mage's core-orb beats since its last merged shot. */
 const kernelKey = (mage: HeroState): string => `kernel:${mage.id}`;
 /** Tempo's own extra core beat raises orbBeat again; this counter is non-zero while it runs so that beat does not double again. */
 const TEMPO_BUSY = "tempo:busy";
+/** Overload merges the other mages inside its own orbsMerged hook; this counter is non-zero while it runs so that sweep does not start another. */
+const OVERLOAD_BUSY = "overload:busy";
 
 export const VESSEL: CardDef = {
   id: "vessel",
@@ -24,7 +28,7 @@ export const VESSEL: CardDef = {
   icon: "⬡",
   kind: "general",
   army: "mages",
-  excludedBy: ["fuse"],
+  build: "big",
   passive: true,
   reads: [],
   makes: [],
@@ -42,11 +46,11 @@ export const VESSEL: CardDef = {
 export const FUSE: CardDef = {
   id: "fuse",
   title: "Fuse",
-  detail: "A mage's loose orbs merge after two, and the merged shot is smaller.",
+  detail: "A mage's loose orbs merge after two.",
   icon: "⬢",
   kind: "general",
   army: "mages",
-  excludedBy: ["vessel"],
+  build: "many",
   passive: true,
   reads: [],
   makes: [],
@@ -55,7 +59,6 @@ export const FUSE: CardDef = {
       on: "orbCap",
       do: (e, api) => {
         e.cap = Math.min(e.cap, api.cfg.fuseOrbMax);
-        e.shotMult *= api.cfg.fuseShotMult;
       },
     },
   ],
@@ -64,33 +67,29 @@ export const FUSE: CardDef = {
 export const KERNEL: CardDef = {
   id: "kernel",
   title: "Kernel",
-  detail: "A mage's core orb works harder on every beat it has worked, until its orbs merge.",
+  detail: "A mage's core orb stores a charge on every beat; once full, the next merged shot is far bigger and spends it.",
   icon: "◉",
   kind: "general",
   army: "mages",
+  build: "core",
   reads: [],
   makes: [],
   hooks: [
     {
-      on: "beforeOrbBeat",
-      when: (e, api) => !e.loose && api.counter(kernelKey(e.mage)) > 0,
-      do: (e, api) => {
-        const beats = Math.min(api.counter(kernelKey(e.mage)), api.cfg.kernelMax);
-        e.amount += beats * api.cfg.kernelStep;
-        api.fire("kernel", "player", e.mage.id, Math.round(beats * api.cfg.kernelStep));
-      },
-    },
-    {
       on: "orbBeat",
-      when: (e) => !e.loose,
+      when: (e, api) => !e.loose && api.counter(kernelKey(e.mage)) < api.cfg.kernelMax,
       do: (e, api) => {
         api.bump(kernelKey(e.mage));
       },
     },
     {
-      on: "orbsMerged",
+      // Only a full store is spent: a merge before that leaves the charge where it is, so the big shot is a moment that was built up to.
+      on: "orbShot",
+      when: (e, api) => api.counter(kernelKey(e.mage)) >= api.cfg.kernelMax,
       do: (e, api) => {
+        e.shotMult *= api.cfg.kernelShotMult;
         api.bump(kernelKey(e.mage), -api.counter(kernelKey(e.mage)));
+        api.fire("kernel", "player", e.mage.id, api.cfg.kernelMax);
       },
     },
   ],
@@ -103,6 +102,7 @@ export const ECHO: CardDef = {
   icon: "❍",
   kind: "general",
   army: "mages",
+  build: "many",
   reads: [],
   makes: [],
   hooks: [
@@ -118,24 +118,25 @@ export const ECHO: CardDef = {
 export const STATIC: CardDef = {
   id: "static",
   title: "Static",
-  detail: "While a Storm Mage holds two loose orbs or more, each of its zaps jumps to a second enemy.",
+  detail: "When a Storm Mage's orbs merge, the shot also strikes every other enemy, harder for each orb it held.",
   icon: "ϟ",
   kind: "general",
   army: "mages",
+  build: "big",
   needsEffects: ["stormOrb"],
   reads: [],
   makes: [],
   hooks: [
     {
-      on: "orbBeat",
-      when: (e, api) => e.orbKind === "storm" && e.target !== undefined && e.applied > 0 && (e.mage.orbs ?? 0) >= api.cfg.staticMinOrbs,
+      on: "orbsMerged",
+      when: (e) => e.orbKind === "storm" && e.target !== undefined,
       do: (e, api) => {
-        const others = api.enemy.heroes.filter((h) => h.alive && h.hp > 0 && h !== e.target);
-        if (others.length === 0) return;
-        const next = others[Math.floor(api.random() * others.length)]!;
-        // Plain damage through the pipeline, not a Damage unit's hit: only the first zap feeds Tinder and Weak spot.
-        const dealt = api.damage(api.enemy, next.id, e.applied);
-        api.fire("static", "enemy", next.id, Math.round(dealt));
+        const each = e.shot * api.cfg.staticSharePerOrb * e.orbs;
+        for (const foe of api.enemy.heroes) {
+          if (!foe.alive || foe.hp <= 0 || foe === e.target) continue;
+          const dealt = api.damage(api.enemy, foe.id, each);
+          api.fire("static", "enemy", foe.id, Math.round(dealt));
+        }
       },
     },
   ],
@@ -148,6 +149,7 @@ export const LEECH: CardDef = {
   icon: "☍",
   kind: "general",
   army: "mages",
+  build: "many",
   needsEffects: ["lifeOrb"],
   reads: [],
   makes: [],
@@ -171,6 +173,7 @@ export const TEMPO: CardDef = {
   icon: "◷",
   kind: "general",
   army: "mages",
+  build: "core",
   needsEffects: ["frostOrb"],
   reads: [],
   makes: [],
@@ -201,25 +204,34 @@ export const TEMPO: CardDef = {
 export const OVERLOAD: CardDef = {
   id: "overload",
   title: "Overload",
-  detail: "When a Mage's orbs merge, every other Mage's loose orbs beat once at once.",
+  detail: "When a Mage's orbs merge while every other Mage holds two loose orbs or more, they all merge at once.",
   icon: "❂",
   kind: "duo",
   army: "mages",
+  build: "many",
   reads: [],
   makes: [],
   needs: { cards: ["echo", "fuse"] },
   hooks: [
     {
+      // Every other living mage must be ready, so the cascade is the squad lining up, not one stray mage with orbs to spare.
       on: "orbsMerged",
+      when: (e, api) => {
+        if (api.counter(OVERLOAD_BUSY) > 0) return false;
+        const others = api.player.heroes.filter((m) => m !== e.mage && m.army === "mages" && m.alive && m.hp > 0);
+        return others.length > 0 && others.every((m) => (m.orbs ?? 0) >= api.cfg.overloadMinOrbs);
+      },
       do: (e, api) => {
-        for (const mage of api.player.heroes) {
-          if (mage === e.mage || mage.army !== "mages" || !mage.alive || mage.hp <= 0) continue;
-          const loose = mage.orbs ?? 0;
-          if (loose === 0) continue;
-          // The orbs stay: each works once more, now, and the next shared beat finds them still out.
-          for (let i = 0; i < loose; i++) if (!api.beatOrb(mage, i)) break;
-          api.fire("overload", "player", mage.id, loose);
+        api.bump(OVERLOAD_BUSY);
+        let merged = 0;
+        try {
+          for (const mage of api.player.heroes.filter((m) => m !== e.mage && m.army === "mages" && m.alive && m.hp > 0)) {
+            if (api.mergeOrbs(mage)) merged++;
+          }
+        } finally {
+          api.bump(OVERLOAD_BUSY, -1);
         }
+        if (merged > 0) api.fire("overload", "player", e.mage.id, merged);
       },
     },
   ],
@@ -232,6 +244,7 @@ export const WELLSPRING: CardDef = {
   icon: "❖",
   kind: "duo",
   army: "mages",
+  build: "many",
   reads: ["shield"],
   makes: [],
   needs: { cards: ["leech", "overflow"] },

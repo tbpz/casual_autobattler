@@ -254,7 +254,6 @@ function orbCapOf(c: FightCtx, mage: HeroState): { cap: number; shotMult: number
  * adds a loose orb, or (finding them full) merges them into one great shot that fires and leaves no orb behind. A shot with nobody to hit
  * or help returns null and leaves the orbs as they were. */
 function mageOrbHit(c: FightCtx, effect: ChainEffect, hero: HeroState, backfire: boolean, boost: number): ChainHitEntry[] | null {
-  const cfg = c.cfg;
   const orbs = hero.orbs ?? 0;
   const orbEntry: ChainHitEntry = { kind: "orb", targetId: hero.id, amount: 0, intended: 0, died: [] };
   if (backfire) {
@@ -263,20 +262,35 @@ function mageOrbHit(c: FightCtx, effect: ChainEffect, hero: HeroState, backfire:
     c.events.push({ type: "orbPop", t: c.t, heroId: hero.id, orbs: hero.orbs });
     return [orbEntry];
   }
-  const { cap, shotMult } = orbCapOf(c, hero);
+  const { cap } = orbCapOf(c, hero);
   if (orbs < cap) {
     hero.orbs = orbs + 1;
     c.events.push({ type: "orbAdd", t: c.t, heroId: hero.id, orbs: hero.orbs });
     return [orbEntry];
   }
-  // The shot goes through escalatedMagnitude at hit 1, so fatigue and the size runes apply; Vessel and Fuse scale it by shotMult.
-  const raw = Math.round(escalatedMagnitude(cfg, mageStrikeBase(cfg, effect), 1, boost) * shotMult);
+  return mageShot(c, effect, hero, boost);
+}
+
+/** The great shot of `hero`'s loose orbs: they merge into one shot that fires and leaves no orb behind. Called when a hit finds the orbs
+ * full (mageOrbHit) or when a rune merges them early (CardApi.mergeOrbs). A shot with nobody to hit or help returns null and leaves the
+ * orbs as they were. */
+function mageShot(c: FightCtx, effect: ChainEffect, hero: HeroState, boost: number): ChainHitEntry[] | null {
+  const cfg = c.cfg;
+  const orbs = hero.orbs ?? 0;
+  const orbKind: "storm" | "frost" | "life" = effect === "stormOrb" ? "storm" : effect === "frostOrb" ? "frost" : "life";
+  // The shot goes through escalatedMagnitude at hit 1, so fatigue and the size runes apply; Vessel's shotMult is the start of the orbShot
+  // payload, and a rune that stored power up (Kernel) spends it there. fire() runs once the shot is sure to land, so a shot with nobody
+  // to hit spends nothing.
+  let raw = 0;
   const fire = (): void => {
+    const shot = { mage: hero, orbKind, orbs, shotMult: orbCapOf(c, hero).shotMult };
+    runHook(c, "orbShot", shot);
+    raw = Math.round(escalatedMagnitude(cfg, mageStrikeBase(cfg, effect), 1, boost) * shot.shotMult);
     hero.orbs = 0;
     c.events.push({ type: "orbMerge", t: c.t, heroId: hero.id, orbs });
     c.events.push({ type: "orbStrike", t: c.t, heroId: hero.id });
   };
-  const merged = (orbKind: "storm" | "frost" | "life"): void => runHook(c, "orbsMerged", { mage: hero, orbKind });
+  const merged = (target?: HeroState): void => runHook(c, "orbsMerged", { mage: hero, orbKind, orbs, shot: raw, ...(target ? { target } : {}) });
   if (effect === "stormOrb") {
     const target = aliveOnSide(c.enemy, frontMostAliveId(c.enemy));
     if (!target) return null;
@@ -291,7 +305,7 @@ function mageOrbHit(c: FightCtx, effect: ChainEffect, hero: HeroState, backfire:
       entry.mark = "burn";
       entry.markStacks = cfg.mageStormMergeBurn;
     }
-    merged("storm");
+    merged(target);
     return [entry];
   }
   const allies = c.player.heroes.filter((h) => h.alive && h.hp > 0 && !h.skeleton);
@@ -310,7 +324,7 @@ function mageOrbHit(c: FightCtx, effect: ChainEffect, hero: HeroState, backfire:
         entries.push({ kind: "stun", targetId: foe.id, amount: 0, intended: 0, died: [], durationSec: sec, durationTotalSec: Math.max(0, (foe.stunnedUntilT ?? c.t) - c.t) });
       }
     }
-    merged("frost");
+    merged();
     return entries;
   }
   // Life's Great Drain: `raw` HP taken from the front enemy, and what landed is shared out over the living units, each capped by its room.
@@ -329,7 +343,7 @@ function mageOrbHit(c: FightCtx, effect: ChainEffect, hero: HeroState, backfire:
     const shield = share - amount > 0 ? addShield(c, ally, share - amount) : 0;
     entries.push({ kind: "heal", targetId: ally.id, amount, intended: share, died: [], ...(shield > 0 ? { mark: "shield" as const, markStacks: shield } : {}) });
   }
-  merged("life");
+  merged(foe);
   return entries;
 }
 
@@ -449,6 +463,16 @@ function makeCardApi(c: () => FightCtx): CardApi {
       if (mage.army !== "mages" || !mage.alive || orbs >= orbCapOf(cx, mage).cap) return false;
       mage.orbs = orbs + 1;
       cx.events.push({ type: "orbAdd", t: cx.t, heroId: mage.id, orbs: mage.orbs });
+      return true;
+    },
+    mergeOrbs: (mage) => {
+      const cx = c();
+      if (mage.army !== "mages" || !mage.alive || mage.hp <= 0 || (mage.orbs ?? 0) === 0) return false;
+      // A mage merges in its own colour: a Storm Mage that borrowed the frost orb still has storm orbs round it (beatOrb reads the kind too).
+      const effect: ChainEffect = mage.kind === "stormMage" ? "stormOrb" : mage.kind === "frostMage" ? "frostOrb" : "lifeOrb";
+      const entries = mageShot(cx, effect, mage, 1);
+      if (!entries) return false;
+      for (const entry of entries) for (const id of entry.died) cx.events.push({ type: "heroDown", t: cx.t, side: "enemy", heroId: id });
       return true;
     },
     beatOrb: (mage, index) => {

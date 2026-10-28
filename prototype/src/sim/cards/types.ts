@@ -15,6 +15,9 @@ import type { ArmyKind, HeroState, SideState } from "../types.js";
  * through CardApi, and whatever that raises runs cards too — that is the
  * cascade. The engine caps its depth (FightConfig.cascadeMaxDepth).
  */
+/** The rival builds of an army's runes: the Mages' big merges, many merges and core orb (2026-10-28, DECISIONS.md "Mage bet 1 failed in play"). */
+export type ArmyBuild = "big" | "many" | "core";
+
 export type CardId =
   // Mark cards that read one or two marks.
   | "execute"
@@ -134,8 +137,12 @@ export interface HookPayloads {
   orbGap: { sec: number /* mutable */ };
   /** Whenever `mage`'s loose-orb limit is read: `cap` is how many it holds before the next hit merges them, `shotMult` scales the merged shot. */
   orbCap: { mage: HeroState; cap: number /* mutable */; shotMult: number /* mutable */ };
-  /** A mage's loose orbs just merged and the great shot fired; the orbs are gone. */
-  orbsMerged: { mage: HeroState; orbKind: "storm" | "frost" | "life" };
+  /** A mage's loose orbs are about to merge into the great shot: `orbs` is how many merge, `shotMult` scales the shot (raised once per shot,
+   * so a rune that stores power up spends it here). */
+  orbShot: { mage: HeroState; orbKind: "storm" | "frost" | "life"; orbs: number; shotMult: number /* mutable */ };
+  /** A mage's loose orbs just merged and the great shot fired; the orbs are gone. `orbs` is how many merged, `shot` the size the shot was
+   * sized at, `target` who a Storm or Life shot hit (the front enemy). */
+  orbsMerged: { mage: HeroState; orbKind: "storm" | "frost" | "life"; orbs: number; shot: number; target?: HeroState };
 }
 
 export type HookName = keyof HookPayloads;
@@ -165,7 +172,11 @@ export interface CardApi {
   /** A number in [0, 1) from the fight's random stream (a rune that picks a target at random). */
   random(): number;
   /** Mages army: puts one loose orb round `mage` (its orb limit at most). Returns whether one was added. */
-  addOrb(mage: HeroState): boolean;  /** Mages army: one of `mage`'s loose orbs (index 0 up) works once now, outside the beat; the orb stays. Returns false when the fight was
+  addOrb(mage: HeroState): boolean;
+  /** Mages army: `mage`'s loose orbs merge into the great shot now, outside any chain (its own orbShot and orbsMerged hooks run, so the
+   * other Mage runes see it like any merge). Returns false when there was nothing to merge or nobody to hit or help. */
+  mergeOrbs(mage: HeroState): boolean;
+  /** Mages army: one of `mage`'s loose orbs (index 0 up) works once now, outside the beat; the orb stays. Returns false when the fight was
    * won by it (no enemy left). */
   beatOrb(mage: HeroState, index: number): boolean;
   /** Per-fight counters, for cards that build up (Momentum, Inferno). */
@@ -218,8 +229,9 @@ export interface CardDef {
   needs?: CardNeeds;
   /** A card that belongs to one army: offered only in that army's run, and drawn at `armyCardBoost` there (sim/offers.ts). */
   army?: ArmyKind;
-  /** Rival runes: this card is not offered while any of these is held (Vessel and Fuse pull opposite ways). */
-  excludedBy?: CardId[];
+  /** The build this rune belongs to, for an army with rival builds (the Mages: big merges, many merges, core orb). The first rune held
+   * from one build shuts out the runes of the others, so a build is a choice, not a collection (sim/offers.ts). */
+  build?: ArmyBuild;
   /** True for a card that works as a standing rule and raises no cardTriggered
    * of its own (Aegis), so the batch's fire-rate line leaves it out. */
   passive?: true;

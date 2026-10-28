@@ -19,6 +19,8 @@ npm run batch -- --n 300 --offers greedy --set chargeThreshold=45,enemyHpScale=1
                                     # invocation only (a tuning sweep without editing config.ts)
 npm run batch -- --n 1000 --offers build --army undead
                                     # the same as an army run: --army undead|beasts|mages|none (none, or no flag, is the plain squad)
+npm run batch -- --n 400 --offers build --army mages --build many
+                                    # --build big|many|core: a Mages run that only sees that build's Mage runes; the bot cannot pick a build, so measure each in turn
 npm run build                      # tsc + vite production build
 ```
 

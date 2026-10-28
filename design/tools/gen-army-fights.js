@@ -409,6 +409,12 @@ function steppedCharge(C, { cx, y, w = 40, start, list, still }) {
   return abs(`left:${cx - w / 2}px;top:${y}px;width:${w}px;height:3px;border-radius:2px;background:#2a2e3a;overflow:hidden;`,
     `<div style="height:100%;${st(still)};${C.kf(pts.map(([p, v]) => [p, st(v)]))}"></div>`);
 }
+// The toolkit for design/tools/gen-mage-payoff-options.js (2026-10-28): when this file is required, it hands over the helpers and stops here
+// instead of writing the four frames.
+if (require.main !== module) {
+  module.exports = { makeCtx, abs, win, from, frontLine, outriders, vanguard, ally, bubble, beam, floater, ring, chip, coreOrb, orbRing, orbAt, mergedOrb, bolt, steppedCharge, rowLabels, UNIT_HEX, YEL, RED, shade };
+  return;
+}
 function sceneD(C) {
   let h = frontLine() + outriders(C);
   const GOLD = "#ffe36a", FROST = "#8fd3ff", LIFE = "#6ee7a0";

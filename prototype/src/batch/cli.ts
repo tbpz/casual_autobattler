@@ -1,7 +1,7 @@
 import { Rng } from "../sim/rng.js";
 import { DEFAULT_RUN_CONFIG, type RunConfig } from "../sim/config.js";
 import { runFight } from "../sim/fight.js";
-import { CARD_IDS, type CardId } from "../sim/cards/index.js";
+import { CARD_DEFS, CARD_IDS, type CardId } from "../sim/cards/index.js";
 import { makeInitialProgress } from "../sim/progress.js";
 import { makeStartingRoster, PLAYER_ROLES, type PlayerRole } from "../sim/roles.js";
 import type { FightEvent, FightResult } from "../sim/events.js";
@@ -157,7 +157,16 @@ function applyCardPool(base: RunConfig, spec: string | undefined): RunConfig {
   return { ...base, cardPool: ids as CardId[] };
 }
 
-const cfg: RunConfig = applyCardPool(applyOverrides(DEFAULT_RUN_CONFIG, args.set), args.cards);
+/** `--build big|many|core`: a Mages run that only ever sees that build's Mage runes (the other builds' runes leave the offer pool), so the
+ * bot's first-listed pick cannot decide the build for every run — to measure one build against another (2026-10-28, the build fork). */
+function applyBuild(base: RunConfig, spec: string | undefined): RunConfig {
+  if (!spec) return base;
+  if (spec !== "big" && spec !== "many" && spec !== "core") throw new Error(`--build: "${spec}" is not big, many or core`);
+  const ids = (base.cardPool ?? CARD_IDS).filter((id) => CARD_DEFS[id].build === undefined || CARD_DEFS[id].build === spec);
+  return { ...base, cardPool: ids };
+}
+
+const cfg: RunConfig = applyBuild(applyCardPool(applyOverrides(DEFAULT_RUN_CONFIG, args.set), args.cards), args.build);
 
 switch (cmd) {
   case "fight": {

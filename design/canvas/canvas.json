@@ -71,7 +71,20 @@
     { "file": "FightArmyPlain.dc.html", "x": 0, "y": 16300, "w": 390, "h": 600 },
     { "file": "FightArmyUndead.dc.html", "x": 550, "y": 16300, "w": 390, "h": 600 },
     { "file": "FightArmyBeasts.dc.html", "x": 1100, "y": 16300, "w": 390, "h": 600 },
-    { "file": "FightArmyMages.dc.html", "x": 1650, "y": 16300, "w": 390, "h": 600 }
+    { "file": "FightArmyMages.dc.html", "x": 1650, "y": 16300, "w": 390, "h": 600 },
+
+
+
+    { "file": "FightMageCascadeA.dc.html", "x": 0, "y": 17000, "w": 390, "h": 600 },
+    { "file": "FightMageCascadeB.dc.html", "x": 550, "y": 17000, "w": 390, "h": 600 },
+    { "file": "FightMageCascadeC.dc.html", "x": 1100, "y": 17000, "w": 390, "h": 600 },
+    { "file": "FightMageKernelA.dc.html", "x": 1650, "y": 17000, "w": 390, "h": 600 },
+    { "file": "FightMageKernelB.dc.html", "x": 2200, "y": 17000, "w": 390, "h": 600 },
+    { "file": "FightMageKernelC.dc.html", "x": 2750, "y": 17000, "w": 390, "h": 600 },
+    { "file": "FightMageStaticA.dc.html", "x": 3300, "y": 17000, "w": 390, "h": 600 },
+    { "file": "FightMageStaticB.dc.html", "x": 3850, "y": 17000, "w": 390, "h": 600 },
+    { "file": "FightMageSetupA.dc.html", "x": 4400, "y": 17000, "w": 390, "h": 600 },
+    { "file": "FightMageSetupB.dc.html", "x": 4950, "y": 17000, "w": 390, "h": 600 }
   ],
   "annotations": [
     { "id": "section-round", "x": 0, "y": -140, "w": 3060, "text": "1 · ROUND SCREEN — before every fight: who fights whom, the bench shelf, the busiest enemy lineups, and a fallen unit" },
@@ -150,7 +163,18 @@
     { "id": "label-fightarmy-0", "x": 0, "y": 16240, "w": 390, "text": "12.0A Today: a line from one unit to one enemy (today, kept for comparison)" },
     { "id": "label-fightarmy-1", "x": 550, "y": 16240, "w": 390, "text": "12.0B Undead: a skeleton wall that upgrades (picked 2026-10-21, to build)" },
     { "id": "label-fightarmy-2", "x": 1100, "y": 16240, "w": 390, "text": "12.0C Beasts: one pack bar, one big pounce (picked 2026-10-21, to build)" },
-    { "id": "label-fightarmy-3", "x": 1650, "y": 16240, "w": 390, "text": "12.0D Mages: a core orb on every mage, the Life Mage drains (built 2026-10-21, reworked 2026-10-23)" }
+    { "id": "label-fightarmy-3", "x": 1650, "y": 16240, "w": 390, "text": "12.0D Mages: a core orb on every mage, the Life Mage drains (built 2026-10-21, reworked 2026-10-23)" },
+    { "id": "section-magepay", "x": 0, "y": 16860, "w": 5340, "text": "12.1 to 12.4 · HOW THE MAGE PAYOFF RUNES LOOK — options, awaiting Tu's pick: 12.1 the Overload cascade, 12.2 Kernel's charge, 12.3 Static's spread, 12.4 the setup runes. Watch each one loop; pick one per set, or a mix" },
+    { "id": "label-magepay-0", "x": 0, "y": 16940, "w": 390, "text": "12.1A THE CASCADE (OVERLOAD) — A · One beat: three shots at once (option, awaiting Tu's pick)" },
+    { "id": "label-magepay-1", "x": 550, "y": 16940, "w": 390, "text": "12.1B THE CASCADE (OVERLOAD) — B · A ripple: one merge sets off the next (option, awaiting Tu's pick)" },
+    { "id": "label-magepay-2", "x": 1100, "y": 16940, "w": 390, "text": "12.1C THE CASCADE (OVERLOAD) — C · A flash and a banner (option, awaiting Tu's pick)" },
+    { "id": "label-magepay-3", "x": 1650, "y": 16940, "w": 390, "text": "12.2A KERNEL'S CHARGE — A · Pips round the core orb (option, awaiting Tu's pick)" },
+    { "id": "label-magepay-4", "x": 2200, "y": 16940, "w": 390, "text": "12.2B KERNEL'S CHARGE — B · A bar under the skill bar (option, awaiting Tu's pick)" },
+    { "id": "label-magepay-5", "x": 2750, "y": 16940, "w": 390, "text": "12.2C KERNEL'S CHARGE — C · The core orb swells (option, awaiting Tu's pick)" },
+    { "id": "label-magepay-6", "x": 3300, "y": 16940, "w": 390, "text": "12.3A STATIC'S SPREAD — A · A fan of bolts (option, awaiting Tu's pick)" },
+    { "id": "label-magepay-7", "x": 3850, "y": 16940, "w": 390, "text": "12.3B STATIC'S SPREAD — B · The bolt jumps (option, awaiting Tu's pick)" },
+    { "id": "label-magepay-8", "x": 4400, "y": 16940, "w": 390, "text": "12.4A THE SETUP RUNES (ECHO, LEECH, TEMPO) — A · A rune word where it happens (option, awaiting Tu's pick)" },
+    { "id": "label-magepay-9", "x": 4950, "y": 16940, "w": 390, "text": "12.4B THE SETUP RUNES (ECHO, LEECH, TEMPO) — B · The effect drawn from its cause (option, awaiting Tu's pick)" }
   ],
   "launch": { "view": "canvas" }
 }

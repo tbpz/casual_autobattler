@@ -9,6 +9,19 @@ import { PLAYER_ROLES, ROLE_LABEL, ROLE_UPGRADE_POOL } from "./roles.js";
 import { ARMY_ORDER, baseChainFor, makeUnitFor, roleLabelFor } from "./armies.js";
 import { heldCards, heldCount, type RunProgress } from "./progress.js";
 import { defaultFieldPick } from "./roster.js";
+import type { ArmyBuild } from "./cards/types.js";
+
+/** The build the player has committed to: the build of the first held rune that has one (2026-10-28, DECISIONS.md "Mage bet 1 failed in
+ * play"). Runes of any other build are not offered after that, so a build is a choice, not a collection. */
+export function heldBuild(progress: RunProgress): ArmyBuild | undefined {
+  for (const id of progress.cards) {
+    const build = CARD_DEFS[id].build;
+    if (build !== undefined) return build;
+  }
+  return undefined;
+}
+
+const ARMY_BUILDS: ArmyBuild[] = ["big", "many", "core"];
 
 /**
  * 2026-09-23 (roles/rounds rebuild — see DECISIONS.md and STATE.md).
@@ -249,7 +262,7 @@ function templatesFor(cfg: RunConfig): OfferTemplate[] {
       eligible: (progress, roster) =>
         !progress.cards.includes(id) &&
         (def.army === undefined || def.army === progress.army) &&
-        !(def.excludedBy ?? []).some((rival) => progress.cards.includes(rival)) &&
+        (def.build === undefined || heldBuild(progress) === undefined || heldBuild(progress) === def.build) &&
         (isDuo
           ? duoUnlocked(id, squadChainEffects(progress, roster), heldCards(progress))
           : cardConnects(id, progress.introduced, heldCards(progress))),
@@ -544,10 +557,29 @@ export function drawOffers(rng: Rng, progress: RunProgress, roster: SideState, c
   };
   // An army run always shows its own rune (2026-10-23, DECISIONS.md "Mage runes must act on the orbs"): the first cfg.armyOfferSlots slots
   // draw from the army's open runes, when it has any. Armies without runes yet, and plain runs, skip this.
-  for (let g = 0; g < cfg.armyOfferSlots && chosen.length < cfg.offersPerWin; g++) {
-    const armyRunes = pool.filter((p) => p.t.size === "card" && p.t.card !== undefined && progress.army !== undefined && CARD_DEFS[p.t.card].army === progress.army);
-    if (armyRunes.length === 0) break;
-    draw(armyRunes);
+  const armyRunes = (build?: ArmyBuild): typeof pool =>
+    pool.filter(
+      (p) =>
+        p.t.size === "card" &&
+        p.t.card !== undefined &&
+        progress.army !== undefined &&
+        CARD_DEFS[p.t.card].army === progress.army &&
+        (build === undefined || CARD_DEFS[p.t.card].build === build),
+    );
+  // The fork (2026-10-28): while the player holds no build rune yet, the army's slots show one rune from each rival build, so the first
+  // build rune taken is a choice between builds. After that only the held build's runes are eligible, so the slot shows that build's.
+  const fork = heldBuild(progress) === undefined ? ARMY_BUILDS.filter((b) => armyRunes(b).length > 0) : [];
+  if (fork.length >= 2) {
+    for (const build of fork) {
+      if (chosen.length >= cfg.offersPerWin) break;
+      draw(armyRunes(build));
+    }
+  } else {
+    for (let g = 0; g < cfg.armyOfferSlots && chosen.length < cfg.offersPerWin; g++) {
+      const own = armyRunes();
+      if (own.length === 0) break;
+      draw(own);
+    }
   }
   for (let g = 0; g < cfg.buildOffersGuaranteed && chosen.length < cfg.offersPerWin; g++) {
     const pieces = pool.filter((p) => isBuildPiece(p.t));

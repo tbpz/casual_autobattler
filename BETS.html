@@ -62,14 +62,11 @@
 
 <h1>Bets</h1>
 <div class="meta">
-  <p><b>Last updated:</b> 2026-10-23</p>
-  <p>Every bet serves one pillar. A bet that serves none widens the game, it does not deepen it.</p>
-  <p>A decision that breaks a verified bet is flagged to Tu before it is logged, never applied silently.</p>
+  <p><b>Last updated:</b> 2026-10-28</p>
+  <p><b>A bet</b> is a choice a good game could reasonably make the other way. <b>A tuning target</b> is a goal every good game must hit. <a class="proof" href="DECISIONS.md#2026-10-28-workflow-bets-are-choices-a-good-game-could-make-the-other-way-must-hit-goals-are-tuning-targets">2026-10-28</a></p>
+  <p>Every line serves one pillar. A line that serves none widens the game, it does not deepen it.</p>
+  <p>A decision that breaks a verified line is flagged to Tu before it is logged, never applied silently.</p>
 </div>
-
-<!-- THE TOP TEST -->
-<h2>The top test</h2>
-<p>Someone not on the team finishes a run and starts another without being asked. <span class="note">(Unverified, ranked 7 below.)</span></p>
 
 <!-- PILLARS -->
 <h2>Pillars</h2>
@@ -118,42 +115,32 @@
   <li>A term is explained where the player first meets it. <a class="proof" href="DECISIONS.md#2026-10-10-game-the-next-push-is-making-the-game-explain-itself-after-the-first-outside-playtest">2026-10-10</a></li>
 </ul>
 
-<!-- UNVERIFIED: one fold per bet. Click a bet to see its test questions.
-     Per bet: at most 3 questions, plus a Play line and a Pass line. When a bet is verified or
-     removed, its <li> leaves this list. A new bet gets its <li> here in the same change. -->
-<h2>Unverified — verify in this order</h2>
-<p class="rules">Click a bet to see its test questions. Answer them once after the run, never during it. "Didn't come up" is a valid answer: play again, it is not a fail.</p>
+<!-- BETS and TUNING: one fold per line. Click a line to see its test questions.
+     Per line: at most 3 questions, plus a Play line and a Pass line; a bet adds a Fair test line,
+     a tuning target a Tries line once tried. A verified, dropped or new line gets or loses its
+     <li> in the same change. -->
+<h2>Bets — test in this order</h2>
+<p class="rules">Click a line to see its questions; answer them once after the run, never during it. Tune a bet only until its test is fair, then play it once. Drop it, and go the other way, if it fails a fair test, cannot reach one in 3 tries, or what it rests on goes away. A bug, something you could not see, or "didn't come up" does not count: play again.</p>
 
 <ol class="unverified">
 
   <li><details>
-    <summary><span class="n"></span><span class="tag">A</span><span>Mage runes and marks bring the synergy moment to Mage runs.</span></summary>
+    <summary><span class="n"></span><span class="tag">B</span><span>Push or rest stays a real choice; tired units get benched by hand.</span></summary>
     <div class="q">
-      <p><span class="label">Play:</span> 2 Mages runs (<code>?army=mages</code>).</p>
+      <p><span class="label">Fair test when:</span> a run puts a fielded unit near its backfire point while a fresh one waits on the bench.</p>
+      <p><span class="label">Play:</span> one full run.</p>
       <ul>
-        <li>Did two of my runes fire together for a big moment? (which round)</li>
-        <li>Did it feel like I built it, not luck?</li>
+        <li>Did I bench a tired unit myself at least once?</li>
+        <li>Was there a moment I wasn't sure whether to push or rest?</li>
       </ul>
-      <p><span class="label">Pass:</span> yes to both, in at least one run.</p>
-    </div>
-  </details></li>
-
-  <li><details>
-    <summary><span class="n"></span><span class="tag">A</span><span>The same works for the Undead and Beasts.</span></summary>
-    <div class="q">
-      <p class="note">Not testable yet: their runes are not built.</p>
-      <p><span class="label">Play:</span> 1 Undead run, 1 Beasts run.</p>
-      <ul>
-        <li>Did two of my runes fire together for a big moment? (which round, per army)</li>
-        <li>Did it feel like I built it, not luck? (per army)</li>
-      </ul>
-      <p><span class="label">Pass:</span> yes to both, for each army.</p>
+      <p><span class="label">Pass:</span> yes to both.</p>
     </div>
   </details></li>
 
   <li><details>
     <summary><span class="n"></span><span class="tag">B</span><span>An army gives a run an identity worth picking.</span></summary>
     <div class="q">
+      <p><span class="label">Fair test when:</span> the Mage synergy tuning target has passed, and each Mage build shows on screen.</p>
       <p><span class="label">Play:</span> 2 Mages runs with different builds (Vessel, Fuse or Kernel).</p>
       <ul>
         <li>Did I pick runes differently because of my build?</li>
@@ -161,6 +148,70 @@
         <li>Next time at the army pick, do I have a reason to pick this one?</li>
       </ul>
       <p><span class="label">Pass:</span> yes to the first and the last.</p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">D</span><span>A run fits a short sitting.</span></summary>
+    <div class="q">
+      <p class="note">Needs a new player; outside tests are paused.</p>
+      <p><span class="label">Fair test when:</span> one run on the phone takes a few minutes (time one yourself).</p>
+      <p><span class="label">Play:</span> an outside player, on their own phone, whenever they like.</p>
+      <ul>
+        <li>When did they reach for it? (in a short gap, or settled in)</li>
+        <li>Did they want the run longer, shorter, or as it was?</li>
+        <li>Did they stop before the end?</li>
+      </ul>
+      <p><span class="label">Pass:</span> played in short gaps, with no ask for longer runs.</p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">D</span><span>A new player wins about 1 run in 4.</span></summary>
+    <div class="q">
+      <p class="note">Needs a new player.</p>
+      <p><span class="label">Fair test when:</span> the bot's run completion for the plain game is near 1 in 4 (<code>npm run batch</code>).</p>
+      <p><span class="label">Play:</span> their first 8 or more runs.</p>
+      <ul>
+        <li>How many runs, how many wins?</li>
+        <li>After a loss, did they start another right away?</li>
+        <li>Did a loss feel fair or cheap? (a few words)</li>
+      </ul>
+      <p><span class="label">Pass:</span> about 1 in 4, and losses led to another run.</p>
+    </div>
+  </details></li>
+
+</ol>
+
+<h2>Tuning targets — in work order</h2>
+<p class="rules">Never dropped: tune until the Pass line holds. 3 played tries; out of tries, look again at the bets under it. Tuning that makes a bet's test fair comes just before that bet; tuning under an unverified bet waits.</p>
+
+<ol class="unverified">
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">A</span><span>Mage runes and marks bring the synergy moment to Mage runs.</span></summary>
+    <div class="q">
+      <p class="note">Makes bet 2 a fair test.</p>
+      <p><span class="label">Play:</span> 2 Mages runs (<code>?army=mages</code>).</p>
+      <ul>
+        <li>Did two of my runes fire together for a big moment? (which round)</li>
+        <li>Did it feel like I built it, not luck?</li>
+      </ul>
+      <p><span class="label">Pass:</span> yes to both, in at least one run.</p>
+      <p><span class="label">Tries:</span> 1 of 3. 2026-10-28: no big moment, the build was collected, not chosen, and most runes did not show. <a class="proof" href="DECISIONS.md#2026-10-28-game-mage-bet-1-failed-in-play-mage-runes-need-a-payoff-and-a-build-to-choose">2026-10-28</a></p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">A</span><span>The same works for the Undead and Beasts.</span></summary>
+    <div class="q">
+      <p class="note">Waits on bet 2; their runes are not built.</p>
+      <p><span class="label">Play:</span> 1 Undead run, 1 Beasts run.</p>
+      <ul>
+        <li>Did two of my runes fire together for a big moment? (which round, per army)</li>
+        <li>Did it feel like I built it, not luck? (per army)</li>
+      </ul>
+      <p><span class="label">Pass:</span> yes to both, for each army.</p>
     </div>
   </details></li>
 
@@ -173,18 +224,6 @@
         <li>Was there anything I couldn't see or had to squint at? (name it)</li>
       </ul>
       <p><span class="label">Pass:</span> yes for every army, nothing named. This tests seeing, not understanding; you cannot unknow the rules.</p>
-    </div>
-  </details></li>
-
-  <li><details>
-    <summary><span class="n"></span><span class="tag">B</span><span>Push or rest stays a real choice; tired units get benched by hand.</span></summary>
-    <div class="q">
-      <p><span class="label">Play:</span> one full run.</p>
-      <ul>
-        <li>Did I bench a tired unit myself at least once?</li>
-        <li>Was there a moment I wasn't sure whether to push or rest?</li>
-      </ul>
-      <p><span class="label">Pass:</span> yes to both.</p>
     </div>
   </details></li>
 
@@ -203,31 +242,6 @@
   </details></li>
 
   <li><details>
-    <summary><span class="n"></span><span class="tag">Top</span><span>Someone not on the team finishes a run and starts another without being asked.</span></summary>
-    <div class="q">
-      <p class="note">The top test; needs a new player.</p>
-      <p><span class="label">Play:</span> hand them the phone, then say nothing.</p>
-      <ul>
-        <li>Did they finish the run?</li>
-        <li>Did they start another on their own?</li>
-      </ul>
-      <p><span class="label">Pass:</span> yes to both.</p>
-    </div>
-  </details></li>
-
-  <li><details>
-    <summary><span class="n"></span><span class="tag">D</span><span>A new player wins about 1 run in 4.</span></summary>
-    <div class="q">
-      <p class="note">Needs a new player.</p>
-      <p><span class="label">Play:</span> their first 8 or more runs.</p>
-      <ul>
-        <li>How many runs, how many wins?</li>
-      </ul>
-      <p><span class="label">Pass:</span> roughly 1 in 4.</p>
-    </div>
-  </details></li>
-
-  <li><details>
     <summary><span class="n"></span><span class="tag">C</span><span>A player starts another run right after one ends, win or lose.</span></summary>
     <div class="q">
       <p><span class="label">Play:</span> just play; you count as the player for now.</p>
@@ -242,6 +256,7 @@
   <li><details>
     <summary><span class="n"></span><span class="tag">C</span><span>Run 20 still shows something new.</span></summary>
     <div class="q">
+      <p class="note">The 20 is a bet of its own.</p>
       <p><span class="label">Play:</span> just play; keep one line per run wherever you like.</p>
       <ul>
         <li>Did I see something new this run? (one line)</li>
@@ -251,14 +266,15 @@
   </details></li>
 
   <li><details>
-    <summary><span class="n"></span><span class="tag">D</span><span>A run fits a short sitting.</span></summary>
+    <summary><span class="n"></span><span class="tag">Top</span><span>Someone not on the team finishes a run and starts another without being asked.</span></summary>
     <div class="q">
-      <p><span class="label">Play:</span> one run, on the phone.</p>
+      <p class="note">The top test: what every tuning target adds up to. Needs a new player.</p>
+      <p><span class="label">Play:</span> hand them the phone, then say nothing.</p>
       <ul>
-        <li>How many minutes did it take?</li>
-        <li>Did I have to stop before the end?</li>
+        <li>Did they finish the run?</li>
+        <li>Did they start another on their own?</li>
       </ul>
-      <p><span class="label">Pass:</span> done in one sitting, no forced stop.</p>
+      <p><span class="label">Pass:</span> yes to both.</p>
     </div>
   </details></li>
 
