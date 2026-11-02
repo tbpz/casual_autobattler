@@ -1,7 +1,7 @@
 import { DEFAULT_RUN_CONFIG } from "../sim/config.js";
 import { skeletonStats } from "../sim/fight.js";
 import { defaultCardDrop, type Offer } from "../sim/offers.js";
-import type { CardId } from "../sim/cards/index.js";
+import { CARD_DEFS, type CardId } from "../sim/cards/index.js";
 import { heldCards } from "../sim/progress.js";
 import { FightView } from "./fightView.js";
 import { bestMoment } from "./fightSummary.js";
@@ -51,6 +51,9 @@ const jumpToFight = urlParams.get("fight") === "1";
 /** ?army=undead|beasts|mages starts the run as that army without the pick screen; ?army=none plays the plain squad (the game before armies). A dev link that jumps
  * ahead (?round, ?offer, ?runover, ?fight, ?fall) also skips the pick and plays the plain squad unless it names an army. */
 const armyParam = urlParams.get("army");
+/** ?cards=echo,fuse,overload: the run holds exactly these runes (after any ?round fast-forward), to look at a rune in a real fight; with
+ * ?army=mages&fight=1 it shows a Mage rune on the fight screen. Unknown ids are dropped. A no-op when absent. */
+const devCards = (urlParams.get("cards") ?? "").split(",").filter((id): id is CardId => id in CARD_DEFS);
 const jumpsAhead = jumpToRound > 1 || jumpToOffer > 1 || jumpToRunOver || jumpToFight || fallCount > 0;
 
 /** The seed corner badge, present on every screen, with an "export" link that
@@ -100,6 +103,7 @@ export function mountApp(root: HTMLElement): void {
     const seed = pinnedSeed !== null && pinnedSeed !== "" ? Number(pinnedSeed) : Math.floor(Math.random() * 1_000_000_000);
     session = new RunSession(cfg, seed, army);
     if (jumpToRound > 1 || jumpToOffer > 1 || jumpToRunOver) fastForward();
+    if (devCards.length > 0) session.devHoldCards(devCards);
     if (fallCount > 0) {
       const byId = new Map(session.currentRoster.heroes.map((h) => [h.id, h]));
       for (const id of session.lastFielded.slice(-fallCount)) {

@@ -141,8 +141,9 @@ export interface HookPayloads {
    * so a rune that stores power up spends it here). */
   orbShot: { mage: HeroState; orbKind: "storm" | "frost" | "life"; orbs: number; shotMult: number /* mutable */ };
   /** A mage's loose orbs just merged and the great shot fired; the orbs are gone. `orbs` is how many merged, `shot` the size the shot was
-   * sized at, `target` who a Storm or Life shot hit (the front enemy). */
-  orbsMerged: { mage: HeroState; orbKind: "storm" | "frost" | "life"; orbs: number; shot: number; target?: HeroState };
+   * sized at, `target` who a Storm or Life shot hit (the front enemy). `by` is the rune that merged the orbs early (Overload), absent when a
+   * skill hit found them full. */
+  orbsMerged: { mage: HeroState; orbKind: "storm" | "frost" | "life"; orbs: number; shot: number; target?: HeroState; by?: CardId };
 }
 
 export type HookName = keyof HookPayloads;
@@ -174,8 +175,13 @@ export interface CardApi {
   /** Mages army: puts one loose orb round `mage` (its orb limit at most). Returns whether one was added. */
   addOrb(mage: HeroState): boolean;
   /** Mages army: `mage`'s loose orbs merge into the great shot now, outside any chain (its own orbShot and orbsMerged hooks run, so the
-   * other Mage runes see it like any merge). Returns false when there was nothing to merge or nobody to hit or help. */
-  mergeOrbs(mage: HeroState): boolean;
+   * other Mage runes see it like any merge). `by` names the rune that did it, on the orbMerge event and the orbsMerged payload. Returns
+   * false when there was nothing to merge or nobody to hit or help. */
+  mergeOrbs(mage: HeroState, by?: CardId): boolean;
+  /** Runs `fn` `sec` seconds from now, on the first tick at or after that time, as the card running now (so its fires name the same
+   * cause). Dropped if the fight ends first. For effects drawn a beat apart (Overload's ripple, Static's jumping bolt; 2026-11-02), which
+   * must land when they show, so an HP bar never drops before the hit that causes it. */
+  after(sec: number, fn: () => void): void;
   /** Mages army: one of `mage`'s loose orbs (index 0 up) works once now, outside the beat; the orb stays. Returns false when the fight was
    * won by it (no enemy left). */
   beatOrb(mage: HeroState, index: number): boolean;

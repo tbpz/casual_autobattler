@@ -73,6 +73,26 @@ export class CardEngine {
     return { causeCard: depth >= 2 ? this.running[depth - 2] : undefined, depth: Math.max(1, depth) };
   }
 
+  /** The card whose `do` is running right now (undefined when the fight's own rules are acting). */
+  current(): CardId | undefined {
+    return this.running[this.running.length - 1];
+  }
+
+  /** Runs `fn` as if `card`'s `do` were running, for work a card put off to a later tick (CardApi.after): what it fires and sets off
+   * names `card` as the cause, as it would have done at once. Undefined runs it at the top level. */
+  runAs(card: CardId | undefined, fn: () => void): void {
+    if (card === undefined) {
+      fn();
+      return;
+    }
+    this.running.push(card);
+    try {
+      fn();
+    } finally {
+      this.running.pop();
+    }
+  }
+
   run<K extends HookName>(hook: K, payload: HookPayloads[K], api: CardApi): void {
     if (this.running.length >= this.maxDepth) return;
     for (const def of this.defs) {

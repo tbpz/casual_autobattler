@@ -22,6 +22,286 @@
 
 ---
 
+## [2026-11-02] [game] The two run bets are parked until the game has runs
+
+- **Decision:**
+  - "A run fits one tired evening, about 10 minutes" is parked, not dropped.
+  - "A good run ends with an absurdly strong squad" is parked, not dropped.
+  - Both move to a parked section in `BETS.html` and come back if the game ends up with runs.
+  - The next bet to test is "Less to keep in my head makes it more relaxing, not duller."
+- **Why:**
+  - Both rest on runs, and the runs bet closed with runs neither required nor ruled out.
+  - Tu said "Yes park them" to Claude's suggestion.
+- **Replaces:**
+  - Their places in the bet list in "The objective says sitting, not run; playing in runs becomes a bet" (2026-11-02).
+
+## [2026-11-02] [game] The runs bet is closed: runs or no runs is not what keeps Tu in a game
+
+- **Decision:**
+  - The bet "the game is played in runs, each with a clear start and end" is closed by Tu's past play; the week-long test is not needed.
+  - It does not go the other way: the game may have runs or not; neither is required.
+  - New verified line under pillar C: runs or no runs is not what keeps Tu in a game; he likes both kinds.
+  - Not settled: what does keep him; the verified "lasting progress" line is the closest lead so far.
+  - Bets that say "run" (a run fits one evening, a good run ends absurdly strong) stay open; they only matter if the game ends up with runs.
+- **Why:**
+  - Tu: "I drop archero for top heroes and play to heroes even longer. So not necessarily a run is required."
+  - Tu: "it does not also mean runs are meaningless 2 me. It just 2 different kind of game and I like both."
+  - Tu: "what keep me in the game seems not because of run exiting or not."
+- **Replaces:**
+  - The runs bet and its test in "The objective says sitting, not run; playing in runs becomes a bet" (2026-11-02).
+
+## [2026-11-02] [game] The objective says sitting, not run; playing in runs becomes a bet
+
+- **Decision:**
+  - The objective line becomes "Tu finishes a sitting and comes back for another, evening after evening."
+  - Whether the game is played in runs at all is now a bet under pillar C, not a given.
+  - The bet: runs, each with a clear start and end; the other way is one long build-up with no runs, like Top Heroes.
+  - The new bet is tested first, a spot Claude proposed; Tu can move it.
+  - Pillars B and C are reworded so they no longer say "run".
+  - Verified lines that say "run" stay as written; they came from the run-based prototype.
+- **Why:**
+  - Tu asked whether "finishes a run" pushed him toward roguelikes, then said "update it" to Claude's proposed wording.
+  - Of the three games in the Setup, only Archero 2 is played in runs.
+  - "Finishes" stays: a clear end each time is part of what holds Tu in Archero 2.
+  - "Starts fresh" was kept out of the bet's wording, so it does not echo the dropped bet 2.
+- **Replaces:**
+  - The objective wording in "For now Tu is the only player that counts; the top test is the objective, not a bet" (2026-11-02).
+
+## [2026-11-02] [game] Bet 1, watch the fight, moves down the list
+
+- **Decision:**
+  - The watch-the-fight bet stays open but is no longer tested first.
+  - It sits after the four bets from the simple and relaxing setup, before push or rest and army identity.
+  - That spot was proposed by Claude; Tu chose only "move it down", and can move it again.
+- **Why:**
+  - Tu picked "Move it down the list" over keeping it first or dropping it.
+  - In Top Heroes Tu ignores the fight; in Archero 2 he steers, but finishing rounds and trying builds are what hold him.
+- **Replaces:**
+  - Bet 1's place in "Watch-the-fight and runs-start-fresh become the first two bets" (2026-11-02).
+
+## [2026-11-02] [game] Bet 2 is dropped: lasting progress between runs pulls Tu back
+
+- **Decision:**
+  - The bet "every run starts fresh; only what I learned carries over" is dropped.
+  - The game goes the other way: something lasting carries from one run to the next.
+  - Tu's Top Heroes play counts as the test, though it is another game.
+  - "Each round ends with a clear done" and "progress I worked toward must never stop counting" stay out of the verified list until Tu's own sketch shows them.
+  - Not settled: what the lasting progress is.
+- **Why:**
+  - Tu picked "Yes, drop bet 2" over testing it in his own game first.
+  - In Top Heroes, rewards all the time and a level-up every day kept him playing for a long time.
+  - Tu picked "Neither yet" for the two possible verified lines.
+- **Replaces:**
+  - Bet 2 in "Watch-the-fight and runs-start-fresh become the first two bets" (2026-11-02).
+
+## [2026-11-02] [game] What holds Tu in Archero 2 and Top Heroes: a clear finish, new builds, steady rewards toward a goal that keeps counting
+
+- **Decision:**
+  - Archero 2 holds Tu with a clear feeling of done after each round; wiping out the enemies feels good.
+  - Archero 2 also holds him with new builds to try for how the heroes fight; he got bored once no new build was left.
+  - In Top Heroes Tu does not care about the fight at all.
+  - Top Heroes hooked him with rewards all the time and a level-up every day.
+  - He played Top Heroes a long time to collect the heroes for the suggested Alliance line-up.
+  - He got bored when that line-up changed: the goal he had worked toward stopped mattering, and he felt fooled.
+  - Not settled: whether these count as Tu's play for bets 1 and 2, and which new lines go into `BETS.html` (Tu's call).
+- **Why:**
+  - Tu: "what keep me in the game is the clear feeling of completion after each round. Wipe out enemies in this game is good."
+  - Tu: "I want to try different build on how the heroes can fight. I got bored after finding no more new build."
+  - Tu: "For Top Heroes, I don't even care about the fight. What hooked me is I constantly getting reward, level up everyday."
+  - Tu: "It make me feel the game just fool me because what I'm trying to achive all these day now doesn't matter and I need to start from scratch."
+- **Replaces:**
+  - "Not settled: what a fight and a pick screen that hold Tu look like" in "Tu's read of the prototype" (2026-11-02), in part.
+
+## [2026-11-02] [game] Tu's read of the prototype: seen it all, the fight and the pick screen are boring
+
+- **Decision:**
+  - What bores Tu about the prototype: he has seen it all, the fight itself is boring, and the pick screen is boring.
+  - Tu calls the design poor and does not know how to fix it.
+  - A new sketch must not repeat the prototype's fight or pick screen as they are.
+  - The verified lines still stand; they are standards learned from the prototype, not the prototype itself.
+  - Not settled: what a fight and a pick screen that hold Tu look like.
+- **Why:**
+  - Tu: "I seen it all. The design is poor and I don't know how to fix. The fight itself also boring. The pick screen boring too."
+- **Replaces:**
+  - "Not settled: what bores Tu" in "Stop building on the prototype; test the bets another way" (2026-11-02).
+
+## [2026-11-02] [workflow] Stop building on the prototype; test the bets another way
+
+- **Decision:**
+  - No more building on the prototype; it stays in the repo as it is.
+  - The bets are tested another way: through the games Tu already plays, or small new sketches.
+  - Each bet's "Fair test when" line, written for a prototype build, no longer holds; it is redone when that bet comes up.
+  - The tuning targets, which all rest on the prototype (Mage synergy, Undead and Beasts, run 20), wait.
+  - Each bet's other way still stands (for bet 1, tapping to fire the chain); only how it is tested changes.
+  - Not settled: what bores Tu (seen it all, the fight itself, or the genre); how each bet is tested now.
+- **Why:**
+  - Tu, on the tap-the-bubble test: "if that's the current game then I probably get bored at both. It seems I got enough of the prototype."
+  - Tu picked "stop building on it, test bets another way" over giving the prototype something new first.
+  - If the game underneath bores Tu, both versions of a bet lose, and the test cannot tell them apart.
+- **Replaces:**
+  - The plan to build the tap-the-bubble version and lasting progress in the prototype, from "The hands-on fight is tapping the skill bubble; lasting progress survives a lost run" (2026-11-02), in part.
+
+## [2026-11-02] [game] Four new bets from the simple and relaxing setup: a short run, less to track, absurd late power, one-glance picks
+
+- **Decision:**
+  - New bet, pillar C: a run fits one tired evening, about 10 minutes; the other way is a long run that feels like a journey.
+  - New bet, pillar A: less to keep in my head makes the game more relaxing, not duller; the other way is many parts to track.
+  - New bet, pillar A: a good run ends with an absurdly strong squad; the other way is every fight staying close.
+  - New bet, pillar B: every pick takes one glance; the other way is fewer, weightier picks you think over.
+  - They go after the watch-the-fight and runs-start-fresh bets, before push or rest and army identity, in the order above.
+  - Adding a bet does not overturn a verified line; a line it clashes with comes up for Tu's call only if the bet passes.
+  - The short-run bet brings back the parked pillar D line "a run fits a short sitting", now judged by Tu, not a newcomer.
+  - Not settled: how long a run takes today.
+- **Why:**
+  - Tu: "All good", to the suggestions drawn from the simple and relaxing setup.
+  - The setup names Top Heroes, Archero 2 and Soccer Superstar; these bets guess at what those games do to stay relaxing yet pull Tu back.
+  - Less to track clashes with the verified backfire line (2026-08-17) and would end the push-or-rest bet if it passes.
+  - Absurd late power clashes with "The best squad can still lose" (2026-08-08) and "The big payoff is rare" (2026-08-06) if it passes.
+  - One-glance picks risk "A real decision never collapses to one move" (2026-07-26).
+- **Replaces:**
+  - The bet order in "Watch-the-fight and runs-start-fresh become the first two bets" (2026-11-02) for the bets after the first two.
+
+## [2026-11-02] [game] The hands-on fight is tapping the skill bubble; lasting progress survives a lost run
+
+- **Decision:**
+  - The other way for the watch-the-fight bet: you tap the skill bubble to fire the chain yourself, instead of it firing when the charge fills.
+  - It is one thumb and one simple action, to fit the simple and relaxing setup.
+  - The other way for the runs-start-fresh bet: something lasting changes the next run, and a lost run still leaves something.
+  - Not settled: how the tap looks and feels (drawn on the canvas first); what the lasting progress is.
+- **Why:**
+  - Tu: "All good", to these as the versions to build.
+  - Tu, on the setup: "I don't have time to pay attention to it too much."
+  - The 2026-08-25 attribution test found the charge bar the one complete lever a player can name.
+  - Top Heroes, Archero 2 and Soccer Superstar all keep progress between sessions.
+- **Replaces:**
+  - "Not settled: what the hands-on fight and the lasting progress would be" in "Watch-the-fight and runs-start-fresh become the first two bets" (2026-11-02), in part.
+
+## [2026-11-02] [game] The game is simple and relaxing but still addictive: a fixed base, not a bet
+
+- **Decision:**
+  - The game is simple and relaxing, yet still pulls Tu back to play again.
+  - It asks for little attention; it is for evenings, when work has left Tu's mind tired.
+  - This is part of the fixed base the bets are built on, not a bet.
+  - Reference games for this standard: Top Heroes, Archero 2, and Soccer Superstar (a different genre).
+  - Whether to call it "casual" is not settled and does not change the standard.
+  - Not settled: what in each reference game meets the standard.
+- **Why:**
+  - Tu: "at the moment I prefer a simple and relax game but still fill addicted."
+  - Tu: "I don't have time to pay attention to it to much, and the work already make my mind tired so at night I just want to enjoy relaxing."
+  - Tu: "Recently I play Top Heroes and Archero 2 and they can meet that standard."
+  - Tu: "This is not a bet. It's a setup based to build the bet on."
+- **Replaces:**
+  - Narrows "Everything about the game is open" (2026-11-02): bets must now fit a simple, relaxing game.
+  - Pillar D stays parked; this base is for Tu, not for a newcomer.
+
+## [2026-11-02] [game] The game is a mobile game: a fixed base, not a bet
+
+- **Decision:**
+  - The game is made for mobile.
+  - This is part of the fixed base the bets are built on, not a bet.
+  - Autobattler and roguelike runs stay open bets.
+- **Why:**
+  - Tu: mobile is low cost to make.
+  - Tu: "I also don't have much free time and patience at this age to sit at a PC game unless it's very very good."
+  - Tu: "mobile allow me to play everywhere."
+- **Replaces:**
+  - "The phone" in the open choices of "Everything about the game is open, and pillar D is dropped for now" (2026-11-02); its other lines stand.
+
+## [2026-11-02] [workflow] The tuning target "a player starts another run right after one ends" is dropped
+
+- **Decision:**
+  - The tuning target "A player starts another run right after one ends, win or lose" is removed from `BETS.html`.
+  - The objective "Tu finishes a run and starts another, again and again" covers it.
+  - Not settled: nothing.
+- **Why:**
+  - Tu: "Drop it", picked over keeping only its "even after a loss" part.
+  - With Tu as the only player, the line said almost the same thing as the objective.
+- **Replaces:**
+  - That tuning target from the 2026-10-28 entry "Bets are choices a good game could make the other way"; its other lines stand.
+
+## [2026-11-02] [game] Watch-the-fight and runs-start-fresh become the first two bets
+
+- **Decision:**
+  - New bet, pillar A: you set things up, then watch the fight play itself; the other way is acting during the fight.
+  - New bet, pillar C: every run starts fresh and only what you learned carries over; the other way is progress that lasts between runs.
+  - Both go first in the test order, ahead of push or rest and army identity.
+  - A fair test of either needs a version built the other way, played next to the current one.
+  - Not settled: what the hands-on fight and the lasting progress would be; which of the two is tested first.
+- **Why:**
+  - Tu picked "First, before the others" over after the current two, only the first, or other wording.
+  - The most depends on them: if the masterpiece is neither, Mage tuning is wasted work.
+  - Both were fixed frames until the entry below opened everything.
+  - The cross-run Collection (dropped 2026-10-02) only recorded met cards and never changed play, so it never tested the second bet.
+- **Replaces:**
+  - The 2026-10-28 bet order; push or rest and army identity keep their order behind the two new bets.
+
+## [2026-11-02] [game] Everything about the game is open, and pillar D is dropped for now
+
+- **Decision:**
+  - The current game is one sketch toward Tu's masterpiece; autobattler, roguelike runs and the phone are all open choices.
+  - Each of those is a bet that can lose, not a fixed frame.
+  - Pillar D ("I got it in minutes on my phone, and a run fits my sitting") is dropped for now; it returns when other players count.
+  - Its verified line and its four open lines are parked in `BETS.html`, not overturned.
+  - Not settled: the new bets on what the game is about, and their order (Tu's call).
+- **Why:**
+  - Tu picked "Everything is open" over keeping the genre, or keeping the genre and the phone.
+  - Tu picked "Drop it for now" for pillar D, over rewording it for himself or keeping it.
+  - Pillar D was written for a casual newcomer, and the game is now made for Tu first.
+- **Replaces:**
+  - Pillar D in the 2026-10-23 entry "Bets sit under four pillars and one top test"; pillars A to C stand.
+  - The 2026-10-28 bet order for bets 3 and 4 (short sitting, new player wins 1 in 4), now parked.
+
+## [2026-11-02] [game] The project is Tu's search for his own masterpiece, not a casual autobattler for a friend
+
+- **Decision:**
+  - The project is no longer a casual autobattler made for a friend.
+  - It is made for Tu first; the goal is to find out what Tu's masterpiece looks like.
+  - This is the starting point the project and its bets are reframed from.
+  - Not settled: which parts of the current shape stay (autobattler, roguelike, phone, casual).
+  - Not settled: the pillars, mainly D ("I got it in minutes on my phone"), and the bets written for a casual or new player.
+- **Why:**
+  - Tu: "Making a casual autobattler for my friend is no longer true. I indeed started the project with that reason."
+  - Tu: "now it's for myself only first, and the goal is to find out what my masterpiece look like. Let it be the starting point."
+- **Replaces:**
+  - The "casual mobile roguelike autobattler" line under "What this is" in `STATE.md`.
+  - Builds on the entry below ("For now Tu is the only player that counts"), which set Tu as the only judge for this phase.
+  - The verified lines stand as standards until a decision says otherwise.
+
+## [2026-11-02] [workflow] For now Tu is the only player that counts; the top test is the objective, not a bet
+
+- **Decision:**
+  - In this phase the only player whose feeling counts is Tu: the game is built until Tu likes it and keeps playing it again and again.
+  - The objective is Tu finishing a run and starting another, again and again; someone not on the team doing the same comes later.
+  - The objective is neither a bet nor a tuning target; it sits above the pillars as what every line serves.
+  - A bet is a choice of what the game is about, made to find out whether Tu likes it.
+  - The verified line "A term is explained where the player first meets it" stands as a standard.
+  - Not settled: what happens to the lines judged by another player (bets 3 and 4, the tuning target "A first-time player reads the game unprompted").
+  - Not settled: whether the tuning target "A player starts another run right after one ends" now repeats the objective.
+- **Why:**
+  - Tu: "I don't care about others feeling at this phase. I only build a game that I feel I like it and continue playing again and again first."
+  - Tu, on the top test: "that's not a bet at all. That's objective."
+  - Tu: "The bet is the strategy I choose the game to be about to know if I like it."
+  - The 2026-10-23 entry "Tu is the only judge for now" paused outside tests but left lines judged by others in place.
+- **Replaces:**
+  - The top test as the last tuning target, from the 2026-10-28 "Bets are choices" entry; its other lines stand.
+  - The "someone not on the team" wording of the top test, from the 2026-10-23 "four pillars and one top test" entry, for this phase.
+
+## [2026-11-02] [game] Mage payoff looks: Overload ripples, Kernel fills dots, Static jumps, setup runes show no words
+
+- **Decision:**
+  - Overload is a ripple: one mage merges, a thread jumps to the next mage and it merges, a short beat apart (canvas 12.1B).
+  - Kernel shows ten dots round the core orb, one per stored charge; full, the core orb glows; at the merge the dots empty into the shot (12.2A).
+  - Static's extra hits are one bolt jumping enemy to enemy in turn, not a fan on one beat (12.3B).
+  - Echo, Leech and Tempo show no rune word; each effect is drawn from its cause: Echo's orb flies back, Leech draws a green thread, Tempo pulses the core orb twice (12.4B).
+  - The ripple and the jumping bolt are spaced out in the fight itself, not only on screen, so an HP bar never drops before the hit that causes it arrives.
+  - Not settled: the gaps between ripple steps and bolt jumps (`sim/config.ts`).
+- **Why:**
+  - Tu picked these from the ten options drawn on the canvas.
+  - Tu's run 992444560 showed effects he could not see; these looks are the fix for that half of Mage bet 1.
+  - Verified line "Every HP loss has a visible actor and cause": a screen-only delay would show the HP loss first.
+- **Replaces:**
+  - The rune-word popup for Echo, Leech and Tempo (the other runes keep theirs).
+
 ## [2026-10-28] [workflow] Bets are choices a good game could make the other way; must-hit goals are tuning targets
 
 - **Decision:**

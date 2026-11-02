@@ -653,6 +653,12 @@ export interface FightConfig {
   overloadMinOrbs: number;
   tempoSecondBeat: number;
   wellspringFraction: number;
+  /** How the payoffs are spaced out so the screen can show them (2026-11-02, DECISIONS.md "Mage payoff looks"): Overload's other mages
+   * merge one after another, `overloadRippleSec` apart, in squad order; Static's extra hits land one enemy at a time, front to back,
+   * `staticHopSec` apart, the first that long after the shot. They are spaced in the fight itself, not only on screen, so an HP bar never
+   * drops before the hit that causes it shows. */
+  overloadRippleSec: number;
+  staticHopSec: number;
 }
 
 /**
@@ -1260,6 +1266,9 @@ export const DEFAULT_FIGHT_CONFIG: FightConfig = {
   overloadMinOrbs: 2,
   tempoSecondBeat: 0.3,
   wellspringFraction: 1,
+  // The gaps drawn on canvas 12.1B and 12.3B (2026-11-02).
+  overloadRippleSec: 0.45,
+  staticHopSec: 0.25,
 };
 
 export const DEFAULT_RUN_CONFIG: RunConfig = {

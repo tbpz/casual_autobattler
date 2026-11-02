@@ -53,8 +53,6 @@
   .q p { margin: 8px 0 4px; }
   .q ul { margin: 4px 0; padding-left: 20px; }
   .q .label { font-weight: 600; }
-  .rules { color: var(--muted); font-size: 14px; }
-  .note { color: var(--muted); }
 </style>
 </head>
 <body>
@@ -62,19 +60,27 @@
 
 <h1>Bets</h1>
 <div class="meta">
-  <p><b>Last updated:</b> 2026-10-28</p>
-  <p><b>A bet</b> is a choice a good game could reasonably make the other way. <b>A tuning target</b> is a goal every good game must hit. <a class="proof" href="DECISIONS.md#2026-10-28-workflow-bets-are-choices-a-good-game-could-make-the-other-way-must-hit-goals-are-tuning-targets">2026-10-28</a></p>
-  <p>Every line serves one pillar. A line that serves none widens the game, it does not deepen it.</p>
-  <p>A decision that breaks a verified line is flagged to Tu before it is logged, never applied silently.</p>
+  <p><b>Last updated:</b> 2026-11-02</p>
 </div>
+
+<!-- OBJECTIVE: not a bet, not a tuning target; what every line serves -->
+<h2>Objective</h2>
+<p><b>Find out what Tu's masterpiece looks like.</b> <a class="proof" href="DECISIONS.md#2026-11-02-game-the-project-is-tus-search-for-his-own-masterpiece-not-a-casual-autobattler-for-a-friend">2026-11-02</a></p>
+<p><b>Tu finishes a sitting and comes back for another, evening after evening.</b> <a class="proof" href="DECISIONS.md#2026-11-02-game-the-objective-says-sitting-not-run-playing-in-runs-becomes-a-bet">2026-11-02</a></p>
+
+<!-- SETUP: fixed base the bets are built on; not bets, never tested or dropped -->
+<h2>Setup — the base the bets are built on</h2>
+<ul class="bets">
+  <li>A mobile game. <a class="proof" href="DECISIONS.md#2026-11-02-game-the-game-is-a-mobile-game-a-fixed-base-not-a-bet">2026-11-02</a></li>
+  <li>Simple and relaxing, asks for little attention on a tired evening, yet still pulls Tu back; like Top Heroes, Archero 2, Soccer Superstar. <a class="proof" href="DECISIONS.md#2026-11-02-game-the-game-is-simple-and-relaxing-but-still-addictive-a-fixed-base-not-a-bet">2026-11-02</a></li>
+</ul>
 
 <!-- PILLARS -->
 <h2>Pillars</h2>
 <ul>
   <li><b>A. The fight moment</b> — "It blew up bigger than I expected, and I made that happen."</li>
-  <li><b>B. The run</b> — "My choices in this run mattered."</li>
-  <li><b>C. Coming back</b> — "One more run; the next one will be different, and I keep getting better."</li>
-  <li><b>D. Pick up and play</b> — "I got it in minutes on my phone, and a run fits my sitting."</li>
+  <li><b>B. My choices</b> — "What I picked this time mattered."</li>
+  <li><b>C. Coming back</b> — "One more go; the next one will be different, and I keep getting better."</li>
 </ul>
 
 <!-- VERIFIED: one line per bet, proof link is the date -->
@@ -108,21 +114,59 @@
 <ul class="bets">
   <li>Chance alone stops holding Tu once the best move is known. <a class="proof" href="DECISIONS.md#2026-07-24-game-rng-only-arm-played-fun-is-real-but-non-renewing--masterycomprehension-not-chance-sustains-tu">2026-07-24</a></li>
   <li>A solved deterministic build stays solved. <a class="proof" href="DECISIONS.md#2026-07-22-game-emergence-only-arm-complete--burnout-is-the-structural-ceiling-not-a-balance-problem">2026-07-22</a></li>
-</ul>
-
-<h3>D. Pick up and play</h3>
-<ul class="bets">
-  <li>A term is explained where the player first meets it. <a class="proof" href="DECISIONS.md#2026-10-10-game-the-next-push-is-making-the-game-explain-itself-after-the-first-outside-playtest">2026-10-10</a></li>
+  <li>Lasting progress between runs pulls Tu back. <a class="proof" href="DECISIONS.md#2026-11-02-game-bet-2-is-dropped-lasting-progress-between-runs-pulls-tu-back">2026-11-02</a></li>
+  <li>Runs or no runs is not what keeps Tu in a game; he likes both kinds. <a class="proof" href="DECISIONS.md#2026-11-02-game-the-runs-bet-is-closed-runs-or-no-runs-is-not-what-keeps-tu-in-a-game">2026-11-02</a></li>
 </ul>
 
 <!-- BETS and TUNING: one fold per line. Click a line to see its test questions.
      Per line: at most 3 questions, plus a Play line and a Pass line; a bet adds a Fair test line,
-     a tuning target a Tries line once tried. A verified, dropped or new line gets or loses its
-     <li> in the same change. -->
+     a tuning target a Tries line once tried. No notes: reasons live in DECISIONS.md. -->
 <h2>Bets — test in this order</h2>
-<p class="rules">Click a line to see its questions; answer them once after the run, never during it. Tune a bet only until its test is fair, then play it once. Drop it, and go the other way, if it fails a fair test, cannot reach one in 3 tries, or what it rests on goes away. A bug, something you could not see, or "didn't come up" does not count: play again.</p>
 
 <ol class="unverified">
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">A</span><span>Less to keep in my head makes it more relaxing, not duller.</span></summary>
+    <div class="q">
+      <p><span class="label">The other way:</span> many parts to track.</p>
+      <p><span class="label">Fair test when:</span> a dev link turns off fatigue and duos, and everything else plays the same.</p>
+      <p><span class="label">Play:</span> one run of each, back to back.</p>
+      <ul>
+        <li>Which one was more relaxing?</li>
+        <li>Which one did I want to play again?</li>
+        <li>Did the lighter one still give a big moment?</li>
+      </ul>
+      <p><span class="label">Pass:</span> the lighter one on the first two, and yes.</p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">B</span><span>Every pick takes one glance.</span></summary>
+    <div class="q">
+      <p><span class="label">The other way:</span> fewer, weightier picks I think over.</p>
+      <p><span class="label">Fair test when:</span> a reward screen of icons and one short line is drawn on the canvas, picked by me, and built.</p>
+      <p><span class="label">Play:</span> one run.</p>
+      <ul>
+        <li>Did any pick make me stop and read?</li>
+        <li>Did my picks still feel like mine?</li>
+      </ul>
+      <p><span class="label">Pass:</span> no to the first, yes to the second.</p>
+    </div>
+  </details></li>
+
+  <li><details>
+    <summary><span class="n"></span><span class="tag">A</span><span>You set things up, then watch the fight play itself.</span></summary>
+    <div class="q">
+      <p><span class="label">The other way:</span> you tap the skill bubble to fire the chain yourself.</p>
+      <p><span class="label">Fair test when:</span> the tap-the-bubble version is built, and plays the same squads and runes as the watch version.</p>
+      <p><span class="label">Play:</span> one run of each, back to back.</p>
+      <ul>
+        <li>Which one did I want to play again?</li>
+        <li>In which one did the big moment feel more mine?</li>
+      </ul>
+      <p><span class="label">Pass:</span> the watch version, on both.</p>
+    </div>
+  </details></li>
 
   <li><details>
     <summary><span class="n"></span><span class="tag">B</span><span>Push or rest stays a real choice; tired units get benched by hand.</span></summary>
@@ -151,47 +195,15 @@
     </div>
   </details></li>
 
-  <li><details>
-    <summary><span class="n"></span><span class="tag">D</span><span>A run fits a short sitting.</span></summary>
-    <div class="q">
-      <p class="note">Needs a new player; outside tests are paused.</p>
-      <p><span class="label">Fair test when:</span> one run on the phone takes a few minutes (time one yourself).</p>
-      <p><span class="label">Play:</span> an outside player, on their own phone, whenever they like.</p>
-      <ul>
-        <li>When did they reach for it? (in a short gap, or settled in)</li>
-        <li>Did they want the run longer, shorter, or as it was?</li>
-        <li>Did they stop before the end?</li>
-      </ul>
-      <p><span class="label">Pass:</span> played in short gaps, with no ask for longer runs.</p>
-    </div>
-  </details></li>
-
-  <li><details>
-    <summary><span class="n"></span><span class="tag">D</span><span>A new player wins about 1 run in 4.</span></summary>
-    <div class="q">
-      <p class="note">Needs a new player.</p>
-      <p><span class="label">Fair test when:</span> the bot's run completion for the plain game is near 1 in 4 (<code>npm run batch</code>).</p>
-      <p><span class="label">Play:</span> their first 8 or more runs.</p>
-      <ul>
-        <li>How many runs, how many wins?</li>
-        <li>After a loss, did they start another right away?</li>
-        <li>Did a loss feel fair or cheap? (a few words)</li>
-      </ul>
-      <p><span class="label">Pass:</span> about 1 in 4, and losses led to another run.</p>
-    </div>
-  </details></li>
-
 </ol>
 
 <h2>Tuning targets — in work order</h2>
-<p class="rules">Never dropped: tune until the Pass line holds. 3 played tries; out of tries, look again at the bets under it. Tuning that makes a bet's test fair comes just before that bet; tuning under an unverified bet waits.</p>
 
 <ol class="unverified">
 
   <li><details>
     <summary><span class="n"></span><span class="tag">A</span><span>Mage runes and marks bring the synergy moment to Mage runs.</span></summary>
     <div class="q">
-      <p class="note">Makes bet 2 a fair test.</p>
       <p><span class="label">Play:</span> 2 Mages runs (<code>?army=mages</code>).</p>
       <ul>
         <li>Did two of my runes fire together for a big moment? (which round)</li>
@@ -205,7 +217,6 @@
   <li><details>
     <summary><span class="n"></span><span class="tag">A</span><span>The same works for the Undead and Beasts.</span></summary>
     <div class="q">
-      <p class="note">Waits on bet 2; their runes are not built.</p>
       <p><span class="label">Play:</span> 1 Undead run, 1 Beasts run.</p>
       <ul>
         <li>Did two of my runes fire together for a big moment? (which round, per army)</li>
@@ -216,47 +227,8 @@
   </details></li>
 
   <li><details>
-    <summary><span class="n"></span><span class="tag">D</span><span>Skeletons, the pounce and orbs stay readable on a phone.</span></summary>
-    <div class="q">
-      <p><span class="label">Play:</span> one fight per army, on a real phone.</p>
-      <ul>
-        <li>Could I tell what my army did without pausing? (per army)</li>
-        <li>Was there anything I couldn't see or had to squint at? (name it)</li>
-      </ul>
-      <p><span class="label">Pass:</span> yes for every army, nothing named. This tests seeing, not understanding; you cannot unknow the rules.</p>
-    </div>
-  </details></li>
-
-  <li><details>
-    <summary><span class="n"></span><span class="tag">D</span><span>A first-time player reads the game unprompted.</span></summary>
-    <div class="q">
-      <p class="note">Needs a new player; outside tests are paused.</p>
-      <p><span class="label">Play:</span> watch them, don't explain.</p>
-      <ul>
-        <li>What did they ask about? (list)</li>
-        <li>Did they get stuck on any screen? (which)</li>
-        <li>After the run, could they say why they won or lost?</li>
-      </ul>
-      <p><span class="label">Pass:</span> no stuck screen, and they can say why.</p>
-    </div>
-  </details></li>
-
-  <li><details>
-    <summary><span class="n"></span><span class="tag">C</span><span>A player starts another run right after one ends, win or lose.</span></summary>
-    <div class="q">
-      <p><span class="label">Play:</span> just play; you count as the player for now.</p>
-      <ul>
-        <li>After a win, did I start another right away?</li>
-        <li>After a loss, did I start another right away?</li>
-      </ul>
-      <p><span class="label">Pass:</span> yes to both, across a few sessions.</p>
-    </div>
-  </details></li>
-
-  <li><details>
     <summary><span class="n"></span><span class="tag">C</span><span>Run 20 still shows something new.</span></summary>
     <div class="q">
-      <p class="note">The 20 is a bet of its own.</p>
       <p><span class="label">Play:</span> just play; keep one line per run wherever you like.</p>
       <ul>
         <li>Did I see something new this run? (one line)</li>
@@ -265,20 +237,29 @@
     </div>
   </details></li>
 
-  <li><details>
-    <summary><span class="n"></span><span class="tag">Top</span><span>Someone not on the team finishes a run and starts another without being asked.</span></summary>
-    <div class="q">
-      <p class="note">The top test: what every tuning target adds up to. Needs a new player.</p>
-      <p><span class="label">Play:</span> hand them the phone, then say nothing.</p>
-      <ul>
-        <li>Did they finish the run?</li>
-        <li>Did they start another on their own?</li>
-      </ul>
-      <p><span class="label">Pass:</span> yes to both.</p>
-    </div>
-  </details></li>
-
 </ol>
+
+<!-- PARKED: bets that rest on runs, kept as they were, not dropped. They return if the game ends up with runs. -->
+<h2>Parked until the game has runs</h2>
+<p><a class="proof" href="DECISIONS.md#2026-11-02-game-the-two-run-bets-are-parked-until-the-game-has-runs">2026-11-02</a></p>
+<ul class="bets">
+  <li>Bet (C): a run fits one tired evening, about 10 minutes.</li>
+  <li>Bet (A): a good run ends with an absurdly strong squad.</li>
+</ul>
+
+<!-- PARKED: pillar D lines, kept as they were, not overturned. They return when other players count. -->
+<h2>Parked with pillar D — pick up and play</h2>
+<p>"I got it in minutes on my phone, and a run fits my sitting." <a class="proof" href="DECISIONS.md#2026-11-02-game-everything-about-the-game-is-open-and-pillar-d-is-dropped-for-now">2026-11-02</a></p>
+<p><b>Verified:</b></p>
+<ul class="bets">
+  <li>A term is explained where the player first meets it. <a class="proof" href="DECISIONS.md#2026-10-10-game-the-next-push-is-making-the-game-explain-itself-after-the-first-outside-playtest">2026-10-10</a></li>
+</ul>
+<p><b>Open:</b></p>
+<ul class="bets">
+  <li>Bet: a new player wins about 1 run in 4.</li>
+  <li>Tuning: skeletons, the pounce and orbs stay readable on a phone.</li>
+  <li>Tuning: a first-time player reads the game unprompted.</li>
+</ul>
 
 </main>
 </body>

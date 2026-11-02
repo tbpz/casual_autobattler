@@ -1,5 +1,5 @@
 # Cheatsheet
-Last updated: 2026-10-28 21:57 (values from prototype/src/sim/config.ts). All marks last one fight.
+Last updated: 2026-11-02 21:35 (values from prototype/src/sim/config.ts). All marks last one fight.
 
 Effects:
 - Exposed: each stack makes the body take +12% damage from every hit, max 10 stacks.
@@ -52,7 +52,7 @@ Runes — later picks:
 + Thirst: when an enemy dies, your most worn unit gains 40% of a charge bar.
 - Mages (Mages run only; drawn 1.5x as often there, and one of the 3 offers after a win is always a Mage rune; an orb "beat" is one orb working). They act on the orbs, in three builds. The first Mage rune held fixes the build: runes of the other two builds are never offered after it, and until one is held an army offer shows one rune from each build. Each build has setup runes and one payoff that releases at the merge:
 + Vessel (big merges): a mage holds 4 loose orbs before they merge, and the merged shot is 2.5x.
-+ Static (big merges, payoff; waits for a Storm Mage skill): when a Storm Mage's orbs merge, the shot also strikes every other enemy for 30% of the shot per orb that merged (3 orbs: 72 each).
++ Static (big merges, payoff; waits for a Storm Mage skill): when a Storm Mage's orbs merge, the shot also strikes every other enemy for 30% of the shot per orb that merged (3 orbs: 72 each), one enemy at a time, front to back, 0.25 s apart.
 + Fuse (many merges): a mage's loose orbs merge after 2; the shot stays full size.
 + Echo (many merges): when a Mage's orbs merge, one loose orb stays behind.
 + Leech (many merges; waits for a Life Mage skill): when another Mage's orbs merge, the Life Mage gains a loose orb.
@@ -65,7 +65,7 @@ Runes — later picks:
 + Cinder (Thorn + any burn): when a shield absorbs a hit, the attacker gets 2 burn.
 + Shard (Cleft + Fissure): when an exposed enemy's freeze ends, its exposed doubles.
 + Phoenix (Vigil + Mend): the first unit to fall each fight stands up at 30% HP with 20 shield.
-+ Overload (Echo + Fuse; Mages only; many merges, payoff): when a Mage's orbs merge while every other living Mage holds 2 loose orbs or more, they all merge at once, each shot full size.
++ Overload (Echo + Fuse; Mages only; many merges, payoff): when a Mage's orbs merge while every other living Mage holds 2 loose orbs or more, they merge one after another, 0.45 s apart in squad order, each shot full size.
 + Wellspring (Leech + Brim; Mages only; many merges): when a Life orb takes HP nobody can take in, that HP becomes shield, shared over the living units.
 - Role abilities (numbers per chain hit; a chain runs up to 7 hits, later hits up to 2.8x; each chain level adds +1 mark stack per hit):
 + Tank — Guard (base): takes the next slam for the squad, 1 per hit; the slammer gets exposed.

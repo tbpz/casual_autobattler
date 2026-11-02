@@ -174,9 +174,14 @@ export type FightEvent =
    * `level` is how many upgrades that kind has had this fight. */
   | { type: "skeletonUpgrade"; t: number; kind: SkeletonKind; level: number }
   /** Mages army (2026-10-21; fight.ts's `mageOrbHit`): a skill hit put a loose orb around mage `heroId`; `orbs` is how many it has now. */
-  | { type: "orbAdd"; t: number; heroId: string; orbs: number }
-  /** A skill hit found the mage's orbs full: the `orbs` loose ones flew together into one merged orb. The great shot follows at once as an `orbStrike`. */
-  | { type: "orbMerge"; t: number; heroId: string; orbs: number }
+  /** `by` is the rune that gave the orb (Echo, Leech; 2026-11-02), absent for a skill hit. */
+  | { type: "orbAdd"; t: number; heroId: string; orbs: number; by?: CardId }
+  /** A skill hit found the mage's orbs full: the `orbs` loose ones flew together into one merged orb. The great shot follows at once as an
+   * `orbStrike`. `by` is the rune that merged them early (Overload), absent for a skill hit. */
+  | { type: "orbMerge"; t: number; heroId: string; orbs: number; by?: CardId }
+  /** A merge a rune set off (CardApi.mergeOrbs) has no chainHit events, so its great shot's results come here instead (2026-11-02): one
+   * entry per body it hit, shielded or healed. `amount` is HP removed for "damage", HP healed for "heal", Shield added for "shield". */
+  | { type: "orbShotLanded"; t: number; heroId: string; hits: Array<{ targetId: string; kind: "damage" | "heal" | "shield"; amount: number }> }
   /** The merged orb fired its one great shot; the mage has no orbs left. The hit itself follows as chainHit events. */
   | { type: "orbStrike"; t: number; heroId: string }
   /** One orb did its work on the shared beat: Storm hit `targetId` for `amount`, Frost shielded `targetId` (the mage) for `amount`, Life took
@@ -228,6 +233,9 @@ export interface HeroSnapshot {
   skeletonLevel?: number;
   /** Mages army (2026-10-21): the loose orbs as of this instant, so the screen can draw them after a pause or a jump. */
   orbs?: number;
+  /** Mages army with the Kernel rune held (2026-11-02): the charges this mage's core orb has stored as of this instant (0 to kernelMax),
+   * drawn as dots round the core orb. Undefined when Kernel is not held. */
+  kernel?: number;
   /** An Undead army skeleton place. Not alive and `maxHp` 0 until Raise fills it, so the screen can draw
    * the places in advance and hide the empty ones. */
   skeleton?: boolean;

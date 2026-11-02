@@ -1,9 +1,11 @@
-// Generates canvas set 12.1 to 12.4: how the Mage payoff runes look (2026-10-28; options, awaiting Tu's pick).
-//   12.1A-C  the Overload cascade: three mages' orbs merge on the same beat
-//   12.2A-C  Kernel's charge: how the core orb shows it is storing up, and how it dumps into the shot
-//   12.3A-B  Static's spread: the merged Storm shot strikes every other enemy
-//   12.4A-B  the setup runes (Echo, Leech, Tempo): how each shows which rune did it
-// Run:  node design/tools/gen-mage-payoff-options.js     (writes ten frames and patches canvas.json)
+// Generates canvas frames 12.1 to 12.4: how the Mage payoff runes look. Drawn 2026-10-28 as ten options; Tu picked 12.1B, 12.2A, 12.3B and
+// 12.4B on 2026-11-02 (DECISIONS.md "Mage payoff looks") and they are built (render/fightView.ts). Only the four picked frames are written;
+// the other six are under "Dropped frames" in design/HANDOFF.md, and their scene functions stay below for the record.
+//   12.1  the Overload ripple: one merge sets off the next
+//   12.2  Kernel's charge: ten dots round the core orb
+//   12.3  Static's jumping bolt
+//   12.4  the setup runes (Echo, Leech, Tempo): each effect drawn from its cause, no words
+// Run:  node design/tools/gen-mage-payoff-options.js     (writes four frames and patches canvas.json)
 // The toolkit comes from gen-army-fights.js (it exports it when required). Every number is made up for the picture; the way it looks is
 // what is being judged. Every animated part keeps its key moment as its plain (animation off) style, so a frame reads as a still
 // (MISTAKES.md 2026-10-14 #1). The scene is 12.0D's fight (the Vanguard, three Outriders, Bram / Ivy / Sol) a moment before the merge.
@@ -203,15 +205,9 @@ function setupB(C) {
 // =====================================================================================================
 const PAUSE = `<div style="position:absolute;top:12px;right:12px;width:26px;height:26px;border-radius:50%;background:#2a2e3a;border:1px solid #3a3f4e;display:flex;align-items:center;justify-content:center;z-index:6;"><svg width="11" height="11" viewBox="0 0 11 11"><rect x="1.5" y="1" width="2.6" height="9" rx="0.8" fill="#e8e8ee"/><rect x="6.9" y="1" width="2.6" height="9" rx="0.8" fill="#e8e8ee"/></svg></div>`;
 const OPTIONS = [
-  { id: "12.1A", file: "FightMageCascadeA.dc.html", scene: cascadeA, title: "A · One beat: three shots at once", text: "Overload. Ivy's two loose orbs merge; Bram's and Sol's merge on the very same beat. Storm, Frost and Life shots land together, and one line says so.", feel: "Feels like: everything goes off at once." },
   { id: "12.1B", file: "FightMageCascadeB.dc.html", scene: cascadeB, title: "B · A ripple: one merge sets off the next", text: "Overload. Ivy merges first, a thread jumps to Bram and he merges, then to Sol. A short beat apart, so the eye can follow who set off whom.", feel: "Feels like: a chain reaction I can read." },
-  { id: "12.1C", file: "FightMageCascadeC.dc.html", scene: cascadeC, title: "C · A flash and a banner", text: "Overload. All three merge on one beat, the arena flashes and a big OVERLOAD ×3 banner pops. The loudest of the three.", feel: "Feels like: a boss-fight moment." },
   { id: "12.2A", file: "FightMageKernelA.dc.html", scene: kernelA, title: "A · Pips round the core orb", text: "Kernel. Ten small pips round Ivy's core orb fill one by one, a beat each. Full, the ring glows; the merge empties the pips into a shot four times bigger.", feel: "Feels like: counting up, then spending." },
-  { id: "12.2B", file: "FightMageKernelB.dc.html", scene: kernelB, title: "B · A bar under the skill bar", text: "Kernel. A small gold bar under Ivy's skill bar reads KERNEL 10/10 as it fills, flashes at full, and empties with the shot.", feel: "Feels like: another bar to watch." },
-  { id: "12.2C", file: "FightMageKernelC.dc.html", scene: kernelC, title: "C · The core orb swells", text: "Kernel. The core orb itself grows a little every beat and turns white-hot at full. No extra bar or pips; the orb is the readout.", feel: "Feels like: the orb is winding up." },
-  { id: "12.3A", file: "FightMageStaticA.dc.html", scene: staticA, title: "A · A fan of bolts", text: "Static. The merged Storm shot hits the Vanguard, and a bolt fires from the shot to every other enemy on the same beat, 48 each.", feel: "Feels like: a burst." },
   { id: "12.3B", file: "FightMageStaticB.dc.html", scene: staticB, title: "B · The bolt jumps", text: "Static. The big shot hits the Vanguard, then one bolt jumps Outrider 1, 2, 3 in turn, a short beat apart, 48 each.", feel: "Feels like: chain lightning." },
-  { id: "12.4A", file: "FightMageSetupA.dc.html", scene: setupA, title: "A · A rune word where it happens", text: "Echo, Leech, Tempo. After Ivy's merge a new orb is back round Ivy (ECHO +1) and Sol has one more (LEECH +1); Ivy's core orb pulses twice (TEMPO ×2). Each effect pops its rune's name.", feel: "Feels like: the game tells me which rune." },
   { id: "12.4B", file: "FightMageSetupB.dc.html", scene: setupB, title: "B · The effect drawn from its cause", text: "Echo, Leech, Tempo. Echo's orb flies back from the merged orb to Ivy; a green thread runs from Ivy's merge to Sol's new orb (Leech); Ivy's core orb double-pulses (Tempo). No words.", feel: "Feels like: I can see who gave what." },
 ];
 function frame(o, n) {
@@ -234,7 +230,7 @@ function frame(o, n) {
   ${C.rules.join("\n  ")}
 </style>
 </helmet>
-<!-- Frame ${o.id} (options, awaiting Tu's pick, 2026-10-28): a look for a Mage payoff rune, drawn over 12.0D's fight a moment before the merge. Generated by design/tools/gen-mage-payoff-options.js; every number is made up, the look is what is being judged. The loop is 12 seconds; the plain style is the key moment. -->
+<!-- Frame ${o.id.slice(0, 4)} (Tu's pick ${o.id} on 2026-11-02, built; drawn 2026-10-28): the look of a Mage payoff rune, drawn over 12.0D's fight a moment before the merge. Generated by design/tools/gen-mage-payoff-options.js; every number is made up, the look is what is being judged. The loop is 12 seconds; the plain style is the key moment. -->
 <div style="background:#14161c;width:390px;padding:12px 0 16px;color:#e8e8ee;">
   <div style="padding:0 20px 10px;">
     <div style="font-size:13px;font-weight:800;color:#e8e8ee;padding-bottom:3px;">${o.title}</div>
@@ -257,16 +253,16 @@ ${scenery}
 }
 
 // ---------- write the files and patch canvas.json ----------
-const Y = 17000, SETS = { "12.1": "THE CASCADE (OVERLOAD)", "12.2": "KERNEL'S CHARGE", "12.3": "STATIC'S SPREAD", "12.4": "THE SETUP RUNES (ECHO, LEECH, TEMPO)" };
+const Y = 17000, SETS = { "12.1": "THE RIPPLE (OVERLOAD)", "12.2": "KERNEL'S CHARGE", "12.3": "STATIC'S JUMPING BOLT", "12.4": "THE SETUP RUNES (ECHO, LEECH, TEMPO)" };
 const FRAMES = [];
 OPTIONS.forEach((o, i) => {
   fs.writeFileSync(path.join(CANVAS, o.file), frame(o, i));
-  FRAMES.push({ file: o.file, x: 550 * i, y: Y, w: 390, h: 600, label: `${o.id} ${SETS[o.id.slice(0, 4)]} — ${o.title} (option, awaiting Tu's pick)` });
+  FRAMES.push({ file: o.file, x: 550 * i, y: Y, w: 390, h: 600, label: `${o.id.slice(0, 4)} ${SETS[o.id.slice(0, 4)]} — ${o.title.slice(4)} (Tu's pick ${o.id}, 2026-11-02; built)` });
 });
 const cj = path.join(CANVAS, "canvas.json");
 let lines = fs.readFileSync(cj, "utf8").split("\n").filter((l) => !/"file": "FightMage(Cascade|Kernel|Static|Setup)|"id": "(label|section)-magepay/.test(l));
 const boards = FRAMES.map((f) => `    { "file": "${f.file}", "x": ${f.x}, "y": ${f.y}, "w": ${f.w}, "h": ${f.h} },`);
-const notes = [`    { "id": "section-magepay", "x": 0, "y": ${Y - 140}, "w": ${550 * (OPTIONS.length - 1) + 390}, "text": "12.1 to 12.4 · HOW THE MAGE PAYOFF RUNES LOOK — options, awaiting Tu's pick: 12.1 the Overload cascade, 12.2 Kernel's charge, 12.3 Static's spread, 12.4 the setup runes. Watch each one loop; pick one per set, or a mix" },`];
+const notes = [`    { "id": "section-magepay", "x": 0, "y": ${Y - 140}, "w": ${550 * (OPTIONS.length - 1) + 390}, "text": "12.1 to 12.4 · HOW THE MAGE PAYOFF RUNES LOOK — Tu's picks of 2026-11-02, built: 12.1 the Overload ripple, 12.2 Kernel's dots, 12.3 Static's jumping bolt, 12.4 the setup runes drawn from their cause. Each loops 12 s" },`];
 FRAMES.forEach((f, i) => notes.push(`    { "id": "label-magepay-${i}", "x": ${f.x}, "y": ${f.y - 60}, "w": 390, "text": ${JSON.stringify(f.label)} },`));
 const iArt = lines.findIndex((l) => l.includes('"annotations"'));
 // the last artboard line has no trailing comma in the file: give it one, then add ours ending without one

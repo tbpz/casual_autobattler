@@ -170,7 +170,7 @@ interface HeroSlot {
   /** A Mages army unit's orbs (2026-10-21; canvas 12.0D, 12.0E), drawn in `core`: the core orb at the body's left, out for as long as the unit
    * lives; up to `mageOrbMax` loose orbs round the body, shown from the snapshot's `orbs`; and one merged orb to its right that exists only
    * for the moment of the great shot (the `orbMerge` event). Undefined on anyone else. */
-  orbs?: { color: string; core: HTMLElement; loose: HTMLElement[]; big: HTMLElement; shownLoose: number };
+  orbs?: { color: string; core: HTMLElement; loose: HTMLElement[]; big: HTMLElement; shownLoose: number; dots: HTMLElement[]; shownKernel: number };
 }
 
 /** How long a tracer takes to fly from attacker to target, in ms. Impact
@@ -233,6 +233,14 @@ const ORB_SHOT_MS = 640;
 /** How long a lightning bolt flickers before it is gone, and how soon after it appears the number and flinch land. */
 const BOLT_MS = 420;
 const ORB_BOLT_LAND_MS = 110;
+/** The Mage payoff looks Tu picked (2026-11-02; canvas 12.1B to 12.4B). Overload's thread from one merged orb to the next takes this long; an
+ * orb Echo or Leech gives flies or threads to its place in this long; Tempo's second, smaller pulse follows the first by this much. The gaps
+ * between ripple steps and bolt jumps are the fight's own (config.ts overloadRippleSec, staticHopSec), not the screen's. */
+const OVERLOAD_THREAD_MS = 180;
+const RUNE_ORB_MS = 300;
+const TEMPO_SECOND_PULSE_MS = 160;
+/** Kernel's dots (canvas 12.2A): how far from the core orb's centre they sit, in px. */
+const KERNEL_DOT_RADIUS_PX = 9;
 
 /** The offset of an orb at `deg` degrees round a body, as a share of the body's size from its centre. */
 function orbOffset(deg: number): [number, number] {
@@ -602,6 +610,10 @@ export class FightView {
   private boltSeq = 0;
   /** Storm Mages whose merged orb has just struck: the next damage hit from them is drawn as a thick bolt from the orb, not a plain line. */
   private bigStrike: Set<string> = new Set();
+  /** The mage whose orbs merged last (2026-11-02): where Overload's thread and Leech's thread start from. */
+  private lastMergeId: string | null = null;
+  /** The enemy Static's bolt jumps on from (2026-11-02): the big Storm shot's target, then each enemy it jumped to. */
+  private staticFrom: string | null = null;
   /** True once any chain has fired this fight (2026-08-15) — gates the
    * near-miss beat so it never competes with a chain that actually landed;
    * "so close" only means something when nothing else already happened. */
@@ -1397,10 +1409,33 @@ export class FightView {
     big.style.top = `${(BIG_ORB_AT.y * 100).toFixed(1)}%`;
     big.innerHTML = '<span class="orb-spark"><i>✦</i><i>✦</i><i>✦</i><i>✦</i></span>';
     core.appendChild(big);
-    return { color, core: coreOrb, loose, big, shownLoose: 0 };
+    return { color, core: coreOrb, loose, big, shownLoose: 0, dots: [], shownKernel: -1 };
   }
 
-  /** Shows the core orb while the unit lives, and as many loose orbs as the snapshot says. */
+  /** Kernel's dots (2026-11-02; canvas 12.2A): `kernelMax` small dots in a ring round the core orb, built the first time a snapshot carries a
+   * Kernel store (so only while Kernel is held). They sit beside the core orb, not in it, so its beat swell does not scale them. */
+  private buildKernelDots(refs: HeroSlot): void {
+    const orbs = refs.orbs;
+    if (!orbs || orbs.dots.length > 0) return;
+    const wrap = document.createElement("div");
+    wrap.className = "kernel-dots";
+    wrap.style.left = orbs.core.style.left;
+    wrap.style.top = orbs.core.style.top;
+    wrap.style.setProperty("--orb", orbs.color);
+    const n = Math.max(1, this.cfg.kernelMax);
+    for (let i = 0; i < n; i++) {
+      const rad = ((-90 + (i * 360) / n) * Math.PI) / 180;
+      const dot = document.createElement("i");
+      dot.style.left = `${(Math.cos(rad) * KERNEL_DOT_RADIUS_PX).toFixed(1)}px`;
+      dot.style.top = `${(Math.sin(rad) * KERNEL_DOT_RADIUS_PX).toFixed(1)}px`;
+      wrap.appendChild(dot);
+      orbs.dots.push(dot);
+    }
+    orbs.core.parentElement?.appendChild(wrap);
+  }
+
+  /** Shows the core orb while the unit lives, and as many loose orbs as the snapshot says; with Kernel held, lights one dot per stored charge
+   * and makes the core orb glow when the store is full. */
   private updateOrbs(refs: HeroSlot, hero: HeroSnapshot): void {
     const orbs = refs.orbs;
     if (!orbs) return;
@@ -1410,6 +1445,41 @@ export class FightView {
       orbs.loose.forEach((el, i) => el.classList.toggle("on", i < loose));
       orbs.shownLoose = loose;
     }
+    if (hero.kernel === undefined) return;
+    this.buildKernelDots(refs);
+    const stored = hero.alive ? hero.kernel : 0;
+    if (stored !== orbs.shownKernel) {
+      orbs.dots.forEach((el, i) => el.classList.toggle("on", i < stored));
+      orbs.dots[0]?.parentElement?.classList.toggle("gone", !hero.alive);
+      orbs.core.classList.toggle("kernel-full", hero.alive && stored >= this.cfg.kernelMax);
+      orbs.shownKernel = stored;
+    }
+  }
+
+  /** Kernel spent its store on the shot (canvas 12.2A): every dot flies from its place into the merged orb. The dots are already dark in the
+   * snapshot, so these are ghosts. */
+  private flyDotsIntoBig(refs: HeroSlot): void {
+    const orbs = refs.orbs;
+    if (!orbs) return;
+    const target = this.centerOf(orbs.big);
+    for (const dot of orbs.dots) {
+      const from = this.centerOf(dot);
+      this.flyGhost(from, target, orbs.color, ORB_FLY_MS, "dot");
+    }
+  }
+
+  /** A ghost orb in the tracer layer flying from `from` to `to` in `ms`, then gone. `extra` is a size class (`dot` for a Kernel dot). */
+  private flyGhost(from: { x: number; y: number }, to: { x: number; y: number }, color: string, ms: number, extra?: string, out = false): void {
+    const ghost = document.createElement("div");
+    ghost.className = `orb-ghost${extra ? ` ${extra}` : ""}${out ? " out" : ""}`;
+    ghost.style.setProperty("--orb", color);
+    ghost.style.setProperty("--fly-x", `${(to.x - from.x).toFixed(1)}px`);
+    ghost.style.setProperty("--fly-y", `${(to.y - from.y).toFixed(1)}px`);
+    ghost.style.setProperty("--fly-ms", `${ms}ms`);
+    ghost.style.left = `${from.x.toFixed(1)}px`;
+    ghost.style.top = `${from.y.toFixed(1)}px`;
+    this.tracerLayer.appendChild(ghost);
+    fightClock.setTimeout(() => ghost.remove(), ms + 60);
   }
 
   /** One lightning bolt from `from` to `to` (2026-10-21; canvas 12.0D): a jagged line with a white-hot core, flickering for BOLT_MS. A thick
@@ -1514,18 +1584,108 @@ export class FightView {
     const target = this.centerOf(orbs.big);
     for (let i = 0; i < count; i++) {
       const src = orbs.loose[i];
-      if (!src) continue;
-      const from = this.centerOf(src);
-      const ghost = document.createElement("div");
-      ghost.className = "orb-ghost";
-      ghost.style.setProperty("--orb", orbs.color);
-      ghost.style.setProperty("--fly-x", `${(target.x - from.x).toFixed(1)}px`);
-      ghost.style.setProperty("--fly-y", `${(target.y - from.y).toFixed(1)}px`);
-      ghost.style.setProperty("--fly-ms", `${ORB_FLY_MS}ms`);
-      ghost.style.left = `${from.x.toFixed(1)}px`;
-      ghost.style.top = `${from.y.toFixed(1)}px`;
-      this.tracerLayer.appendChild(ghost);
-      fightClock.setTimeout(() => ghost.remove(), ORB_FLY_MS + 60);
+      if (src) this.flyGhost(this.centerOf(src), target, orbs.color, ORB_FLY_MS);
+    }
+  }
+
+  /** An orb a rune gave (2026-11-02; canvas 12.4B), drawn from its cause: the new loose orb stays hidden while Echo's flies back out of the
+   * merged orb to its place, or while Leech's green thread runs from the merging mage's merged orb to it; then it shows with a ring. */
+  private showRuneOrb(refs: HeroSlot, orbs: number, by: "echo" | "leech"): void {
+    const el = refs.orbs?.loose[orbs - 1];
+    if (!refs.orbs || !el) return;
+    const color = refs.orbs.color;
+    el.classList.add("returning");
+    const show = (): void => {
+      el.classList.remove("returning");
+      this.popRing(el, color);
+    };
+    if (by === "echo") {
+      // The loose orbs fly in first; the one that stays comes back out as the merged orb flares.
+      fightClock.setTimeout(() => {
+        if (refs.orbs) this.flyGhost(this.centerOf(refs.orbs.big), this.centerOf(el), color, RUNE_ORB_MS, undefined, true);
+        fightClock.setTimeout(show, RUNE_ORB_MS);
+      }, ORB_FLY_MS * 0.6);
+      return;
+    }
+    const from = this.lastMergeId ? this.playerHeroes.get(this.lastMergeId)?.orbs?.big : undefined;
+    if (from) this.fireTracer(from, el, ORB_COLOR.lifeMage!, 3, "chain-tracer", RUNE_ORB_MS);
+    fightClock.setTimeout(show, from ? RUNE_ORB_MS : 0);
+  }
+
+  /** The great shot of a merge a rune set off (Overload's ripple; 2026-11-02), which has no chainHit to draw it: a Storm shot is a thick bolt
+   * from the merged orb and a number; a Life shot a green line to the enemy it drains, then to each unit it heals; Frost (and Life's spill)
+   * a ring and the Shield on each unit. Frost's freeze shows from the snapshot like any freeze. */
+  private showOrbShotLanded(heroId: string, hits: Array<{ targetId: string; kind: "damage" | "heal" | "shield"; amount: number }>): void {
+    const mage = this.playerHeroes.get(heroId);
+    if (!mage?.orbs) return;
+    const big = mage.orbs.big;
+    const storm = mage.orbs.color === ORB_COLOR.stormMage;
+    for (const hit of hits) {
+      if (hit.kind === "damage") {
+        const foe = this.enemyHeroes.get(hit.targetId);
+        if (!foe) continue;
+        if (storm) {
+          this.fireBolt(big, foe.body, ORB_COLOR.stormMage!, true);
+          this.staticFrom = hit.targetId;
+        } else {
+          this.fireTracer(big, foe.body, mage.orbs.color, 6, "chain-tracer", TRACER_MS);
+        }
+        fightClock.setTimeout(() => {
+          pulseClass(foe.core, "flinch", 300);
+          if (hit.amount > 0) this.showPopup(foe.body, `-${hit.amount}`, "chain", 1.1, 2, mage.orbs?.color);
+        }, storm ? ORB_BOLT_LAND_MS : TRACER_MS);
+        continue;
+      }
+      const ally = this.playerHeroes.get(hit.targetId);
+      if (!ally) continue;
+      if (hit.kind === "heal") {
+        // Life heals after its drain lands, so the line reads enemy → orb → unit.
+        fightClock.setTimeout(() => {
+          this.fireTracer(big, ally.body, ORB_COLOR.lifeMage!, 6, "chain-tracer", TRACER_MS);
+          fightClock.setTimeout(() => {
+            pulseClass(ally.body, "healed", 500);
+            this.showPopup(ally.body, `+${hit.amount}`, "heal", 1, 0, HEAL_ACCENT);
+          }, TRACER_MS);
+        }, TRACER_MS);
+        continue;
+      }
+      this.popRing(ally.core, mage.orbs.color);
+      this.showMarkPopup("player", hit.targetId, `+${hit.amount} ${MARK_CHIP.shield.word.toUpperCase()}`, "shield", 0);
+    }
+  }
+
+  /** What the Mage runes draw when they fire (2026-11-02; canvas 12.2A, 12.3B, 12.4B). Static: one bolt jumps on from the last enemy it hit
+   * (the shot's target at first) to this one, with its number. Kernel: the dots empty into the shot. Tempo: a second, smaller white pulse on
+   * the core orb after the first. Echo and Leech draw from their orbAdd (showRuneOrb). */
+  private showMageRune(card: CardId, targetId: string, amount: number): void {
+    if (card === "static") {
+      const foe = this.enemyHeroes.get(targetId);
+      const from = this.staticFrom ? this.enemyHeroes.get(this.staticFrom) : undefined;
+      if (!foe) return;
+      if (from) this.fireBolt(from.body, foe.body, ORB_COLOR.stormMage!, false);
+      this.staticFrom = targetId;
+      fightClock.setTimeout(() => {
+        pulseClass(foe.core, "flinch", 300);
+        if (amount > 0) this.showPopup(foe.body, `-${Math.round(amount)}`, "normal", 1, 0, ORB_COLOR.stormMage);
+      }, ORB_BOLT_LAND_MS);
+      return;
+    }
+    const mage = this.playerHeroes.get(targetId);
+    if (!mage?.orbs) return;
+    if (card === "kernel") {
+      this.flyDotsIntoBig(mage);
+      return;
+    }
+    if (card === "tempo") {
+      const core = mage.orbs.core;
+      this.popRing(core, mage.orbs.color);
+      fightClock.setTimeout(() => {
+        const ring = document.createElement("div");
+        ring.className = "pop-ring small";
+        ring.style.setProperty("--ring-color", "#ffffff");
+        core.appendChild(ring);
+        fightClock.setTimeout(() => ring.remove(), 640);
+      }, TEMPO_SECOND_PULSE_MS);
     }
   }
 
@@ -1976,6 +2136,7 @@ export class FightView {
         );
         break;
       case "cardTriggered":
+        this.showMageRune(e.card, e.targetId, e.amount);
         this.showCardTriggered(e.card, e.side, e.targetId, e.amount, e.causeCard, e.depth);
         break;
       case "burnTick":
@@ -2013,18 +2174,28 @@ export class FightView {
       case "orbAdd":
       case "orbPop": {
         const refs = this.playerHeroes.get(e.heroId);
-        if (refs?.orbs) this.popRing(refs.core, e.type === "orbPop" ? "#ff5d5d" : refs.orbs.color);
+        if (!refs?.orbs) break;
+        // An orb Echo or Leech gave is drawn from its cause, with no word (canvas 12.4B).
+        if (e.type === "orbAdd" && (e.by === "echo" || e.by === "leech")) this.showRuneOrb(refs, e.orbs, e.by);
+        else this.popRing(refs.core, e.type === "orbPop" ? "#ff5d5d" : refs.orbs.color);
         break;
       }
       case "orbMerge": {
         // The loose orbs fly together into one merged orb, which flares and is gone (the `shot` animation); the orbs are already 0 in the snapshot.
         const refs = this.playerHeroes.get(e.heroId);
         if (refs?.orbs) {
+          // Overload's ripple (canvas 12.1B): a thread in the last mage's colour runs from its merged orb to this one's as these orbs fly in.
+          const prev = e.by === "overload" && this.lastMergeId ? this.playerHeroes.get(this.lastMergeId)?.orbs : undefined;
+          if (prev) this.fireTracer(prev.big, refs.orbs.big, prev.color, 4, "chain-tracer", OVERLOAD_THREAD_MS);
           this.flyOrbsIntoBig(refs, e.orbs);
           pulseClass(refs.orbs.big, "shot", ORB_SHOT_MS);
         }
+        this.lastMergeId = e.heroId;
         break;
       }
+      case "orbShotLanded":
+        this.showOrbShotLanded(e.heroId, e.hits);
+        break;
       case "orbStrike": {
         const refs = this.playerHeroes.get(e.heroId);
         if (refs?.orbs) {
@@ -2677,6 +2848,8 @@ export class FightView {
     if (attacker && target && pounceLandMs === undefined) {
       if (strikeBolt) {
         this.fireBolt(attacker.orbs!.big, target.body, ORB_COLOR.stormMage!, true);
+        // Static's bolt jumps on from here (canvas 12.3B).
+        this.staticFrom = targetId;
       } else {
         this.lungeToward(attacker.core, target.body, 14);
         this.fireTracer(attacker.body, target.body, chainColor, 8, "chain-tracer", chainFlightMs, !!chainBlocker, chainBlocker?.body);
@@ -2925,6 +3098,8 @@ export class FightView {
    * three or more deep gets a CASCADE callout — that is the show the card
    * system exists to put on screen. */
   private showCardTriggered(card: CardId, side: "player" | "enemy", targetId: string, amount: number, causeCard: CardId | undefined, depth: number): void {
+    // Echo, Leech and Tempo show no word: each is drawn from its cause instead (2026-11-02, canvas 12.4B; showRuneOrb, showMageRune).
+    if (card === "echo" || card === "leech" || card === "tempo") return;
     const def = CARD_DEFS[card];
     const title = `${def.icon} ${def.title.toUpperCase()}`;
     // The older cards report a multiplier or a bonus in `amount`; the rest are

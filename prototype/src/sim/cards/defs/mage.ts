@@ -18,8 +18,9 @@ import type { CardDef } from "../types.js";
 const kernelKey = (mage: HeroState): string => `kernel:${mage.id}`;
 /** Tempo's own extra core beat raises orbBeat again; this counter is non-zero while it runs so that beat does not double again. */
 const TEMPO_BUSY = "tempo:busy";
-/** Overload merges the other mages inside its own orbsMerged hook; this counter is non-zero while it runs so that sweep does not start another. */
-const OVERLOAD_BUSY = "overload:busy";
+/** Overload's ripple runs over several ticks (2026-11-02); this counter is non-zero until its last merge, so a skill merge in the middle
+ * of it does not start a second ripple. */
+const OVERLOAD_RIPPLE = "overload:ripple";
 
 export const VESSEL: CardDef = {
   id: "vessel",
@@ -128,15 +129,20 @@ export const STATIC: CardDef = {
   makes: [],
   hooks: [
     {
+      // One bolt jumps from enemy to enemy, front to back, `staticHopSec` apart (2026-11-02, canvas 12.3B); an enemy that falls before
+      // the bolt reaches it is skipped, and the bolt goes on to the next.
       on: "orbsMerged",
       when: (e) => e.orbKind === "storm" && e.target !== undefined,
       do: (e, api) => {
         const each = e.shot * api.cfg.staticSharePerOrb * e.orbs;
-        for (const foe of api.enemy.heroes) {
-          if (!foe.alive || foe.hp <= 0 || foe === e.target) continue;
-          const dealt = api.damage(api.enemy, foe.id, each);
-          api.fire("static", "enemy", foe.id, Math.round(dealt));
-        }
+        const foes = api.enemy.heroes.filter((foe) => foe.alive && foe.hp > 0 && foe !== e.target);
+        foes.forEach((foe, i) => {
+          api.after((i + 1) * api.cfg.staticHopSec, () => {
+            if (!foe.alive || foe.hp <= 0) return;
+            const dealt = api.damage(api.enemy, foe.id, each);
+            api.fire("static", "enemy", foe.id, Math.round(dealt));
+          });
+        });
       },
     },
   ],
@@ -214,24 +220,26 @@ export const OVERLOAD: CardDef = {
   needs: { cards: ["echo", "fuse"] },
   hooks: [
     {
-      // Every other living mage must be ready, so the cascade is the squad lining up, not one stray mage with orbs to spare.
+      // Every other living mage must be ready, so the cascade is the squad lining up, not one stray mage with orbs to spare. A merge
+      // Overload made itself never starts another.
       on: "orbsMerged",
       when: (e, api) => {
-        if (api.counter(OVERLOAD_BUSY) > 0) return false;
+        if (e.by === "overload" || api.counter(OVERLOAD_RIPPLE) > 0) return false;
         const others = api.player.heroes.filter((m) => m !== e.mage && m.army === "mages" && m.alive && m.hp > 0);
         return others.length > 0 && others.every((m) => (m.orbs ?? 0) >= api.cfg.overloadMinOrbs);
       },
+      // A ripple (2026-11-02, canvas 12.1B): the other mages merge one after another, `overloadRippleSec` apart, in squad order. A mage
+      // that has fallen or lost its orbs by its turn is skipped. The rune is named once, as the ripple starts.
       do: (e, api) => {
-        api.bump(OVERLOAD_BUSY);
-        let merged = 0;
-        try {
-          for (const mage of api.player.heroes.filter((m) => m !== e.mage && m.army === "mages" && m.alive && m.hp > 0)) {
-            if (api.mergeOrbs(mage)) merged++;
-          }
-        } finally {
-          api.bump(OVERLOAD_BUSY, -1);
-        }
-        if (merged > 0) api.fire("overload", "player", e.mage.id, merged);
+        const others = api.player.heroes.filter((m) => m !== e.mage && m.army === "mages" && m.alive && m.hp > 0);
+        api.bump(OVERLOAD_RIPPLE);
+        others.forEach((mage, i) => {
+          api.after((i + 1) * api.cfg.overloadRippleSec, () => {
+            api.mergeOrbs(mage, "overload");
+            if (i === others.length - 1) api.bump(OVERLOAD_RIPPLE, -1);
+          });
+        });
+        api.fire("overload", "player", e.mage.id, others.length);
       },
     },
   ],

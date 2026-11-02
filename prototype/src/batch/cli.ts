@@ -64,9 +64,11 @@ function formatEvent(e: FightEvent): string {
     case "skeletonUpgrade":
       return `[t=${t}] the horde is full: every ${e.kind} skeleton is upgraded (level ${e.level})`;
     case "orbAdd":
-      return `[t=${t}] ${e.heroId} gains an orb (${e.orbs})`;
+      return `[t=${t}] ${e.heroId} gains an orb (${e.orbs})${e.by ? ` from ${e.by}` : ""}`;
     case "orbMerge":
-      return `[t=${t}] ${e.heroId}'s orbs merge into one`;
+      return `[t=${t}] ${e.heroId}'s orbs merge into one${e.by ? ` (${e.by})` : ""}`;
+    case "orbShotLanded":
+      return `[t=${t}] ${e.heroId}'s great shot lands: ${e.hits.map((h) => `${h.kind} ${h.amount} on ${h.targetId}`).join(", ") || "nothing"}`;
     case "orbStrike":
       return `[t=${t}] ${e.heroId}'s merged orb fires its great shot`;
     case "orbTick":

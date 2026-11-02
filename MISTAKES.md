@@ -16,6 +16,50 @@
 
 ---
 
+### [2026-11-02 #4] Proposed a bet worded like the one dropped the same day
+
+- **Said:** Proposed the new bet "The game is played in runs that start fresh".
+- **Actually:** "Every run starts fresh" was bet 2, dropped that day for "lasting progress between
+  runs pulls Tu back". The bet went in as "runs, each with a clear start and end" instead.
+- **Caught by:** me, while reading `DECISIONS.md` before logging.
+- **Why:** I wrote the suggestion from BETS.html alone, without checking recent DECISIONS entries
+  for the same words.
+- **Tag:** answered without checking the log
+
+- **Said:** Four note lines in `BETS.html`: "the prototype is no longer built on…", "Dropped: every run
+  starts fresh…", "Moved down: …" in the watch-the-fight fold, and "All three rest on the prototype…"
+  under the tuning targets.
+- **Actually:** The file is one line each, no explanation. Reasons, moves and drops live in
+  `DECISIONS.md`; what a dropped bet taught goes into the verified list as a line with a proof link.
+- **Caught by:** Tu ("I remembered I said no redundant explaination").
+- **Why:** I treated each decision as needing a visible trace in `BETS.html`, and copied the note
+  style older folds already had instead of the one-line rule.
+- **Tag:** broke a standing file rule
+
+### [2026-11-02 #2] Said adding a bet that clashes with a verified line means overturning that line
+
+- **Said:** Bets 4 (less to keep in my head) and 5 (a good run ends absurdly strong) clash with
+  verified lines, so adding either means changing the bet or overturning the line.
+- **Actually:** Adding a bet only means we test it. The verified line is in question only if the bet
+  passes; until then both stand. So the folds carry a note naming the line Tu decides on at a pass.
+- **Caught by:** me, while planning the BETS.html update.
+- **Why:** I read the DECISION protocol's "a decision that breaks a verified bet" as covering a bet
+  that would only break one if it won its test.
+- **Tag:** overstated a conflict
+
+### [2026-11-02 #1] Read the top test as being about outside players, and suggested "comes back right after" could be a bet again
+
+- **Said:** The top test is honest because outside players say they like a game to be polite; its
+  "starts another" should allow for a stranger's short gap; and "a player starts another run right
+  after one ends" could move to the bets list, since a once-a-day game wants the opposite.
+- **Actually:** STATE already says Tu is the only judge for now, so the test is about Tu. And Tu had
+  already called "comes back right after" a must-hit goal, not a bet, on 2026-10-28 (entry below).
+  Tu: the top line is the objective, and a bet is a choice of what the game is about.
+- **Caught by:** Tu.
+- **Why:** I read the line's wording ("someone not on the team") over STATE's "Tu is the only
+  judge", and did not check MISTAKES.md for a call Tu had already reversed.
+- **Tag:** re-proposed a call Tu had already reversed
+
 ### [2026-10-28 #2] Sorted bets from tuning by what a "no" would cause; Tu reversed all four calls
 
 - **Said:** A line is a bet if a "no" would make us drop or redirect something. On that test I

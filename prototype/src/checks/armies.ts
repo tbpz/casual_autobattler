@@ -430,6 +430,8 @@ const shotSize = (base: number): number => Math.round(base * run.fight.chainHitM
     const storm = charged(unit("mages", "damage"));
     const r = solo(held([storm, unit("mages", "tank")], ["echo"]), 7, { chainMaxHits: 4, ...noBeat });
     check("Echo: a merge leaves one loose orb behind", mageIn(r, storm.id).orbs === 1 && triggers(r, "echo").length === 1);
+    const adds = eventsOf(r, "orbAdd");
+    check("Echo: the orb it leaves is tagged as Echo's on the record; a skill hit's orb is not (2026-11-02)", adds.at(-1)?.by === "echo" && adds.slice(0, -1).every((e) => e.by === undefined), adds.map((e) => e.by ?? "hit").join());
     const plain = solo(held([charged(unit("mages", "damage")), unit("mages", "tank")], []), 7, { chainMaxHits: 4, ...noBeat });
     check("Echo: without it a merge leaves none", mageIn(plain, plain.snapshots[0]!.playerHeroes.find((h) => h.kind === "stormMage")!.id).orbs === 0);
   }
@@ -474,12 +476,17 @@ const shotSize = (base: number): number => Math.round(base * run.fight.chainHitM
     check("Kernel: with the store full the merged shot is the set number of times bigger", fullShot?.type === "chainHit" && fullShot.intended === Math.round(usual * run.fight.kernelShotMult), `${fullShot?.type === "chainHit" ? fullShot.intended : "no shot"}`);
     const spent = triggers(full, "kernel").filter((e) => e.t <= fullMerge.t + 0.01);
     check("Kernel: one trigger on the shot, naming the charges spent", spent.length === 1 && spent[0]!.amount === 3, spent.map((e) => e.amount).join());
+    // The dots round the core orb (2026-11-02, canvas 12.2A) read the store from the snapshot: it climbs to full, then empties with the shot.
+    const kernelAt = (r: FightResult, t: number): number | undefined => r.snapshots.filter((sn) => sn.t <= t + 1e-9).at(-1)!.playerHeroes.find((h) => h.id === stormId(r))!.kernel;
+    const climb = full.snapshots.filter((sn) => sn.t < fullMerge.t).map((sn) => sn.playerHeroes.find((h) => h.id === stormId(full))!.kernel ?? -1);
+    check("Kernel: the snapshot carries the store, climbing to full before the shot and back to 0 with it", climb[0] === 0 && climb.every((v, i) => i === 0 || v >= climb[i - 1]!) && kernelAt(full, fullMerge.t - 0.06) === 3 && kernelAt(full, fullMerge.t) === 0, `${kernelAt(full, fullMerge.t - 0.06)} → ${kernelAt(full, fullMerge.t)}`);
     const notFull = solo(held([stormOf(), unit("mages", "tank")], ["kernel"]), 7, slow);
     const notFullShot = shotOf(notFull, stormId(notFull));
     check("Kernel: a merge before the store is full is the usual size and spends nothing", notFullShot?.type === "chainHit" && notFullShot.intended === usual && triggers(notFull, "kernel").filter((e) => e.t < 7.6).length === 0);
     const base = solo(held([stormOf(), unit("mages", "tank")], []), 7, { ...slow, kernelMax: 3 });
     const baseShot = shotOf(base, stormId(base));
     check("Kernel: without it the shot is the usual size however long it waits", baseShot?.type === "chainHit" && baseShot.intended === usual);
+    check("Kernel: without it the snapshot carries no store", base.snapshots.every((sn) => sn.playerHeroes.every((h) => h.kernel === undefined)));
   }
   {
     // Static: when a Storm Mage's orbs merge, the shot also strikes every other enemy, for a share of the shot per orb it held (2026-10-28).
@@ -491,6 +498,13 @@ const shotSize = (base: number): number => Math.round(base * run.fight.chainHitM
     const frontId = r.snapshots[0]!.enemyHeroes[0]!.id;
     const foes = r.snapshots[0]!.enemyHeroes.length;
     check("Static: the merged shot also strikes every other enemy, the share per orb merged", eventsOf(r, "orbMerge").length === 1 && foes > 2 && strikes.length === foes - 1 && new Set(strikes.map((e) => e.targetId)).size === foes - 1 && strikes.every((e) => e.targetId !== frontId && Math.abs(e.amount - each) <= 1), `${strikes.length} of ${foes - 1} strikes at ${strikes.map((e) => e.amount).join()}`);
+    // One bolt jumping enemy to enemy (2026-11-02, canvas 12.3B): front to back, the first the set gap after the shot, then the same gap.
+    const shotT = eventsOf(r, "orbMerge")[0]!.t;
+    const order = r.snapshots[0]!.enemyHeroes.map((h) => h.id).filter((id) => id !== frontId);
+    check("Static: the strikes land one at a time, front to back, the set gap apart", strikes.map((e) => e.targetId).join() === order.join() && strikes.every((e, i) => Math.abs(e.t - shotT - (i + 1) * run.fight.staticHopSec) < 0.051), strikes.map((e) => `${e.targetId}@${e.t}`).join());
+    const hpAt = (id: string, t: number): number => r.snapshots.filter((sn) => sn.t <= t + 1e-9).at(-1)!.enemyHeroes.find((h) => h.id === id)!.hp;
+    const last = strikes.at(-1)!;
+    check("Static: an enemy's HP drops only when its strike lands, not with the shot", hpAt(last.targetId, last.t - 0.06) === hpAt(last.targetId, shotT - 0.06) && hpAt(last.targetId, last.t) < hpAt(last.targetId, shotT));
     const frost = charged(unit("mages", "tank"));
     frost.orbs = run.fight.mageOrbMax;
     const fr = solo(held([frost, unit("mages", "damage")], ["static"], three), 7, { chainMaxHits: 1, ...noBeat });
@@ -504,6 +518,7 @@ const shotSize = (base: number): number => Math.round(base * run.fight.chainHitM
     const life = unit("mages", "support");
     const r = solo(held([frost, life], ["leech"]), 7, { chainMaxHits: 4, ...noBeat });
     check("Leech: when the Frost Mage's orbs merge, the Life Mage gains a loose orb", mageIn(r, life.id).orbs === 1 && triggers(r, "leech").length === 1 && triggers(r, "leech")[0]!.targetId === life.id);
+    check("Leech: the Life Mage's orb is tagged as Leech's on the record (2026-11-02)", eventsOf(r, "orbAdd").filter((e) => e.heroId === life.id).every((e) => e.by === "leech"));
     const own = charged(unit("mages", "support"));
     const ownRun = solo(held([own, unit("mages", "tank")], ["leech"]), 7, { chainMaxHits: 4, ...noBeat });
     check("Leech: the Life Mage's own merge gives it nothing", eventsOf(ownRun, "orbMerge").length === 1 && mageIn(ownRun, own.id).orbs === 0 && triggers(ownRun, "leech").length === 0);
@@ -534,8 +549,13 @@ const shotSize = (base: number): number => Math.round(base * run.fight.chainHitM
     const life = withOrbs(unit("mages", "support"), run.fight.overloadMinOrbs);
     const r = solo(held([frost, storm, life], ["overload"], three), 7, { chainMaxHits: 1, ...noBeat });
     const merges = eventsOf(r, "orbMerge");
-    check("Overload: when every other mage holds the set number of orbs, one merge sets them all off at the same moment", merges.length === 3 && new Set(merges.map((e) => e.t)).size === 1 && new Set(merges.map((e) => e.heroId)).size === 3 && eventsOf(r, "orbStrike").length === 3, merges.map((e) => `${e.heroId}@${e.t}`).join());
-    check("Overload: one trigger, naming how many mages it merged; their orbs are gone", triggers(r, "overload").length === 1 && triggers(r, "overload")[0]!.amount === 2 && mageIn(r, storm.id).orbs === 0 && mageIn(r, life.id).orbs === 0);
+    // A ripple (2026-11-02, canvas 12.1B): the others merge one after another, the set gap apart, in squad order, each tagged as Overload's.
+    const gaps = merges.slice(1).map((e, i) => e.t - merges[i]!.t);
+    check("Overload: when every other mage holds the set number of orbs, one merge sets the others off one after another, the set gap apart", merges.length === 3 && new Set(merges.map((e) => e.heroId)).size === 3 && merges[1]!.heroId === storm.id && merges[2]!.heroId === life.id && gaps.every((g) => Math.abs(g - run.fight.overloadRippleSec) < 0.051) && eventsOf(r, "orbStrike").length === 3, merges.map((e) => `${e.heroId}@${e.t}`).join());
+    check("Overload: the first merge is the skill's own, the others are tagged as Overload's", merges[0]!.by === undefined && merges.slice(1).every((e) => e.by === "overload"));
+    check("Overload: one trigger, naming how many mages it merges; their orbs are gone; the merges it made start no second ripple", triggers(r, "overload").length === 1 && triggers(r, "overload")[0]!.amount === 2 && mageIn(r, storm.id).orbs === 0 && mageIn(r, life.id).orbs === 0);
+    const landed = eventsOf(r, "orbShotLanded");
+    check("Overload: each merge it made puts its shot's results on the record (the Storm shot's damage on the front enemy)", landed.length === 2 && landed[0]!.heroId === storm.id && landed[0]!.hits.some((h) => h.kind === "damage" && h.amount > 0) && landed.every((e, i) => e.t === merges[i + 1]!.t), landed.map((e) => `${e.heroId}:${e.hits.map((h) => h.kind).join("+")}`).join());
     const few = withOrbs(unit("mages", "damage"), run.fight.overloadMinOrbs - 1);
     const q = solo(held([withOrbs(charged(unit("mages", "tank")), run.fight.mageOrbMax), few, withOrbs(unit("mages", "support"), run.fight.overloadMinOrbs)], ["overload"]), 7, { chainMaxHits: 1, ...noBeat });
     check("Overload: with one other mage holding fewer loose orbs than the set number, nothing cascades", eventsOf(q, "orbMerge").length === 1 && triggers(q, "overload").length === 0 && mageIn(q, few.id).orbs === run.fight.overloadMinOrbs - 1);

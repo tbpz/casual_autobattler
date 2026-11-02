@@ -2802,6 +2802,92 @@ button:disabled {
   }
 }
 
+/* The Mage payoff looks Tu picked (2026-11-02; render/fightView.ts showRuneOrb, showMageRune, buildKernelDots; canvas 12.1B to 12.4B). */
+
+/* Echo's orb flying back out of the merged orb: it grows as it goes, where a merging orb shrinks. */
+.orb-ghost.out {
+  animation-name: orb-fly-out;
+  animation-timing-function: ease-out;
+}
+
+@keyframes orb-fly-out {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(var(--fly-x, 0), var(--fly-y, 0)) scale(1);
+  }
+}
+
+/* A loose orb Echo or Leech gave, hidden until its flight or thread arrives. */
+.orb.returning,
+.orb.on.returning {
+  opacity: 0;
+  transition: none;
+}
+
+/* Kernel's dots: one per stored charge, in a ring round the core orb; a dark socket until lit. */
+.kernel-dots {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.kernel-dots.gone {
+  display: none;
+}
+
+.kernel-dots i {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  border-radius: 50%;
+  background: #2a2e3a;
+  opacity: 0.6;
+  transition: background 0.2s, opacity 0.2s, box-shadow 0.2s;
+}
+
+.kernel-dots i.on {
+  background: var(--orb, #ffe36a);
+  box-shadow: 0 0 3px var(--orb, #ffe36a);
+  opacity: 1;
+}
+
+/* Kernel full: the core orb glows hard and breathes, ready to dump into the next shot. */
+.orb.core.kernel-full {
+  box-shadow: 0 0 0 1.5px #14161c, 0 0 0 2.6px #fff, 0 0 12px 5px var(--orb, #ffe36a);
+  animation: kernel-full 0.9s ease-in-out infinite;
+}
+
+@keyframes kernel-full {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.6);
+  }
+}
+
+/* A Kernel dot flying into the merged orb. */
+.orb-ghost.dot {
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  box-shadow: 0 0 3px var(--orb, #ffe36a);
+}
+
+/* Tempo's second pulse: a smaller white ring just after the first. */
+.pop-ring.small {
+  inset: -2px;
+  border-width: 1.5px;
+}
+
 /* Lightning (render/fightView.ts fireBolt): a jagged line with a coloured glow and a white-hot core that flickers, then is gone. The Storm
    orbs throw thin ones; the merged orb a thick forked one. A CSS animation, so the pause rule freezes it. */
 .bolt {

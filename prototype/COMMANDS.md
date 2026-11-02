@@ -75,5 +75,7 @@ pinned by `check:runlog`.
 **Armies (2026-10-20).** A run opens on a pick between Undead, Beasts and Mages (`render/armyScreen.ts`); every unit is then that army's
 own (`sim/armies.ts`). `check:armies` pins the starting squads, the Undead's horde (Raise, Bone Wall, Command, the five-skeleton limit and upgrade, the order of enemy hits, both backfires), the Beasts' pounce (one PACK bar, the Bear leading, Pin, Maul, Tend, gained skills, the backfire), the Mages' orbs (the core orb, no plain attack, add, merge, clear, the beat, the Life drain and Great Drain, backfire) and that a seed replays the same run for each army. Dev links: `?army=undead`, `?army=beasts` or
 `?army=mages` starts as that army without the pick, `?army=none` plays the plain squad; a link that jumps ahead (`?round=`, `?offer=`, `?fight=1`,
-`?runover=1`, `?fall=`) skips the pick and plays the plain squad unless it names an army. Army cards are
+`?runover=1`, `?fall=`) skips the pick and plays the plain squad unless it names an army. `?cards=a,b` makes the run hold exactly
+those runes (after any `?round=` fast-forward), so `?army=mages&round=5&fight=1&cards=fuse,echo,overload` shows a Mage rune in a real
+fight (2026-11-02); the lab has no army. Army cards are
 generated from the canvas by `node design/tools/gen-armies.js` (it also redraws canvas frames 10.x and 11.x).

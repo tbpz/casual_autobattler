@@ -32,6 +32,9 @@ interface FightCtx {
   /** Beasts' pounce (2026-10-22): the beast whose beat the running pounce rolls on, null when none runs. A freeze never lands on it, or its
    * own beat could not come round to end the pounce (the same trap as a unit freezing itself, see pickFreezeTarget). */
   pounceLeadId?: string | null;
+  /** Work a card put off to a later tick (CardApi.after; 2026-11-02), in the order it was added: run once the clock reaches `at`, as
+   * `card`. */
+  later: Array<{ at: number; card: CardId | undefined; fn: () => void }>;
 }
 let ctx: FightCtx | null = null;
 
@@ -272,9 +275,9 @@ function mageOrbHit(c: FightCtx, effect: ChainEffect, hero: HeroState, backfire:
 }
 
 /** The great shot of `hero`'s loose orbs: they merge into one shot that fires and leaves no orb behind. Called when a hit finds the orbs
- * full (mageOrbHit) or when a rune merges them early (CardApi.mergeOrbs). A shot with nobody to hit or help returns null and leaves the
- * orbs as they were. */
-function mageShot(c: FightCtx, effect: ChainEffect, hero: HeroState, boost: number): ChainHitEntry[] | null {
+ * full (mageOrbHit) or when a rune merges them early (CardApi.mergeOrbs; `by` names that rune). A shot with nobody to hit or help returns
+ * null and leaves the orbs as they were. */
+function mageShot(c: FightCtx, effect: ChainEffect, hero: HeroState, boost: number, by?: CardId): ChainHitEntry[] | null {
   const cfg = c.cfg;
   const orbs = hero.orbs ?? 0;
   const orbKind: "storm" | "frost" | "life" = effect === "stormOrb" ? "storm" : effect === "frostOrb" ? "frost" : "life";
@@ -287,10 +290,11 @@ function mageShot(c: FightCtx, effect: ChainEffect, hero: HeroState, boost: numb
     runHook(c, "orbShot", shot);
     raw = Math.round(escalatedMagnitude(cfg, mageStrikeBase(cfg, effect), 1, boost) * shot.shotMult);
     hero.orbs = 0;
-    c.events.push({ type: "orbMerge", t: c.t, heroId: hero.id, orbs });
+    c.events.push({ type: "orbMerge", t: c.t, heroId: hero.id, orbs, ...(by ? { by } : {}) });
     c.events.push({ type: "orbStrike", t: c.t, heroId: hero.id });
   };
-  const merged = (target?: HeroState): void => runHook(c, "orbsMerged", { mage: hero, orbKind, orbs, shot: raw, ...(target ? { target } : {}) });
+  const merged = (target?: HeroState): void =>
+    runHook(c, "orbsMerged", { mage: hero, orbKind, orbs, shot: raw, ...(target ? { target } : {}), ...(by ? { by } : {}) });
   if (effect === "stormOrb") {
     const target = aliveOnSide(c.enemy, frontMostAliveId(c.enemy));
     if (!target) return null;
@@ -462,18 +466,35 @@ function makeCardApi(c: () => FightCtx): CardApi {
       const orbs = mage.orbs ?? 0;
       if (mage.army !== "mages" || !mage.alive || orbs >= orbCapOf(cx, mage).cap) return false;
       mage.orbs = orbs + 1;
-      cx.events.push({ type: "orbAdd", t: cx.t, heroId: mage.id, orbs: mage.orbs });
+      // The rune that gave it, so the screen can draw where it came from (Echo, Leech; 2026-11-02).
+      const by = cx.cards.current();
+      cx.events.push({ type: "orbAdd", t: cx.t, heroId: mage.id, orbs: mage.orbs, ...(by ? { by } : {}) });
       return true;
     },
-    mergeOrbs: (mage) => {
+    mergeOrbs: (mage, by) => {
       const cx = c();
       if (mage.army !== "mages" || !mage.alive || mage.hp <= 0 || (mage.orbs ?? 0) === 0) return false;
       // A mage merges in its own colour: a Storm Mage that borrowed the frost orb still has storm orbs round it (beatOrb reads the kind too).
       const effect: ChainEffect = mage.kind === "stormMage" ? "stormOrb" : mage.kind === "frostMage" ? "frostOrb" : "lifeOrb";
-      const entries = mageShot(cx, effect, mage, 1);
+      const entries = mageShot(cx, effect, mage, 1, by);
       if (!entries) return false;
+      // Outside a chain there are no chainHit events, so the shot's results go on the record here for the screen to draw (2026-11-02).
+      const hits: Array<{ targetId: string; kind: "damage" | "heal" | "shield"; amount: number }> = [];
+      for (const entry of entries) {
+        if (entry.targetId === null) continue;
+        if (entry.kind === "damage") hits.push({ targetId: entry.targetId, kind: "damage", amount: Math.round(entry.amount) });
+        else if (entry.kind === "heal" && entry.amount > 0) hits.push({ targetId: entry.targetId, kind: "heal", amount: Math.round(entry.amount) });
+        if (entry.kind === "heal" && entry.mark === "shield" && (entry.markStacks ?? 0) > 0) {
+          hits.push({ targetId: entry.targetId, kind: "shield", amount: Math.round(entry.markStacks ?? 0) });
+        }
+      }
+      cx.events.push({ type: "orbShotLanded", t: cx.t, heroId: mage.id, hits });
       for (const entry of entries) for (const id of entry.died) cx.events.push({ type: "heroDown", t: cx.t, side: "enemy", heroId: id });
       return true;
+    },
+    after: (sec, fn) => {
+      const cx = c();
+      cx.later.push({ at: cx.t + sec, card: cx.cards.current(), fn });
     },
     beatOrb: (mage, index) => {
       const cx = c();
@@ -891,7 +912,8 @@ function rollDamage(base: number, rng: Rng, variance: number): number {
   return Math.max(1, Math.round(base * factor));
 }
 
-function snapshotHeroes(side: SideState): HeroSnapshot[] {
+/** `kernelOf` reads a mage's stored Kernel charge (2026-11-02), only passed for the player side while Kernel is held. */
+function snapshotHeroes(side: SideState, kernelOf?: (h: HeroState) => number): HeroSnapshot[] {
   return side.heroes.map((h) => ({
     id: h.id,
     name: h.name,
@@ -911,6 +933,7 @@ function snapshotHeroes(side: SideState): HeroSnapshot[] {
     ...(h.skeleton ? { skeleton: true } : {}),
     ...(h.skeletonKind ? { skeletonKind: h.skeletonKind, skeletonLevel: side.skeletonLevel?.[h.skeletonKind] ?? 0 } : {}),
     ...(h.army === "mages" ? { orbs: h.alive ? h.orbs ?? 0 : 0 } : {}),
+    ...(h.army === "mages" && kernelOf ? { kernel: kernelOf(h) } : {}),
     windupFireT: h.windupFireT,
     windupTargetId: h.windupTargetId,
     nextWindupT: h.nextWindupT,
@@ -1815,6 +1838,7 @@ export function runFight(setup: FightSetup, cfg: FightConfig, rng: Rng, seed: nu
     player,
     enemy,
     rng,
+    later: [],
   };
   try {
     return runFightLoop(events, player, enemy, cfg, rng, seed);
@@ -1866,6 +1890,8 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
 
   const dt = 1 / cfg.tickRate;
   const maxTicks = Math.round(cfg.maxFightSec * cfg.tickRate);
+  // Kernel's stored charge per mage, for the dots round the core orb (2026-11-02); the key matches sim/cards/defs/mage.ts's kernelKey.
+  const kernelOf = ctx!.cards.has("kernel") ? (h: HeroState): number => ctx!.cards.counter(`kernel:${h.id}`) : undefined;
 
   let ignited = false;
   let hotHeroId: string | null = null;
@@ -2109,6 +2135,26 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
       outcome = tickOrbs(ctx!);
     }
 
+    // Work a card put off to this tick (CardApi.after; 2026-11-02): Overload's ripple, Static's jumping bolt. In the order it was added;
+    // a job may add more, which wait for their own time.
+    if (!outcome && ctx!.later.length > 0) {
+      const due = ctx!.later.filter((job) => job.at <= t + 1e-9);
+      if (due.length > 0) {
+        ctx!.later = ctx!.later.filter((job) => job.at > t + 1e-9);
+        for (const job of due) {
+          ctx!.cards.runAs(job.card, job.fn);
+          if (isWiped(enemy)) {
+            outcome = "win";
+            break;
+          }
+          if (isWiped(player)) {
+            outcome = "loss";
+            break;
+          }
+        }
+      }
+    }
+
     // A tank's line can break (or recover, if healed back up) on any beat
     // that changed its HP — checked once per tick rather than inline in
     // performHeroAction so a hero hit by multiple attackers in one tick only
@@ -2272,7 +2318,7 @@ function runFightLoop(events: FightEvent[], player: SideState, enemy: SideState,
       playerMaxHp: sideMaxHp(player),
       enemyHp: sideHp(enemy),
       enemyMaxHp: sideMaxHp(enemy),
-      playerHeroes: snapshotHeroes(player),
+      playerHeroes: snapshotHeroes(player, kernelOf),
       enemyHeroes: snapshotHeroes(enemy),
       hotHeroId,
       chainBackfire,

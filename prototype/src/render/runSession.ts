@@ -136,6 +136,11 @@ export class RunSession {
     return this.progressValue;
   }
 
+  /** Dev only (app.ts `?cards=`): the run holds exactly these runes from now on, to look at a rune on the fight screen. */
+  devHoldCards(ids: CardId[]): void {
+    this.progressValue = { ...this.progressValue, cards: [...ids] };
+  }
+
   /** Takes the relic that is the reward for the relic round's win, and ends
    * that round. Ignored unless a pick is pending, so a double-tap can't take
    * a second one. */

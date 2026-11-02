@@ -2,7 +2,7 @@
 
 This project's design context lives in five files with **different rules**:
 
-- **[BETS.html](BETS.html)** — the bets and tuning targets, under four pillars (what the game must be great at). It is an HTML page (open it in a browser) so each open line can fold open to its test questions. The verified list is the game's quality standard, grouped by pillar; below it, the bets (choices, in test order) and the tuning targets (goals, in work order, the top test last), each tagged with its pillar. One line each, no explanation. Every verified line carries a proof link to the DECISIONS entry that settled it. Carries a `Last updated` line.
+- **[BETS.html](BETS.html)** — the objective (what every line serves: Tu keeps starting another run), the setup (the fixed base every bet must fit: mobile, simple and relaxing; not bets), then the bets and tuning targets, under three pillars (what the game must be great at; pillar D is parked at the bottom until other players count). It is an HTML page (open it in a browser) so each open line can fold open to its test questions. The verified list is the game's quality standard, grouped by pillar; below it, the bets (choices of what the game is about, in test order) and the tuning targets (goals, in work order), each tagged with its pillar. The objective is neither a bet nor a tuning target. One line each, no explanation. Every verified line carries a proof link to the DECISIONS entry that settled it. Carries a `Last updated` line.
 - **[STATE.md](STATE.md)** — what is true *right now*, and what to do next. Present tense. Rewritten wholesale, never appended to. Two layers: layer 1 (above the rule) is a 60-second re-orientation read; layer 2 is the working index of status, open questions, and pointers. Bets live in BETS.html, not here.
 - **[DECISIONS.md](DECISIONS.md)** — the append-only history of decisions and their rationale. Dated, newest at top. Never edited or deleted, only added to.
 - **[REFERENCE.md](REFERENCE.md)** — the near-static material: the game's mechanical shape, reference games, standing constraints. Edited only when it is actually wrong; **a sync never regenerates it**.
@@ -122,6 +122,8 @@ Update `BETS.html` in the same change as the DECISIONS entry that settles a bet 
   list silently.
 - A new pillar, or a change to one, is Tu's call and a decision (propose it, then log it).
 - One line each, no explanation. Bump the `Last updated` date on every change.
+- No notes: a reason, a move or a drop is said in DECISIONS, never as a line in BETS.html. What a
+  dropped bet taught goes into the verified list as a line with its proof link.
 - Every open bet and tuning target is a `<li><details>` fold in `BETS.html`: the line is the
   `<summary>`, and the questions sit inside. At most 3 yes/no or few-word questions, answered once
   after the run, never during it, plus a Play line and a Pass line. A bet adds a "Fair test when:"
