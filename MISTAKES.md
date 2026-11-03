@@ -16,6 +16,30 @@
 
 ---
 
+### [2026-11-03 #2] Explained Tu's favourite games with a pattern he had not given
+
+- **Said:** What Tu's masterpieces share is that he grows, not a number; and each is art because
+  one idea runs through every part.
+- **Actually:** In Tu's own account, Diablo 2 held him through a character getting stronger and
+  Hades through unlocking builds, and in six of seven he stopped when nothing new was left to find:
+  map, Pokedex slots, builds. Only Dota 2 was about his own skill.
+- **Caught by:** Tu ("I don't really agree with your analysis"), with his reasons game by game.
+- **Why:** I wrote my own reading of famous games instead of asking what kept him in each one.
+- **Tag:** guessed instead of asking
+
+### [2026-11-03 #1] Told Tu to build sketches around the fight moment the prototype already proved
+
+- **Said:** Hold the lead moment fixed ("set up my squad, press play, it pays off bigger than I
+  expected") and make each tiny sketch aim at that feeling.
+- **Actually:** The prototype already delivers that moment, and it did not bring Tu back the next
+  evening. The moment answers why a sitting is fun, not why he returns; the sketches should each try
+  a different reason to come back, which STATE's Next up #1 already names as the open question.
+- **Caught by:** Tu ("Is this actually the prototype I've been building… not enough to play again
+  tomorrow night").
+- **Why:** I picked the anchor from STATE's "What we're betting on" quote without weighing it
+  against the objective and the verified Coming back lines, which say the moment was never the gap.
+- **Tag:** answered without checking the log
+
 ### [2026-11-02 #4] Proposed a bet worded like the one dropped the same day
 
 - **Said:** Proposed the new bet "The game is played in runs that start fresh".

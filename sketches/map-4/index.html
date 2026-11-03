@@ -1,0 +1,849 @@
+<title>Fog Map Sketch 4</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Nunito+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: one portrait column. "Found" meter on top, a scrolling fogged map in the middle that follows you,
+   hint line and creature book below. A card pops up when you find a creature. Night-time look on purpose. */
+:root {
+  color-scheme: dark;
+  --night: #121726;
+  --panel: #1b2236;
+  --line: #2c3550;
+  --ink: #ece8da;
+  --muted: #9aa1b8;
+  --gold: #f2c14e;
+  --ember: #ff8a5c;
+  --helper: #6c8fd0;
+  --fog: #232a42;
+  --fog-2: #272f4a;
+  --grass: #4c7744;
+  --grass-2: #527d49;
+  --tree: #2c4d30;
+  --tree-top: #3b6640;
+  --water: #36689c;
+  --water-2: #4479ae;
+  --rock: #6f7380;
+  --rock-2: #858a97;
+  --stone: #2a2e3b;
+  --stone-2: #323747;
+  --cave: #0b0d15;
+  --cave-2: #1a1d2a;
+  --chasm: #0d0f18;
+  --glow: rgba(243, 226, 124, .6);
+  --f-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --f-body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --tile: 30px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--night); color: var(--ink);
+  font: 15px/1.4 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.app { height: 100%; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+
+/* top bar */
+.bar { display: flex; align-items: center; gap: 10px; }
+.score { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.score b { font: 700 18px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.score small { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.meter { height: 4px; width: 84px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .3s; }
+.spacer { flex: 1; }
+.btn {
+  font: 600 12px var(--f-body); color: var(--muted); background: none;
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer;
+}
+.btn.on { color: var(--night); background: var(--gold); border-color: var(--gold); }
+.btn.armed { color: var(--night); background: #e07a5f; border-color: #e07a5f; }
+.btn:focus-visible, .slot:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* map view: the map slides inside it so you stay near the middle */
+.view { flex: 1; min-height: 0; position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 0 0 1px var(--line); background: var(--fog); }
+.map {
+  position: absolute; left: 0; top: 0; display: grid;
+  grid-auto-rows: var(--tile);
+  transition: transform .28s ease-out;
+  touch-action: manipulation; user-select: none;
+}
+.t { position: relative; cursor: pointer; }
+.fog { background: var(--fog); }
+.fog.alt { background: var(--fog-2); }
+.g-grass { background: var(--grass); }
+.g-grass.alt { background: var(--grass-2); }
+.g-tree { background: radial-gradient(circle at 50% 45%, var(--tree-top) 0 42%, transparent 44%), var(--tree); }
+.g-path { background: radial-gradient(ellipse at 50% 50%, var(--glow) 0 18%, transparent 46%), radial-gradient(circle at 50% 45%, var(--tree-top) 0 42%, transparent 44%), var(--tree); }
+.g-water { background: repeating-linear-gradient(170deg, var(--water) 0 5px, var(--water-2) 5px 7px); }
+/* cliffs carry footholds: there is a way up, just not for you yet */
+.g-rock { background:
+  radial-gradient(circle at 28% 30%, #3f434e 0 7%, transparent 8%),
+  radial-gradient(circle at 70% 64%, #3f434e 0 7%, transparent 8%),
+  linear-gradient(135deg, var(--rock-2) 0 30%, var(--rock) 30% 70%, var(--rock-2) 70%); }
+.g-stone { background: linear-gradient(135deg, var(--stone-2) 0 22%, var(--stone) 22% 78%, var(--stone-2) 78%); }
+.g-cave { background: radial-gradient(circle at 30% 70%, var(--cave-2) 0 12%, transparent 14%), var(--cave); }
+.g-cave.lit { background: radial-gradient(circle at 50% 50%, #4a4466 0 30%, transparent 72%), #2a2a3e; }
+.g-chasm { background: linear-gradient(90deg, #1e2230, var(--chasm) 30% 70%, #1e2230); }
+
+/* a creature on the map */
+.cr { position: absolute; inset: 6%; width: 88%; height: 88%; animation: bob 1.6s ease-in-out infinite; filter: drop-shadow(0 1px 0 rgba(0,0,0,.4)); }
+.cr.rare { filter: drop-shadow(0 0 4px var(--gold)); }
+.cr.rarest { filter: drop-shadow(0 0 6px var(--ember)) drop-shadow(0 0 2px var(--gold)); }
+/* a glint seen through the fog (helpers and plain creatures only; rare ones never glint) */
+.glint {
+  position: absolute; left: 50%; top: 50%; width: 30%; height: 30%;
+  transform: translate(-50%, -50%) rotate(45deg); background: var(--gold);
+  border-radius: 2px; animation: twinkle 1.4s ease-in-out infinite;
+}
+/* something hidden that a helper shows you */
+.mark { position: absolute; inset: 22%; border-radius: 50%; }
+.mark.sniff { border: 2px dotted #f29bb0; animation: sniff 1.8s ease-in-out infinite; }
+.mark.swim { inset: 18%; border: 2px solid #cdeeff; box-shadow: inset 0 0 0 4px rgba(205,238,255,.25); animation: ripple 1.6s ease-out infinite; }
+.mark.climb { inset: 20% 16% 26%; border-radius: 0 0 50% 50%; border: 3px solid #b98550; border-top-width: 0; background: radial-gradient(circle at 50% 30%, #f4ead6 0 22%, transparent 24%); }
+/* eyes in the dark: something lives in there */
+.eyes::before, .eyes::after {
+  content: ""; position: absolute; top: 44%; width: 10%; height: 10%; border-radius: 50%;
+  background: #cfe9a0; box-shadow: 0 0 5px #cfe9a0; animation: blink 4s ease-in-out infinite;
+}
+.eyes::before { left: 36%; } .eyes::after { left: 54%; }
+@keyframes blink { 0%, 40%, 100% { opacity: .9; } 44%, 48% { opacity: 0; } 70%, 90% { opacity: 0; } }
+
+/* a rare one's trail; each rare one leaves its own kind */
+.trk { position: absolute; inset: 0; pointer-events: none; }
+.trk::before, .trk::after { content: ""; position: absolute; }
+.trk.hoof::before, .trk.hoof::after { width: 16%; height: 22%; border-radius: 50% 50% 45% 45%; background: #ead9b0; opacity: .85; }
+.trk.hoof::before { left: 26%; top: 22%; } .trk.hoof::after { left: 56%; top: 54%; }
+.trk.dust::before, .trk.dust::after { width: 12%; height: 12%; border-radius: 50%; background: #9ff0ff; box-shadow: 0 0 6px #9ff0ff; }
+.trk.dust::before { left: 28%; top: 34%; } .trk.dust::after { left: 60%; top: 60%; }
+.trk.crumb::before, .trk.crumb::after { width: 13%; height: 13%; background: #c9a8ff; transform: rotate(45deg); box-shadow: 0 0 4px #a77be0; }
+.trk.crumb::before { left: 26%; top: 42%; } .trk.crumb::after { left: 60%; top: 28%; }
+.trk.slime::before { left: 16%; top: 42%; width: 68%; height: 16%; border-radius: 8px; background: rgba(140,240,225,.55); box-shadow: 0 0 5px rgba(140,240,225,.6); }
+.trk.scent::before, .trk.scent::after { width: 15%; height: 15%; border-radius: 50%; background: #ff9a6a; box-shadow: 0 0 8px #ff6a3a; animation: drift 2.4s ease-in-out infinite; }
+.trk.scent::before { left: 26%; top: 52%; } .trk.scent::after { left: 58%; top: 28%; animation-delay: -1.2s; }
+@keyframes drift { 50% { transform: translateY(-40%); opacity: .35; } }
+
+/* squares a new helper just showed */
+.t.pulse::after {
+  content: ""; position: absolute; inset: 1px; border-radius: 4px;
+  box-shadow: inset 0 0 0 3px var(--gold); animation: pulse .7s ease-in-out 4; pointer-events: none;
+}
+@keyframes bob { 50% { transform: translateY(-7%); } }
+@keyframes twinkle { 0%, 100% { opacity: .25; transform: translate(-50%,-50%) rotate(45deg) scale(.6); } 50% { opacity: 1; transform: translate(-50%,-50%) rotate(45deg) scale(1); } }
+@keyframes sniff { 50% { transform: scale(1.25); opacity: .5; } }
+@keyframes ripple { from { transform: scale(.5); opacity: 1; } to { transform: scale(1.15); opacity: .2; } }
+@keyframes pulse { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+
+.me {
+  position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile);
+  pointer-events: none; transition: transform .11s linear; z-index: 3;
+}
+.me::after {
+  content: ""; position: absolute; inset: 24%; border-radius: 50%;
+  background: var(--gold); box-shadow: 0 0 0 3px var(--night), 0 0 0 5px var(--gold), 0 0 16px var(--gold);
+}
+.me.hop { transition: transform .2s ease-out; }
+.me.hop::after { animation: hop .2s ease-out; }
+@keyframes hop { 50% { transform: scale(1.6); } }
+.ring {
+  position: absolute; border-radius: 50%; pointer-events: none; z-index: 2;
+  border: 3px solid var(--gold); box-shadow: 0 0 24px var(--gold);
+  animation: ring 1.4s ease-out forwards;
+}
+@keyframes ring { from { transform: scale(.45); opacity: 1; } to { transform: scale(1); opacity: 0; } }
+
+/* hint line */
+.hint { min-height: 2.8em; display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; color: var(--muted); font-size: 14px; padding: 0 4px; }
+.hint.news { color: var(--ink); font-weight: 700; }
+.hint svg { width: 28px; height: 28px; flex: none; }
+
+/* creature book */
+.book { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+.book h2 { margin: 0 0 6px; font: 700 13px/1 var(--f-display); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); display: flex; justify-content: space-between; }
+.book h2 b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.slots { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px 2px; }
+.slot { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; background: none; border: 0; padding: 2px 0; color: inherit; font: inherit; cursor: pointer; }
+.slot .face {
+  position: relative; width: 32px; height: 32px; border-radius: 50%;
+  border: 2px dashed var(--line); display: grid; place-items: center;
+  color: var(--muted); font: 700 14px var(--f-display);
+}
+.slot.helper .face { border-color: #4a6a9a; }
+.slot.rare .face { border-color: var(--gold); border-style: solid; }
+.slot.rarest .face { border: 3px double var(--ember); }
+.slot.got .face { border: 0; background: #2a3350; }
+.slot.got.helper .face { box-shadow: 0 0 0 2px var(--helper); }
+.slot.got.rare .face { box-shadow: 0 0 0 2px var(--gold), 0 0 8px var(--gold); }
+.slot.got.rarest .face { box-shadow: 0 0 0 2px var(--ember), 0 0 12px var(--ember); }
+.slot .face svg { width: 28px; height: 28px; }
+.slot .nm { font-size: 9px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot.got .nm { color: var(--ink); }
+.slot.pop .face { animation: pop .5s ease-out; }
+@keyframes pop { 40% { transform: scale(1.35); } }
+
+/* found card; rare finds get a gold card, the rarest an ember one */
+.card { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(8,10,18,.6); padding: 16px; }
+.card[hidden] { display: none; }
+.cardin {
+  width: min(300px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  padding: 18px 16px 14px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  animation: cardin .3s ease-out;
+}
+.cardin.helper { border-color: var(--helper); }
+.cardin.rare { border: 2px solid var(--gold); box-shadow: 0 0 32px rgba(242,193,78,.45); }
+.cardin.rarest { border: 2px solid var(--ember); box-shadow: 0 0 48px rgba(255,138,92,.6); animation: cardin .3s ease-out, glowcard 1.6s ease-in-out .3s infinite; }
+.cardin svg { width: 104px; height: 104px; }
+.cardin.rare svg, .cardin.rarest svg { width: 124px; height: 124px; }
+.cardin b { font: 700 24px/1.1 var(--f-display); }
+.cardin .tag { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--gold); font-weight: 700; }
+.cardin.helper .tag { color: #9db8ea; }
+.cardin.rarest .tag { color: var(--ember); font-size: 13px; }
+.cardin p { margin: 0; font-size: 16px; }
+.cardin small { color: var(--muted); margin-top: 6px; }
+@keyframes cardin { from { transform: scale(.85); opacity: 0; } }
+@keyframes glowcard { 50% { box-shadow: 0 0 70px rgba(255,138,92,.85); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cr, .glint, .mark, .slot.pop .face, .t.pulse::after, .cardin, .ring, .me.hop::after, .trk::before, .trk::after, .eyes::before, .eyes::after { animation: none; }
+  .me, .map { transition: none; }
+  .t.pulse::after { opacity: 1; }
+}
+</style>
+
+<!-- creature drawings, each used on the map, in the book and on the card -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="sp-H" viewBox="0 0 32 32"><!-- Hopper: frog -->
+      <path d="M4 27 l-2 3 h7z M28 27 l2 3 h-7z" fill="#4f9a44"/>
+      <ellipse cx="16" cy="20" rx="12" ry="8.5" fill="#7ccf6a"/>
+      <circle cx="9.5" cy="11" r="5" fill="#7ccf6a"/><circle cx="22.5" cy="11" r="5" fill="#7ccf6a"/>
+      <circle cx="9.5" cy="11" r="2.2" fill="#1a1a1a"/><circle cx="22.5" cy="11" r="2.2" fill="#1a1a1a"/>
+      <path d="M10 21 q6 4 12 0" stroke="#2f5a2a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sp-G" viewBox="0 0 32 32"><!-- Glowmoth: moth -->
+      <circle cx="16" cy="16" r="15" fill="#f3e27c" opacity=".18"/>
+      <ellipse cx="9" cy="12" rx="7.5" ry="5.5" transform="rotate(-25 9 12)" fill="#f3e27c"/>
+      <ellipse cx="23" cy="12" rx="7.5" ry="5.5" transform="rotate(25 23 12)" fill="#f3e27c"/>
+      <ellipse cx="10" cy="22" rx="5" ry="4" transform="rotate(20 10 22)" fill="#e6cf5c"/>
+      <ellipse cx="22" cy="22" rx="5" ry="4" transform="rotate(-20 22 22)" fill="#e6cf5c"/>
+      <ellipse cx="16" cy="17" rx="3.2" ry="9" fill="#a8892a"/>
+      <path d="M15 9 q-2 -5 -5 -6 M17 9 q2 -5 5 -6" stroke="#a8892a" stroke-width="1.3" fill="none"/>
+      <circle cx="14.6" cy="12" r="1.2" fill="#1a1a1a"/><circle cx="17.4" cy="12" r="1.2" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="sp-P" viewBox="0 0 32 32"><!-- Paddler: duckling on a wave -->
+      <path d="M2 26 q3.5 -3 7 0 t7 0 t7 0 t7 0 v4 h-28z" fill="#4479ae"/>
+      <ellipse cx="15" cy="20" rx="10" ry="7" fill="#6cc3d5"/>
+      <circle cx="19" cy="11" r="6.5" fill="#6cc3d5"/>
+      <path d="M24 11 l6 1.5 l-6 2.5z" fill="#f0a35e"/>
+      <circle cx="20.5" cy="9.5" r="1.6" fill="#1a1a1a"/>
+      <path d="M8 18 q4 3 9 1" stroke="#3f8fa3" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sp-C" viewBox="0 0 32 32"><!-- Climber: little goat -->
+      <path d="M10 11 q-7 -2 -6 -9 q3 5 8 6z M22 11 q7 -2 6 -9 q-3 5 -8 6z" fill="#7a5a3a"/>
+      <ellipse cx="16" cy="17" rx="9" ry="9.5" fill="#c9ad7f"/>
+      <path d="M13 26 l3 5 l3 -5z" fill="#e8dcc0"/>
+      <circle cx="12.5" cy="15" r="1.7" fill="#1a1a1a"/><circle cx="19.5" cy="15" r="1.7" fill="#1a1a1a"/>
+      <ellipse cx="16" cy="21" rx="3" ry="2" fill="#a88e62"/>
+    </symbol>
+    <symbol id="sp-N" viewBox="0 0 32 32"><!-- Sniffer: mole -->
+      <path d="M3 20 l-1 4 M5 21 l-1 4 M29 20 l1 4 M27 21 l1 4" stroke="#f2e6d6" stroke-width="2" stroke-linecap="round"/>
+      <ellipse cx="16" cy="17" rx="12" ry="10" fill="#8a6a55"/>
+      <ellipse cx="16" cy="23" rx="4" ry="3.2" fill="#f29bb0"/>
+      <circle cx="14.5" cy="23" r=".9" fill="#7a3a4a"/><circle cx="17.5" cy="23" r=".9" fill="#7a3a4a"/>
+      <path d="M10.5 15 h3 M18.5 15 h3" stroke="#1a1a1a" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sp-a" viewBox="0 0 32 32"><!-- Mossling: moss blob with a sprout -->
+      <path d="M16 9 q-1 -5 -6 -6 q3 5 6 6z M16 9 q2 -6 8 -6 q-3 6 -8 6z" fill="#5fae4a"/>
+      <path d="M5 26 q-3 -9 4 -14 q7 -5 14 0 q7 5 4 14z" fill="#8fce7a"/>
+      <circle cx="12.5" cy="18" r="1.7" fill="#1a1a1a"/><circle cx="19.5" cy="18" r="1.7" fill="#1a1a1a"/>
+      <circle cx="9" cy="23" r="1.3" fill="#6fb35a"/><circle cx="23" cy="22" r="1.5" fill="#6fb35a"/>
+    </symbol>
+    <symbol id="sp-b" viewBox="0 0 32 32"><!-- Puffcap: mushroom -->
+      <rect x="10.5" y="16" width="11" height="13" rx="4" fill="#f4ead6"/>
+      <path d="M3 17 q0 -13 13 -13 q13 0 13 13z" fill="#e8a6c8"/>
+      <circle cx="10" cy="11" r="2" fill="#fff4fa"/><circle cx="18" cy="8" r="2.4" fill="#fff4fa"/><circle cx="23" cy="13" r="1.6" fill="#fff4fa"/>
+      <circle cx="14" cy="22" r="1.5" fill="#1a1a1a"/><circle cx="18" cy="22" r="1.5" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="sp-c" viewBox="0 0 32 32"><!-- Shellbug: snail -->
+      <path d="M2 27 q4 -6 12 -5 h14 q2 0 2 3 v2z" fill="#f2dcc0"/>
+      <path d="M26 22 l1 -8 M29 22 l2 -7" stroke="#f2dcc0" stroke-width="1.8" stroke-linecap="round"/>
+      <circle cx="27" cy="13.5" r="1.5" fill="#1a1a1a"/><circle cx="31" cy="14.5" r="1.3" fill="#1a1a1a"/>
+      <circle cx="14" cy="15" r="10" fill="#f0a35e"/>
+      <path d="M14 15 m0 -1.5 a1.5 1.5 0 1 1 -1.5 1.5 a4 4 0 1 1 4 4 a6.5 6.5 0 1 1 -6.5 -6.5" stroke="#b5672a" stroke-width="1.8" fill="none"/>
+    </symbol>
+    <symbol id="sp-d" viewBox="0 0 32 32"><!-- Pebblet: rock -->
+      <path d="M4 26 l3 -12 l8 -8 l10 3 l4 11 l-4 7 z" fill="#9aa0ad"/>
+      <path d="M15 6 l3 9 l11 5" stroke="#7a808d" stroke-width="1.4" fill="none"/>
+      <circle cx="12" cy="18" r="1.8" fill="#1a1a1a"/><circle cx="19" cy="19" r="1.8" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="sp-f" viewBox="0 0 32 32"><!-- Bubblefin: fish -->
+      <path d="M23 16 l8 -7 v14z" fill="#5fb6e8"/>
+      <ellipse cx="14" cy="17" rx="11" ry="8" fill="#8fd3f5"/>
+      <path d="M10 9.5 q4 -6 9 0z" fill="#5fb6e8"/>
+      <path d="M13 21 q3 2 6 0" stroke="#5fb6e8" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+      <circle cx="8" cy="15" r="1.8" fill="#1a1a1a"/>
+      <circle cx="4" cy="7" r="1.7" fill="none" stroke="#cdeeff" stroke-width="1"/><circle cx="7.5" cy="3.5" r="1.1" fill="none" stroke="#cdeeff" stroke-width="1"/>
+    </symbol>
+    <symbol id="sp-r" viewBox="0 0 32 32"><!-- Rootling: carrot-like root -->
+      <path d="M16 9 q-6 -4 -9 -8 q6 2 9 6 q2 -6 6 -7 q-1 5 -4 9z" fill="#5fae4a"/>
+      <path d="M8 10 h16 l-8 21z" fill="#f08a3c"/>
+      <path d="M11 17 h4 M17 22 h3" stroke="#c4672a" stroke-width="1.3"/>
+      <circle cx="13" cy="13" r="1.5" fill="#1a1a1a"/><circle cx="19" cy="13" r="1.5" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="sp-n" viewBox="0 0 32 32"><!-- Nestling: chick in a nest -->
+      <circle cx="16" cy="15" r="8" fill="#ffd95a"/>
+      <path d="M22.5 14 l5.5 1.6 l-5.5 1.8z" fill="#f08a3c"/>
+      <circle cx="18.5" cy="12.5" r="1.5" fill="#1a1a1a"/>
+      <path d="M13 7.5 q1 -4 3.5 -1" stroke="#e0b830" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <path d="M3 21 q13 -3 26 0 q-2 8 -13 8 q-11 0 -13 -8z" fill="#9a6b3a"/>
+      <path d="M5 22 q11 4 22 0 M7 25 q9 3 18 0" stroke="#6e4a26" stroke-width="1.3" fill="none"/>
+    </symbol>
+    <symbol id="sp-m" viewBox="0 0 32 32"><!-- Gemgrub: crystal (rare) -->
+      <path d="M16 2 l11 10 l-11 18 l-11 -18z" fill="#a77be0"/>
+      <path d="M5 12 h22 M16 2 l-4 10 l4 18 l4 -18z" stroke="#d9c4ff" stroke-width="1.2" fill="none"/>
+      <circle cx="12.5" cy="16" r="1.6" fill="#1a1a1a"/><circle cx="19.5" cy="16" r="1.6" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="sp-B" viewBox="0 0 32 32"><!-- Glimmerbat: bat with glowing eyes (rare) -->
+      <path d="M16 13 q-6 -7 -14 -5 q3 3 2 8 q3 -2 5 1 q2 -3 7 -1z" fill="#5a4a7a"/>
+      <path d="M16 13 q6 -7 14 -5 q-3 3 -2 8 q-3 -2 -5 1 q-2 -3 -7 -1z" fill="#5a4a7a"/>
+      <ellipse cx="16" cy="18" rx="6" ry="8" fill="#7a68a0"/>
+      <path d="M11 12 l1 -6 l3 5z M21 12 l-1 -6 l-3 5z" fill="#7a68a0"/>
+      <circle cx="13.5" cy="16" r="2" fill="#9ff0ff"/><circle cx="18.5" cy="16" r="2" fill="#9ff0ff"/>
+      <path d="M14.5 21 l1.5 1.5 l1.5 -1.5" stroke="#f4ead6" stroke-width="1.1" fill="none"/>
+    </symbol>
+    <symbol id="sp-e" viewBox="0 0 32 32"><!-- Dewdeer: small deer (rare) -->
+      <path d="M11 9 l-3 -6 M11 9 l-6 -2 M21 9 l3 -6 M21 9 l6 -2" stroke="#e8d5a8" stroke-width="1.8" stroke-linecap="round"/>
+      <ellipse cx="7.5" cy="12" rx="4" ry="2.2" fill="#c98a5a" transform="rotate(-25 7.5 12)"/>
+      <ellipse cx="24.5" cy="12" rx="4" ry="2.2" fill="#c98a5a" transform="rotate(25 24.5 12)"/>
+      <ellipse cx="16" cy="17" rx="8" ry="9.5" fill="#c98a5a"/>
+      <ellipse cx="16" cy="23" rx="4.2" ry="3.2" fill="#f2dcc0"/>
+      <circle cx="12.5" cy="15" r="1.7" fill="#1a1a1a"/><circle cx="19.5" cy="15" r="1.7" fill="#1a1a1a"/>
+      <circle cx="16" cy="22" r="1.3" fill="#3a2a1a"/>
+      <circle cx="10.5" cy="20" r="1" fill="#f2dcc0"/><circle cx="21.5" cy="19.5" r="1" fill="#f2dcc0"/>
+    </symbol>
+    <symbol id="sp-D" viewBox="0 0 32 32"><!-- Deepshell: spiral shell (rare) -->
+      <circle cx="14" cy="16" r="12" fill="#3fb6a8"/>
+      <path d="M14 16 m0 -2 a2 2 0 1 1 -2 2 a5 5 0 1 1 5 5 a8 8 0 1 1 -8 -8" stroke="#1f7a70" stroke-width="1.8" fill="none"/>
+      <path d="M25 20 q4 1 5 5 M24 23 q3 2 3 6" stroke="#f2dcc0" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      <circle cx="23.5" cy="15" r="1.6" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="sp-R" viewBox="0 0 32 32"><!-- Embertail: fire fox (the rarest) -->
+      <path d="M22 26 q10 -2 8 -14 q-2 5 -5 4 q2 -6 -3 -11 q1 8 -4 11z" fill="#ffb03a"/>
+      <path d="M23 24 q6 -2 5 -8 q-2 3 -4 2 q0 -3 -2 -5 q0 5 -3 7z" fill="#ff6a3a"/>
+      <path d="M5 4 l4 9 l-6 1z M19 4 l-4 9 l6 1z" fill="#d94a2a"/>
+      <ellipse cx="12" cy="19" rx="9" ry="8" fill="#ff6a3a"/>
+      <path d="M7 22 q5 6 10 0 q-5 2 -10 0z" fill="#ffe2c8"/>
+      <circle cx="9" cy="17" r="1.6" fill="#1a1a1a"/><circle cx="15" cy="17" r="1.6" fill="#1a1a1a"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <div class="bar">
+    <div class="score"><small>Found</small><b id="pct">0%</b><div class="meter"><i id="pctBar"></i></div></div>
+    <div class="spacer"></div>
+    <button class="btn" id="zoom" type="button">Whole map</button>
+    <button class="btn" id="reset" type="button">Start over</button>
+  </div>
+  <div class="view" id="view"><div class="map" id="map"><div class="me" id="me"></div></div></div>
+  <div class="hint" id="hint">Tap anywhere you can see to walk there.</div>
+  <div class="book">
+    <h2><span>Creature book</span><b id="count">0 / 17</b></h2>
+    <div class="slots" id="slots"></div>
+  </div>
+</div>
+<div class="card" id="card" hidden>
+  <div class="cardin" id="cardIn">
+    <span class="tag" id="cardTag"></span>
+    <svg><use id="cardUse" href=""/></svg>
+    <b id="cardName"></b>
+    <p id="cardLine"></p>
+    <small>Tap to keep exploring</small>
+  </div>
+</div>
+
+<script>
+// ---- The map, placed by hand. 26 wide, 40 tall. ----
+// .  grass        t  trees (never)       x  solid rock (never)
+// ~  water (swim) ^  cliff (climb)       #  dark cave (light)
+// v  deep crack (jump it)                %  trees with a hidden path (light shows it, then you can walk it)
+// @  start        letters = creatures; a creature's "on" says what ground it sits on
+const MAP = [
+  "tttttttttttttttttttttttttt",
+  "t#H##~##B#x..t.......t...t",
+  "t####~####xN.....t.......t",
+  "tx###~##x#x....t.....t...t",
+  "txx##~##x#x...d..........t",
+  "tx###~####x......~~~.....t",
+  "tx###~~###x..t...~~~..t..t",
+  "txx##~####x......~~~.....t",
+  "tx###~#####......~~~..t..t",
+  "txxxxxxxxxx.t....~~~.....t",
+  "txxxxxxxxxx......~~~....tt",
+  "txxxxxxxxxx......~~~...P.t",
+  "txxxxxxxxxx......~~~.....t",
+  "t....x^^n^^^^^^^^~~~xxxxxt",
+  "t.R..x^^^^^^^^^^^~~~xxxxxt",
+  "t....v...........~~~..c..t",
+  "t^^^^v...t.......~~~.....t",
+  "t....v.a.........~~~.tt..t",
+  "tx...v......t....~~~.....t",
+  "t....v.....@.....~~~...t.t",
+  "t..x.v..r........~~~.....t",
+  "t....v........t..~~~.....t",
+  "tx...v...........~f~.t...t",
+  "t....v...t.......~~~.....t",
+  "t....v...........~~~..t..t",
+  "t.x..v...........~~~.....t",
+  "t....vttt.ttttttt~~~.....t",
+  "t....vttt......tt~~~.tt..t",
+  "tx...vtttttttt.tt~~~.....t",
+  "t....vtt.......tt~~~...m.t",
+  "t....vtt.tttttttt~~~.....t",
+  "t..x.ttt.tttttttt~~~.t...t",
+  "t.~~.tt....b...tt~~~.....t",
+  "t.~~.tt.tttttt%tt~~~..t..t",
+  "t.D~.tt.ttttt...t~~~.....t",
+  "t.~~.tt.ttttt.e.t~~~t....t",
+  "t....tt.ttttt...t~~~.....t",
+  "t....ttCttttttttt~~~...G.t",
+  "t....tttttttttttt~~~.....t",
+  "tttttttttttttttttttttttttt",
+];
+// END MAP
+
+const W = MAP[0].length, H = MAP.length;
+const SEE = 10, SEE_LIT = 20;      // squared distance you can see clearly (Glowmoth makes it bigger)
+const GLINT = 26, GLINT_LIT = 45;  // squared distance a creature glints through the fog (never a rare one)
+const SMELL = 5, TWITCH = 18;      // squared distance Sniffer marks a buried thing / its nose twitches
+const PATH_SEE = 20;               // squared distance Glowmoth shows a hidden path in trees
+const MEET = 2;                    // squared distance a rare one shows itself: right next to you
+
+// kind: helper / plain / rare / rarest.  hidden: which helper shows it (it never glints).
+// needs: a helper you must hold before a rare one shows itself at all.
+// after / afterNo: what the hint line says once a helper's card closes (afterNo when it showed nothing new nearby).
+// Walls never say which helper they need, and the book never says where a helper is.
+const CREATURES = {
+  P: { name: "Paddler",   kind: "helper", gives: "swim",
+       line: "Swims across deep water, and spots what lives under it.",
+       after: "You can swim now, and something moves under the water near you.", afterNo: "You can swim now." },
+  C: { name: "Climber",   kind: "helper", gives: "climb",
+       line: "Climbs steep cliffs, and spots nests on them.",
+       after: "You can climb now, and Climber spots a nest on a cliff near you.", afterNo: "You can climb now." },
+  N: { name: "Sniffer",   kind: "helper", gives: "sniff",
+       line: "Smells things buried close by, and picks up scents. Walk onto a mark to dig.",
+       after: "Sniffer can smell now. Its nose twitches when something is buried close." },
+  G: { name: "Glowmoth",  kind: "helper", gives: "light",
+       line: "Lights up the dark, and shows hidden paths through trees.",
+       after: "Light! A hidden path shows in the trees near you.", afterNo: "Light! You can see further, and dark places light up." },
+  H: { name: "Hopper",    kind: "helper", gives: "hop",
+       line: "Jumps across a deep crack.",
+       after: "You can jump a deep crack now." },
+  a: { name: "Mossling",  kind: "plain", line: "Soft, and a bit damp." },
+  b: { name: "Puffcap",   kind: "plain", line: "It grows where the woods are quiet." },
+  d: { name: "Pebblet",   kind: "plain", line: "It rests up high where it's quiet." },
+  n: { name: "Nestling",  kind: "plain", on: "^", hidden: "climb", line: "It hatched up on the cliff." },
+  r: { name: "Rootling",  kind: "plain", hidden: "sniff", line: "It was buried right by the start." },
+  f: { name: "Bubblefin", kind: "plain", on: "~", hidden: "swim", line: "It was under the water the whole time." },
+  c: { name: "Shellbug",  kind: "plain", line: "Slow, but it got out here somehow." },
+  e: { name: "Dewdeer",   kind: "rare", line: "It lives in a glade nobody could get into." },
+  B: { name: "Glimmerbat", kind: "rare", on: "#", line: "It sleeps at the back of the dark cave." },
+  m: { name: "Gemgrub",   kind: "rare", hidden: "sniff", line: "A living crystal. It buried itself at the end of its crumbs." },
+  D: { name: "Deepshell", kind: "rare", on: "~", line: "It crawled all the way to a pool past the crack." },
+  R: { name: "Embertail", kind: "rarest", needs: "sniff", line: "The rarest one. Warm to hold." },
+};
+const ORDER = ["P", "C", "N", "G", "H", "a", "b", "d", "n", "r", "f", "c", "e", "B", "m", "D", "R"];
+const GIVER = { hop: "H", swim: "P", climb: "C", light: "G", sniff: "N" };
+const TAG = { helper: "New helper", plain: "New creature", rare: "Rare find", rarest: "The rarest find" };
+
+// Each rare one leaves a trail, drawn on these squares, from where it starts to its den.
+// It is not drawn on water or the crack: it stops at the edge and goes on across.
+// Embertail's trail is a scent, so only Sniffer shows it. Trails in the dark show only with light.
+const TRAILS = {
+  e: [[12,20],[12,21],[12,22],[11,23],[10,24],[9,25],[9,26],[9,27],[10,27],[11,27],[12,27],[13,27],[14,27],[14,28],[14,29],[13,29],[12,29],[11,29],[10,29],[9,29],[8,29],[8,30],[8,31],[8,32],[9,32],[10,32],[12,32],[13,32],[14,32],[14,33],[14,34]],
+  B: [[13,12],[13,11],[12,10],[11,9],[11,8],[10,8],[9,8],[9,7],[9,6],[9,5],[9,4],[9,3],[9,2],[9,1]],
+  m: [[15,17],[16,17],[20,16],[20,17],[21,18],[21,19],[22,20],[22,21],[22,22],[22,23],[23,24],[23,25],[23,26],[23,27],[23,28]],
+  D: [[8,23],[7,23],[6,23],[4,23],[3,24],[3,25],[3,26],[3,27],[3,28],[3,29],[3,30],[2,30],[2,31]],
+  R: [[10,19],[9,19],[8,19],[7,19],[6,19],[4,19],[4,18],[3,17],[3,16],[3,15],[2,15]],
+};
+const TRAIL_LOOK = {
+  e: ["hoof",  "Hoofprints. Something rare walked here."],
+  B: ["dust",  "Glowing dust on the ground. Something rare flew by."],
+  m: ["crumb", "Crystal crumbs. Something rare dropped them."],
+  D: ["slime", "A shiny slime trail. Something rare crawled here."],
+  R: ["scent", "Sniffer smells smoke. Something very rare passed this way."],
+};
+// What a wall says when you tap it: that there might be a way, never which helper it takes.
+const BLOCKED_HINT = {
+  "t": "Thick trees. No way through.",
+  "%": "Thick trees. No way through.",
+  "x": "Solid rock.",
+  "~": "Deep water. Too deep to wade.",
+  "^": "A steep cliff. There are footholds, but too far apart for you.",
+  "#": "Pitch dark in there. Something moves inside.",
+  "v": "A deep crack. The other side isn't far.",
+};
+const SPOT_LINE = {
+  sniff: ["Sniffer smells something right here. Walk onto the mark to dig.", "N"],
+  swim: ["Something moves under the water.", "P"],
+  climb: ["A nest on the cliff face.", "C"],
+};
+
+const creatureAt = (x, y) => (CREATURES[MAP[y][x]] ? MAP[y][x] : null);
+const ground = (x, y) => {
+  const ch = MAP[y][x];
+  if (CREATURES[ch]) return CREATURES[ch].on || ".";
+  return ch === "@" ? "." : ch;
+};
+const hiddenBy = (k) => CREATURES[k].hidden;
+const isRare = (k) => CREATURES[k].kind === "rare" || CREATURES[k].kind === "rarest";
+const idx = (x, y) => y * W + x;
+let start = { x: 0, y: 0 };
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (MAP[y][x] === "@") start = { x, y };
+const TRACK = new Map();
+for (const k in TRAILS) for (const [x, y] of TRAILS[k]) TRACK.set(idx(x, y), k);
+// eyes blink in the dark just inside the cave mouth
+const EYES = new Set([idx(9, 7)]);
+
+// ---- state ----
+const SAVE_KEY = "fogmap-sketch-4";
+let S = fresh();
+function fresh() { return { x: start.x, y: start.y, seen: new Array(W * H).fill(0), glints: [], marks: [], twitched: [], paths: [], found: [], trails: [], met: [] }; }
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
+    if (d && Array.isArray(d.seen) && d.seen.length === W * H && Array.isArray(d.trails) && Array.isArray(d.met)) S = d;
+  } catch (e) { /* no saved game */ }
+}
+let saving = true;
+function save() { if (!saving) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* storage blocked */ } }
+
+const has = (ability) => S.found.includes(GIVER[ability]);
+function passable(x, y) {
+  const g = ground(x, y);
+  if (g === ".") return true;
+  if (g === "~") return has("swim");
+  if (g === "^") return has("climb");
+  if (g === "#") return has("light");
+  if (g === "%") return has("light") && S.paths.includes(idx(x, y));
+  return false;
+}
+const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+// a trail square shows once seen, unless it is a scent (needs Sniffer) or in the dark (needs light)
+const trailShows = (k, x, y) => !S.found.includes(k) && S.seen[idx(x, y)] &&
+  (!CREATURES[k].needs || has(CREATURES[k].needs)) && (ground(x, y) !== "#" || has("light"));
+// a creature you can find by walking onto it right now
+function findable(k, i) {
+  if (hiddenBy(k)) return S.marks.includes(i);
+  if (isRare(k)) return S.met.includes(k);
+  return true;
+}
+
+// Looks around where you stand. Returns what turned up, so the hint line can say it.
+function look() {
+  const lit = has("light");
+  const see = lit ? SEE_LIT : SEE, glint = lit ? GLINT_LIT : GLINT;
+  const news = { spots: [], paths: 0, twitch: false, trail: null, met: null };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const d = (x - S.x) ** 2 + (y - S.y) ** 2, i = idx(x, y);
+    if (d <= see) S.seen[i] = 1;
+    if (MAP[y][x] === "%" && lit && d <= PATH_SEE && !S.paths.includes(i)) { S.paths.push(i); news.paths++; }
+    const k = creatureAt(x, y);
+    if (!k || S.found.includes(k)) continue;
+    const h = hiddenBy(k);
+    if (isRare(k) && !h) {
+      const c = CREATURES[k];
+      if (d <= MEET && S.seen[i] && !S.met.includes(k) && (!c.needs || has(c.needs)) && (ground(x, y) !== "#" || lit)) { S.met.push(k); news.met = k; }
+      continue;
+    }
+    if (!h) { if (d <= glint && !S.glints.includes(i)) S.glints.push(i); continue; }
+    if (S.marks.includes(i) || !has(h)) continue;
+    if (h === "sniff") {
+      if (d <= SMELL) { S.marks.push(i); news.spots.push(h); }
+      else if (d <= TWITCH && !S.twitched.includes(i)) { S.twitched.push(i); news.twitch = true; }
+    } else if (S.seen[i]) { S.marks.push(i); news.spots.push(h); }
+  }
+  for (const k in TRAILS) {
+    if (S.trails.includes(k) || S.found.includes(k)) continue;
+    if (TRAILS[k].some(([x, y]) => trailShows(k, x, y))) { S.trails.push(k); news.trail = k; }
+  }
+  return news;
+}
+
+// every square you could step or jump to from (x, y)
+function moves(x, y) {
+  const out = [];
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const nx = x + dx, ny = y + dy;
+    if (!inside(nx, ny)) continue;
+    if (S.seen[idx(nx, ny)] && passable(nx, ny)) out.push([idx(nx, ny), false]);
+    else if (has("hop") && ground(nx, ny) === "v") {
+      const jx = x + 2 * dx, jy = y + 2 * dy;
+      if (inside(jx, jy) && S.seen[idx(jx, jy)] && passable(jx, jy)) out.push([idx(jx, jy), true]);
+    }
+  }
+  return out;
+}
+function search() {
+  const prev = new Map([[idx(S.x, S.y), null]]);
+  const q = [idx(S.x, S.y)];
+  while (q.length) {
+    const i = q.shift();
+    for (const [n, hop] of moves(i % W, Math.floor(i / W))) {
+      if (prev.has(n)) continue;
+      prev.set(n, { from: i, hop });
+      q.push(n);
+    }
+  }
+  return prev;
+}
+function path(tx, ty) {
+  const prev = search(), t = idx(tx, ty);
+  if (!prev.has(t)) return null;
+  const steps = [];
+  for (let i = t; prev.get(i); i = prev.get(i).from) steps.unshift({ i, hop: prev.get(i).hop });
+  return steps;
+}
+
+// ---- drawing ----
+const viewEl = document.getElementById("view");
+const mapEl = document.getElementById("map");
+const meEl = document.getElementById("me");
+mapEl.style.gridTemplateColumns = `repeat(${W}, var(--tile))`;
+const tiles = [];
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+  const d = document.createElement("div");
+  d.className = "t"; d.dataset.x = x; d.dataset.y = y;
+  mapEl.appendChild(d); tiles.push(d);
+}
+const art = (k, cls = "") => `<svg class="${cls}" viewBox="0 0 32 32"><use href="#sp-${k}"/></svg>`;
+const trackArt = (k) => `<span class="trk ${TRAIL_LOOK[k][0]}"></span>`;
+
+const slotsEl = document.getElementById("slots");
+const slotEls = {};
+function slotHint(k) {
+  const c = CREATURES[k], seenTrail = S.trails.includes(k);
+  if (c.kind === "helper") return "A helper you haven't met yet.";
+  if (c.kind === "plain") return "A creature you haven't found yet.";
+  if (c.kind === "rarest") return seenTrail ? "Sniffer has its scent. Where does it lead?" : "The rarest one. You haven't seen a trace of it.";
+  return seenTrail ? "You've seen its trail. Where does it lead?" : "A rare one. Rare ones leave a trail.";
+}
+ORDER.forEach((k, i) => {
+  const c = CREATURES[k];
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "slot " + c.kind;
+  b.innerHTML = `<span class="face">?</span><span class="nm">#${i + 1}</span>`;
+  b.addEventListener("click", () => {
+    if (S.found.includes(k)) say(`<b>${c.name}.</b>&nbsp;${c.line}`, false, k);
+    else say(slotHint(k), false);
+  });
+  slotsEl.appendChild(b); slotEls[k] = b;
+});
+
+let pulsing = new Set();
+const GROUND_CLASS = { ".": "grass", t: "tree", "%": "tree", x: "stone", "~": "water", "^": "rock", "#": "cave", v: "chasm" };
+function draw() {
+  const lit = has("light");
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = idx(x, y), el = tiles[i];
+    const alt = (x * 13 + y * 7 + x * y) % 7 === 0 ? " alt" : "";
+    const k = creatureAt(x, y), waiting = k && !S.found.includes(k);
+    let html = "", cls;
+    if (S.seen[i]) {
+      const g = ground(x, y);
+      const gc = g === "%" && S.paths.includes(i) ? "path" : GROUND_CLASS[g];
+      cls = "t g-" + gc + alt + (g === "#" && lit ? " lit" : "");
+      const tk = TRACK.get(i);
+      if (tk && trailShows(tk, x, y)) html += trackArt(tk);
+      if (EYES.has(i) && !lit) html += `<span class="eyes"></span>`;
+      if (waiting && !hiddenBy(k) && findable(k, i)) html += art(k, "cr " + CREATURES[k].kind);
+      else if (waiting && S.marks.includes(i)) html += `<span class="mark ${hiddenBy(k)}"></span>`;
+    } else {
+      cls = "t fog" + alt;
+      if (waiting && !hiddenBy(k) && !isRare(k) && S.glints.includes(i)) html = `<span class="glint"></span>`;
+    }
+    if (pulsing.has(i)) cls += " pulse";
+    if (el.className !== cls) el.className = cls;
+    if (el.innerHTML !== html) el.innerHTML = html;
+  }
+  meEl.style.transform = `translate(calc(${S.x} * var(--tile)), calc(${S.y} * var(--tile)))`;
+  camera();
+  const pct = Math.floor((S.found.length / ORDER.length) * 100);
+  document.getElementById("pct").textContent = pct + "%";
+  document.getElementById("pctBar").style.width = pct + "%";
+  document.getElementById("count").textContent = S.found.length + " / " + ORDER.length;
+  ORDER.forEach((k, i) => {
+    const got = S.found.includes(k), el = slotEls[k];
+    el.classList.toggle("got", got);
+    const face = got ? art(k) : (TRAILS[k] && S.trails.includes(k) ? trackArt(k) : "?");
+    const faceEl = el.querySelector(".face");
+    if (faceEl.innerHTML !== face) faceEl.innerHTML = face;
+    el.querySelector(".nm").textContent = got ? CREATURES[k].name : "#" + (i + 1);
+  });
+}
+
+const hintEl = document.getElementById("hint");
+function say(text, news, k) {
+  hintEl.innerHTML = (k ? art(k) : "") + `<span>${text}</span>`;
+  hintEl.classList.toggle("news", !!news);
+}
+// the hint line for whatever a walk turned up, most interesting first
+function tell(news) {
+  if (news.met) say("There it is, at the end of the trail.", true);
+  else if (news.trail) say(TRAIL_LOOK[news.trail][1], true);
+  else if (news.paths) say("Glowmoth shows a hidden path through the trees.", true, "G");
+  else if (news.spots.length) { const [t, k] = SPOT_LINE[news.spots[0]]; say(t, true, k); }
+  else if (news.twitch) say("Sniffer's nose twitches. Something is buried close by.", true, "N");
+}
+
+// ---- camera: keep you near the middle; "Whole map" shrinks it to fit ----
+let whole = false, tile = 30;
+function fit() {
+  const vw = viewEl.clientWidth, vh = viewEl.clientHeight;
+  tile = whole ? Math.max(8, Math.floor(Math.min(vw / W, vh / H)))
+               : Math.max(26, Math.min(44, Math.floor(vw / 11)));
+  document.documentElement.style.setProperty("--tile", tile + "px");
+  camera();
+}
+function camera() {
+  const vw = viewEl.clientWidth, vh = viewEl.clientHeight, mw = W * tile, mh = H * tile;
+  const place = (p, v, m) => (m <= v ? (m - v) / 2 : Math.min(Math.max(p * tile + tile / 2 - v / 2, 0), m - v));
+  mapEl.style.transform = `translate(${-place(S.x, vw, mw)}px, ${-place(S.y, vh, mh)}px)`;
+}
+addEventListener("resize", fit);
+const zoomBtn = document.getElementById("zoom");
+zoomBtn.addEventListener("click", () => {
+  whole = !whole;
+  zoomBtn.classList.toggle("on", whole);
+  zoomBtn.textContent = whole ? "Close up" : "Whole map";
+  fit();
+});
+
+// ---- finding a creature: card first, then show what it showed nearby ----
+const cardEl = document.getElementById("card");
+let afterCard = null;
+function showCard(k) {
+  const c = CREATURES[k];
+  document.getElementById("cardIn").className = "cardin " + c.kind;
+  document.getElementById("cardTag").textContent = TAG[c.kind];
+  document.getElementById("cardUse").setAttribute("href", "#sp-" + k);
+  document.getElementById("cardName").textContent = c.name;
+  document.getElementById("cardLine").textContent = c.line;
+  cardEl.hidden = false;
+}
+cardEl.addEventListener("click", () => {
+  cardEl.hidden = true;
+  if (afterCard) { const f = afterCard; afterCard = null; f(); }
+});
+
+function ring(radiusSq) {
+  const r = Math.sqrt(radiusSq) * tile, el = document.createElement("div");
+  el.className = "ring";
+  Object.assign(el.style, { width: 2 * r + "px", height: 2 * r + "px",
+    left: (S.x + 0.5) * tile - r + "px", top: (S.y + 0.5) * tile - r + "px" });
+  mapEl.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
+// No pointing back: a new helper only lights up what it shows right where you stand.
+// Remembering the wall it crosses is left to you.
+function find(k) {
+  const marksBefore = S.marks.length, pathsBefore = S.paths.length;
+  S.found.push(k);
+  look();
+  const shown = S.marks.slice(marksBefore).concat(S.paths.slice(pathsBefore));
+  const el = slotEls[k];
+  el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+  draw(); save();
+  showCard(k);
+  afterCard = () => {
+    const c = CREATURES[k];
+    if (c.gives === "light") ring(SEE_LIT);
+    pulsing = new Set(shown);
+    draw();
+    setTimeout(() => { pulsing = new Set(); draw(); }, 2900);
+    if (S.found.length === ORDER.length) say("Every creature found. That's all of them.", true);
+    else if (c.kind === "helper") say(shown.length || !c.afterNo ? c.after : c.afterNo, true, k);
+    else if (c.kind === "rarest") say(`The rarest one: ${c.name}!`, true, k);
+    else if (c.kind === "rare") say(`A rare find: ${c.name}!`, true, k);
+    else say(`You found ${c.name}!`, true, k);
+  };
+}
+
+// ---- walking ----
+const SLOW = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const STEP_MS = SLOW ? 50 : 115, HOP_MS = SLOW ? 50 : 210;
+let walk = null;
+function go(steps) {
+  if (walk) clearTimeout(walk);
+  const tick = () => {
+    if (!steps.length) { walk = null; meEl.classList.remove("hop"); save(); return; }
+    const { i, hop } = steps.shift();
+    meEl.classList.toggle("hop", hop);
+    S.x = i % W; S.y = Math.floor(i / W);
+    const news = look();
+    const k = creatureAt(S.x, S.y);
+    if (k && !S.found.includes(k) && findable(k, i)) { walk = null; find(k); return; }
+    draw();
+    tell(news);
+    save();
+    // stop when a rare one shows itself, so you see it before you walk off
+    if (news.met) { walk = null; meEl.classList.remove("hop"); return; }
+    walk = setTimeout(tick, hop ? HOP_MS : STEP_MS);
+  };
+  tick();
+}
+
+mapEl.addEventListener("click", (e) => {
+  const t = e.target.closest(".t");
+  if (!t || !cardEl.hidden) return;
+  const x = +t.dataset.x, y = +t.dataset.y, i = idx(x, y);
+  if (x === S.x && y === S.y) return;
+  if (!S.seen[i]) {
+    const k = creatureAt(x, y);
+    if (S.glints.includes(i) && !S.found.includes(k)) say("Something glints in the fog over there.", false);
+    else say("You can't see that far yet.", false);
+    return;
+  }
+  const tk = TRACK.get(i), onTrail = tk && trailShows(tk, x, y);
+  if (!passable(x, y)) { say(BLOCKED_HINT[ground(x, y)] + (onTrail ? " The trail goes on in there." : ""), false); return; }
+  const steps = path(x, y);
+  if (!steps) { say(onTrail ? TRAIL_LOOK[tk][1] + " You can't get to it yet." : "You can't find a way there yet.", false); return; }
+  say("", false);
+  go(steps);
+});
+
+// ---- start over (tap twice) ----
+const resetBtn = document.getElementById("reset");
+let armed = null;
+resetBtn.addEventListener("click", () => {
+  if (!armed) {
+    resetBtn.classList.add("armed"); resetBtn.textContent = "Tap again to wipe";
+    armed = setTimeout(() => { armed = null; resetBtn.classList.remove("armed"); resetBtn.textContent = "Start over"; }, 3000);
+    return;
+  }
+  clearTimeout(armed); armed = null;
+  resetBtn.classList.remove("armed"); resetBtn.textContent = "Start over";
+  if (walk) clearTimeout(walk);
+  walk = null; pulsing = new Set();
+  S = fresh(); look(); draw(); save();
+  say("Tap anywhere you can see to walk there.", false);
+});
+
+// ---- go ----
+// #peek (for checking only): shows the whole map with four helpers found, and never saves.
+if (location.hash === "#peek") {
+  saving = false;
+  S.seen.fill(1); S.found = ["P", "C", "G", "N"];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (MAP[y][x] === "%") S.paths.push(idx(x, y));
+} else {
+  load();
+}
+look();
+draw();
+fit();
+</script>

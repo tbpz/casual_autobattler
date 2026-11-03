@@ -22,6 +22,115 @@
 
 ---
 
+## [2026-11-03] [game] The map bet gets a one-off 4th try: helpers far from their walls, wordless walls, rare ones found by tracks
+
+- **Decision:**
+  - Map sketch 3 counts as try 3 at a fair test of the map bet, not as a fail.
+  - The map bet gets a 4th try, `sketches/map-4`, as a one-off for this bet only; the 3-tries rule stands for every other bet.
+  - Map-4 is bigger, and each helper sits far from the wall it crosses.
+  - A blocked place no longer names the helper it needs, and the book no longer says where a helper is; the wall shows a small sign that it could be passed.
+  - Rare ones are found by tracks: only footprints show at first, and the trail crosses ground that needs other helpers.
+- **Why:**
+  - Tu played map-3: "Sketch 3 is better. But I still feel plain somehow."
+  - Swim and climb were "still too easy to find"; Tu felt all three causes: helpers too close, the game saying the answer, the map too small.
+  - Tu wants the Pokemon and Hollow Knight moment: a place you can't pass yet, a slight hint it could be, then a new ability that reminds you of it, and you go back.
+  - "The rare, legendary one is not really rare": once the helpers were held, a rare one was just another walk.
+  - Tu wants rare ones harder to get, not by running away; he picked tracks over night-only, a treat and shy creatures.
+  - Tracks add something to figure out, not something hard to pull off, so the verified "harder difficulty does not bring him back" holds.
+  - The moment Tu wants never happened in any sketch, so the bet has had no fair test yet.
+- **Replaces:**
+  - "Map sketch 2 counts as try 2 of 3; a third map sketch is the last try" (2026-11-03), only where it says map-3 is the last try.
+
+## [2026-11-03] [game] Map sketch 2 counts as try 2 of 3; a third map sketch is the last try
+
+- **Decision:**
+  - Map sketch 2 counts as try 2 of 3 at a fair test of the map bet, not as a fail.
+  - A third sketch, `sketches/map-3`, is built as try 3, the last one; map-1 and map-2 are kept as they are.
+  - Tu has not read how map-3 changes things, so the surprise holds for his play; the bet's fair-test line in `BETS.html` gets its new conditions only after he plays.
+- **Why:**
+  - Tu played map-2 to the end: "a little bit better than the first", "a bit less plain".
+  - Tu found the swim and hop helpers before he knew there was water or a gap, so the fun of discovering "just naturally happen without effort".
+  - Both helpers sat a few steps from the start, before any wall had stopped him.
+  - Digging was the only good part: marks he had never seen showed up on known ground, but it was easy, and the finds were nothing special for the effort.
+  - The % meter pulled him to every corner, and then the last 1% was "just 1 meaningless pixel": the meter counted squares, not things to find.
+  - Tu: "Go try sketch 3."
+- **Replaces:**
+  - Nothing; "Map sketch 1 was too plain to test the map bet" (2026-11-03) stands.
+
+## [2026-11-03] [game] Map sketch 1 was too plain to test the map bet; a second map sketch follows
+
+- **Decision:**
+  - Map sketch 1 counts as try 1 of 3 at a fair test of the map bet, not as a fail.
+  - A second sketch, `sketches/map-2`, is built as try 2; map-1 is kept as it is.
+  - The bet's fair test now also needs more than one way through, places seen long before they can be reached, and creatures Tu can name the use of afterwards.
+  - Map-2 keeps map-1's ease: tap to walk, fog, a creature book.
+- **Why:**
+  - Tu played map-1 to 100% seen and said no to both pass questions.
+  - Tu: "All the creatures can be reach easily and obviously and it seems is designed to be the only way."
+  - Tu forgot what each creature's ability was; creatures looked alike.
+  - Tu cares about what a creature can do, but the hints were too plain to read.
+  - Map-1 was one straight line: each creature sat right behind the ground the last one opened, so seeing a place and reaching it were seconds apart.
+  - Tu: "The game is easily to understand so it's no hard to try. But I think this is too plain to test the bet correctly."
+- **Replaces:**
+  - The sketch detail in "Map discovery is tested next with a one-evening sketch" (2026-11-03): four creatures each opening one kind of ground. The rest of that entry stands.
+
+## [2026-11-03] [game] The Setup's example games are split into fun only and Tu's masterpieces
+
+- **Decision:**
+  - The Setup's "simple and relaxing" line keeps its mobile examples, now labelled fun only: Top Heroes, Archero 2, New Star Soccer.
+  - A second list under it names Tu's masterpieces: Warcraft 3, Dota 2, Hades, Hollow Knight, Zelda Breath of the Wild, Pokemon (Gen 3 and earlier), Diablo 2.
+  - New Star Soccer takes Soccer Superstar's place in the fun-only list.
+  - The Setup itself does not change: the game stays mobile, simple and relaxing.
+- **Why:**
+  - Tu: "keep them but also add the other. Differentiate with what is fun only and what I considered masterpiece."
+  - Tu named New Star Soccer as replacing Soccer Superstar when he listed why he quit each game.
+- **Replaces:**
+  - The reference-games bullet in "The game is simple and relaxing but still addictive: a fixed base, not a bet" (2026-11-02); the rest of that entry stands.
+
+## [2026-11-03] [game] Map discovery is tested next with a one-evening sketch
+
+- **Decision:**
+  - Directions are tested by small throwaway sketches, each played once, not decided on paper and not built into the prototype.
+  - The first sketch tests discovering a map with creatures to collect: `sketches/map-1/index.html`; its phone link is in `STATE.md`.
+  - The sketch has no fights; four creatures each open one kind of ground, so places are seen before they can be reached.
+  - New bet under pillar C, first in the test order (Claude's proposed spot; Tu can move it): discovering a map, with creatures to collect, pulls me to see what's left.
+- **Why:**
+  - Tu said both ways he tried had failed: optimizing one idea felt endless, and dropping ideas on paper left every keep-or-drop unsure.
+  - Map discovery is the reason Tu names most for staying in his masterpieces.
+  - Tu: "Ok build it."
+- **Replaces:**
+  - Nothing.
+
+## [2026-11-03] [game] Tu stays in a game while real new things are left to find
+
+- **Decision:**
+  - New verified line under pillar C: Tu stays while real new things are left to find, and stops when they run out; harder difficulty does not bring him back.
+  - Tu's masterpieces: Warcraft 3, Dota 2, Hades, Hollow Knight, Zelda Breath of the Wild, Pokemon (Gen 3 and earlier), Diablo 2.
+  - Top Heroes, Archero and New Star Soccer are fun and addictive to Tu, but not masterpieces.
+  - Not settled: the Setup line in `BETS.html` still names those three mobile games as its examples.
+- **Why (Tu's own reasons, per game):**
+  - Hollow Knight and Zelda: wanted every place on the map; dropped when all was discovered.
+  - Pokemon: the empty Pokedex slots; came back after the Elite 4 for Mew and Mewtwo; dropped when no secrets were left.
+  - Hades: unlocking new builds; stopped when all were unlocked, rarely raised the difficulty.
+  - Diablo 2: getting stronger through the map; stopped when the map ended and only difficulty rose.
+  - Warcraft 3: elegant in every part; stopped after the campaign.
+  - Dota 2: plays better every game against real players; the one game held by his own skill.
+  - Archero: quit when builds turned out less different than they looked.
+  - Top Heroes: quit when the promoted legendary lineup changed: "they've betrayed my feeling."
+  - New Star Soccer: quit when the career felt repetitive.
+- **Replaces:**
+  - Nothing.
+
+## [2026-11-03] [game] A fun fight moment alone does not bring Tu back the next evening
+
+- **Decision:**
+  - New verified line under pillar C: a fun fight moment alone does not bring Tu back the next evening.
+  - The pillar A lines stay verified; they say what makes a sitting fun, not why Tu returns.
+- **Why:**
+  - Tu, on the prototype: "it indeed has some fun moment. But that's not enough to play again tomorrow night."
+- **Replaces:**
+  - Nothing.
+
 ## [2026-11-02] [game] The two run bets are parked until the game has runs
 
 - **Decision:**

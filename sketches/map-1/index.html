@@ -1,0 +1,423 @@
+<title>Fog Map Sketch</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Nunito+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: one portrait column. Score bar on top, the fogged map fills the middle, hint line and creature book below. */
+:root {
+  color-scheme: dark;
+  --night: #121726;
+  --panel: #1b2236;
+  --line: #2c3550;
+  --ink: #ece8da;
+  --muted: #9aa1b8;
+  --gold: #f2c14e;
+  --fog: #232a42;
+  --fog-2: #272f4a;
+  --grass: #4c7744;
+  --grass-2: #527d49;
+  --tree: #2c4d30;
+  --tree-top: #3b6640;
+  --water: #36689c;
+  --water-2: #4479ae;
+  --rock: #6f7380;
+  --rock-2: #858a97;
+  --thorn: #5b3550;
+  --thorn-2: #8a5677;
+  --cave: #0b0d15;
+  --cave-2: #1a1d2a;
+  --c-snip: #e07a5f;
+  --c-paddle: #6cc3d5;
+  --c-crag: #c9ad7f;
+  --c-moth: #f3e27c;
+  --c-moss: #8fce7a;
+  --c-puff: #e8a6c8;
+  --c-shell: #f0a35e;
+  --c-ember: #ff6a3a;
+  --f-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --f-body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --tile: 28px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--night); color: var(--ink);
+  font: 15px/1.4 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.app { height: 100%; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+
+/* top bar */
+.bar { display: flex; align-items: center; gap: 12px; }
+.score { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.score b { font: 700 18px/1 var(--f-display); letter-spacing: .01em; font-variant-numeric: tabular-nums; }
+.score small { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.meter { height: 4px; width: 84px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .3s; }
+.spacer { flex: 1; }
+.reset {
+  font: 600 12px var(--f-body); color: var(--muted); background: none;
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer;
+}
+.reset.armed { color: var(--night); background: var(--c-snip); border-color: var(--c-snip); }
+.reset:focus-visible, .slot:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* map */
+.mapwrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.map {
+  position: relative; display: grid;
+  grid-template-columns: repeat(12, var(--tile)); grid-auto-rows: var(--tile);
+  border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px var(--line);
+  touch-action: manipulation; user-select: none;
+}
+.t { position: relative; cursor: pointer; }
+.fog { background: var(--fog); }
+.fog.alt { background: var(--fog-2); }
+.g-grass { background: var(--grass); }
+.g-grass.alt { background: var(--grass-2); }
+.g-tree { background: radial-gradient(circle at 50% 45%, var(--tree-top) 0 42%, transparent 44%), var(--tree); }
+.g-water { background: repeating-linear-gradient(170deg, var(--water) 0 5px, var(--water-2) 5px 7px); }
+.g-rock { background: linear-gradient(135deg, var(--rock-2) 0 30%, var(--rock) 30% 70%, var(--rock-2) 70%); }
+.g-thorn { background: repeating-linear-gradient(45deg, var(--thorn) 0 4px, var(--thorn-2) 4px 6px), var(--thorn); }
+.g-cave { background: radial-gradient(circle at 30% 70%, var(--cave-2) 0 12%, transparent 14%), var(--cave); }
+.g-cave.lit { background: radial-gradient(circle at 50% 50%, #3a3550 0 30%, transparent 70%), var(--cave-2); }
+
+/* a creature on the map */
+.cr {
+  position: absolute; inset: 18%; border-radius: 50%;
+  background: var(--col); box-shadow: 0 0 0 2px rgba(0,0,0,.25), 0 0 10px var(--col);
+  animation: bob 1.6s ease-in-out infinite;
+}
+.cr::before, .cr::after {
+  content: ""; position: absolute; top: 34%; width: 16%; height: 22%;
+  background: #1a1a1a; border-radius: 50%;
+}
+.cr::before { left: 26%; } .cr::after { right: 26%; }
+.cr.rare { box-shadow: 0 0 0 2px var(--gold), 0 0 14px var(--col); }
+/* a glint seen through the fog */
+.glint {
+  position: absolute; left: 50%; top: 50%; width: 30%; height: 30%;
+  transform: translate(-50%, -50%) rotate(45deg); background: var(--gold);
+  border-radius: 2px; animation: twinkle 1.4s ease-in-out infinite;
+}
+@keyframes bob { 50% { transform: translateY(-8%); } }
+@keyframes twinkle { 0%, 100% { opacity: .25; transform: translate(-50%,-50%) rotate(45deg) scale(.6); } 50% { opacity: 1; transform: translate(-50%,-50%) rotate(45deg) scale(1); } }
+
+.me {
+  position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile);
+  pointer-events: none; transition: transform .11s linear; z-index: 2;
+}
+.me::after {
+  content: ""; position: absolute; inset: 24%; border-radius: 50%;
+  background: var(--gold); box-shadow: 0 0 0 3px var(--night), 0 0 0 5px var(--gold), 0 0 16px var(--gold);
+}
+
+/* hint line */
+.hint { min-height: 2.8em; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); font-size: 14px; padding: 0 4px; }
+.hint.news { color: var(--ink); font-weight: 700; }
+
+/* creature book */
+.book { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+.book h2 { margin: 0 0 6px; font: 700 13px/1 var(--f-display); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); display: flex; justify-content: space-between; }
+.book h2 b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.slots { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+.slot { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; background: none; border: 0; padding: 2px 0; color: inherit; font: inherit; }
+.slot .face {
+  position: relative; width: 30px; height: 30px; border-radius: 50%;
+  border: 2px dashed var(--line); display: grid; place-items: center;
+  color: var(--muted); font: 700 15px var(--f-display);
+}
+.slot.rare .face { border-color: var(--gold); border-style: solid; }
+.slot.got .face { border: 0; background: var(--col); }
+.slot.got .face::before, .slot.got .face::after { content: ""; position: absolute; top: 34%; width: 16%; height: 22%; background: #1a1a1a; border-radius: 50%; }
+.slot.got .face::before { left: 26%; } .slot.got .face::after { right: 26%; }
+.slot.got.rare .face { box-shadow: 0 0 0 2px var(--gold); }
+.slot .nm { font-size: 9.5px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot.got .nm { color: var(--ink); }
+.slot.pop .face { animation: pop .5s ease-out; }
+@keyframes pop { 40% { transform: scale(1.35); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cr, .glint, .slot.pop .face { animation: none; }
+  .me { transition: none; }
+}
+</style>
+
+<div class="app">
+  <div class="bar">
+    <div class="score"><small>Map seen</small><b id="pct">0%</b><div class="meter"><i id="pctBar"></i></div></div>
+    <div class="spacer"></div>
+    <button class="reset" id="reset" type="button">Start over</button>
+  </div>
+  <div class="mapwrap" id="mapwrap"><div class="map" id="map"><div class="me" id="me"></div></div></div>
+  <div class="hint" id="hint">Tap anywhere you can see to walk there.</div>
+  <div class="book">
+    <h2><span>Creature book</span><b id="count">0 / 8</b></h2>
+    <div class="slots" id="slots"></div>
+  </div>
+</div>
+
+<script>
+// ---- The map, placed by hand. 12 wide, 18 tall. ----
+// .  grass        t  trees (never)     ~  water (Paddler)
+// ^  rock (Crag)  *  thorns (Snipper)  #  dark cave (Glowmoth)
+// @  start        letters = creatures (on grass)
+const MAP = [
+  "tt####tt^^tt",
+  "t#R##.#t^.bt",
+  "t#.##.#t^..t",
+  "t##.#.#^^G.t",
+  "tt#...#.^..t",
+  "t^^^^^^^^^^t",
+  "t..*...~~~~t",
+  "t.a*...~~C~t",
+  "t..*...~~~~t",
+  "t***..t~~~.t",
+  "tP.*..t.~~.t",
+  "t****...~..t",
+  "t.......~~~t",
+  "t..t.......t",
+  "t.S...t..t.t",
+  "tt..t.@....t",
+  "tc~~.......t",
+  "tttttttttttt",
+];
+// END MAP
+
+const W = 12, H = 18;
+const SEE = 10;    // squared distance you can see clearly around you
+const GLINT = 26;  // squared distance a creature glints through the fog
+
+const CREATURES = {
+  S: { name: "Snipper",   col: "--c-snip",   gives: "*", news: "You found Snipper! It cuts through thorns." },
+  P: { name: "Paddler",   col: "--c-paddle", gives: "~", news: "You found Paddler! Now you can swim." },
+  C: { name: "Crag",      col: "--c-crag",   gives: "^", news: "You found Crag! Now you can climb rocks." },
+  G: { name: "Glowmoth",  col: "--c-moth",   gives: "#", news: "You found Glowmoth! It lights up dark places." },
+  a: { name: "Mossling",  col: "--c-moss",   news: "You found Mossling!" },
+  c: { name: "Shellbug",  col: "--c-shell",  news: "You found Shellbug!" },
+  b: { name: "Puffcap",   col: "--c-puff",   news: "You found Puffcap!" },
+  R: { name: "Embertail", col: "--c-ember",  rare: true, news: "You found Embertail. It's the rarest one here." },
+};
+const ORDER = ["S", "P", "C", "G", "a", "c", "b", "R"];
+const BLOCKED_HINT = {
+  "t": "Thick trees. No way through.",
+  "~": "Too deep to cross. Maybe something here can swim.",
+  "^": "Too steep to climb, at least for you.",
+  "*": "Thorns. Something with sharp claws could cut through.",
+  "#": "Pitch dark in there. You'd need a light.",
+};
+
+const ground = (x, y) => {
+  const ch = MAP[y][x];
+  return "t~^*#".includes(ch) ? ch : ".";
+};
+const creatureAt = (x, y) => (CREATURES[MAP[y][x]] ? MAP[y][x] : null);
+const idx = (x, y) => y * W + x;
+let start = { x: 0, y: 0 };
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (MAP[y][x] === "@") start = { x, y };
+
+// ---- state ----
+const SAVE_KEY = "fogmap-sketch-1";
+let S = fresh();
+function fresh() {
+  return { x: start.x, y: start.y, seen: new Array(W * H).fill(0), glints: [], found: [] };
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d && Array.isArray(d.seen) && d.seen.length === W * H) S = d;
+  } catch (e) { /* no saved game */ }
+}
+let saving = true;
+function save() {
+  if (!saving) return;
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* storage blocked */ }
+}
+const can = (g) => S.found.some((k) => CREATURES[k].gives === g);
+const passable = (x, y) => {
+  const g = ground(x, y);
+  if (g === ".") return true;
+  if (g === "t") return false;
+  return can(g);
+};
+
+function look() {
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const d = (x - S.x) ** 2 + (y - S.y) ** 2;
+    if (d <= SEE) S.seen[idx(x, y)] = 1;
+    const k = creatureAt(x, y);
+    if (k && d <= GLINT && !S.glints.includes(idx(x, y))) S.glints.push(idx(x, y));
+  }
+}
+
+// ---- drawing ----
+const mapEl = document.getElementById("map");
+const meEl = document.getElementById("me");
+const tiles = [];
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+  const d = document.createElement("div");
+  d.className = "t";
+  d.dataset.x = x; d.dataset.y = y;
+  mapEl.appendChild(d);
+  tiles.push(d);
+}
+const slotsEl = document.getElementById("slots");
+const slotEls = {};
+ORDER.forEach((k, i) => {
+  const c = CREATURES[k];
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "slot" + (c.rare ? " rare" : "");
+  b.style.setProperty("--col", `var(${c.col})`);
+  b.innerHTML = `<span class="face">?</span><span class="nm">#${i + 1}</span>`;
+  b.addEventListener("click", () => {
+    if (S.found.includes(k)) say(c.name + (c.gives ? ". " + c.news.split("! ")[1] : "."), false);
+    else say(c.rare ? "A rare one. You haven't seen it yet." : "Still missing. It's out there somewhere.", false);
+  });
+  slotsEl.appendChild(b);
+  slotEls[k] = b;
+});
+
+function draw() {
+  let seenCount = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = idx(x, y), el = tiles[i];
+    const alt = (x * 13 + y * 7 + x * y) % 7 === 0 ? " alt" : "";
+    const k = creatureAt(x, y);
+    const here = k && !S.found.includes(k);
+    let html = "";
+    if (S.seen[i]) {
+      seenCount++;
+      const g = ground(x, y);
+      const name = { ".": "grass", t: "tree", "~": "water", "^": "rock", "*": "thorn", "#": "cave" }[g];
+      el.className = "t g-" + name + alt + (g === "#" && can("#") ? " lit" : "");
+      if (here) html = `<span class="cr${CREATURES[k].rare ? " rare" : ""}" style="--col:var(${CREATURES[k].col})"></span>`;
+    } else {
+      el.className = "t fog" + alt;
+      if (here && S.glints.includes(i)) html = `<span class="glint"></span>`;
+    }
+    if (el.innerHTML !== html) el.innerHTML = html;
+  }
+  meEl.style.transform = `translate(calc(${S.x} * var(--tile)), calc(${S.y} * var(--tile)))`;
+  const pct = Math.floor((seenCount / (W * H)) * 100);
+  document.getElementById("pct").textContent = pct + "%";
+  document.getElementById("pctBar").style.width = pct + "%";
+  document.getElementById("count").textContent = S.found.length + " / 8";
+  ORDER.forEach((k, i) => {
+    const got = S.found.includes(k), el = slotEls[k];
+    el.classList.toggle("got", got);
+    el.querySelector(".face").textContent = got ? "" : "?";
+    el.querySelector(".nm").textContent = got ? CREATURES[k].name : "#" + (i + 1);
+  });
+  return pct;
+}
+
+const hintEl = document.getElementById("hint");
+function say(text, news) {
+  hintEl.textContent = text;
+  hintEl.classList.toggle("news", !!news);
+}
+
+// ---- walking ----
+function path(tx, ty) {
+  const prev = new Map([[idx(S.x, S.y), -1]]);
+  const q = [[S.x, S.y]];
+  while (q.length) {
+    const [x, y] = q.shift();
+    if (x === tx && y === ty) break;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const ni = idx(nx, ny);
+      if (prev.has(ni) || !S.seen[ni] || !passable(nx, ny)) continue;
+      prev.set(ni, idx(x, y));
+      q.push([nx, ny]);
+    }
+  }
+  if (!prev.has(idx(tx, ty))) return null;
+  const steps = [];
+  for (let i = idx(tx, ty); i !== idx(S.x, S.y); i = prev.get(i)) steps.unshift(i);
+  return steps;
+}
+
+const STEP_MS = matchMedia("(prefers-reduced-motion: reduce)").matches ? 50 : 115;
+let walk = null;
+function go(steps) {
+  if (walk) clearTimeout(walk);
+  const tick = () => {
+    if (!steps.length) { walk = null; save(); return; }
+    const i = steps.shift();
+    S.x = i % W; S.y = Math.floor(i / W);
+    look();
+    const k = creatureAt(S.x, S.y);
+    if (k && !S.found.includes(k)) {
+      S.found.push(k);
+      say(CREATURES[k].news, true);
+      const el = slotEls[k];
+      el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+    }
+    const pct = draw();
+    if (S.found.length === 8) say(pct === 100 ? "Every creature found, every corner seen." : "You've found every creature.", true);
+    save();
+    walk = setTimeout(tick, STEP_MS);
+  };
+  tick();
+}
+
+mapEl.addEventListener("click", (e) => {
+  const t = e.target.closest(".t");
+  if (!t) return;
+  const x = +t.dataset.x, y = +t.dataset.y, i = idx(x, y);
+  if (x === S.x && y === S.y) return;
+  if (!S.seen[i]) {
+    say(S.glints.includes(i) && !S.found.includes(creatureAt(x, y)) ? "Something glints in the fog over there." : "You can't see that far yet.", false);
+    return;
+  }
+  if (!passable(x, y)) { say(BLOCKED_HINT[ground(x, y)], false); return; }
+  const steps = path(x, y);
+  if (!steps) { say("You can't find a way there yet.", false); return; }
+  go(steps);
+});
+
+// ---- start over (tap twice) ----
+const resetBtn = document.getElementById("reset");
+let armed = null;
+resetBtn.addEventListener("click", () => {
+  if (!armed) {
+    resetBtn.classList.add("armed"); resetBtn.textContent = "Tap again to wipe";
+    armed = setTimeout(() => { armed = null; resetBtn.classList.remove("armed"); resetBtn.textContent = "Start over"; }, 3000);
+    return;
+  }
+  clearTimeout(armed); armed = null;
+  resetBtn.classList.remove("armed"); resetBtn.textContent = "Start over";
+  if (walk) clearTimeout(walk);
+  S = fresh(); look(); draw(); save();
+  say("Tap anywhere you can see to walk there.", false);
+});
+
+// ---- sizing: fit the whole map on screen ----
+const wrap = document.getElementById("mapwrap");
+function fit() {
+  const t = Math.floor(Math.min(wrap.clientWidth / W, wrap.clientHeight / H));
+  document.documentElement.style.setProperty("--tile", Math.max(12, t) + "px");
+}
+addEventListener("resize", fit);
+
+// ---- go ----
+// #peek (for checking only): shows the whole map with two creatures found, and never saves.
+if (location.hash === "#peek") {
+  saving = false;
+  S.seen.fill(1); S.found = ["S", "P"];
+  S.x = 5; S.y = 8;
+} else {
+  load();
+}
+fit();
+look();
+draw();
+</script>

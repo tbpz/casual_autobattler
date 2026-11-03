@@ -73,6 +73,29 @@ Also:
 - When he asks for a quick, clearly scoped change ("make it 20% faster"), that is not a feeling —
   just do it.
 
+## Proposing a new mechanic
+
+- **Simple to try, deep later.** Tu must get a new mechanic from one phrase and want to try it at
+  once, like a Hades weapon: easy to see what it does, deep to use well. The depth only has to show
+  after playing. Ideas that need a paragraph to picture get rejected ("too complicated, hard to
+  imagine"). Offer a name plus one sentence, not a list of rules. If he can't picture it, draw it.
+- **New means new on screen.** Tu judges a mechanic by what the screen shows every second of normal
+  play. A renamed existing effect, a bigger number, or a rule that only matters in a rare moment
+  does not count as new. Before proposing one, check it against what the game already shows, and
+  prefer something that stays on screen or moves bodies over a new effect or number.
+
+## Helping Tu remember a game moment
+
+When Tu tries to recall a real moment from a game he loved and gets stuck, it is usually because
+he is judging each memory before writing it down. Keep collecting and judging apart:
+
+1. Collect from any game or source, with no "does this fit the project" filter.
+2. Use prompts that find real spikes: did he tell someone about it, replay just to get it again,
+   still see it years later, feel his heart rate change?
+3. Write each one as concrete details. If it can't be written concretely, drop it.
+4. Only then sort them by shape (for example, waiting then payoff, or dread then relief).
+5. Judge fit only at the end, to rank what's left — never to throw things out while collecting.
+
 ## When I make a mistake
 
 A mistake here means: I stated something, then had to reverse it — because Tu pushed back, asked a
@@ -173,6 +196,10 @@ Python is not installed on Tu's laptop — `python` is only the Microsoft Store 
 `python` for file edits or scripts. Use the Edit/Write tools; for a scripted bulk edit across many
 files, use `node` (installed, since the prototype is TypeScript) with the script in the scratchpad.
 
+On Windows, never chain shell commands (`cd x && y`, `|`, `;`, `&`). A chained command always asks
+Tu for permission, even when harmless. Run each step as its own call, and use absolute paths
+instead of `cd`.
+
 ## Testing UI in a browser
 
 On Tu's company-managed Windows laptop (`C:\Users\tu.vu`), launching the wrong browser can lock his
@@ -194,6 +221,12 @@ Tu sees canvas changes only through the canvas link, never in the local files. S
 
 - Any plan that touches `design/canvas/` lists "publish to the canvas link" as a step.
 - If I stop before publishing, I say plainly that the canvas still shows the old version.
+
+## Publishing sketches
+
+There is one sketch page: https://claude.ai/artifact/MFarQqFKSrJqLZrbStvCeF. Every new sketch
+replaces it — read it with the Artifact tool, then publish with `url` set to that link. Never
+publish a sketch as a new page unless Tu asks for one.
 
 ## Choosing UI, animation and interaction: draw, don't ask
 
