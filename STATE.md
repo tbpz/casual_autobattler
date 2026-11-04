@@ -2,7 +2,7 @@
 
 > **What this file is:** where the project stands right now, and what to do next. Present tense only.
 > **Read this first** in every session. Layer 1 ends at the rule — that's the 60-second read. Layer 2 is the working index.
-> **Last synced:** 2026-11-03
+> **Last synced:** 2026-11-04
 
 ## What this is
 
@@ -17,18 +17,19 @@ The search for what Tu's masterpiece game looks like, made for Tu first.
 
 > **"I can see a place I can't reach yet, and I want to find the way there."**
 
-- **Real new things to find** keep Tu in a game; he stops when they run out, and harder difficulty doesn't bring him back.
-- **Map discovery** is the reason he names most for his masterpieces (Hollow Knight, Zelda, Pokemon, Diablo 2).
-- **The fight moment** makes a sitting fun but does not bring him back the next evening.
+- **Map discovery** pulls Tu to finish a sitting, and **a find is worth having when it changes how he moves**: both verified.
+- **The bet now being tested:** a find is fun when using it needs an idea Tu didn't have before, a "that's smart" moment. Two tries are used; the next map is the last.
+- **Tu's read of where "smart" comes from:** a move working with the world in a clever way to solve a puzzle, like Zelda.
+- **Coming back** needs real new things left to find; a bigger map or more moves runs out, and the goal for now is at least 5 sittings.
 
 ## Where it stands
 
-The map bet is on a one-off 4th try, its last. Map sketch 4 is built, checked with numbers and published, and waits for Tu's one play. It aims at the Pokemon and Hollow Knight moment: a wall you meet long before its helper, and rare ones you track down by their trails.
+Maps 6 and 7 both played plain and easy: no "that's smart" moment. Before the last try is built, "like Zelda" needs pinning to a real moment Tu remembers, so the map can copy what made it smart.
 
 ## Next up
 
-1. **Play map sketch 4 to the end, once, on the phone:** https://claude.ai/artifact/MFarQqFKSrJqLZrbStvCeF. Then answer bet #1's questions in `BETS.html`.
-2. **Pick the next sketch from the answer:** grow the map sketch if it passes; if it fails, drop the bet and try builds to unlock (the bet's other way).
+1. **Collect Tu's Zelda moments:** which game, what he did, why it felt smart. Use the recall steps in `CLAUDE.md` ("Helping Tu remember a game moment").
+2. **Plan map sketch 8 from those moments**, as the last try of the idea bet; draw it first if it takes a paragraph to picture.
 3. **Pick how "less to keep in my head" is tested** with a sketch or a game Tu plays.
 
 ---
@@ -37,10 +38,11 @@ The map bet is on a one-off 4th try, its last. Map sketch 4 is built, checked wi
 
 | Piece | State | Where it lives |
 |---|---|---|
-| Map sketch 1 | played-verified (too plain; try 1) | `sketches/map-1/index.html` |
-| Map sketch 2 | played-verified (less plain, still no pull; try 2) | `sketches/map-2/index.html` |
-| Map sketch 3 | played-verified (better, still plain; try 3) | `sketches/map-3/index.html` |
-| Map sketch 4 | batch-verified, not played (try 4, the last) | `sketches/map-4/index.html`, phone link in Next up |
+| Map sketches 1 to 3 | played-verified (map bet passed on 1; all plain) | `sketches/map-1/` to `sketches/map-3/` |
+| Map sketch 4 | batch-verified, never played | `sketches/map-4/index.html` |
+| Map sketch 5 | played-verified (moves bet passed; still plain) | `sketches/map-5/index.html` |
+| Map sketch 6 | played; idea bet try 1, not a fair test | `sketches/map-6/index.html` |
+| Map sketch 7 (one-square boulder pushes, standing high ground, bird sign) | played; idea bet try 2, plain and easy; on the sketch page | `sketches/map-7/index.html`, `sketches/map-7/looks.html` |
 | The prototype as a whole: not built on, kept as it is | built | `prototype/`, `prototype/COMMANDS.md` |
 
 ## Bets
@@ -49,13 +51,14 @@ The objective, the setup, the three pillars, the verified list, the bets in test
 
 ## Open questions
 
+- What Zelda moment felt smart to Tu, and what in it made it smart? Needed for Next up #1 and #2.
 - What sketch or game can test "less to keep in my head"? Needed for Next up #3.
 
 ## How to work here
 
 - Read order: this file → [REFERENCE.md](REFERENCE.md) for the prototype's shape (stale on the core loop) → [DECISIONS.md](DECISIONS.md) **by grep only**; every entry is tagged `[game]` or `[workflow]`, its header lists the dropped systems, and entries below its archive rule predate the 2026-07-18 pivot.
 - Decisions Tu states are logged at once via the `decision-log` skill, except one that breaks a verified bet: that is flagged to Tu first (`CLAUDE.md`, DECISION protocol). A "feels wrong" note is named and diagnosed before anything is built.
-- A sketch is one self-contained `index.html` under `sketches/`, published to the one sketch page (`CLAUDE.md`, "Publishing sketches"). Check a map before Tu plays: `node sketches/map-4/check-map4.js <sketch html>`.
+- A sketch is one self-contained `index.html` under `sketches/`, published to the one sketch page (`CLAUDE.md`, "Publishing sketches"). Map 7's check: `node sketches/map-7/check-map7.js sketches/map-7/index.html`. Never show a puzzle's answer (in a looks page or in chat) before Tu plays it.
 - This file is regenerated at the end of a task that logged a decision, via the `state-sync` skill; `REFERENCE.md` is not.
 - Branch: all work is on `dev/merge-heroes`; `main` is behind it, and merging to `main` is not decided.
 - The prototype still runs: `npm run dev` to play, `npm run check` for regressions; every dev link and flag is in `prototype/COMMANDS.md`. Canvas: https://claude.ai/artifact/73dix2PGsz2Y7BBDMNbzny, recipe in [design/HANDOFF.md](design/HANDOFF.md).

@@ -16,6 +16,83 @@
 
 ---
 
+### [2026-11-04 #6] Showed Tu the dam answer before he played map 7
+
+- **Said:** map 7's three rare finds would test ideas Tu didn't have before.
+- **Actually:** the map 7 looks page played a boulder rolling into a stream and stopping it, on a
+  loop, and I had spelled out map 6's dam route in chat. Tu: "I knew that before."
+- **Caught by:** Tu's answers after playing.
+- **Why:** I drew the look options with the same scene the puzzle uses, and did not check what a
+  drawing or an explanation gives away.
+- **Tag:** spoiled the test
+
+---
+
+### [2026-11-04 #5] Blamed speed and fog for the unseen dam in map 6; it was a drawing bug
+
+- **Said:** in map 6 the boulder "shot off so fast, into fog" that Tu never saw it dam the river.
+- **Actually:** the spin effect on a moving boulder overrode where it was drawn, so mid-roll it sat
+  in the map's top-left corner, out of view. Map 6 and the first map 7 build both had it.
+- **Caught by:** Tu ("it constantly quickly disappear for some millisecond and re render").
+- **Why:** I explained what Tu saw from the rules (speed, fog) without checking the motion on
+  screen; my browser check only took screenshots before and after a push.
+- **Tag:** checked still frames, not motion
+
+---
+
+### [2026-11-04 #4] Called map 6 a fair test while Gemgrub needed a slant glide nothing taught
+
+- **Said:** map 6 was ready to test the idea bet: checked by script and in a browser, every rare
+  find needing one idea with a move Tu holds.
+- **Actually:** Gemgrub can only be reached by gliding at a slant, and nothing before it ever needs
+  or shows a slant move. Tu: "a trick I could never have guessed."
+- **Caught by:** Tu, after playing it.
+- **Why:** the check script proves a find can be reached, not that Tu could think of the way. I
+  checked the map, not what the game had taught him by then.
+- **Tag:** checked reachable, not guessable
+
+---
+
+### [2026-11-04 #3] Planned that a glide lands on the first spot you can stand on
+
+- **Said:** the approved stick-controls plan said a glide lands "on the first spot you can stand on".
+- **Actually:** off the lone rock, the first spot at a slant is plain grass right beside it, so the
+  glide could never reach Gemgrub's clearing. A glide now lands on the last spot it can reach.
+- **Caught by:** me, when `check-map6.js` said Gemgrub could never be found.
+- **Why:** I pictured the plateau edge, where trees come first, and did not trace the lone rock's
+  squares before writing the rule.
+- **Tag:** didn't check against the map
+
+---
+
+### [2026-11-04 #2] Said the map bet's first two questions are "always yes" for Tu
+
+- **Said:** "If questions 1 and 2 are always yes for you, they can't tell us anything."
+- **Actually:** Tu only said he finishes what he can. "Always" was my guess; he quits fun-only games
+  and stops when nothing new is left. The one thing shown is narrower: map 1 got yes on both while
+  Tu called it too plain to count, so the questions did not separate a plain map from a good one.
+- **Caught by:** Tu ("wait, why do you think that?").
+- **Why:** I turned one line about his habit into a rule about every game.
+- **Tag:** guessed instead of asking
+
+---
+
+### [2026-11-04 #1] Read Tu's answers to the three "why plain" checks as answers to the bet's pass questions
+
+- **Said:** After map sketch 1, Tu "said no to both pass questions" (my reply, then the DECISIONS
+  entry "Map sketch 1 was too plain to test the map bet").
+- **Actually:** One message asked two sets of three questions: the bet's pass questions and one
+  check per possible reason it felt plain. Tu's "1. No… 2. No. 3. I don't care much about creature"
+  line up with the three checks (Shellbug, anything unexpected, caring about creatures), not the
+  pass questions. Tu says the first two pass questions were yes from round 1, since he finishes
+  whatever he can.
+- **Caught by:** Tu ("I think 1 and 2 are already yes from the first round"), then the chat log.
+- **Why:** I packed two numbered question sets into one message and matched his numbered reply to
+  the wrong set without checking.
+- **Tag:** misread Tu's answer
+
+---
+
 ### [2026-11-03 #2] Explained Tu's favourite games with a pattern he had not given
 
 - **Said:** What Tu's masterpieces share is that he grows, not a number; and each is art because

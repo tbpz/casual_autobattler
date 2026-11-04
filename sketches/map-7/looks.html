@@ -1,0 +1,382 @@
+<title>Map 7 Looks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Nunito+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: one column of small map slices, same night look and tiles as map sketch 6.
+   Each slice is one option; letters to pick by. Single dark look on purpose, like the sketches. */
+:root {
+  color-scheme: dark;
+  --night: #121726;
+  --panel: #1b2236;
+  --line: #2c3550;
+  --ink: #ece8da;
+  --muted: #9aa1b8;
+  --gold: #f2c14e;
+  --fog: #232a42;
+  --fog-2: #272f4a;
+  --grass: #4c7744;
+  --grass-2: #527d49;
+  --high: #6f9b5c;
+  --high-2: #77a363;
+  --tree: #2c4d30;
+  --tree-top: #3b6640;
+  --water: #36689c;
+  --water-2: #4479ae;
+  --rock: #6f7380;
+  --rock-2: #858a97;
+  --f-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --f-body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --tile: 40px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--night); color: var(--ink);
+  font: 15px/1.45 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 18px 40px;
+}
+.page { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+header h1 { margin: 0; font: 700 26px/1.1 var(--f-display); text-wrap: balance; }
+header p { margin: 6px 0 0; color: var(--muted); max-width: 60ch; }
+section { display: flex; flex-direction: column; gap: 12px; }
+section h2 { margin: 0; font: 700 14px/1 var(--f-display); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+section > p { margin: 0; color: var(--muted); max-width: 60ch; }
+.row { display: flex; flex-wrap: wrap; gap: 14px; }
+.opt { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.opt .lbl { display: flex; gap: 8px; align-items: baseline; }
+.opt .lbl b { font: 700 20px/1 var(--f-display); color: var(--gold); }
+.opt .lbl span { font-size: 13px; color: var(--ink); max-width: 30ch; }
+.opt.today .lbl b { color: var(--muted); }
+
+/* a map slice */
+.win { position: relative; overflow: hidden; border-radius: 8px; box-shadow: 0 0 0 1px var(--line); max-width: 100%; }
+.map { position: absolute; left: 0; top: 0; display: grid; grid-auto-rows: var(--tile); }
+.map.pan { transition: transform .28s ease-out; }
+.t { position: relative; width: var(--tile); height: var(--tile); }
+
+/* ground, as in map 6 */
+.fog { background: var(--fog); }
+.fog.alt { background: var(--fog-2); }
+.g-grass { background: var(--grass); }
+.g-grass.alt { background: var(--grass-2); }
+.g-tree { background: radial-gradient(circle at 50% 45%, var(--tree-top) 0 42%, transparent 44%), var(--tree); }
+.g-rock { background: linear-gradient(180deg, var(--rock-2) 0 18%, var(--rock) 18% 82%, #5d616d 82%); }
+.g-high { background: var(--high); }
+.g-high.alt { background: var(--high-2); }
+.g-ramp { background: repeating-linear-gradient(0deg, #9a9478 0 5px, #7d775f 5px 8px); }
+.g-water { background: repeating-linear-gradient(170deg, var(--water) 0 5px, var(--water-2) 5px 7px); }
+.g-dry { background:
+  radial-gradient(circle at 28% 34%, #c2ad84 0 7%, transparent 8%),
+  radial-gradient(circle at 70% 68%, #a8926a 0 6%, transparent 7%),
+  radial-gradient(circle at 62% 22%, #7c6a4c 0 5%, transparent 6%), #8d7958; }
+.g-dam { background: radial-gradient(circle at 46% 44%, #b4b8c1 0 10%, #848893 12% 40%, #5d616c 41% 44%, transparent 46%), repeating-linear-gradient(170deg, var(--water) 0 5px, var(--water-2) 5px 7px); }
+.g-river { background: repeating-linear-gradient(0deg, #2f7fb8 0 6px, #6cb6e6 6px 8px, #2f7fb8 8px 14px); background-size: 100% 14px; animation: flowdown .45s linear infinite; }
+@keyframes flowdown { from { background-position: 0 0; } to { background-position: 0 14px; } }
+.g-boulder { background: radial-gradient(circle at 42% 38%, #c8cbd2 0 12%, #8e929d 14% 40%, #5d616c 41% 44%, transparent 46%), var(--grass); }
+
+/* --- high ground, option A: today --- */
+.hgA .g-high.edgeS { box-shadow: inset 0 -7px 0 #3c5a33, inset 0 -9px 0 #2a3f24; }
+
+/* --- option B: a rock wall shows under each high edge, and the high ground throws a shadow --- */
+.hgB .t::before, .hgC .t::before, .hgD .t::before { content: ""; position: absolute; inset: 0; pointer-events: none; }
+.hgB .g-high.edgeS, .hgD .g-high.edgeS { box-shadow: inset 0 -3px 0 #a9cf8e; }
+.hgB .g-high.edgeE, .hgD .g-high.edgeE { box-shadow: inset -3px 0 0 #a9cf8e; }
+.hgB .g-high.edgeS.edgeE, .hgD .g-high.edgeS.edgeE { box-shadow: inset 0 -3px 0 #a9cf8e, inset -3px 0 0 #a9cf8e; }
+.hgB .wallN::before, .hgD .wallN::before {
+  background:
+    linear-gradient(180deg, transparent 0 50%, rgba(0,0,0,.42) 50%, transparent 78%),
+    repeating-linear-gradient(90deg, transparent 0 9px, rgba(0,0,0,.18) 9px 11px) top / 100% 50% no-repeat,
+    linear-gradient(180deg, #8d8471 0 10%, #6f6857 10% 50%, transparent 50%);
+}
+.hgB .shadeW::before, .hgD .shadeW::before { background: linear-gradient(90deg, rgba(0,0,0,.45), transparent 55%); }
+.hgB .wallN.shadeW::before, .hgD .wallN.shadeW::before {
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.45), transparent 55%),
+    linear-gradient(180deg, transparent 0 50%, rgba(0,0,0,.42) 50%, transparent 78%),
+    repeating-linear-gradient(90deg, transparent 0 9px, rgba(0,0,0,.18) 9px 11px) top / 100% 50% no-repeat,
+    linear-gradient(180deg, #8d8471 0 10%, #6f6857 10% 50%, transparent 50%);
+}
+
+/* --- option C: the high ground is a lifted block, lighter on top, with a thick side and a soft shadow --- */
+.hgC .g-high { background: #86b46c; box-shadow: inset 2px 2px 0 rgba(255,255,255,.14); }
+.hgC .g-high.alt { background: #8dbb73; }
+.hgC .wallN::before {
+  background:
+    linear-gradient(180deg, transparent 0 34%, rgba(0,0,0,.5) 34%, rgba(0,0,0,0) 72%),
+    linear-gradient(180deg, #4d7340 0 34%, transparent 34%);
+}
+.hgC .shadeW::before { background: linear-gradient(90deg, #3f6235 0 12%, rgba(0,0,0,.4) 12%, transparent 50%); }
+.hgC .wallN.shadeW::before {
+  background:
+    linear-gradient(90deg, #3f6235 0 12%, rgba(0,0,0,.4) 12%, transparent 50%),
+    linear-gradient(180deg, transparent 0 34%, rgba(0,0,0,.5) 34%, rgba(0,0,0,0) 72%),
+    linear-gradient(180deg, #4d7340 0 34%, transparent 34%);
+}
+
+/* --- option D: B, and while you stand up high the low ground goes dim --- */
+.hgD .t.low { filter: brightness(.55) saturate(.8); }
+
+/* you */
+.me { position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile); pointer-events: none; z-index: 3; }
+.me::after {
+  content: ""; position: absolute; inset: 24%; border-radius: 50%;
+  background: var(--gold); box-shadow: 0 0 0 3px var(--night), 0 0 0 5px var(--gold), 0 0 16px var(--gold);
+}
+.me.shove::after { animation: shove .4s ease-out; }
+@keyframes shove { 40% { transform: scale(1.25, .8); } }
+
+/* a boulder on the move */
+.rolling {
+  position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile); z-index: 2; pointer-events: none;
+  background: radial-gradient(circle at 42% 38%, #c8cbd2 0 12%, #8e929d 14% 40%, #5d616c 41% 44%, transparent 46%);
+  animation: spin .4s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.t.pulse::after {
+  content: ""; position: absolute; inset: 1px; border-radius: 4px;
+  box-shadow: inset 0 0 0 3px var(--gold); animation: pulse .7s ease-in-out 4; pointer-events: none;
+}
+@keyframes pulse { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+.say { min-height: 2.6em; font-size: 13px; color: var(--muted); max-width: 34ch; }
+.say.news { color: var(--ink); font-weight: 700; }
+
+/* stuck sign: today's arc, and a real bird */
+.sign { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.sign.arc::before {
+  content: ""; position: absolute; left: 32%; top: -30%; width: 36%; height: 18%;
+  border: 2px solid #f4ead6; border-bottom: 0; border-radius: 50% 50% 0 0;
+  transform-origin: 50% 380%; animation: orbit 2.6s linear infinite;
+}
+.sign.bird .orbit { position: absolute; left: 50%; top: 50%; width: 0; height: 0; animation: orbit 3.2s linear infinite; }
+.sign.bird svg { position: absolute; left: 8px; top: -44px; width: 34px; height: 34px; overflow: visible; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
+.sign.bird .shadow { position: absolute; left: 50%; top: 50%; width: 0; height: 0; animation: orbit 3.2s linear infinite; }
+.sign.bird .shadow i { position: absolute; left: 26px; top: -6px; width: 22px; height: 8px; border-radius: 50%; background: rgba(0,0,0,.35); }
+.wing { transform-origin: 17px 18px; animation: flap .5s ease-in-out infinite alternate; }
+.wing.r { animation-delay: -.5s; }
+@keyframes flap { from { transform: scaleY(1); } to { transform: scaleY(-.35); } }
+@keyframes orbit { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .g-river, .rolling, .sign.arc::before, .sign.bird .orbit, .sign.bird .shadow, .wing, .t.pulse::after, .me.shove::after { animation: none; }
+  .map.pan { transition: none; }
+}
+</style>
+
+<div class="page">
+  <header>
+    <h1>Map 7 looks</h1>
+    <p>Three fixes from your map 6 play, before I build map 7. Pick one letter for high ground, and say yes or no to the boulder and the bird.</p>
+  </header>
+
+  <section>
+    <h2>1 · High ground</h2>
+    <p>You're standing up high in every one. A ramp leads down at the bottom right.</p>
+    <div class="row" id="hg"></div>
+  </section>
+
+  <section>
+    <h2>2 · Shoving a boulder into a river</h2>
+    <p>The river is hidden in fog at first. Each one plays on a loop.</p>
+    <div class="row" id="roll"></div>
+  </section>
+
+  <section>
+    <h2>3 · The stuck sign over the lone rock</h2>
+    <p>It shows up after you've found nothing for a while.</p>
+    <div class="row" id="bird"></div>
+  </section>
+</div>
+
+<script>
+const T = 40;
+const isHigh = (c) => c === "h";
+const GROUND = { ".": "grass", t: "tree", h: "high", "/": "ramp", "^": "rock", "=": "river", "~": "water", _: "dry", d: "dam", o: "boulder" };
+
+// draws a slice of map; returns the tiles so a demo can change them
+function slice(rows, opts = {}) {
+  const w = rows[0].length, h = rows.length;
+  const win = document.createElement("div");
+  win.className = "win " + (opts.cls || "");
+  const vw = opts.viewW || w;
+  win.style.width = vw * T + "px"; win.style.height = h * T + "px";
+  const map = document.createElement("div");
+  map.className = "map" + (opts.pan ? " pan" : "");
+  map.style.gridTemplateColumns = `repeat(${w}, ${T}px)`;
+  const tiles = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const el = document.createElement("div");
+    tiles.push(el);
+    map.appendChild(el);
+  }
+  const me = document.createElement("div");
+  me.className = "me";
+  map.appendChild(me);
+  win.appendChild(map);
+  const at = (x, y) => tiles[y * w + x];
+  function paint(grid, seen) {
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const c = grid[y][x], el = at(x, y);
+      const alt = (x * 13 + y * 7 + x * y) % 7 === 0 ? " alt" : "";
+      if (seen && !seen(x, y)) { el.className = "t fog" + alt; continue; }
+      let cls = "t g-" + GROUND[c] + alt;
+      if (isHigh(c)) {
+        const s = y + 1 < h ? grid[y + 1][x] : "h", e = x + 1 < w ? grid[y][x + 1] : "h";
+        if (!isHigh(s) && s !== "/") cls += " edgeS";
+        if (!isHigh(e) && e !== "/") cls += " edgeE";
+      } else {
+        cls += " low";
+        if (y > 0 && isHigh(grid[y - 1][x])) cls += " wallN";
+        if (x > 0 && isHigh(grid[y][x - 1])) cls += " shadeW";
+      }
+      el.className = cls;
+    }
+  }
+  return { win, map, me, tiles, at, paint, w, h,
+    place(el, x, y) { el.style.transform = `translate(${x * T}px, ${y * T}px)`; },
+    view(x) { map.style.transform = `translateX(${-x * T}px)`; } };
+}
+function card(parent, letter, text, today) {
+  const o = document.createElement("div");
+  o.className = "opt" + (today ? " today" : "");
+  o.innerHTML = `<div class="lbl"><b>${letter}</b><span>${text}</span></div>`;
+  parent.appendChild(o);
+  return o;
+}
+
+// ---- 1. high ground ----
+const HG = [
+  "hhhh.t.",
+  "hhhh...",
+  "hhh/..t",
+  ".......",
+  ".t.....",
+];
+[
+  ["A", "Today: flat, with a thin dark line on the bottom edge.", "hgA", true],
+  ["B", "A rock wall shows under each high edge, and the high ground throws a shadow.", "hgB"],
+  ["C", "The high ground is a lifted block: lighter on top, a thick side, a soft shadow.", "hgC"],
+  ["D", "B, and while you stand up high, everything below goes dim.", "hgD"],
+].forEach(([l, text, cls, today]) => {
+  const s = slice(HG, { cls });
+  s.paint(HG);
+  s.place(s.me, 1, 1);
+  card(document.getElementById("hg"), l, text, today).appendChild(s.win);
+});
+
+// ---- 2. boulder into a river ----
+// the river runs down column 7; you stand at 1,2 with the boulder at 2,2
+const RV = [
+  ".t.....=.",
+  ".......=.",
+  "..o....=.",
+  "....t..=.",
+  ".......=.",
+];
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function rollDemo(parent, letter, text, fast, today) {
+  const o = card(parent, letter, text, today);
+  const s = slice(RV, { viewW: fast ? 9 : 6, pan: !fast });
+  const say = document.createElement("div");
+  say.className = "say";
+  o.appendChild(s.win); o.appendChild(say);
+  const rock = document.createElement("div");
+  rock.className = "rolling";
+  let grid, cleared, timers = [];
+  const seenNear = (cx, cy, r2) => (x, y) => (x - cx) ** 2 + (y - cy) ** 2 <= r2;
+  const seen = (x, y) => seenNear(1, 2, 10)(x, y) || cleared.has(x + "," + y);
+  const later = (f, ms) => timers.push(setTimeout(f, ms));
+  function reset() {
+    timers.forEach(clearTimeout); timers = [];
+    grid = RV.map((r) => r.split(""));
+    cleared = new Set();
+    rock.remove();
+    s.tiles.forEach((t) => t.classList.remove("pulse"));
+    s.paint(grid, seen); s.place(s.me, 1, 2);
+    if (!fast) s.view(0);
+    say.textContent = ""; say.classList.remove("news");
+  }
+  function endState() {
+    grid[2][2] = ".";
+    for (let y = 0; y < 5; y++) grid[y][7] = y < 2 ? "~" : y === 2 ? "d" : "_";
+    if (!fast) for (let y = 0; y < 5; y++) for (let x = 0; x < 9; x++) cleared.add(x + "," + y);
+    s.paint(grid, seen);
+    if (!fast) s.view(3);
+  }
+  function run() {
+    reset();
+    if (reduce) { endState(); tellDam(); return; }
+    const step = fast ? 95 : 300;
+    later(() => {
+      s.me.classList.add("shove");
+      later(() => s.me.classList.remove("shove"), 420);
+      grid[2][2] = ".";
+      s.paint(grid, seen);
+      s.place(rock, 2, 2);
+      s.map.appendChild(rock);
+      rock.style.transition = `transform ${step}ms linear`;
+      let x = 2;
+      const hop = () => {
+        x++;
+        s.place(rock, x, 2);
+        if (!fast) {
+          // the fog lifts around the rolling boulder, and the view follows it
+          for (let yy = 0; yy < 5; yy++) for (let xx = 0; xx < 9; xx++) if ((xx - x) ** 2 + (yy - 2) ** 2 <= 5) cleared.add(xx + "," + yy);
+          s.paint(grid, seen);
+          s.view(Math.min(3, Math.max(0, x - 3)));
+        }
+        if (x < 7) { later(hop, step); return; }
+        later(() => {
+          rock.remove();
+          endState();
+          const col = [0, 1, 2, 3, 4].map((y) => s.at(7, y));
+          if (!fast) col.forEach((t) => { t.classList.remove("pulse"); void t.offsetWidth; t.classList.add("pulse"); });
+          tellDam();
+          later(run, fast ? 3600 : 4200);
+        }, step);
+      };
+      later(hop, 120);
+    }, 900);
+  }
+  function tellDam() {
+    say.textContent = "The river stops. Below the boulder, the riverbed runs dry.";
+    say.classList.add("news");
+  }
+  run();
+}
+rollDemo(document.getElementById("roll"), "Today", "Shoots off fast, and the river changes inside the fog.", true, true);
+rollDemo(document.getElementById("roll"), "New", "Rolls at walking pace, the view follows it, and the fog lifts along its way so you watch the river stop.", false);
+
+// ---- 3. the stuck sign ----
+const RK = [
+  ".......",
+  "...^...",
+  "...^...",
+  ".......",
+];
+const BIRD = `<svg viewBox="0 0 34 34" aria-hidden="true">
+  <path class="wing l" d="M17 18 Q9 6 1 10 Q8 13 13 20z" fill="#f4ead6" stroke="#1b2236" stroke-width="1.2"/>
+  <path class="wing r" d="M17 18 Q25 6 33 10 Q26 13 21 20z" fill="#f4ead6" stroke="#1b2236" stroke-width="1.2"/>
+  <ellipse cx="17" cy="20" rx="4.2" ry="6" fill="#f4ead6" stroke="#1b2236" stroke-width="1.2"/>
+  <circle cx="17" cy="14.5" r="3" fill="#f4ead6" stroke="#1b2236" stroke-width="1.2"/>
+  <path d="M17 11 l-1.4 -2.6 l2.8 0z" fill="#f0a35e"/>
+</svg>`;
+[
+  ["Today", "A thin white arc goes round and round.", "arc", true],
+  ["New", "A white bird flaps in circles over the rock, with its shadow on the ground.", "bird"],
+].forEach(([l, text, kind, today]) => {
+  const s = slice(RK);
+  s.paint(RK);
+  s.place(s.me, 1, 3);
+  const t = s.at(3, 1);
+  t.innerHTML = kind === "arc" ? `<span class="sign arc"></span>`
+    : `<span class="sign bird"><span class="shadow"><i></i></span><span class="orbit">${BIRD}</span></span>`;
+  t.style.zIndex = 4; t.style.overflow = "visible";
+  const o = card(document.getElementById("bird"), l, text, today);
+  o.appendChild(s.win);
+  const say = document.createElement("div");
+  say.className = "say news";
+  say.textContent = "A bird keeps circling over the lone rock.";
+  o.appendChild(say);
+});
+</script>

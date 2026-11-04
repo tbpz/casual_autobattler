@@ -22,6 +22,213 @@
 
 ---
 
+## [2026-11-04] [game] Map sketch 7 is still plain and easy; Tu says the smart moment is moves working with the world, like Zelda
+
+- **Decision:**
+  - Map sketch 7 counts as try 2 of 3 for the bet "a find is fun when using it needs an idea I didn't have before".
+  - Result: no "that's smart" moment, never stuck, still plain.
+  - The dam find was spoiled before play, so it does not count.
+  - The other two rare finds were fair and easy, so the idea the bet needs never happened.
+  - Tu's read: the smart moment comes from a move working with the world in a clever way to solve a puzzle, like Zelda.
+  - Try 3 is the last try; it waits until "like Zelda" is pinned to a real moment Tu remembers.
+- **Why:**
+  - Tu: "No. The only smart one is pushing boulder to the river but I knew that before."
+  - Tu: "I think making action interact smartly with environment to solve puzzle is the one. This sounds like Zelda."
+  - Tu: "Still easy."
+  - The map 7 looks page had played the boulder-into-stream answer on a loop (MISTAKES 2026-11-04 #6).
+- **Replaces:**
+  - Nothing.
+
+## [2026-11-04] [game] In map 7 high ground stands up and dims the ground below, a boulder moves one square per push, and the stuck sign is a real bird
+
+- **Decision:**
+  - High ground shows a rock wall under each edge and throws a shadow.
+  - While you stand up high, everything below goes dim.
+  - A boulder moves one square each time you walk into it, and you step in behind it.
+  - Keep walking to keep it moving; turning it means walking round to another side.
+  - It stops wherever you stop, and drops into a crack, river or pond only when you push it in.
+  - The rolling boulder of map 6 is dropped.
+  - The stuck sign is a white bird that flaps in circles, with its shadow on the ground.
+- **Why:**
+  - Tu picked look D for high ground on the map 7 looks page.
+  - Tu on the boulder: "the boulder should be moved naturally 1 grid at a time when player push them until they reach the right place."
+  - Tu said the bird was ok.
+  - In map 6 the boulder flew into fog and Tu never saw the dam (entry below).
+- **Replaces:**
+  - The rolling boulder in the map-6 entries below, for map 7 on.
+
+## [2026-11-04] [game] Map sketch 6 was not a fair test of the idea bet; try 2 is a new map with three kinds of lock
+
+- **Decision:**
+  - Map sketch 6 counts as try 1 of 3 for the bet "a find is fun when using it needs an idea I didn't have before".
+  - It was not a fair test: four things hid the ideas.
+  - The shoved boulder flew off too fast, into fog, so Tu never saw it dam the river.
+  - Gemgrub needed a slant glide, and nothing before it ever needed or showed a slant move.
+  - The stuck sign did not read as a bird.
+  - High ground looked flat, so vines and gliding felt weak.
+  - Embertail is a real result: three moves in a row, each next one obvious, felt plain even fully seen.
+  - Try 2 is a new map sketch 7 that fixes both: every move's effect is seen as it happens, and no rare find is a row of obvious steps.
+  - Its rare finds use three kinds of lock: same move, new job; one move ends where another starts; the obvious way is a dead end.
+  - "Fewer helpers, more uses" was offered and not picked.
+  - In map 7 a glide goes straight only, and a glide may come down in fast water, which then carries you.
+- **Why:**
+  - Tu's answers after one sitting: all 14 found, no "that's smart" moment, never stuck too long, still plain.
+  - Tu on Gemgrub: "a trick I could never have guessed. The game never allow me to move by diagonal before."
+  - Tu on the dam: "it happened so fast I didn't even know what it is."
+  - Tu on Embertail: "its consecutively and there's a clear choice of what to do next so it still feel obvious."
+  - Tu on height: "I sometime mistook it for just a normal place on the same high."
+  - Replaying map 6 tests nothing now; Tu knows its answers.
+  - Tu picked "fix both" and the three lock kinds, then approved the map 7 plan.
+- **Replaces:**
+  - The slant glide line in the controls entry below, for map 7 on.
+
+## [2026-11-04] [game] Map sketches move by thumb stick on the phone and arrow keys on a computer, not by tapping far squares
+
+- **Decision:**
+  - You move one square at a time while you hold a thumb stick (it shows up where your thumb lands, like Archero) or the arrow keys / WASD.
+  - Tapping the map no longer moves you; buttons, the book and the found card still work by tap.
+  - Every move happens because you walked into something: fast water, a boulder, a cliff from its soft soil, a hole.
+  - A glide: from up high, keep pushing at the edge for a moment, and you fly that way as far as a glide goes, landing on the last spot you can stand on.
+  - A glide can go at a slant, but only when neither straight step is open.
+  - A burrow: walk into a hole and come up out of the seen hole that lies most the way you were walking.
+  - The lone rock's lookout counts as high ground; you get off it by the vine or by gliding.
+  - After a glide, a ride, a burrow, a find or a rare one, you stop until you let go.
+- **Why:**
+  - Tu found tap-to-move hard to follow: you dive into a hole you never stood on, and you tap glide or cliff spots you can see no way to.
+  - Tu asked for a thumb stick on the phone and arrow keys on a computer; he approved the plan with these rules.
+  - The controls must not hide the idea the current bet tests.
+  - `check-map6.js` passed on the new rules on 2026-11-04: every creature reachable, each rare one still needs its idea, every glide, ride and burrow lets you get back.
+- **Replaces:**
+  - The tap-to-move part of the entry below.
+
+## [2026-11-04] [game] Map sketch 6 tests finds that need an idea; new first bet and a 5-sitting target
+
+- **Decision:**
+  - New bet under pillar C, first in the test order: a find is fun when using it needs an idea I didn't have before.
+  - Its other way: finding it is the fun, and using it is easy.
+  - New tuning target under pillar C, first in the tuning order: the map holds at least 5 sittings before nothing new is left.
+  - The bet is tested first, in one sitting of `sketches/map-6`; the 5-sitting map comes only if it passes.
+  - Map-6 has five helpers (push, vine, glide, swim, burrow); sniff, light and riding as a helper are dropped.
+  - In map-6 fast water carries you with no helper, a boulder rolls away from you when tapped, and a dammed river dries below the dam.
+  - Tapping far away never pushes a boulder or grows a vine for you.
+  - A small sign shows at an unsolved spot when Tu has found nothing for a while; it never names the move.
+- **Why:**
+  - Tu said "ok" to the bet, the tuning target and their order, then approved the map-6 plan.
+  - The plain feeling came from moves that are only used where they are obviously for (entry below).
+  - A route that pushes boulders on its own would do the thinking for Tu.
+- **Replaces:**
+  - Nothing.
+
+## [2026-11-04] [game] The map sketches feel plain because getting a move is too easy a puzzle; aim for at least 5 sittings
+
+- **Decision:**
+  - The plain feeling comes from how a move is found and used: walk there, take it, use it.
+  - It is an easy puzzle with no surprise and no "that's smart, I didn't think of it" moment.
+  - The game does not need to last forever.
+  - For now it should hold Tu for at least 5 sittings before nothing new is left.
+- **Why:**
+  - Tu: "I think what make it plain is finding a move. You just go there, take it, and use it. It's like a puzzle but very easy."
+  - Tu: "No surprise, no 'wow this is smart, I didn't think of it before'."
+  - Tu: "I don't need the game last forever, for now let's target for at least 5 attemps."
+  - Tu: "Right now 1 run in some mins is finish and there's nothing to play anymore."
+- **Replaces:**
+  - Nothing; it answers what made map sketches 1 to 5 plain.
+
+## [2026-11-04] [game] The moves bet passes on map sketch 5; adding more map and moves will not keep it new
+
+- **Decision:**
+  - The bet "a find is worth having when it changes how I move on the map" passes, on Tu's play of map sketch 5.
+  - Map sketch 5 still feels plain, like sketches 1 to 4.
+  - Making the map bigger and adding more moves is not how the game stays new each evening; it runs out.
+  - What makes it feel new every evening is open.
+- **Why:**
+  - Tu said yes to both pass questions: a new move sent him back to places he'd passed, and the moves were worth more than the creatures.
+  - Tu: "It passed the first 2 but I still feel plain."
+  - Tu: "Even if the map is bigger and more interactive method, the game would soon run out of new thing to discover."
+  - Tu: "I don't think continue to expand the map and add more method is scalable."
+- **Replaces:**
+  - Nothing; "A map game stays new through new ways to reach places and finds worth having" (2026-11-04) stands.
+
+## [2026-11-04] [game] Map sketch 5 tests finds that change how you move; new first bet
+
+- **Decision:**
+  - New bet under pillar C, first in the test order: a find is worth having when it changes how I move on the map.
+  - Its other way: a find is worth having for what it does in a fight.
+  - It is tested by `sketches/map-5`, built from map-4.
+  - Map-5 has five new moves: glide down from high ground, push a boulder into a crack as a bridge, ride a fast river, burrow from hole to hole, plant a vine up a cliff.
+  - Map-5 keeps three of map-4's helpers: swim, sniff and light.
+  - Climb and hop are not in map-5.
+  - Picture creatures and rare ones found by trails stay in map-5, as things to collect.
+- **Why:**
+  - Tu: "Add all of them. Yes it should become new bet."
+  - Tu picked keeping the creatures, and keeping swim, sniff and light, when asked.
+  - A helper that only makes one kind of square walkable is what Tu called boring; each new move changes what Tu does on screen or changes the map.
+  - The creatures give the moves something to reach, and let Tu say afterwards whether the moves were worth more than the pictures.
+- **Replaces:**
+  - Nothing.
+
+## [2026-11-04] [game] A find is worth having for what it lets you do on the map; no fights for now
+
+- **Decision:**
+  - A find is worth having for what it lets Tu do on the map, as in Hollow Knight.
+  - Its worth does not come from fights; the map game has no fights for now.
+  - Worth from rarity, looks or growth is not picked either; it stays open for later.
+- **Why:**
+  - Tu picked "A first" over finds that matter in a fight (Pokemon, Diablo 2 gear).
+  - Tu: "Add a fight in the game might make it unnecessarily complicated at the moment."
+  - It keeps the Setup's simple and relaxing base.
+- **Replaces:**
+  - Nothing.
+
+## [2026-11-04] [game] A map game stays new through new ways to reach places and finds worth having
+
+- **Decision:**
+  - A map game keeps Tu coming back only with both: new ways to reach the parts not yet uncovered, and finds worth having.
+  - A bigger map that is reached the same way as before stays boring, however big it is.
+  - A creature that is only a picture is not worth finding; nothing makes one creature worth more than another.
+  - None of the four options Claude offered works on its own: a world too big for one evening, a new island every evening, old ground hiding new things, or creatures that change each evening.
+- **Why:**
+  - Tu: "If the map expands and they can still be reach the same way as before then it still boring no matter how big the map is."
+  - Tu: "Right now in the map the only thing I can achieve is a creature, but the creature itself are just some draw image."
+  - Tu: "There's nothing make them more valuable than the others."
+  - It matches map sketch 1, where Tu forgot what each creature did and said they looked no special.
+- **Replaces:**
+  - Nothing.
+
+## [2026-11-04] [game] Coming back the next evening is not tested on its own; next is how a map game stays new every evening
+
+- **Decision:**
+  - "Coming back the next evening" does not get its own bet or test.
+  - The verified line "Tu stays while real new things are left to find" already answers it: he comes back while one evening was not enough to find everything.
+  - The next step is a design question, not a test: how a map game keeps having new things to find, evening after evening.
+  - "Less to keep in my head" stays first in the bets' test order; this question is worked on before it.
+- **Why:**
+  - Tu would not reopen a finished map sketch "because I know the game would be the same as yesterday."
+  - In his map masterpieces he came back while there was still map left unseen, and stopped when it ran out.
+  - A throwaway sketch is always small enough to finish in one sitting, so it cannot test coming back.
+  - Tu picked this ("B") over testing "less to keep in my head" next.
+- **Replaces:**
+  - "The map bet passes on map sketch 1's play; coming back tomorrow is a separate test" (2026-11-04), only where it calls coming back a separate test.
+
+## [2026-11-04] [game] The map bet passes on map sketch 1's play; coming back tomorrow is a separate test
+
+- **Decision:**
+  - The map bet passes: discovering a map, with creatures to collect, pulled Tu to finish.
+  - It passed on map sketch 1: Tu's answer to the bet's first two questions was yes.
+  - The 2026-11-03 map-1 entry's line "said no to both pass questions" is wrong: Claude matched Tu's numbered reply to the wrong list of questions (`MISTAKES.md`, 2026-11-04 #1).
+  - Wanting to come back the next evening is a separate test, not part of this bet.
+  - The plain feeling came from a sketch design that was too simple, not from the map idea.
+  - The bet no longer waits on a play of map sketch 4; what map-4 is for next is not decided.
+- **Why:**
+  - Tu: "The collect and exploring map did pull me to finish."
+  - Tu: "But I would not come back tmr because I know the game would be the same as yesterday."
+  - Tu: "The plain feeling come from the design to simple. But I believe the concept did get me good."
+  - Tu: "I think these are separate tests."
+  - It fits the verified line that Tu stops when nothing new is left to find: a finished sketch has nothing new left.
+- **Replaces:**
+  - "Map sketch 1 was too plain to test the map bet" (2026-11-03), where it says Tu said no to both pass questions.
+  - "The map bet gets a one-off 4th try" (2026-11-03), where it says the bet has had no fair test yet.
+
 ## [2026-11-03] [game] The map bet gets a one-off 4th try: helpers far from their walls, wordless walls, rare ones found by tracks
 
 - **Decision:**
