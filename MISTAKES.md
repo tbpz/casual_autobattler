@@ -16,6 +16,33 @@
 
 ---
 
+### [2026-11-07 #2] Handed Tu map 8 where the ram broke the height rule everything else follows
+
+- **Said:** map 8 was ready to play and fair (the check passed, every rule is the same for everyone).
+- **Actually:** the ram checked "is Tu on the next square?" before it checked height, so it ran off
+  a cliff or down to the beach and butted Tu on a lifted plank or on the meadow. A lifted plank and
+  the bobbing crate also did not look "up" like the hill, and the wreck did not look like wood.
+- **Caught by:** Tu ("why does the goat get to go there ... the height layer design is very
+  confusing ... it was unfair to me").
+- **Why:** the check never tried the ram across a height change, and I did not read the map as a
+  player who has to guess each rule from the screen.
+- **Tag:** checked the rules, not what the screen shows
+
+---
+
+### [2026-11-07 #1] Handed Tu map 8 with four creatures that had no picture
+
+- **Said:** map 8 was ready to play (the check passed).
+- **Actually:** Glider, Pebblet, Mossling and Shellbug had drawings named with map 7's letters, but
+  map 8 gave them new letters, so they drew as nothing: no icon on the map, none on the card.
+- **Caught by:** Tu ("I just went to an empty space ... and suddenly picked up the creature and it
+  has no image at all").
+- **Why:** the check only ran the rules, never whether each creature had a drawing, and I did not
+  look at the page before handing it over.
+- **Tag:** checked the rules, not what the screen shows
+
+---
+
 ### [2026-11-04 #6] Showed Tu the dam answer before he played map 7
 
 - **Said:** map 7's three rare finds would test ideas Tu didn't have before.

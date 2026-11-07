@@ -22,6 +22,62 @@
 
 ---
 
+## [2026-11-07] [game] Map 8's first sitting was not a fair test; heights get one rule for everyone, and the bet's third try is replayed on the fixed map
+
+- **Decision:**
+  - Tu played map 8 once: one "that's smart" moment, but stuck long enough to stop enjoying it.
+  - Tu says the stuck part was unfair, so the sitting does not count as a pass or a fail.
+  - The idea bet stays open; the replay on the fixed map 8 is still try 3, not a fourth try.
+  - Heights follow one rule for everyone: you, the ram, planks and crates all change height only by a ramp.
+  - Anything that is up looks up the same way as the hill: light top edge, dark face, shadow.
+  - The old wreck is drawn and worded as a wooden boat, so "the ram breaks wood" has something on screen behind it.
+  - The ram's charge always shows what it runs over and what it splinters.
+  - Map 8's hidden rules stay unlogged, because Tu replays it.
+- **Why:**
+  - Tu: "I cannot go from the ground to the wooden plate when the tide is up, that's ok. But why does the goat can?"
+  - Tu: "Overall the height layer design is very confusing which make the puzzle overy complicated in a bad way. I feel like it was unfair to me."
+  - Tu: "How could I know the aggresive goat can break the things (I don't even know what it is) on the sea."
+  - Found in the code: the ram checked "is Tu there?" before it checked height, so it butted him across an edge.
+  - The check script never tried the ram across a height change (MISTAKES 2026-11-07 #2). It does now.
+  - BETS rule: a bug or something Tu could not see does not count as a fail.
+- **Replaces:**
+  - Nothing; it adds to the entry below, whose plan the sitting followed.
+
+## [2026-11-07] [game] Map 8's world rules are Claude's pick and stay hidden from Tu; a rare find needs a guess about the map, used with a move
+
+- **Decision:**
+  - Claude picks map sketch 8's world rules and puzzles without asking Tu, and keeps them secret from him until he plays.
+  - The plan carries the rules below a spoiler line; Tu does not read it.
+  - The idea bet's fair test changes from "a new use of a move I hold" to "a guess about how something on the map works, used with a move I hold".
+  - Map 8 combines a new move with things in the world, so a place can be solved more than one way.
+  - The rules and answers are logged after Tu plays, not before.
+- **Why:**
+  - Tu: "Yes. You can just do it normally in your plan and don't ask me. I won't read it."
+  - Tu: "Yes. But you can combine both, a new move and things to use in the env to build vary solutions."
+  - In his Zelda moments the answer came from things in the world, not from a move (entry below).
+  - Showing an answer before play spoiled the map 7 dam (MISTAKES 2026-11-04 #6).
+- **Replaces:**
+  - The idea bet's old "Fair test when" line in `BETS.html`.
+
+## [2026-11-07] [game] Tu's Zelda moments pin the smart moment: the world works by rules you guess from what you see, then test
+
+- **Decision:**
+  - Both of Tu's smart moments come from Zelda Breath of the Wild, and both are about the weather.
+  - Storm: lightning killed him again and again until he guessed his metal sword and shield drew it; wooden ones kept him safe.
+  - In the storm his first guess was wrong: he thought he needed a special item or ability to pass.
+  - Cold: the cold drained his health; fire kept him warm.
+  - In the cold he carried a lit torch from one fire and lit straw and sticks along the way, until he had explored the whole mountain.
+  - Tu's read: in most games the world is a still background; here he can use it, so he watches it, guesses how it works and tests the guess.
+  - Getting his own guess right is what felt smart.
+  - Map sketch 8, the last try of the idea bet, copies this kind of moment.
+- **Why:**
+  - Tu: "I think after all the smart lie in normally in other games environment is just like some background image, static and plain."
+  - Tu: "But in these game, we can interact with them, and use them to achieve our objective."
+  - Tu: "We have to observe and analyze the env carefully and experiment with our assumption. The moment I got the right answer, it felt satisfying and smart."
+  - The entry below said try 3 waits until "like Zelda" is pinned to a real moment Tu remembers.
+- **Replaces:**
+  - Nothing; it pins down "like Zelda" from the entry below.
+
 ## [2026-11-04] [game] Map sketch 7 is still plain and easy; Tu says the smart moment is moves working with the world, like Zelda
 
 - **Decision:**

@@ -1,0 +1,1385 @@
+<title>Fog Map Sketch 8</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Nunito+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: one portrait column. "Found" meter on top, a scrolling fogged map in the middle that follows you,
+   hint line and creature book below. A card pops up when you find a creature. Night-time look on purpose.
+   Sketch 8: a seaside map where things behave the way they would in real life. Nothing on screen explains them.
+   Heights are one rule for everyone (you, the ram, planks, crates), and anything that is up looks up the same way.
+   Two helpers: one lets you pick things up and put them down, one glides. Answers live in the rules block and in
+   check-map8.js, never in any text the player reads. */
+:root {
+  color-scheme: dark;
+  --night: #121726;
+  --panel: #1b2236;
+  --line: #2c3550;
+  --ink: #ece8da;
+  --muted: #9aa1b8;
+  --gold: #f2c14e;
+  --ember: #ff8a5c;
+  --helper: #6c8fd0;
+  --fog: #232a42;
+  --fog-2: #272f4a;
+  --grass: #4c7744;
+  --grass-2: #527d49;
+  --high: #6f9b5c;
+  --high-2: #77a363;
+  --tree: #2c4d30;
+  --tree-top: #3b6640;
+  --water: #2d5a8c;
+  --water-2: #3a6aa0;
+  --sea: #3f80b8;
+  --sea-2: #5f9fd2;
+  --sand: #c9b58a;
+  --sand-2: #d2bf95;
+  --wet: #8a7a5a;
+  --wet-2: #7d6e50;
+  --wood: #9a6a3c;
+  --wood-dark: #6a4524;
+  --rock: #6f7380;
+  --stone: #2a2e3b;
+  --stone-2: #323747;
+  --f-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --f-body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --tile: 30px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--night); color: var(--ink);
+  font: 15px/1.4 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.app { height: 100%; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+
+/* top bar */
+.bar { display: flex; align-items: center; gap: 8px; }
+.score { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.score b { font: 700 18px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.score small { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.meter { height: 4px; width: 72px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .3s; }
+.spacer { flex: 1; }
+.btn {
+  font: 600 12px var(--f-body); color: var(--muted); background: none;
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; cursor: pointer; white-space: nowrap;
+}
+.btn.on { color: var(--night); background: var(--gold); border-color: var(--gold); }
+.btn.armed { color: var(--night); background: #e07a5f; border-color: #e07a5f; }
+.btn.hand { color: var(--night); background: #d9a46a; border-color: #d9a46a; font-weight: 700; }
+.btn.hand.idle { color: var(--muted); background: none; border-color: var(--line); font-weight: 600; }
+.btn[hidden] { display: none; }
+.btn:focus-visible, .slot:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* map view: the map slides inside it so you stay near the middle */
+.view { flex: 1; min-height: 0; position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 0 0 1px var(--line); background: var(--fog); touch-action: none; user-select: none; -webkit-user-select: none; }
+.map {
+  position: absolute; left: 0; top: 0; display: grid;
+  grid-auto-rows: var(--tile);
+  transition: transform .28s ease-out;
+  touch-action: none; user-select: none;
+}
+.t { position: relative; }
+/* the thumb stick: shows up where your thumb lands on the map, follows it, goes when you let go */
+.stick {
+  position: absolute; width: 92px; height: 92px; margin: -46px 0 0 -46px; z-index: 6; pointer-events: none;
+  border-radius: 50%; border: 2px solid rgba(236,232,218,.38); background: rgba(18,23,38,.42);
+}
+.stick[hidden] { display: none; }
+.stick i {
+  position: absolute; left: 50%; top: 50%; width: 42px; height: 42px; margin: -21px 0 0 -21px; border-radius: 50%;
+  background: rgba(242,193,78,.9); box-shadow: 0 0 0 3px rgba(18,23,38,.5), 0 0 14px rgba(242,193,78,.55);
+}
+.fog { background: var(--fog); }
+.fog.alt { background: var(--fog-2); }
+.g-grass { background: var(--grass); }
+.g-grass.alt { background: var(--grass-2); }
+.g-tree { background: radial-gradient(circle at 50% 45%, var(--tree-top) 0 42%, transparent 44%), var(--tree); }
+.g-stone { background: linear-gradient(135deg, var(--stone-2) 0 22%, var(--stone) 22% 78%, var(--stone-2) 78%); }
+.g-high { background: var(--high); }
+.g-high.alt { background: var(--high-2); }
+.g-ramp { background: repeating-linear-gradient(0deg, #9a9478 0 5px, #7d775f 5px 8px); }
+/* dry sand: always above the sea */
+.g-sand { background:
+  radial-gradient(circle at 24% 30%, #e2d2ad 0 5%, transparent 6%),
+  radial-gradient(circle at 70% 66%, #b39f74 0 5%, transparent 6%), var(--sand); }
+.g-sand.alt { background:
+  radial-gradient(circle at 60% 28%, #e2d2ad 0 5%, transparent 6%),
+  radial-gradient(circle at 30% 72%, #b39f74 0 5%, transparent 6%), var(--sand-2); }
+/* wet sand: where the sea has just been */
+.g-flat { background:
+  repeating-linear-gradient(172deg, transparent 0 7px, rgba(255,255,255,.07) 7px 9px), var(--wet); }
+.g-flat.alt { background:
+  repeating-linear-gradient(172deg, transparent 0 7px, rgba(255,255,255,.07) 7px 9px), var(--wet-2); }
+/* sea over the sand: light, moving */
+.g-sea { background: repeating-linear-gradient(165deg, var(--sea) 0 6px, var(--sea-2) 6px 8px, var(--sea) 8px 14px); background-size: 100% 28px; animation: lap 1.8s linear infinite; }
+/* deep water: always there, darker */
+.g-water { background: repeating-linear-gradient(165deg, var(--water) 0 6px, var(--water-2) 6px 8px, var(--water) 8px 14px); background-size: 100% 28px; animation: lap 3s linear infinite; }
+@keyframes lap { from { background-position: 0 0; } to { background-position: 0 28px; } }
+/* stacked wooden crates */
+.g-crate { background:
+  linear-gradient(45deg, transparent 46%, var(--wood-dark) 46% 54%, transparent 54%),
+  linear-gradient(-45deg, transparent 46%, var(--wood-dark) 46% 54%, transparent 54%),
+  linear-gradient(var(--wood), var(--wood)) center / 82% 82% no-repeat, var(--sand);
+  box-shadow: inset 0 0 0 3px var(--sand), inset 0 0 0 5px var(--wood-dark); }
+/* an old wooden boat stuck in the sand: the same wood and boards as the crates, a rim on its open sides, rounded at its ends.
+   It never lifts: it sits flat at ground height, in wet sand at low sea and in the water at high sea. */
+.g-hull { background: repeating-linear-gradient(172deg, transparent 0 7px, rgba(255,255,255,.07) 7px 9px), var(--wet); }
+.g-hull.wet { background: repeating-linear-gradient(165deg, var(--sea) 0 6px, var(--sea-2) 6px 8px, var(--sea) 8px 14px); background-size: 100% 28px; animation: lap 1.8s linear infinite; }
+.g-hull::before { content: ""; position: absolute; inset: 0; pointer-events: none; box-sizing: border-box;
+  background: repeating-linear-gradient(0deg, var(--wood) 0 6px, #835a31 6px 8px); border: 0 solid var(--wood-dark); }
+.g-hull.eN::before { border-top-width: 4px; } .g-hull.eS::before { border-bottom-width: 4px; }
+.g-hull.eW::before { border-left-width: 4px; } .g-hull.eE::before { border-right-width: 4px; }
+.g-hull.rTL::before { border-top-left-radius: 80%; } .g-hull.rTR::before { border-top-right-radius: 80%; }
+.g-hull.rBL::before { border-bottom-left-radius: 80%; } .g-hull.rBR::before { border-bottom-right-radius: 80%; }
+/* wood in splinters */
+.g-splinter { background:
+  linear-gradient(30deg, transparent 40%, #9a6a3c 40% 46%, transparent 46%),
+  linear-gradient(-60deg, transparent 58%, #7a5230 58% 63%, transparent 63%),
+  linear-gradient(80deg, transparent 20%, #8a5e34 20% 25%, transparent 25%), var(--sand); }
+/* the pier: boards over sand or sea */
+.g-pier { background: repeating-linear-gradient(90deg, #a07a52 0 7px, #6e5236 7px 8px), var(--wet); background-size: 100% 70%; background-position: center; background-repeat: no-repeat; }
+.g-pier.wet { background: repeating-linear-gradient(90deg, #a07a52 0 7px, #6e5236 7px 8px), var(--sea); background-size: 100% 70%; background-position: center; background-repeat: no-repeat; }
+.g-tied { background: var(--wet); }
+.g-tied.wet { background: repeating-linear-gradient(165deg, var(--sea) 0 6px, var(--sea-2) 6px 8px, var(--sea) 8px 14px); background-size: 100% 28px; animation: lap 1.8s linear infinite; }
+/* the crate tied to the pier, with a gull on it */
+.tied { position: absolute; inset: 18%; pointer-events: none; transition: transform 1.2s ease-out; }
+.tied::before { content: ""; position: absolute; inset: 0; background:
+  linear-gradient(45deg, transparent 44%, var(--wood-dark) 44% 56%, transparent 56%), var(--wood); border: 2px solid var(--wood-dark); border-radius: 2px; }
+.tied svg { position: absolute; left: 10%; top: -62%; width: 80%; height: 80%; overflow: visible; }
+/* anything that stands up off the ground looks up the same way as the hill: a light lip on top, a dark face under it, a shadow below.
+   (Here in wood colours: the lifted tied crate and the lifted plank. Nothing at ground height gets this look.) */
+.g-tied.wet .tied { transform: translateY(-22%) scale(1.14); animation: bob 1.6s ease-in-out infinite; }
+.g-tied.wet .tied::before { box-shadow: inset 0 -3px 0 #e8c08a, inset -3px 0 0 #e8c08a, 0 6px 0 var(--wood-dark), 0 10px 0 rgba(0,0,0,.35); }
+
+/* high ground stands up: a light lip on its edges, a rock wall under it, a shadow beside it */
+.g-high.edgeS { box-shadow: inset 0 -3px 0 #a9cf8e; }
+.g-high.edgeE { box-shadow: inset -3px 0 0 #a9cf8e; }
+.g-high.edgeS.edgeE { box-shadow: inset 0 -3px 0 #a9cf8e, inset -3px 0 0 #a9cf8e; }
+.t.wallN::before, .t.shadeW::before { content: ""; position: absolute; inset: 0; pointer-events: none; }
+.t.wallN::before {
+  background:
+    linear-gradient(180deg, transparent 0 50%, rgba(0,0,0,.42) 50%, transparent 78%),
+    repeating-linear-gradient(90deg, transparent 0 22%, rgba(0,0,0,.18) 22% 27%) top / 100% 50% no-repeat,
+    linear-gradient(180deg, #8d8471 0 10%, #6f6857 10% 50%, transparent 50%);
+}
+.t.shadeW::before { background: linear-gradient(90deg, rgba(0,0,0,.45), transparent 55%); }
+.t.wallN.shadeW::before {
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.45), transparent 55%),
+    linear-gradient(180deg, transparent 0 50%, rgba(0,0,0,.42) 50%, transparent 78%),
+    repeating-linear-gradient(90deg, transparent 0 22%, rgba(0,0,0,.18) 22% 27%) top / 100% 50% no-repeat,
+    linear-gradient(180deg, #8d8471 0 10%, #6f6857 10% 50%, transparent 50%);
+}
+/* while you stand up high, everything below goes dim */
+.map.up .t.low { filter: brightness(.55) saturate(.8); }
+.map .t.low { transition: filter .35s; }
+
+/* a plank: lying down, laid over water, or lifted up on the sea */
+.plank { position: absolute; left: 6%; right: 6%; top: 36%; bottom: 36%; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(90deg, #c08a52 0 9px, #a8743f 9px 11px); border: 2px solid #5e3c1c; border-radius: 3px;
+  transition: transform .9s ease-out, box-shadow .9s; }
+.plank.v { left: 36%; right: 36%; top: 6%; bottom: 6%; background: repeating-linear-gradient(0deg, #c08a52 0 9px, #a8743f 9px 11px); }
+.plank.across { left: -6%; right: -6%; }
+.plank.across.v { left: 36%; right: 36%; top: -6%; bottom: -6%; }
+.plank.lifted { left: -16%; right: -16%; top: 22%; bottom: 22%; transform: translateY(-16%) scale(1.14);
+  box-shadow: inset 0 -3px 0 #e8c08a, inset -3px 0 0 #e8c08a, 0 6px 0 var(--wood-dark), 0 10px 0 rgba(0,0,0,.35); animation: bob 1.6s ease-in-out infinite; }
+
+/* a creature on the map */
+.cr { position: absolute; inset: 6%; width: 88%; height: 88%; animation: bob 1.6s ease-in-out infinite; filter: drop-shadow(0 1px 0 rgba(0,0,0,.4)); z-index: 2; }
+.cr.rare { filter: drop-shadow(0 0 4px var(--gold)); }
+.cr.rarest { filter: drop-shadow(0 0 6px var(--ember)) drop-shadow(0 0 2px var(--gold)); }
+/* a glint seen through the fog (helpers and plain creatures only; rare ones never glint) */
+.glint {
+  position: absolute; left: 50%; top: 50%; width: 30%; height: 30%;
+  transform: translate(-50%, -50%) rotate(45deg); background: var(--gold);
+  border-radius: 2px; animation: twinkle 1.4s ease-in-out infinite;
+}
+
+/* a rare one's trail; each rare one leaves its own kind */
+.trk { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+.trk::before, .trk::after { content: ""; position: absolute; }
+.trk.hoof::before, .trk.hoof::after { width: 14%; height: 20%; border-radius: 50% 50% 45% 45%; background: #3e2f1e; opacity: .8; box-shadow: 6px 0 0 #3e2f1e; }
+.trk.hoof::before { left: 22%; top: 22%; } .trk.hoof::after { left: 52%; top: 56%; }
+.trk.feather::before, .trk.feather::after { width: 32%; height: 10%; border-radius: 50% 0 50% 0; background: #f4f1ea; box-shadow: 0 0 3px rgba(255,255,255,.6); }
+.trk.feather::before { left: 18%; top: 30%; transform: rotate(-20deg); } .trk.feather::after { left: 50%; top: 62%; transform: rotate(30deg); }
+.trk.coin::before, .trk.coin::after { width: 16%; height: 16%; border-radius: 50%; background: #f2c14e; box-shadow: 0 0 6px #f2c14e, inset -2px -2px 0 #b38a28; animation: twinkle2 2s ease-in-out infinite; }
+.trk.coin::before { left: 24%; top: 40%; } .trk.coin::after { left: 60%; top: 24%; animation-delay: -1s; }
+@keyframes twinkle2 { 50% { opacity: .5; } }
+
+/* the "stuck" sign: never a word about which helper, just a bird circling at the spot */
+.sign { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.t.signed { z-index: 4; }
+.sign.bird .orbit, .sign.bird .shadow { position: absolute; left: 50%; top: 50%; width: 0; height: 0; animation: orbit 3.2s linear infinite; }
+.sign.bird svg { position: absolute; left: calc(var(--tile) * .2); top: calc(var(--tile) * -1.1); width: calc(var(--tile) * .85); height: calc(var(--tile) * .85); overflow: visible; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
+.sign.bird .shadow i { position: absolute; left: calc(var(--tile) * .65); top: calc(var(--tile) * -.15); width: calc(var(--tile) * .55); height: calc(var(--tile) * .2); border-radius: 50%; background: rgba(0,0,0,.35); }
+.wing { transform-origin: 17px 18px; animation: flap .5s ease-in-out infinite alternate; }
+.wing.r { animation-delay: -.5s; }
+@keyframes flap { from { transform: scaleY(1); } to { transform: scaleY(-.35); } }
+@keyframes orbit { to { transform: rotate(360deg); } }
+
+/* squares that just changed */
+.t.pulse::after {
+  content: ""; position: absolute; inset: 1px; border-radius: 4px; z-index: 3;
+  box-shadow: inset 0 0 0 3px var(--gold); animation: pulse .7s ease-in-out 4; pointer-events: none;
+}
+@keyframes bob { 50% { transform: translateY(-7%); } }
+.plank.lifted, .g-tied.wet .tied { animation-name: bobup; }
+@keyframes bobup { 0%, 100% { transform: translateY(-16%) scale(1.14); } 50% { transform: translateY(-24%) scale(1.14); } }
+@keyframes twinkle { 0%, 100% { opacity: .25; transform: translate(-50%,-50%) rotate(45deg) scale(.6); } 50% { opacity: 1; transform: translate(-50%,-50%) rotate(45deg) scale(1); } }
+@keyframes pulse { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+
+/* you */
+.me {
+  position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile);
+  pointer-events: none; transition: transform .11s linear; z-index: 4;
+}
+.me::after {
+  content: ""; position: absolute; inset: 24%; border-radius: 50%;
+  background: var(--gold); box-shadow: 0 0 0 3px var(--night), 0 0 0 5px var(--gold), 0 0 16px var(--gold);
+  transition: transform .9s ease-out;
+}
+.me::before {
+  content: ""; position: absolute; left: 22%; right: 22%; bottom: 8%; height: 16%; border-radius: 50%;
+  background: rgba(0,0,0,.45); opacity: 0;
+}
+/* what you're holding, over your head */
+.me .held { display: none; position: absolute; left: 2%; right: 2%; top: -14%; height: 22%; z-index: 1;
+  background: repeating-linear-gradient(90deg, #c08a52 0 9px, #a8743f 9px 11px); border: 2px solid #5e3c1c; border-radius: 3px; }
+.me.carry .held { display: block; }
+.me.lift::after { transform: translateY(-16%) scale(1.12); }
+.me.glide { transition: transform .75s cubic-bezier(.35,.1,.45,1); }
+.me.glide::after { animation: glide .75s ease-in-out; }
+.me.glide::before { animation: shadow .75s ease-in-out; }
+@keyframes glide { 0% { transform: none; } 25% { transform: translateY(-55%) scale(1.5); } 100% { transform: none; } }
+@keyframes shadow { 0%, 100% { opacity: 0; } 25%, 85% { opacity: 1; } }
+.me.jump { transition: none; }
+.me.sink::after { animation: sink .32s ease-in forwards; }
+.me.rise::after { animation: rise .34s ease-out; }
+@keyframes sink { to { transform: scale(0); opacity: 0; } }
+@keyframes rise { from { transform: scale(0) translateY(40%); opacity: 0; } }
+.me.push::after { animation: shove .4s ease-out; }
+@keyframes shove { 40% { transform: scale(1.25, .8); } }
+.me.hop { transition: transform .22s ease-out; }
+.me.hop::after { animation: hop .22s ease-out; }
+@keyframes hop { 50% { transform: translateY(-40%); } }
+
+/* the ram: stands at home, warns, runs, bumps, trots back */
+.ram { position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile); z-index: 3; pointer-events: none; }
+.ram[hidden] { display: none; }
+/* while you stand up high, the ram goes dim too whenever it's down on low ground, like the ground it stands on */
+.ram.low { filter: brightness(.55) saturate(.8); }
+.ram svg { position: absolute; inset: -6%; width: 112%; height: 112%; overflow: visible; filter: drop-shadow(0 2px 0 rgba(0,0,0,.4)); transform-origin: 50% 70%; }
+.ram.left svg { transform: scaleX(-1); }
+.ram svg .body { animation: breathe 2.4s ease-in-out infinite; transform-origin: 50% 60%; }
+@keyframes breathe { 50% { transform: scale(1.03, .97); } }
+.ram.warn svg { animation: scrape .22s ease-in-out infinite alternate; }
+.ram.left.warn svg { animation-name: scrapeL; }
+@keyframes scrape { from { transform: rotate(8deg) translateY(4%); } to { transform: rotate(14deg) translateY(8%); } }
+@keyframes scrapeL { from { transform: scaleX(-1) rotate(8deg) translateY(4%); } to { transform: scaleX(-1) rotate(14deg) translateY(8%); } }
+.ram.warn::after { content: ""; position: absolute; left: -10%; bottom: -6%; width: 40%; height: 30%; border-radius: 50%;
+  background: rgba(214,196,160,.75); animation: dust .44s ease-out infinite; }
+.ram.left.warn::after { left: auto; right: -10%; }
+@keyframes dust { from { transform: scale(.3); opacity: .9; } to { transform: scale(1.3) translateY(-30%); opacity: 0; } }
+.ram.run svg { animation: gallop .14s linear infinite alternate; }
+.ram.left.run svg { animation-name: gallopL; }
+@keyframes gallop { from { transform: rotate(10deg); } to { transform: rotate(4deg) translateY(-8%); } }
+@keyframes gallopL { from { transform: scaleX(-1) rotate(10deg); } to { transform: scaleX(-1) rotate(4deg) translateY(-8%); } }
+.ram.bonk svg { animation: bonk .45s ease-out; }
+@keyframes bonk { 30% { transform: scale(1.2, .85); } }
+.ram.trot svg { animation: trot .3s ease-in-out infinite; }
+.ram.left.trot svg { animation-name: trotL; }
+@keyframes trot { 50% { transform: translateY(-6%); } }
+@keyframes trotL { 0%, 100% { transform: scaleX(-1); } 50% { transform: scaleX(-1) translateY(-6%); } }
+.t.crunch { animation: crunch .4s ease-out; }
+@keyframes crunch { 25% { transform: translate(-8%, 4%); } 50% { transform: translate(8%, -4%); } 75% { transform: translate(-4%, 2%); } }
+
+/* hint line */
+.hint { min-height: 2.8em; display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; color: var(--muted); font-size: 14px; padding: 0 4px; }
+.hint.news { color: var(--ink); font-weight: 700; }
+.hint svg { width: 28px; height: 28px; flex: none; }
+
+/* creature book */
+.book { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+.book h2 { margin: 0 0 6px; font: 700 13px/1 var(--f-display); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); display: flex; justify-content: space-between; }
+.book h2 b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.slots { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px 2px; }
+.slot { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; background: none; border: 0; padding: 2px 0; color: inherit; font: inherit; cursor: pointer; }
+.slot .face {
+  position: relative; width: 30px; height: 30px; border-radius: 50%;
+  border: 2px dashed var(--line); display: grid; place-items: center;
+  color: var(--muted); font: 700 13px var(--f-display);
+}
+.slot.helper .face { border-color: #4a6a9a; }
+.slot.rare .face { border-color: var(--gold); border-style: solid; }
+.slot.rarest .face { border: 3px double var(--ember); }
+.slot.got .face { border: 0; background: #2a3350; }
+.slot.got.helper .face { box-shadow: 0 0 0 2px var(--helper); }
+.slot.got.rare .face { box-shadow: 0 0 0 2px var(--gold), 0 0 8px var(--gold); }
+.slot.got.rarest .face { box-shadow: 0 0 0 2px var(--ember), 0 0 12px var(--ember); }
+.slot .face svg { width: 26px; height: 26px; }
+.slot .face .trk { position: absolute; inset: 0; }
+.slot .nm { font-size: 9px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot.got .nm { color: var(--ink); }
+.slot.pop .face { animation: pop .5s ease-out; }
+@keyframes pop { 40% { transform: scale(1.35); } }
+
+/* found card; rare finds get a gold card, the rarest an ember one */
+.card { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(8,10,18,.6); padding: 16px; }
+.card[hidden] { display: none; }
+.cardin {
+  width: min(300px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  padding: 18px 16px 14px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  animation: cardin .3s ease-out;
+}
+.cardin.helper { border-color: var(--helper); }
+.cardin.rare { border: 2px solid var(--gold); box-shadow: 0 0 32px rgba(242,193,78,.45); }
+.cardin.rarest { border: 2px solid var(--ember); box-shadow: 0 0 48px rgba(255,138,92,.6); animation: cardin .3s ease-out, glowcard 1.6s ease-in-out .3s infinite; }
+.cardin svg { width: 104px; height: 104px; }
+.cardin.rare svg, .cardin.rarest svg { width: 124px; height: 124px; }
+.cardin b { font: 700 24px/1.1 var(--f-display); }
+.cardin .tag { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--gold); font-weight: 700; }
+.cardin.helper .tag { color: #9db8ea; }
+.cardin.rarest .tag { color: var(--ember); font-size: 13px; }
+.cardin p { margin: 0; font-size: 16px; }
+.cardin small { color: var(--muted); margin-top: 6px; }
+@keyframes cardin { from { transform: scale(.85); opacity: 0; } }
+@keyframes glowcard { 50% { box-shadow: 0 0 70px rgba(255,138,92,.85); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cr, .glint, .slot.pop .face, .t.pulse::after, .cardin, .trk::before, .trk::after,
+  .sign.bird .orbit, .sign.bird .shadow, .wing, .g-sea, .g-water, .g-tied.wet, .g-hull.wet, .plank.lifted, .g-tied.wet .tied,
+  .me::after, .me::before, .ram svg, .ram svg .body, .ram::after, .t.crunch { animation: none; }
+  .me, .map, .ram { transition: none; }
+  .t.pulse::after { opacity: 1; }
+}
+</style>
+
+<!-- creature drawings, each used on the map, in the book and on the card; each symbol id is "sp-" plus the creature's map letter -->
+<!-- (the check script fails if a creature has no drawing) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="sp-H" viewBox="0 0 32 32"><!-- Hermit: a hermit crab in a big shell -->
+      <path d="M6 26 l-3 3 M9 27 l-1 4 M23 27 l1 4 M26 26 l3 3" stroke="#c4553a" stroke-width="2" stroke-linecap="round"/>
+      <path d="M8 24 q-1 -14 11 -17 q10 -1 10 9 q0 8 -8 9z" fill="#e7c89a"/>
+      <path d="M19 11 q6 0 6 5 q0 4 -4 4 q-3 0 -3 -3 q0 -2 2 -2" stroke="#b8935e" stroke-width="1.8" fill="none"/>
+      <ellipse cx="11" cy="24" rx="7" ry="4.5" fill="#e0664a"/>
+      <path d="M4 20 q-3 -3 0 -6 q3 1 2 4z M6 21 q2 -5 6 -3" fill="#e0664a"/>
+      <path d="M8 19 v-4 M12 19 v-4" stroke="#c4553a" stroke-width="1.4"/>
+      <circle cx="8" cy="14" r="1.7" fill="#1a1a1a"/><circle cx="12" cy="14" r="1.7" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="sp-G" viewBox="0 0 32 32"><!-- Glider: flying squirrel, wings out -->
+      <path d="M2 13 l10 -3 h8 l10 3 l-4 11 l-7 -2 h-6 l-7 2z" fill="#b8916c"/>
+      <path d="M8 14 l4 7 M24 14 l-4 7" stroke="#8f6b4c" stroke-width="1.2"/>
+      <ellipse cx="16" cy="18" rx="5" ry="6" fill="#ecd8b8"/>
+      <path d="M12 6 l1 -4 l3 3z M20 6 l-1 -4 l-3 3z" fill="#9a7552"/>
+      <circle cx="16" cy="9" r="5.5" fill="#c9a07a"/>
+      <circle cx="14" cy="8.5" r="1.5" fill="#1a1a1a"/><circle cx="18" cy="8.5" r="1.5" fill="#1a1a1a"/>
+      <circle cx="16" cy="11.2" r=".9" fill="#5a3a2a"/>
+      <path d="M16 24 q3 4 1 7" stroke="#b8916c" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sp-n" viewBox="0 0 32 32"><!-- Nestling: chick in a nest -->
+      <circle cx="16" cy="15" r="8" fill="#ffd95a"/>
+      <path d="M22.5 14 l5.5 1.6 l-5.5 1.8z" fill="#f08a3c"/>
+      <circle cx="18.5" cy="12.5" r="1.5" fill="#1a1a1a"/>
+      <path d="M13 7.5 q1 -4 3.5 -1" stroke="#e0b830" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <path d="M3 21 q13 -3 26 0 q-2 8 -13 8 q-11 0 -13 -8z" fill="#9a6b3a"/>
+      <path d="M5 22 q11 4 22 0 M7 25 q9 3 18 0" stroke="#6e4a26" stroke-width="1.3" fill="none"/>
+    </symbol>
+    <symbol id="sp-q" viewBox="0 0 32 32"><!-- Covefin: a little striped fish -->
+      <path d="M24 16 l7 -6 v12z" fill="#f0a35e"/>
+      <ellipse cx="14" cy="16" rx="11" ry="8" fill="#f6c36a"/>
+      <path d="M11 9 v14 M16 8.5 v15" stroke="#f0a35e" stroke-width="2.4"/>
+      <path d="M12 8 q4 -5 9 0z" fill="#f0a35e"/>
+      <circle cx="7.5" cy="14.5" r="2" fill="#1a1a1a"/><circle cx="7" cy="14" r=".6" fill="#fff"/>
+      <path d="M4 18 q2 1.5 4 0" stroke="#b5672a" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sp-r" viewBox="0 0 32 32"><!-- Starlet: a starfish -->
+      <path d="M16 2 l4 9 l10 1 l-7.5 7 l2.5 10 l-9 -5.5 l-9 5.5 l2.5 -10 l-7.5 -7 l10 -1z" fill="#ef7a8c" stroke="#c4566a" stroke-width="1.2" stroke-linejoin="round"/>
+      <circle cx="10" cy="13" r=".9" fill="#fbd0d7"/><circle cx="22" cy="13" r=".9" fill="#fbd0d7"/><circle cx="16" cy="7" r=".9" fill="#fbd0d7"/>
+      <circle cx="13.5" cy="15.5" r="1.5" fill="#1a1a1a"/><circle cx="18.5" cy="15.5" r="1.5" fill="#1a1a1a"/>
+      <path d="M14 19 q2 1.5 4 0" stroke="#8a3040" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sp-b" viewBox="0 0 32 32"><!-- Pebblet: rock -->
+      <path d="M4 26 l3 -12 l8 -8 l10 3 l4 11 l-4 7 z" fill="#9aa0ad"/>
+      <path d="M15 6 l3 9 l11 5" stroke="#7a808d" stroke-width="1.4" fill="none"/>
+      <circle cx="12" cy="18" r="1.8" fill="#1a1a1a"/><circle cx="19" cy="19" r="1.8" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="sp-m" viewBox="0 0 32 32"><!-- Mossling: moss blob with a sprout -->
+      <path d="M16 9 q-1 -5 -6 -6 q3 5 6 6z M16 9 q2 -6 8 -6 q-3 6 -8 6z" fill="#5fae4a"/>
+      <path d="M5 26 q-3 -9 4 -14 q7 -5 14 0 q7 5 4 14z" fill="#8fce7a"/>
+      <circle cx="12.5" cy="18" r="1.7" fill="#1a1a1a"/><circle cx="19.5" cy="18" r="1.7" fill="#1a1a1a"/>
+      <circle cx="9" cy="23" r="1.3" fill="#6fb35a"/><circle cx="23" cy="22" r="1.5" fill="#6fb35a"/>
+    </symbol>
+    <symbol id="sp-s" viewBox="0 0 32 32"><!-- Shellbug: snail -->
+      <path d="M2 27 q4 -6 12 -5 h14 q2 0 2 3 v2z" fill="#f2dcc0"/>
+      <path d="M26 22 l1 -8 M29 22 l2 -7" stroke="#f2dcc0" stroke-width="1.8" stroke-linecap="round"/>
+      <circle cx="27" cy="13.5" r="1.5" fill="#1a1a1a"/><circle cx="31" cy="14.5" r="1.3" fill="#1a1a1a"/>
+      <circle cx="14" cy="15" r="10" fill="#f0a35e"/>
+      <path d="M14 15 m0 -1.5 a1.5 1.5 0 1 1 -1.5 1.5 a4 4 0 1 1 4 4 a6.5 6.5 0 1 1 -6.5 -6.5" stroke="#b5672a" stroke-width="1.8" fill="none"/>
+    </symbol>
+    <symbol id="sp-A" viewBox="0 0 32 32"><!-- Burrlamb: a woolly lamb (rare) -->
+      <path d="M10 25 v5 M14 26 v5 M20 26 v5 M24 25 v5" stroke="#3a3a42" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M8 18 q-3 -6 3 -8 q2 -4 7 -2 q5 -2 7 3 q5 2 2 8 q2 6 -5 7 q-3 3 -8 0 q-7 0 -6 -8z" fill="#f6f2ea"/>
+      <ellipse cx="8" cy="15" rx="5" ry="5.5" fill="#4a4652"/>
+      <ellipse cx="3.5" cy="13" rx="2.6" ry="1.5" fill="#4a4652" transform="rotate(-25 3.5 13)"/>
+      <path d="M6 10 q2 -3 5 -1 q-2 0 -3 2z" fill="#f6f2ea"/>
+      <circle cx="6.5" cy="14.5" r="1.4" fill="#fff"/><circle cx="6.8" cy="14.7" r=".7" fill="#1a1a1a"/>
+      <circle cx="10" cy="14.5" r="1.4" fill="#fff"/><circle cx="10.3" cy="14.7" r=".7" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="sp-B" viewBox="0 0 32 32"><!-- Isleowl: a sandy little owl (rare) -->
+      <path d="M8 6 l2 5 M24 6 l-2 5" stroke="#8a6a44" stroke-width="2.4" stroke-linecap="round"/>
+      <ellipse cx="16" cy="18" rx="10" ry="12" fill="#c9a476"/>
+      <ellipse cx="16" cy="21" rx="6" ry="7.5" fill="#efe0c2"/>
+      <path d="M12 21 l1 1.5 M16 23 l1 1.5 M19 20 l1 1.5 M14 26 l1 1.5" stroke="#b08a5a" stroke-width="1"/>
+      <circle cx="12" cy="13" r="4" fill="#f6efe0"/><circle cx="20" cy="13" r="4" fill="#f6efe0"/>
+      <circle cx="12" cy="13" r="2.2" fill="#f2a83a"/><circle cx="20" cy="13" r="2.2" fill="#f2a83a"/>
+      <circle cx="12" cy="13" r="1.1" fill="#1a1a1a"/><circle cx="20" cy="13" r="1.1" fill="#1a1a1a"/>
+      <path d="M15 16 h2 l-1 2.4z" fill="#6a4a2a"/>
+    </symbol>
+    <symbol id="sp-C" viewBox="0 0 32 32"><!-- Lanternray: a glowing ray (the rarest) -->
+      <path d="M16 6 q12 2 15 12 q-8 -2 -10 2 l-5 10 l-5 -10 q-2 -4 -10 -2 q3 -10 15 -12z" fill="#2b6f8f"/>
+      <path d="M16 9 q8 2 11 8 q-6 -1 -8 2 l-3 6 l-3 -6 q-2 -3 -8 -2 q3 -6 11 -8z" fill="#3fa3c8"/>
+      <path d="M16 30 q2 0 1 -4" stroke="#2b6f8f" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      <circle cx="16" cy="3.5" r="2.6" fill="#ffe27a"/><circle cx="16" cy="3.5" r="5" fill="#ffe27a" opacity=".25"/>
+      <path d="M16 6 v-1" stroke="#ffe27a" stroke-width="1.2"/>
+      <circle cx="13" cy="13" r="1.5" fill="#1a1a1a"/><circle cx="19" cy="13" r="1.5" fill="#1a1a1a"/>
+      <circle cx="10" cy="17" r=".9" fill="#bff2ff"/><circle cx="22" cy="17" r=".9" fill="#bff2ff"/><circle cx="16" cy="19" r=".9" fill="#bff2ff"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <div class="bar">
+    <div class="score"><small>Found</small><b id="pct">0%</b><div class="meter"><i id="pctBar"></i></div></div>
+    <div class="spacer"></div>
+    <button class="btn hand idle" id="hand" type="button" hidden>Pick up</button>
+    <button class="btn" id="zoom" type="button">Whole map</button>
+    <button class="btn" id="reset" type="button">Start over</button>
+  </div>
+  <div class="view" id="view"><div class="map" id="map"><div class="ram" id="ram" hidden></div><div class="me" id="me"><i class="held"></i></div></div><div class="stick" id="stick" hidden><i id="knob"></i></div></div>
+  <div class="hint" id="hint">Drag anywhere on the map to walk. On a computer, use the arrow keys.</div>
+  <div class="book">
+    <h2><span>Creature book</span><b id="count">0 / 11</b></h2>
+    <div class="slots" id="slots"></div>
+  </div>
+</div>
+<div class="card" id="card" hidden>
+  <div class="cardin" id="cardIn">
+    <span class="tag" id="cardTag"></span>
+    <svg><use id="cardUse" href=""/></svg>
+    <b id="cardName"></b>
+    <p id="cardLine"></p>
+    <small>Tap to keep exploring</small>
+  </div>
+</div>
+
+<script>
+// ==== CORE START: the rules of the world. No page code in here; check-map8.js runs this block too. ====
+
+// ---- The map, placed by hand. 24 wide, 21 tall. ----
+// .  grass     t  trees (never)     x  solid rock (never)     h  high ground; on and off it only by a ramp /
+// ,  dry sand (above the sea)       ;  dry sand out in the bay
+// :  sand flats: the sea comes over them and goes again     ~  deep water (always)
+// #  wooden crates     w  the side of an old wooden boat     j  a pier     c  a crate tied to the pier
+// p / P  a plank lying on grass / on sand     R  the ram's spot     @  start
+// letters = creatures; a creature's "on" says what ground it sits on
+const MAP = [
+  "tttttttttttttttttttttttt",
+  "tn.~......hhhhhhtttttttt",
+  "t..~......hhRhhhtttttttt",
+  "tttt..p...hhhhhhhhhhhttt",
+  "t.........hhhhhhttthhttt",
+  "t...@.....hhhhhhttthhttt",
+  "t......m..hAhhhhttthhttt",
+  "t.........tx/xttttthhttt",
+  "tGhh/.....tx#xttttthhttt",
+  "thbh......tx#xttttthhttt",
+  "txxx,,,,,,,,,,,,,,,hhttt",
+  "txxx,,,,H,P,,,,s,,,hhttt",
+  "txxx,,,,,,,,,,,,P,,hhttt",
+  "t:::x:j::::::::::::::::t",
+  "t:q:x:jc::wwwww::::::::t",
+  "t:::x:::::w::Cw:~~~~~~~t",
+  "t~~~x:::::wwwww:~~~~~~~t",
+  "t~~~~:r:::::::::~~;;B~~t",
+  "t~~~~:::::::::::~~:::~~t",
+  "t~~~~~~~~~~~~~~~~~~~~~~t",
+  "t~~~~~~~~~~~~~~~~~~~~~~t",
+];
+// END MAP
+// What can be switched off, so the check can prove an idea is needed.
+const RULES = { ram: true, float: true, raftStep: true, raftGlide: true };
+
+const SEE = 10;        // squared distance you can see clearly
+const SEE_HIGH = 34;   // squared distance you can see from anywhere high
+const GLIDE = 30;      // squared distance you can glide down from anywhere high
+const GLINT = 26;      // squared distance a creature glints through the fog (never a rare one)
+const MEET = 2;        // squared distance a rare one shows itself: right next to you
+const RAM_SEE = 15;    // how many squares along its row or column the ram notices you
+
+// kind: helper / plain / rare / rarest.
+// after: what the hint line says once a helper's card closes.
+// Walls never say what to do, and the book never says where anything is.
+const CREATURES = {
+  H: { name: "Hermit",   kind: "helper", gives: "carry", on: ",",
+       line: "Picks things up and sets them down somewhere else.",
+       after: "You can pick up planks now. Stand on one and tap Pick up. Put down sets it at your feet, or over a narrow stream in front of you." },
+  G: { name: "Glider",   kind: "helper", gives: "glide", on: "h",
+       line: "Glides down from up high, straight over anything below.",
+       after: "You can glide now. From up high, keep walking off the edge." },
+  n: { name: "Nestling", kind: "plain", line: "It hatched in a nook past the stream." },
+  q: { name: "Covefin",  kind: "plain", on: ":", line: "It waits in a little cove with no way in." },
+  r: { name: "Starlet",  kind: "plain", on: ":", line: "It lives out on the wet sand." },
+  b: { name: "Pebblet",  kind: "plain", on: "h", line: "It sits up on the bluff and watches." },
+  m: { name: "Mossling", kind: "plain", line: "Soft, and a bit damp." },
+  s: { name: "Shellbug", kind: "plain", on: ",", line: "Slow, and happy on the beach." },
+  A: { name: "Burrlamb", kind: "rare", on: "h", line: "A lamb that lives up in the pen." },
+  B: { name: "Isleowl",  kind: "rare", on: ";", line: "It lives alone on the island in the bay." },
+  C: { name: "Lanternray", kind: "rarest", on: ":", line: "The rarest one. It glows inside the old wooden boat." },
+};
+const ORDER = ["H", "G", "n", "q", "r", "b", "m", "s", "A", "B", "C"];
+const GIVER = { carry: "H", glide: "G" };
+const TAG = { helper: "New helper", plain: "New creature", rare: "Rare find", rarest: "The rarest find" };
+
+// Each rare one leaves a trail, drawn on these squares, toward its den (last square nearest the den).
+const TRAILS = {
+  A: [[10, 12], [11, 11], [12, 10]],
+  B: [[17, 13], [18, 13], [19, 14]],
+  C: [[14, 13], [13, 13], [12, 13]],
+};
+const TRAIL_LOOK = {
+  A: ["hoof", "Small hoofprints. They go up toward the old stairs."],
+  B: ["feather", "Little white feathers on the sand, blowing out toward the bay."],
+  C: ["coin", "Old coins in the wet sand. They lead out toward the old boat."],
+};
+// What a wall says when you walk into it: never what to do about it.
+const BLOCKED_HINT = {
+  "t": "Thick trees. No way through.",
+  "x": "Solid rock.",
+  "~": "Deep water. Too deep to wade.",
+  "W": "The sea is in.",
+  "#": "Wooden crates, stacked high.",
+  "w": "The side of an old wooden boat.",
+  "c": "A crate, tied to the pier.",
+  "R": "A big ram. It doesn't look friendly.",
+};
+
+const W = MAP[0].length, H = MAP.length;
+const idx = (x, y) => y * W + x;
+const xy = (i) => [i % W, Math.floor(i / W)];
+const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+const creatureAt = (x, y) => (CREATURES[MAP[y][x]] ? MAP[y][x] : null);
+const mapGround = (x, y) => {
+  const ch = MAP[y][x];
+  if (CREATURES[ch]) return CREATURES[ch].on || ".";
+  if (ch === "@" || ch === "p") return ".";
+  if (ch === "P") return ",";
+  if (ch === "R") return "h";
+  return ch;
+};
+const isRare = (k) => CREATURES[k].kind === "rare" || CREATURES[k].kind === "rarest";
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+let start = { x: 0, y: 0 }, RAM_HOME = -1;
+const PLANK_HOME = [];
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+  const ch = MAP[y][x];
+  if (ch === "@") start = { x, y };
+  if (ch === "p" || ch === "P") PLANK_HOME.push(idx(x, y));
+  if (ch === "R") RAM_HOME = idx(x, y);
+}
+const TRACK = new Map();
+for (const k in TRAILS) for (const [x, y] of TRAILS[k]) TRACK.set(idx(x, y), k);
+
+// The sea comes in from the deep water. Each square that can go under gets a number: how far it is from deep water.
+// The water level runs from 0 (all dry) to HIGH (all under); a square is under while its number is below the level.
+const WETTABLE = ":wjc";
+const SEA_ORDER = new Array(W * H).fill(Infinity);
+{
+  const q = [];
+  for (let i = 0; i < W * H; i++) if (mapGround(...xy(i)) === "~") { SEA_ORDER[i] = 0; q.push(i); }
+  while (q.length) {
+    const i = q.shift(), [x, y] = xy(i);
+    for (const [dx, dy] of DIRS) {
+      const nx = x + dx, ny = y + dy;
+      if (!inside(nx, ny)) continue;
+      const n = idx(nx, ny);
+      if (SEA_ORDER[n] !== Infinity || !WETTABLE.includes(mapGround(nx, ny))) continue;
+      SEA_ORDER[n] = SEA_ORDER[i] + 1; q.push(n);
+    }
+  }
+}
+let HIGH = 0;
+for (let i = 0; i < W * H; i++) if (SEA_ORDER[i] !== Infinity && SEA_ORDER[i] > HIGH) HIGH = SEA_ORDER[i];
+HIGH += 1;
+// Where a wave drops you if the sea comes in over you: the nearest dry sand on the beach.
+const WASH = new Map();
+for (let i = 0; i < W * H; i++) {
+  if (!":w".includes(mapGround(...xy(i)))) continue;
+  const [x, y] = xy(i);
+  let best = -1, bd = Infinity;
+  for (let j = 0; j < W * H; j++) {
+    if (mapGround(...xy(j)) !== ",") continue;
+    const [bx, by] = xy(j), d = (bx - x) ** 2 + (by - y) ** 2;
+    if (d < bd) { bd = d; best = j; }
+  }
+  WASH.set(i, best);
+}
+
+// ---- state ----
+let S = null;
+function fresh() {
+  return { x: start.x, y: start.y, seen: new Array(W * H).fill(0), glints: [], found: [], trails: [], met: [],
+    planks: PLANK_HOME.slice(), carry: false, broken: [], face: [0, 1], level: 0 };
+}
+const has = (ability) => S.found.includes(GIVER[ability]);
+const wet = (i) => SEA_ORDER[i] < S.level;
+const plankAt = (i) => S.planks.indexOf(i);
+
+// the ground with the sea and broken wood, but no planks
+function baseGround(x, y) {
+  const i = idx(x, y), g = mapGround(x, y);
+  if (S.broken.includes(i)) return g === "w" ? (wet(i) ? "W" : ":") : "-";
+  if (g === ":") return wet(i) ? "W" : ":";
+  return g;
+}
+// the ground as it is now. A plank over deep water is a way across ("b"); a plank on sea over sand rides up on it ("r").
+function ground(x, y) {
+  const i = idx(x, y);
+  if (i === RAM_HOME) return "R";
+  const g = baseGround(x, y);
+  if (plankAt(i) < 0) return g;
+  if (g === "~") return "b";
+  if (g === "W") return RULES.float ? "r" : "W";
+  return g;
+}
+// high ground and anything riding up on the sea is level 1; ramps join both levels; everything else is level 0
+const level = (g) => (g === "h" || g === "R" || g === "r" ? 1 : g === "/" ? null : 0);
+const levelAt = (x, y) => level(ground(x, y));
+const high = (x, y) => levelAt(x, y) === 1;
+const PASS = ".,;:/h-bjr";
+const passable = (x, y) => PASS.includes(ground(x, y));
+function stepOK(x, y, nx, ny) {
+  const a = levelAt(x, y), b = levelAt(nx, ny);
+  if (!RULES.raftStep && ground(x, y) === "r" && b === 1) return false;
+  return a === null || b === null || a === b;
+}
+// a creature you can find by walking onto it right now
+function findable(k, i) {
+  if (CREATURES[k].on === ":" && baseGround(...xy(i)) !== ":") return false;  // under the sea
+  if (isRare(k)) return S.met.includes(k);
+  return true;
+}
+const trailShows = (k, x, y) => !S.found.includes(k) && S.seen[idx(x, y)];
+
+// Looks around where you stand. Returns what turned up, so the hint line can say it.
+function look() {
+  const see = high(S.x, S.y) ? SEE_HIGH : SEE;
+  const news = { trail: null, met: null };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const d = (x - S.x) ** 2 + (y - S.y) ** 2, i = idx(x, y);
+    if (d <= see) S.seen[i] = 1;
+    const k = creatureAt(x, y);
+    if (!k || S.found.includes(k)) continue;
+    if (isRare(k)) {
+      if (d <= MEET && S.seen[i] && !S.met.includes(k) && (CREATURES[k].on !== ":" || baseGround(x, y) === ":")) { S.met.push(k); news.met = k; }
+      continue;
+    }
+    if (d <= GLINT && !S.glints.includes(i)) S.glints.push(i);
+  }
+  for (const k in TRAILS) {
+    if (S.trails.includes(k) || S.found.includes(k)) continue;
+    if (TRAILS[k].some(([x, y]) => trailShows(k, x, y))) { S.trails.push(k); news.trail = k; }
+  }
+  return news;
+}
+
+// What one push in a straight direction does from (x, y): walk, or bump into something.
+function stepFrom(x, y, dx, dy) {
+  const nx = x + dx, ny = y + dy;
+  if (!inside(nx, ny)) return { kind: "bump", g: "t" };
+  const g = ground(nx, ny);
+  if (!S.seen[idx(nx, ny)] || !passable(nx, ny)) return { kind: "bump", g };
+  if (!stepOK(x, y, nx, ny)) return { kind: "bump", g, edge: true };
+  return { kind: "walk", to: idx(nx, ny) };
+}
+// Gliding: from up high, push straight at the edge and you fly that way as far as a glide goes, over whatever
+// is below, coming down on the last spot along the way you can stand on. Null if there's none.
+function glideTo(x, y, dx, dy) {
+  if (!has("glide") || !high(x, y)) return null;
+  if (!RULES.raftGlide && ground(x, y) === "r") return null;
+  if (!inside(x + dx, y + dy) || high(x + dx, y + dy)) return null;
+  let land = null;
+  for (let k = 1; ; k++) {
+    const tx = x + k * dx, ty = y + k * dy;
+    if (!inside(tx, ty) || k * k > GLIDE) return land;
+    if (!S.seen[idx(tx, ty)] || levelAt(tx, ty) !== 0) continue;
+    if (passable(tx, ty)) land = idx(tx, ty);
+  }
+}
+// A glide only happens where the step that way is blocked. Straight only: no slants.
+function glideFrom(x, y, dx, dy) {
+  if (stepFrom(x, y, dx, dy).kind !== "bump") return null;
+  return glideTo(x, y, dx, dy);
+}
+// every square you could get to in one go from (x, y) by walking or gliding
+function moves(x, y) {
+  const out = [];
+  for (const [dx, dy] of DIRS) {
+    const a = stepFrom(x, y, dx, dy);
+    if (a.kind === "walk") out.push([a.to, "walk"]);
+  }
+  if (has("glide") && high(x, y)) for (const [dx, dy] of DIRS) {
+    const L = glideFrom(x, y, dx, dy);
+    if (L !== null) out.push([L, "glide"]);
+  }
+  return out;
+}
+
+// ---- the ram ----
+// It notices you when you're in its row or column, near enough, with no trees or rock between.
+function ramSees(x, y) {
+  if (!RULES.ram) return null;
+  const [hx, hy] = xy(RAM_HOME);
+  if ((x !== hx && y !== hy) || (x === hx && y === hy)) return null;
+  const d = Math.abs(x - hx) + Math.abs(y - hy);
+  if (d > RAM_SEE) return null;
+  const dx = Math.sign(x - hx), dy = Math.sign(y - hy);
+  for (let k = 1; k < d; k++) if ("tx".includes(mapGround(hx + dx * k, hy + dy * k))) return null;
+  return [dx, dy];
+}
+// Its run: straight at you over open ground. Wood in the way splinters and it stops there; if it gets to you,
+// it butts you one square back. Water, rock, trees and edges stop it.
+// The ram follows the same height rule you do: it checks the height of the next square FIRST, so it never runs
+// up or down an edge, never butts you across one, and never splinters wood on a different height. Only a ramp joins them.
+const RUN = ".,;:/h-bj";
+function ramRun([dx, dy]) {
+  const path = [];
+  let [cx, cy] = xy(RAM_HOME);
+  for (;;) {
+    const nx = cx + dx, ny = cy + dy;
+    if (!inside(nx, ny)) return { path };
+    const n = idx(nx, ny);
+    const g = ground(nx, ny);
+    const la = levelAt(cx, cy), lb = level(g);
+    if (!(la === null || lb === null || la === lb)) return { path };   // an edge: it stops here
+    if (nx === S.x && ny === S.y) return { path, hit: true, knock: knockTo(dx, dy) };
+    if (g === "#" || g === "w") return { path, broke: n };
+    if (!RUN.includes(g)) return { path };
+    path.push(n); cx = nx; cy = ny;
+  }
+}
+function knockTo(dx, dy) {
+  const nx = S.x + dx, ny = S.y + dy;
+  if (inside(nx, ny) && passable(nx, ny) && stepOK(S.x, S.y, nx, ny)) return idx(nx, ny);
+  return idx(S.x, S.y);
+}
+
+// ---- planks ----
+const waterUnder = (i) => { const g = baseGround(...xy(i)); return g === "~" || g === "W"; };
+// the plank you'd pick up now: the one under you (not on water), or one lying over deep water in front of you
+function pickTarget() {
+  if (!has("carry") || S.carry) return null;
+  const here = idx(S.x, S.y);
+  if (plankAt(here) >= 0 && !waterUnder(here)) return here;
+  const ax = S.x + S.face[0], ay = S.y + S.face[1];
+  if (inside(ax, ay) && plankAt(idx(ax, ay)) >= 0 && baseGround(ax, ay) === "~") return idx(ax, ay);
+  return null;
+}
+// where the plank you hold would go: over deep water in front of you if there's ground right past it, else at your feet
+function putTarget() {
+  if (!S.carry) return null;
+  const [fx, fy] = S.face, ax = S.x + fx, ay = S.y + fy, bx = ax + fx, by = ay + fy;
+  if (inside(bx, by) && baseGround(ax, ay) === "~" && plankAt(idx(ax, ay)) < 0 && levelAt(S.x, S.y) === 0
+      && passable(bx, by) && !waterUnder(idx(bx, by)) && levelAt(bx, by) === 0) return { at: idx(ax, ay), across: true };
+  const here = idx(S.x, S.y);
+  if (plankAt(here) < 0 && !waterUnder(here) && ground(S.x, S.y) !== "r") return { at: here, across: false };
+  return null;
+}
+
+// When Tu has found nothing for a while, one unsolved spot shows a sign. It never says what to do.
+const SIGNS = [
+  { at: [12, 9], look: "bird", line: "A bird keeps circling over the old stairs.",
+    want: () => !S.found.includes("A") },
+  { at: [19, 17], look: "bird", line: "A bird keeps circling over the island.",
+    want: () => has("glide") && !S.found.includes("B") },
+  { at: [12, 15], look: "bird", line: "A bird keeps circling over the old boat.",
+    want: () => S.broken.includes(idx(12, 9)) && !S.found.includes("C") },
+];
+// ==== CORE END ====
+
+const SAVE_KEY = "fogmap-sketch-8";
+S = fresh();
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
+    if (d && Array.isArray(d.seen) && d.seen.length === W * H && Array.isArray(d.planks) && Array.isArray(d.broken)) { S = d; S.level = 0; if (!S.face) S.face = [0, 1]; }
+  } catch (e) { /* no saved game */ }
+}
+let saving = true;
+function save() { if (!saving) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* storage blocked */ } }
+
+// ---- drawing ----
+const viewEl = document.getElementById("view");
+const mapEl = document.getElementById("map");
+const meEl = document.getElementById("me");
+const ramEl = document.getElementById("ram");
+mapEl.style.gridTemplateColumns = `repeat(${W}, var(--tile))`;
+const tiles = [];
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+  const d = document.createElement("div");
+  d.className = "t"; d.dataset.x = x; d.dataset.y = y;
+  mapEl.insertBefore(d, ramEl); tiles.push(d);
+}
+const art = (k, cls = "") => `<svg class="${cls}" viewBox="0 0 32 32"><use href="#sp-${k}"/></svg>`;
+const trackArt = (k) => `<span class="trk ${TRAIL_LOOK[k][0]}"></span>`;
+const BIRD = `<svg viewBox="0 0 34 34" aria-hidden="true">
+  <path class="wing l" d="M17 18 Q9 6 1 10 Q8 13 13 20z" fill="#f4ead6" stroke="#1b2236" stroke-width="1.2"/>
+  <path class="wing r" d="M17 18 Q25 6 33 10 Q26 13 21 20z" fill="#f4ead6" stroke="#1b2236" stroke-width="1.2"/>
+  <ellipse cx="17" cy="20" rx="4.2" ry="6" fill="#f4ead6" stroke="#1b2236" stroke-width="1.2"/>
+  <circle cx="17" cy="14.5" r="3" fill="#f4ead6" stroke="#1b2236" stroke-width="1.2"/>
+  <path d="M17 11 l-1.4 -2.6 l2.8 0z" fill="#f0a35e"/>
+</svg>`;
+const GULL = `<svg viewBox="0 0 32 32" aria-hidden="true">
+  <ellipse cx="15" cy="22" rx="9" ry="6" fill="#f4f1ea" stroke="#1b2236" stroke-width="1.2"/>
+  <path d="M8 21 q6 -6 14 -1" fill="#aeb4c0" stroke="#1b2236" stroke-width="1"/>
+  <circle cx="22" cy="15" r="4.5" fill="#f4f1ea" stroke="#1b2236" stroke-width="1.2"/>
+  <path d="M26 15 l5 1.2 l-5 1.4z" fill="#f2c14e"/>
+  <circle cx="23" cy="14" r="1" fill="#1a1a1a"/>
+  <path d="M13 28 v3 M17 28 v3" stroke="#f2a83a" stroke-width="1.4"/>
+</svg>`;
+const signArt = () => `<span class="sign bird"><span class="shadow"><i></i></span><span class="orbit">${BIRD}</span></span>`;
+ramEl.innerHTML = `<svg viewBox="0 0 32 32" aria-hidden="true">
+  <path d="M10 22 v7 M14 23 v7 M21 23 v7 M25 22 v7" stroke="#2c2a30" stroke-width="2.4" stroke-linecap="round"/>
+  <path class="body" d="M7 16 q-1 -7 6 -8 q3 -4 8 -2 q6 -1 8 5 q4 4 0 9 q-1 5 -7 4 q-4 3 -9 0 q-7 1 -6 -8z" fill="#efe9dc" stroke="#b9b0a0" stroke-width="1"/>
+  <path d="M25 9 q6 -1 6 5 q0 4 -4 6 l-3 1 q-3 -2 -2 -6z" fill="#4a4550"/>
+  <path d="M24 8 q-5 -6 -9 -2 q-2 4 2 6 q3 1 3 -2 q-1 -2 -3 -1" stroke="#c8a56a" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+  <circle cx="28" cy="12.5" r="1.3" fill="#ffd25a"/><circle cx="28.3" cy="12.6" r=".6" fill="#1a1a1a"/>
+  <path d="M30 17 q-1 1 -2 0" stroke="#1a1a1a" stroke-width="1" fill="none"/>
+</svg>`;
+
+const slotsEl = document.getElementById("slots");
+const slotEls = {};
+function slotHint(k) {
+  const c = CREATURES[k], seenTrail = S.trails.includes(k);
+  if (c.kind === "helper") return "A helper you haven't met yet.";
+  if (c.kind === "plain") return "A creature you haven't found yet.";
+  if (c.kind === "rarest") return seenTrail ? "You've seen its coins. Where do they lead?" : "The rarest one. You haven't seen a trace of it.";
+  return seenTrail ? "You've seen its trail. Where does it lead?" : "A rare one. Rare ones leave a trail.";
+}
+ORDER.forEach((k, i) => {
+  const c = CREATURES[k];
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "slot " + c.kind;
+  b.innerHTML = `<span class="face">?</span><span class="nm">#${i + 1}</span>`;
+  b.addEventListener("click", () => {
+    if (S.found.includes(k)) say(`<b>${c.name}.</b>&nbsp;${c.line}`, false, k);
+    else say(slotHint(k), false);
+  });
+  slotsEl.appendChild(b); slotEls[k] = b;
+});
+
+let pulsing = new Set(), sign = null, crunching = -1;
+const GROUND_CLASS = { ".": "grass", ",": "sand", ";": "sand", ":": "flat", W: "sea", "~": "water", h: "high", R: "high", "/": "ramp",
+  t: "tree", x: "stone", "#": "crate", w: "hull", "-": "splinter", j: "pier", c: "tied" };
+// which way a plank lies: along the way across, if it's over water
+function plankLook(i) {
+  const [x, y] = xy(i), g = baseGround(x, y);
+  const land = (ax, ay) => inside(ax, ay) && !"~Wtx".includes(baseGround(ax, ay));
+  const v = g === "~" ? !(land(x - 1, y) && land(x + 1, y)) && land(x, y - 1) && land(x, y + 1) : false;
+  const cls = "plank" + (v ? " v" : "") + (g === "~" ? " across" : "") + (g === "W" && RULES.float ? " lifted" : "");
+  return `<span class="${cls}"></span>`;
+}
+function draw() {
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = idx(x, y), el = tiles[i];
+    const alt = (x * 13 + y * 7 + x * y) % 7 === 0 ? " alt" : "";
+    const k = creatureAt(x, y), waiting = k && !S.found.includes(k);
+    let html = "", cls;
+    if (S.seen[i]) {
+      const g = i === RAM_HOME ? "h" : baseGround(x, y);
+      cls = "t g-" + GROUND_CLASS[g] + alt;
+      if ((g === "j" || g === "c" || g === "w") && wet(i)) cls += " wet";
+      if (g === "w") {
+        // the boat: a rim on every side that has no more boat next to it, rounded where two open sides meet
+        const boat = (ax, ay) => inside(ax, ay) && baseGround(ax, ay) === "w";
+        const oN = !boat(x, y - 1), oS = !boat(x, y + 1), oW = !boat(x - 1, y), oE = !boat(x + 1, y);
+        if (oN) cls += " eN"; if (oS) cls += " eS"; if (oW) cls += " eW"; if (oE) cls += " eE";
+        if (oN && oW) cls += " rTL"; if (oN && oE) cls += " rTR"; if (oS && oW) cls += " rBL"; if (oS && oE) cls += " rBR";
+      }
+      if (high(x, y) && g === "h") {
+        const lowAt = (ax, ay) => inside(ax, ay) && !high(ax, ay) && ground(ax, ay) !== "/";
+        if (lowAt(x, y + 1)) cls += " edgeS";
+        if (lowAt(x + 1, y)) cls += " edgeE";
+      } else if (g !== "/") {
+        // a lifted tied crate stands up on the sea like a lifted plank, so it never dims with the low ground
+        if (!high(x, y) && !(g === "c" && wet(i))) cls += " low";
+        if (y > 0 && baseGround(x, y - 1) === "h") cls += " wallN";
+        if (x > 0 && baseGround(x - 1, y) === "h") cls += " shadeW";
+      }
+      if (g === "c") html += `<span class="tied">${GULL}</span>`;
+      if (plankAt(i) >= 0) html += plankLook(i);
+      const tk = TRACK.get(i);
+      if (tk && trailShows(tk, x, y)) html += trackArt(tk);
+      if (waiting && findable(k, i)) html += art(k, "cr " + CREATURES[k].kind);
+      if (sign && idx(...sign.at) === i) { html += signArt(); cls += " signed"; }
+      if (crunching === i) cls += " crunch";
+    } else {
+      cls = "t fog" + alt;
+      if (waiting && !isRare(k) && S.glints.includes(i)) html = `<span class="glint"></span>`;
+    }
+    if (pulsing.has(i)) cls += " pulse";
+    if (el.className !== cls) el.className = cls;
+    if (el.innerHTML !== html) el.innerHTML = html;
+  }
+  meEl.style.transform = `translate(calc(${S.x} * var(--tile)), calc(${S.y} * var(--tile)))`;
+  meEl.classList.toggle("carry", !!S.carry);
+  meEl.classList.toggle("lift", ground(S.x, S.y) === "r");
+  mapEl.classList.toggle("up", high(S.x, S.y));
+  ramEl.hidden = !S.seen[RAM_HOME];
+  dimRam();
+  camera();
+  const pct = Math.floor((S.found.length / ORDER.length) * 100);
+  document.getElementById("pct").textContent = pct + "%";
+  document.getElementById("pctBar").style.width = pct + "%";
+  document.getElementById("count").textContent = S.found.length + " / " + ORDER.length;
+  ORDER.forEach((k, i) => {
+    const got = S.found.includes(k), el = slotEls[k];
+    el.classList.toggle("got", got);
+    const face = got ? art(k) : (TRAILS[k] && S.trails.includes(k) ? trackArt(k) : "?");
+    const faceEl = el.querySelector(".face");
+    if (faceEl.innerHTML !== face) faceEl.innerHTML = face;
+    el.querySelector(".nm").textContent = got ? CREATURES[k].name : "#" + (i + 1);
+  });
+  drawHand();
+}
+function flash(squares) {
+  pulsing = new Set(squares);
+  draw();
+  setTimeout(() => { pulsing = new Set(); draw(); }, 2900);
+}
+
+const hintEl = document.getElementById("hint");
+function say(text, news, k) {
+  hintEl.innerHTML = (k ? art(k) : "") + `<span>${text}</span>`;
+  hintEl.classList.toggle("news", !!news);
+}
+// The first time any of the old boat comes into view, say what it is (never what to do about it).
+let boatTold = false;
+const boatSquares = [];
+for (let i = 0; i < W * H; i++) if (mapGround(...xy(i)) === "w") boatSquares.push(i);
+function tell(news) {
+  if (news.met) say("There it is, at the end of the trail.", true);
+  else if (news.trail) say(TRAIL_LOOK[news.trail][1], true);
+  else if (!boatTold && boatSquares.some((i) => S.seen[i])) { boatTold = true; say("An old wooden boat, stuck in the sand.", true); }
+}
+
+// ---- camera: keep you near the middle; "Whole map" shrinks it to fit ----
+let whole = false, tile = 30;
+function fit() {
+  const vw = viewEl.clientWidth, vh = viewEl.clientHeight;
+  tile = whole ? Math.max(8, Math.floor(Math.min(vw / W, vh / H)))
+               : Math.max(26, Math.min(44, Math.floor(vw / 11)));
+  document.documentElement.style.setProperty("--tile", tile + "px");
+  camera();
+}
+function camera() {
+  const vw = viewEl.clientWidth, vh = viewEl.clientHeight, mw = W * tile, mh = H * tile;
+  const place = (p, v, m) => (m <= v ? (m - v) / 2 : Math.min(Math.max(p * tile + tile / 2 - v / 2, 0), m - v));
+  mapEl.style.transform = `translate(${-place(S.x, vw, mw)}px, ${-place(S.y, vh, mh)}px)`;
+}
+addEventListener("resize", fit);
+const zoomBtn = document.getElementById("zoom");
+zoomBtn.addEventListener("click", () => {
+  whole = !whole;
+  zoomBtn.classList.toggle("on", whole);
+  zoomBtn.textContent = whole ? "Close up" : "Whole map";
+  fit();
+});
+
+// ---- finding a creature ----
+const cardEl = document.getElementById("card");
+let afterCard = null;
+function showCard(k) {
+  const c = CREATURES[k];
+  document.getElementById("cardIn").className = "cardin " + c.kind;
+  document.getElementById("cardTag").textContent = TAG[c.kind];
+  document.getElementById("cardUse").setAttribute("href", "#sp-" + k);
+  document.getElementById("cardName").textContent = c.name;
+  document.getElementById("cardLine").textContent = c.line;
+  cardEl.hidden = false;
+}
+function closeCard() {
+  cardEl.hidden = true;
+  if (afterCard) { const f = afterCard; afterCard = null; f(); }
+  draw();
+  pump();
+}
+cardEl.addEventListener("click", closeCard);
+function find(k) {
+  S.found.push(k);
+  quietSince = Date.now();
+  look();
+  const el = slotEls[k];
+  el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+  draw(); save();
+  showCard(k);
+  afterCard = () => {
+    const c = CREATURES[k];
+    if (S.found.length === ORDER.length) say("Every creature found. That's all of them.", true);
+    else if (c.kind === "helper") say(c.after, true, k);
+    else if (c.kind === "rarest") say(`The rarest one: ${c.name}!`, true, k);
+    else if (c.kind === "rare") say(`A rare find: ${c.name}!`, true, k);
+    else say(`You found ${c.name}!`, true, k);
+  };
+}
+
+// ---- moving ----
+const SLOW = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const T = SLOW ? { step: 50, glide: 60, sink: 40, rise: 40, hop: 60, ramRun: 30, ramBack: 40 }
+               : { step: 115, glide: 780, sink: 340, rise: 360, hop: 230, ramRun: 70, ramBack: 150 };
+const MOVE_CLASSES = ["glide", "sink", "rise", "jump", "push", "hop"];
+const setMove = (...on) => { MOVE_CLASSES.forEach((c) => meEl.classList.toggle(c, on.includes(c))); };
+let walk = null, busy = false, moving = false;
+const later = (f, ms) => { walk = setTimeout(f, ms); };
+const placeMe = () => { meEl.style.transform = `translate(calc(${S.x} * var(--tile)), calc(${S.y} * var(--tile)))`; };
+
+// plays out a list of steps; done(stopped) runs at the end; stopped means a find or a rare one cut it short
+function go(steps, done = () => {}) {
+  if (walk) clearTimeout(walk);
+  const arrive = () => {
+    const i = idx(S.x, S.y);
+    const news = look();
+    const k = creatureAt(S.x, S.y);
+    if (k && !S.found.includes(k) && findable(k, i)) { walk = null; setMove(); find(k); done(true); return true; }
+    draw();
+    tell(news);
+    save();
+    if (news.met) { walk = null; setMove(); done(true); return true; }  // stop so you see a rare one before you walk off
+    return false;
+  };
+  const tick = () => {
+    if (!steps.length) { walk = null; setMove(); save(); done(false); return; }
+    const { i, kind } = steps.shift();
+    const [nx, ny] = xy(i);
+    if (kind === "wash") {
+      setMove("sink");
+      later(() => {
+        setMove("jump"); S.x = nx; S.y = ny; placeMe(); draw();
+        void meEl.offsetWidth;
+        setMove("rise");
+        later(() => { if (!arrive()) later(tick, 60); }, T.rise);
+      }, T.sink);
+      return;
+    }
+    setMove(kind === "glide" ? "glide" : kind === "hop" ? "hop" : null);
+    S.x = nx; S.y = ny;
+    if (arrive()) return;
+    later(tick, kind === "glide" ? T.glide : kind === "hop" ? T.hop : T.step);
+  };
+  tick();
+}
+
+// ---- the sea: it goes out and comes in on its own ----
+const SEA_MS = { low: 18000, rise: 3500, high: 18000, fall: 3500 };
+let seaFrozen = null, seaT0 = Date.now();
+function seaLevelNow() {
+  if (seaFrozen) return seaFrozen === "high" ? HIGH : 0;
+  const cyc = SEA_MS.low + SEA_MS.rise + SEA_MS.high + SEA_MS.fall;
+  let t = (Date.now() - seaT0) % cyc;
+  if (t < SEA_MS.low) return 0; t -= SEA_MS.low;
+  if (t < SEA_MS.rise) return Math.round(HIGH * t / SEA_MS.rise); t -= SEA_MS.rise;
+  if (t < SEA_MS.high) return HIGH; t -= SEA_MS.high;
+  return Math.round(HIGH * (1 - t / SEA_MS.fall));
+}
+setInterval(() => {
+  const L = seaLevelNow();
+  if (L !== S.level) { S.level = L; draw(); }
+  if (moving || busy || !cardEl.hidden) return;
+  if (ground(S.x, S.y) === "W") {
+    const to = WASH.get(idx(S.x, S.y));
+    if (to === undefined || to < 0) return;
+    moving = true; lean = null;
+    say("A wave sweeps you off your feet and drops you on the beach.", true);
+    go([{ i: to, kind: "wash" }], () => finish(true));
+  }
+}, 120);
+
+// ---- the ram ----
+const RAM_WARN_MS = 1200;
+let ramMode = "home", warnSince = 0;
+let ramAt = RAM_HOME;
+// the ram goes dim with the low ground while you stand up high, the same as the ground under it
+function dimRam() { ramEl.classList.toggle("low", high(S.x, S.y) && levelAt(...xy(ramAt)) === 0); }
+function placeRam(i, ms) {
+  ramAt = i; dimRam();
+  const [x, y] = xy(i);
+  ramEl.style.transition = ms ? `transform ${ms}ms linear` : "none";
+  ramEl.style.transform = `translate(calc(${x} * var(--tile)), calc(${y} * var(--tile)))`;
+}
+function ramFace(dir) { ramEl.classList.toggle("left", dir[0] < 0); }
+placeRam(RAM_HOME, 0);
+setInterval(() => {
+  if (ramMode !== "home") return;
+  const dir = S.seen[RAM_HOME] && cardEl.hidden ? ramSees(S.x, S.y) : null;
+  if (!dir) { if (warnSince) { warnSince = 0; ramEl.classList.remove("warn"); } return; }
+  ramFace(dir);
+  if (!warnSince) { warnSince = Date.now(); ramEl.classList.add("warn"); return; }
+  if (Date.now() - warnSince < RAM_WARN_MS || moving || busy) return;
+  charge(dir);
+}, 100);
+function charge(dir) {
+  warnSince = 0; ramEl.classList.remove("warn"); ramEl.classList.add("run");
+  ramMode = "run"; busy = true;
+  const res = ramRun(dir), steps = res.path.slice();
+  let k = 0;
+  const next = () => {
+    if (k < steps.length) {
+      // you watched it run over these squares, so they come out of the fog
+      S.seen[steps[k]] = 1; draw();
+      placeRam(steps[k], T.ramRun); k++; setTimeout(next, T.ramRun); return;
+    }
+    ramEl.classList.remove("run");
+    ramEl.classList.add("bonk");
+    if (res.broke !== undefined) {
+      S.seen[res.broke] = 1;   // and you always see the wood it splinters
+      S.broken.push(res.broke); crunching = res.broke;
+      look(); draw(); save(); flash([res.broke]);
+      setTimeout(() => { crunching = -1; draw(); }, 420);
+      say("Crunch! The wood splinters apart.", true);
+    } else if (res.hit) {
+      const to = res.knock;
+      say("Oof! It butts you back.", true);
+      if (to !== idx(S.x, S.y)) { const [nx, ny] = xy(to); setMove("hop"); S.x = nx; S.y = ny; placeMe(); setTimeout(() => setMove(), T.hop); }
+      else { setMove("push"); setTimeout(() => setMove(), 300); }
+      look(); draw(); save();
+    }
+    setTimeout(() => {
+      ramEl.classList.remove("bonk");
+      busy = false; needRelease = true;
+      trotHome(steps);
+    }, 450);
+  };
+  next();
+}
+function trotHome(steps) {
+  ramMode = "back";
+  const back = steps.slice(0, -1).reverse().concat([RAM_HOME]);
+  if (steps.length) ramFace([-Math.sign(xy(steps[0])[0] - xy(RAM_HOME)[0]) || 0, 0]);
+  ramEl.classList.add("trot");
+  let k = 0;
+  const next = () => {
+    if (k < back.length) { placeRam(back[k], T.ramBack); k++; setTimeout(next, T.ramBack); return; }
+    ramEl.classList.remove("trot", "left");
+    ramMode = "home";
+  };
+  next();
+}
+
+// ---- the hand: pick up and put down ----
+const handEl = document.getElementById("hand");
+function drawHand() {
+  const show = has("carry");
+  handEl.hidden = !show;
+  if (!show) return;
+  const can = S.carry ? putTarget() : pickTarget();
+  handEl.textContent = S.carry ? "Put down" : "Pick up";
+  handEl.classList.toggle("idle", !can);
+}
+handEl.addEventListener("click", () => {
+  if (moving || busy) return;
+  if (!S.carry) {
+    const t = pickTarget();
+    if (t === null) { say("There's nothing here to pick up.", false); return; }
+    S.planks[plankAt(t)] = -1; S.carry = true;
+    say("You pick up the plank.", false);
+  } else {
+    const t = putTarget();
+    if (!t) { say("There's nothing there to rest it on.", false); return; }
+    S.planks[S.planks.indexOf(-1)] = t.at; S.carry = false;
+    say(t.across ? "You lay the plank over the water." : "You set the plank down.", false);
+    flash([t.at]);
+  }
+  look(); draw(); save();
+});
+
+// ---- the controls: a thumb stick on the map (phone or mouse), or arrow keys / WASD ----
+// One step at a time while you hold it. After a glide, a wave, a bump from the ram, a find or a rare one,
+// you stop until you let go, so holding on never carries you into a second surprise.
+const stickEl = document.getElementById("stick"), knobEl = document.getElementById("knob");
+const STICK_R = 40, DEAD = 12, LEAN_MS = 260;
+let stick = null, needRelease = false, lean = null, acc = { x: 0, y: 0 }, lastBump = "";
+const keys = new Set();
+const KEY_DIR = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+                  KeyW: [0, -1], KeyS: [0, 1], KeyA: [-1, 0], KeyD: [1, 0] };
+function inputVec() {
+  if (stick) return Math.hypot(stick.vx, stick.vy) > DEAD ? { x: stick.vx, y: stick.vy } : null;
+  let x = 0, y = 0;
+  for (const c of keys) { x += KEY_DIR[c][0]; y += KEY_DIR[c][1]; }
+  return x || y ? { x, y } : null;
+}
+function inputChanged() {
+  if (!inputVec()) { needRelease = false; lean = null; acc = { x: 0, y: 0 }; lastBump = ""; }
+  pump();
+}
+// a move finished; stop after a surprise until you let go
+function finish(stop) {
+  moving = false;
+  if (stop) needRelease = true;
+  draw();
+  pump();
+}
+function bump(a) {
+  setMove("push");
+  setTimeout(() => setMove(), 300);
+  const tx = S.x + a.dx, ty = S.y + a.dy, tk = inside(tx, ty) && TRACK.get(idx(tx, ty));
+  const onTrail = tk && trailShows(tk, tx, ty);
+  const text = a.edge ? "A steep edge." : (BLOCKED_HINT[a.g] || "You can't go there.") + (onTrail ? " The trail goes on in there." : "");
+  if (text !== lastBump) { say(text, false); lastBump = text; }
+  moving = true;
+  draw();
+  setTimeout(() => finish(false), 220);
+}
+function pump() {
+  if (moving || busy || !cardEl.hidden || needRelease) return;
+  const v = inputVec();
+  if (!v) return;
+  const ax = Math.abs(v.x), ay = Math.abs(v.y), sx = Math.sign(v.x), sy = Math.sign(v.y);
+  // nearly straight: one axis only. At a slant: a staircase that keeps close to the line you're holding.
+  const slant = Math.min(ax, ay) / Math.max(ax, ay) > 0.414;
+  let tries;
+  if (!slant) tries = ax >= ay ? [[sx, 0]] : [[0, sy]];
+  else {
+    acc.x = Math.min(2, acc.x + ax / (ax + ay)); acc.y = Math.min(2, acc.y + ay / (ax + ay));
+    tries = acc.x >= acc.y ? [[sx, 0], [0, sy]] : [[0, sy], [sx, 0]];
+  }
+  let first = null;
+  for (const [dx, dy] of tries) {
+    const a = stepFrom(S.x, S.y, dx, dy);
+    if (a.kind !== "bump") {
+      if (dx) acc.x -= 1; else acc.y -= 1;
+      S.face = [dx, dy];
+      lean = null; lastBump = ""; moving = true;
+      go([{ i: a.to, kind: "walk" }], finish);
+      return;
+    }
+    if (!first) first = { ...a, dx, dy };
+  }
+  S.face = [first.dx, first.dy];
+  // nothing open that way: from up high, lean on the edge a moment and you glide off, straight
+  let L = null, gdir = null;
+  for (const [dx, dy] of tries) { L = glideFrom(S.x, S.y, dx, dy); if (L !== null) { gdir = [dx, dy]; break; } }
+  if (L !== null) {
+    const key = gdir.join(",");
+    if (!lean || lean.key !== key) {
+      lean = { key, at: Date.now() };
+      setMove("push"); setTimeout(() => setMove(), 300);
+      draw();
+      return;
+    }
+    if (Date.now() - lean.at < LEAN_MS) return;
+    lean = null; lastBump = ""; moving = true;
+    say("", false);
+    go([{ i: L, kind: "glide" }], () => finish(true));
+    return;
+  }
+  lean = null;
+  bump(first);
+}
+setInterval(pump, 40);
+
+viewEl.addEventListener("pointerdown", (e) => {
+  if (stick || (e.pointerType === "mouse" && e.button !== 0)) return;
+  const r = viewEl.getBoundingClientRect();
+  stick = { id: e.pointerId, ox: e.clientX - r.left, oy: e.clientY - r.top, vx: 0, vy: 0 };
+  try { viewEl.setPointerCapture(e.pointerId); } catch (err) { /* fine without it */ }
+  stickEl.style.left = stick.ox + "px"; stickEl.style.top = stick.oy + "px";
+  knobEl.style.transform = "";
+  stickEl.hidden = false;
+  e.preventDefault();
+});
+viewEl.addEventListener("pointermove", (e) => {
+  if (!stick || e.pointerId !== stick.id) return;
+  const r = viewEl.getBoundingClientRect();
+  let dx = e.clientX - r.left - stick.ox, dy = e.clientY - r.top - stick.oy;
+  const len = Math.hypot(dx, dy);
+  if (len > STICK_R) { dx *= STICK_R / len; dy *= STICK_R / len; }
+  knobEl.style.transform = `translate(${dx}px, ${dy}px)`;
+  stick.vx = dx; stick.vy = dy;
+  inputChanged();
+});
+const letGo = (e) => {
+  if (!stick || e.pointerId !== stick.id) return;
+  stick = null; stickEl.hidden = true;
+  inputChanged();
+};
+viewEl.addEventListener("pointerup", letGo);
+viewEl.addEventListener("pointercancel", letGo);
+addEventListener("keydown", (e) => {
+  if (!cardEl.hidden && ["Enter", "Space", "Escape"].includes(e.code)) { e.preventDefault(); closeCard(); return; }
+  if (e.code === "Space" || e.code === "KeyE") { e.preventDefault(); handEl.click(); return; }
+  if (!KEY_DIR[e.code] || e.ctrlKey || e.metaKey || e.altKey) return;
+  e.preventDefault();
+  if (!keys.has(e.code)) { keys.add(e.code); inputChanged(); }
+});
+addEventListener("keyup", (e) => { if (keys.delete(e.code)) inputChanged(); });
+addEventListener("blur", () => { keys.clear(); stick = null; stickEl.hidden = true; inputChanged(); });
+
+// ---- stuck: after a long while with no new find, one unsolved spot shows a sign ----
+let STUCK_MS = 150000, quietSince = Date.now();
+setInterval(() => {
+  if (sign && !sign.want()) { sign = null; draw(); }
+  if (sign || !cardEl.hidden || Date.now() - quietSince < STUCK_MS) return;
+  const s = SIGNS.find((s) => s.want() && S.seen[idx(...s.at)]);
+  if (!s) return;
+  sign = s; quietSince = Date.now();
+  draw(); say(s.line, true);
+}, 3000);
+
+// ---- start over (tap twice) ----
+const resetBtn = document.getElementById("reset");
+let armed = null;
+resetBtn.addEventListener("click", () => {
+  if (!armed) {
+    resetBtn.classList.add("armed"); resetBtn.textContent = "Tap again to wipe";
+    armed = setTimeout(() => { armed = null; resetBtn.classList.remove("armed"); resetBtn.textContent = "Start over"; }, 3000);
+    return;
+  }
+  clearTimeout(armed); armed = null;
+  resetBtn.classList.remove("armed"); resetBtn.textContent = "Start over";
+  if (busy || ramMode !== "home") return;
+  if (walk) clearTimeout(walk);
+  walk = null; pulsing = new Set(); sign = null; setMove();
+  moving = false; needRelease = false; lean = null;
+  S = fresh(); seaT0 = Date.now(); quietSince = Date.now(); look(); draw(); save();
+  say("Drag anywhere on the map to walk. On a computer, use the arrow keys.", false);
+});
+
+// ---- go ----
+// For checking only, never saved:
+//   #peek       the whole map, both helpers held; the stuck sign comes after 6 seconds; the sea runs as normal
+//   #peek-low   the same, with the sea held out          #peek-high  the same, with the sea held in
+//   #peek-raft  the sea held in, standing on a plank that rode up beside the ridge
+//   add @x,y to any of them to stand somewhere else, e.g. #peek-low@12,10 stands below the old stairs
+if (location.hash.startsWith("#peek")) {
+  saving = false; STUCK_MS = 6000;
+  S.seen.fill(1); S.found = ["H", "G"];
+  if (location.hash.startsWith("#peek-low")) seaFrozen = "low";
+  if (location.hash.startsWith("#peek-high")) seaFrozen = "high";
+  if (location.hash.startsWith("#peek-raft")) { seaFrozen = "high"; S.planks[2] = idx(19, 13); S.x = 19; S.y = 13; }
+  const at = location.hash.match(/@(\d+),(\d+)/);
+  if (at) { S.x = +at[1]; S.y = +at[2]; }
+  S.level = seaLevelNow();
+} else {
+  load();
+}
+look();
+boatTold = boatSquares.some((i) => S.seen[i]);   // a saved game that has seen the boat already knows what it is
+draw();
+fit();
+</script>
