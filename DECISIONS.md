@@ -22,6 +22,97 @@
 
 ---
 
+## [2026-11-10] [game] Map 1 is reworked and replayed fresh before map 2; about 10 minutes a map is fine
+
+- **Decision:**
+  - Map 1 gets a new layout and new puzzles, and Tu's map 1 save is cleared; he replays it one evening before map 2 is built.
+  - Helper cards say only how a helper looks, never what it does; Tu works that out by watching.
+  - Every rare one needs two things used together: two helpers, or a helper plus the wind.
+  - Nothing grows on water; rain only grows things on land, like a seed or a sprout.
+  - The stuck sign circles over the den, not over the thing to act on.
+  - About 10 minutes a map is fine; the 20-minute aim is dropped.
+  - The tuning target's third question becomes "Did I have a 'that's smart' moment?".
+  - The new puzzles are Claude's pick and stay secret until Tu has played.
+- **Why:**
+  - Tu picked all three reasons for the missing smart moment: nothing to work out, one thing at one spot, a rule that felt made up.
+  - Tu: "Improve that first before moving to the next map."
+  - Tu: "probably still around 10 min but that's fine. I think the length is ok."
+  - Tu already knows map 1's answers, so a fix on the same layout can't be replayed fairly.
+- **Replaces:**
+  - "Each map is big and interesting enough for about 20 minutes" and "Map 1 needs about two and a half times map 8's content" in the 2026-11-10 five-maps entry.
+
+## [2026-11-10] [game] Map 1 of the evenings sketch: new things and wanted the next map, but no smart moment
+
+- **Decision:**
+  - Tu played map 1 once, to the end: something new, yes; wanted the next map, yes; about 10 minutes.
+  - No "that's smart" moment; the only hard part was the lily path across the pond.
+  - Waiting for the wind to blow the cloud the right way felt good.
+  - Rain opening a bud already on the water did not feel real; rain on a seed on land would.
+- **Map 1's hidden rules (Claude's pick, kept secret until now):**
+  - Emberfox sets dry brambles next to it alight; with wind, fire runs downwind and sparks jump one square to the next dry thing.
+  - Gnawly chews down a lone tree you walk into; it falls away from you as a log, or leans on a cliff to climb.
+  - Drizzle rains on the square you just left; with wind it is blown two squares downwind; rain grows sprouts into vines, buds into pads, stumps back into trees.
+  - Highhorn: a chewed tree leaning on the cliff. Cliffowl: the cloud blown over a sprout up on the cliff.
+  - Lilyfrog: the cloud blown over the lily buds, one at a time. Embermoth: sparks carried over the river to burn the rope post and drop the bridge.
+  - Moonstag: past the bridge, a tree chewed down into the water as a log path.
+- **Why:**
+  - Tu: "1. Yes. 2. Yes. 3. No probably still around 10 min but that's fine."
+  - Tu: "spilling water on some pink thing already on water and its grow sounds not really real. Water something like a seed on the land is ok."
+- **Replaces:**
+  - Nothing.
+
+## [2026-11-10] [game] Five maps, one per evening, about 20 minutes each; creatures you catch follow you and act by their own rule
+
+- **Decision:**
+  - The 5-sittings target is five different maps, one per evening, not one map played five times.
+  - Each map is big and interesting enough for about 20 minutes.
+  - Creatures you catch follow you, act by their own rule (as the map 8 ram did), and carry over to the next map.
+  - Each map adds its own world thing that works by a rule you guess by watching, a little like weather.
+  - Maps are built one at a time: Tu plays one, then the next is built.
+  - Map 1 needs about two and a half times map 8's content; Tu finished map 8 in under 10 minutes.
+  - As with map 8, Claude picks each map's rules and keeps them secret until Tu has played.
+- **Why:**
+  - Tu: "Let's go with 2. Add a little of 1 but I don't want the same map. Should be different map with new thing."
+  - Tu: "Maybe 5 sittings worth 1 map and each map should be large and interesting enough make me stay for about 20 min."
+  - Both of Tu's map 8 smart moments came from working out what the ram does.
+  - A new map alone is not enough (2026-11-04); here each map also brings new ways to reach places and finds worth having.
+- **Replaces:**
+  - The tuning target line "The map holds at least 5 sittings before nothing new is left" in `BETS.html`.
+
+## [2026-11-10] [game] The 5-sittings map target is worked on next, ahead of "less to keep in my head"
+
+- **Decision:**
+  - The next work is the tuning target "The map holds at least 5 sittings before nothing new is left".
+  - It goes ahead of the bet "Less to keep in my head makes it more relaxing, not duller", whose written test needs the prototype.
+  - The bets written for the prototype (picks, fights, armies) keep their place in `BETS.html` but wait.
+- **Why:**
+  - Tu: "Let's do number 2."
+  - The map is the direction that has passed its bets; the prototype is no longer built on (2026-11-02).
+  - "Less to keep in my head" has no test that fits a sketch or a game Tu plays yet.
+- **Replaces:**
+  - Nothing; the order of the bets list is unchanged, only what is worked on next.
+
+## [2026-11-10] [game] The idea bet passes on map 8's replay: a find is fun when using it needs an idea I didn't have before
+
+- **Decision:**
+  - Tu replayed the fixed map 8 once, to the end: two "that's smart" moments, never stuck long enough to stop enjoying it.
+  - That meets the Pass line, so the bet moves to the verified list under pillar C.
+  - Tu: it felt "a little bit better" than plain; still a little plain is not a fail of this bet.
+- **Map 8's hidden rules (Claude's pick, kept secret until now):**
+  - The ram charges at Tu from anywhere it can see him, and splinters wood it runs into.
+  - The ram follows the same height rule as Tu: no charge, hit or break across a height change without a ramp.
+  - The sea comes in and goes out over the sand flats; a plank on the flats rides up on a high sea.
+  - The carry helper picks up planks and puts them down, at your feet or across narrow water; the glide helper glides down from anywhere high.
+  - Burrlamb (in the pen): ride a plank up on the sea beside the ridge, or let the ram splinter the crates on the stairs.
+  - Isleowl (on the island): glide off a plank that rode up, or glide off the ridge.
+  - Lanternray (in the wreck): only the ram breaking the boat's side, only while the sea is out.
+- **Why:**
+  - Tu's moment 1: "I discovered that the goat still look at my direction and charge even when he was out of sight."
+  - Tu's moment 2: "I could go far behind the wooden box to make him hit one of the box to break it and got me inside."
+  - Both are guesses about how the world works, then tested: the Zelda shape from the 2026-11-07 entry.
+- **Replaces:**
+  - Nothing; it closes the idea bet the 2026-11-07 entries kept open.
+
 ## [2026-11-07] [game] Map 8's first sitting was not a fair test; heights get one rule for everyone, and the bet's third try is replayed on the fixed map
 
 - **Decision:**

@@ -16,6 +16,19 @@
 
 ---
 
+### [2026-11-10 #1] Said the reworked map 1's check would take a few minutes; it could never finish
+
+- **Said:** the map check "takes a few minutes" and would let me know when it was done.
+- **Actually:** after I added seeds, trees that grow back and logs that burn, the check had to try
+  so many orders of doing things that it barely got past its first few hundred worlds. It was also
+  slow on each world, because it rebuilt its copy of the map thousands of times per world.
+- **Caught by:** Tu ("why the map check take so long?").
+- **Why:** I changed the rules without thinking about how many more worlds the check would have to
+  try, and I didn't time a short run before saying how long it would take.
+- **Tag:** claimed before measuring
+
+---
+
 ### [2026-11-07 #2] Handed Tu map 8 where the ram broke the height rule everything else follows
 
 - **Said:** map 8 was ready to play and fair (the check passed, every rule is the same for everyone).

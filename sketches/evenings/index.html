@@ -1,0 +1,1391 @@
+<title>Evenings Map Sketch</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Nunito+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: one portrait column, the same as the map sketches before it. "Found" meter on top, a scrolling fogged map
+   in the middle that follows you, hint line and creature book below. A card pops up when you find a creature.
+   Evenings: one new map each evening. Creatures you catch as followers walk behind you and act by their own rule,
+   and they come with you to the next map. Each map has its own world thing, never explained on screen.
+   Answers live in the rules block and in check-evenings.js, never in any text the player reads. */
+:root {
+  color-scheme: dark;
+  --night: #121726;
+  --panel: #1b2236;
+  --line: #2c3550;
+  --ink: #ece8da;
+  --muted: #9aa1b8;
+  --gold: #f2c14e;
+  --ember: #ff8a5c;
+  --helper: #6c8fd0;
+  --fog: #232a42;
+  --fog-2: #272f4a;
+  --grass: #4c7744;
+  --grass-2: #527d49;
+  --high: #6f9b5c;
+  --high-2: #77a363;
+  --tree: #2c4d30;
+  --tree-top: #3b6640;
+  --water: #2d5a8c;
+  --water-2: #3a6aa0;
+  --wood: #9a6a3c;
+  --wood-dark: #6a4524;
+  --stone: #2a2e3b;
+  --stone-2: #323747;
+  --f-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --f-body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --tile: 30px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--night); color: var(--ink);
+  font: 15px/1.4 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.app { height: 100%; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+
+/* top bar */
+.bar { display: flex; align-items: center; gap: 8px; }
+.score { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.score b { font: 700 18px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.score small { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.meter { height: 4px; width: 72px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .3s; }
+.spacer { flex: 1; }
+.btn {
+  font: 600 12px var(--f-body); color: var(--muted); background: none;
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; cursor: pointer; white-space: nowrap;
+}
+.btn.on { color: var(--night); background: var(--gold); border-color: var(--gold); }
+.btn.armed { color: var(--night); background: #e07a5f; border-color: #e07a5f; }
+.btn:focus-visible, .slot:focus-visible, .who:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* who is following you: tap to change */
+.who { display: flex; align-items: center; gap: 4px; background: none; border: 2px solid var(--helper); border-radius: 50%;
+  padding: 1px; color: var(--ink); font: 600 12px var(--f-body); cursor: pointer; }
+.who[hidden] { display: none; }
+.who svg { width: 28px; height: 28px; background: #2a3350; border-radius: 50%; }
+.who span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* map view: the map slides inside it so you stay near the middle */
+.view { flex: 1; min-height: 0; position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 0 0 1px var(--line); background: var(--fog); touch-action: none; user-select: none; -webkit-user-select: none; }
+.map {
+  position: absolute; left: 0; top: 0; display: grid;
+  grid-auto-rows: var(--tile);
+  transition: transform .28s ease-out;
+  touch-action: none; user-select: none;
+}
+.t { position: relative; }
+/* the thumb stick: shows up where your thumb lands on the map, follows it, goes when you let go */
+.stick {
+  position: absolute; width: 92px; height: 92px; margin: -46px 0 0 -46px; z-index: 7; pointer-events: none;
+  border-radius: 50%; border: 2px solid rgba(236,232,218,.38); background: rgba(18,23,38,.42);
+}
+.stick[hidden] { display: none; }
+.stick i {
+  position: absolute; left: 50%; top: 50%; width: 42px; height: 42px; margin: -21px 0 0 -21px; border-radius: 50%;
+  background: rgba(242,193,78,.9); box-shadow: 0 0 0 3px rgba(18,23,38,.5), 0 0 14px rgba(242,193,78,.55);
+}
+.fog { background: var(--fog); }
+.fog.alt { background: var(--fog-2); }
+.g-grass { background: var(--grass); }
+.g-grass.alt { background: var(--grass-2); }
+.g-tree { background: radial-gradient(circle at 50% 45%, var(--tree-top) 0 42%, transparent 44%), var(--tree); }
+.g-stone { background: linear-gradient(135deg, var(--stone-2) 0 22%, var(--stone) 22% 78%, var(--stone-2) 78%); }
+.g-high { background: var(--high); }
+.g-high.alt { background: var(--high-2); }
+.g-ramp { background: repeating-linear-gradient(0deg, #9a9478 0 5px, #7d775f 5px 8px); }
+.g-water, .g-logw, .g-raised, .g-bridge {
+  background: repeating-linear-gradient(165deg, var(--water) 0 6px, var(--water-2) 6px 8px, var(--water) 8px 14px); background-size: 100% 28px; animation: lap 3s linear infinite; }
+@keyframes lap { from { background-position: 0 0; } to { background-position: 0 28px; } }
+
+/* dry brambles: dark, thorny, a little straw-coloured */
+.g-bramble { background:
+  radial-gradient(circle at 25% 30%, #8a7a3e 0 9%, transparent 10%),
+  radial-gradient(circle at 72% 62%, #8a7a3e 0 8%, transparent 9%),
+  radial-gradient(circle at 40% 78%, #6d5f2c 0 10%, transparent 11%),
+  repeating-linear-gradient(45deg, transparent 0 5px, rgba(40,30,10,.55) 5px 6px),
+  repeating-linear-gradient(-45deg, transparent 0 6px, rgba(40,30,10,.45) 6px 7px), #4f5a2a; }
+/* what's left after a fire */
+.g-ash { background:
+  radial-gradient(circle at 30% 35%, #5a4a40 0 8%, transparent 9%),
+  radial-gradient(circle at 70% 70%, #4a3e38 0 9%, transparent 10%), #3a3a3a; }
+/* a lone tree: a trunk and a big round top, standing on grass */
+.g-lone, .g-stump, .g-log, .g-sprout, .g-post { background: var(--grass); }
+.g-lone::before { content: ""; position: absolute; left: 40%; right: 40%; top: 50%; bottom: 6%; background: #5e3c1c; border-radius: 2px; }
+.g-lone::after { content: ""; position: absolute; inset: -8% 4% 30% 4%; border-radius: 50%; z-index: 1;
+  background: radial-gradient(circle at 38% 35%, #6fae5a 0 25%, #4c8a40 26% 70%, #3a6e32 71%); box-shadow: 0 3px 0 rgba(0,0,0,.35); }
+.g-stump::before { content: ""; position: absolute; inset: 30%; border-radius: 50%; background: radial-gradient(circle, #d9b07a 0 30%, #b08350 31% 60%, #7a5230 61%); }
+/* a fallen tree: one long log, lying the way it fell */
+.log { position: absolute; z-index: 1; pointer-events: none; background: repeating-linear-gradient(90deg, #8a5e34 0 6px, #7a5230 6px 8px); border: 2px solid #4e3216; border-radius: 6px; }
+.log.h { left: -2%; right: -2%; top: 24%; bottom: 24%; }
+.log.v { top: -2%; bottom: -2%; left: 24%; right: 24%; background: repeating-linear-gradient(0deg, #8a5e34 0 6px, #7a5230 6px 8px); }
+/* a tree that fell against the cliff: a log you can walk up */
+.g-leanlog { background: var(--grass); }
+.g-leanlog::before { content: ""; position: absolute; left: 22%; right: 22%; top: -30%; bottom: 4%; border-radius: 6px; z-index: 2;
+  background: repeating-linear-gradient(0deg, #9a6a3c 0 6px, #7a5230 6px 9px); border: 2px solid #4e3216; transform: skewX(-6deg); }
+/* a sprout at the foot of a cliff (or up on it) */
+.g-sproutup { background: var(--high); }
+.g-sprout::before, .g-sproutup::before { content: ""; position: absolute; left: 42%; right: 42%; top: 40%; bottom: 18%; background: #7fc45a; border-radius: 2px; }
+.g-sprout::after, .g-sproutup::after { content: ""; position: absolute; left: 24%; right: 24%; top: 26%; bottom: 46%;
+  background: radial-gradient(ellipse at 20% 60%, #8fd46a 0 34%, transparent 36%), radial-gradient(ellipse at 80% 60%, #8fd46a 0 34%, transparent 36%); }
+/* a vine grown up the cliff: green rungs you can climb */
+.g-vine { background: repeating-linear-gradient(0deg, #5f9a44 0 4px, #3e6e2e 4px 8px), #3e6e2e; }
+.g-vine::before { content: ""; position: absolute; inset: 0; background:
+  radial-gradient(circle at 25% 20%, #9fe07a 0 9%, transparent 10%), radial-gradient(circle at 75% 55%, #9fe07a 0 9%, transparent 10%),
+  radial-gradient(circle at 30% 85%, #9fe07a 0 9%, transparent 10%); }
+/* a seed in a patch of bare dark earth */
+.g-seed { background: var(--grass); }
+.g-seed::before { content: ""; position: absolute; inset: 18%; border-radius: 50%; background: radial-gradient(circle at 50% 45%, #6a4a2c, #4a321c 70%); box-shadow: inset 0 2px 0 rgba(0,0,0,.35); }
+.g-seed::after { content: ""; position: absolute; left: 41%; right: 41%; top: 36%; bottom: 40%; border-radius: 50% 50% 45% 45%; background: #e2c48a; box-shadow: 0 1px 0 #7a5a30; transform: rotate(18deg); }
+/* the rope post across the river, and the bridge it holds up */
+.g-post::before { content: ""; position: absolute; left: 38%; right: 38%; top: 10%; bottom: 10%; background: #8a5e34; border: 2px solid #4e3216; border-radius: 2px; }
+.g-post::after { content: ""; position: absolute; left: -10%; right: 50%; top: 22%; height: 2px; background: #d8c9a0; transform: rotate(-12deg); transform-origin: right; }
+.g-raised::before { content: ""; position: absolute; right: -4%; top: -40%; bottom: 10%; width: 26%; z-index: 2;
+  background: repeating-linear-gradient(0deg, #a07a52 0 6px, #6e5236 6px 8px); border: 2px solid #4e3216; border-radius: 2px; box-shadow: -4px 4px 0 rgba(0,0,0,.35); }
+.g-bridge::before { content: ""; position: absolute; inset: 15% 0; background: repeating-linear-gradient(90deg, #a07a52 0 7px, #6e5236 7px 8px); }
+
+/* high ground stands up: a light lip on its edges, a rock wall under it, a shadow beside it */
+.g-high.edgeS, .g-sproutup.edgeS { box-shadow: inset 0 -3px 0 #a9cf8e; }
+.g-high.edgeE, .g-sproutup.edgeE { box-shadow: inset -3px 0 0 #a9cf8e; }
+.g-high.edgeS.edgeE { box-shadow: inset 0 -3px 0 #a9cf8e, inset -3px 0 0 #a9cf8e; }
+.t.wallN > .wall, .t.shadeW > .wall { position: absolute; inset: 0; pointer-events: none; }
+.t.wallN > .wall {
+  background:
+    linear-gradient(180deg, transparent 0 50%, rgba(0,0,0,.42) 50%, transparent 78%),
+    repeating-linear-gradient(90deg, transparent 0 22%, rgba(0,0,0,.18) 22% 27%) top / 100% 50% no-repeat,
+    linear-gradient(180deg, #8d8471 0 10%, #6f6857 10% 50%, transparent 50%);
+}
+.t.shadeW > .wall { background: linear-gradient(90deg, rgba(0,0,0,.45), transparent 55%); }
+.t.wallN.shadeW > .wall {
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.45), transparent 55%),
+    linear-gradient(180deg, transparent 0 50%, rgba(0,0,0,.42) 50%, transparent 78%),
+    repeating-linear-gradient(90deg, transparent 0 22%, rgba(0,0,0,.18) 22% 27%) top / 100% 50% no-repeat,
+    linear-gradient(180deg, #8d8471 0 10%, #6f6857 10% 50%, transparent 50%);
+}
+/* while you stand up high, everything below goes dim */
+.map.up .t.low { filter: brightness(.55) saturate(.8); }
+.map .t.low { transition: filter .35s; }
+
+/* fire: flames while it burns, and a spark flying over a gap */
+.t.fire::after { content: ""; position: absolute; inset: -10% 8% 4% 8%; z-index: 3; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 85%, #fff2a8 0 18%, #ffb347 19% 42%, #ff6a2a 43% 66%, transparent 68%);
+  animation: flame .22s ease-in-out infinite alternate; filter: drop-shadow(0 0 6px #ff8a3c); }
+@keyframes flame { from { transform: scaleY(1) translateY(0); } to { transform: scaleY(1.18) translateY(-6%); } }
+.t.spark::after { content: ""; position: absolute; left: 30%; top: 30%; width: 22%; height: 22%; border-radius: 50%; z-index: 3;
+  background: #ffd36a; box-shadow: 0 0 8px #ff9a3c, 10px -6px 0 -2px #ffb347, -8px -10px 0 -3px #ffd36a; animation: sparkfly .3s ease-out; }
+@keyframes sparkfly { from { transform: translate(-40%, 20%) scale(.6); opacity: .4; } to { transform: translate(40%, -30%) scale(1); opacity: 1; } }
+.t.chew { animation: chew .16s linear infinite; }
+@keyframes chew { 50% { transform: translateX(6%) rotate(3deg); } }
+
+/* a creature on the map */
+.cr { position: absolute; inset: 6%; width: 88%; height: 88%; animation: bob 1.6s ease-in-out infinite; filter: drop-shadow(0 1px 0 rgba(0,0,0,.4)); z-index: 2; }
+.cr.rare { filter: drop-shadow(0 0 4px var(--gold)); }
+.cr.rarest { filter: drop-shadow(0 0 6px var(--ember)) drop-shadow(0 0 2px var(--gold)); }
+/* a glint seen through the fog (followers and plain creatures only; rare ones never glint) */
+.glint {
+  position: absolute; left: 50%; top: 50%; width: 30%; height: 30%;
+  transform: translate(-50%, -50%) rotate(45deg); background: var(--gold);
+  border-radius: 2px; animation: twinkle 1.4s ease-in-out infinite;
+}
+
+/* a rare one's trail; each rare one leaves its own kind */
+.trk { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+.trk::before, .trk::after { content: ""; position: absolute; }
+.trk.hoof::before, .trk.hoof::after { width: 14%; height: 20%; border-radius: 50% 50% 45% 45%; background: #3e2f1e; opacity: .8; box-shadow: 6px 0 0 #3e2f1e; }
+.trk.hoof::before { left: 22%; top: 22%; } .trk.hoof::after { left: 52%; top: 56%; }
+.trk.silver::before, .trk.silver::after { width: 14%; height: 20%; border-radius: 50% 50% 45% 45%; background: #dfe6f2; box-shadow: 6px 0 0 #dfe6f2, 0 0 6px #fff; }
+.trk.silver::before { left: 22%; top: 22%; } .trk.silver::after { left: 52%; top: 56%; }
+.trk.feather::before, .trk.feather::after { width: 32%; height: 10%; border-radius: 50% 0 50% 0; background: #f4f1ea; box-shadow: 0 0 3px rgba(255,255,255,.6); }
+.trk.feather::before { left: 18%; top: 30%; transform: rotate(-20deg); } .trk.feather::after { left: 50%; top: 62%; transform: rotate(30deg); }
+.trk.wet::before, .trk.wet::after { width: 18%; height: 14%; border-radius: 50%; background: rgba(150,200,240,.75); box-shadow: 5px -4px 0 -2px rgba(150,200,240,.75), -5px -4px 0 -2px rgba(150,200,240,.75); }
+.trk.wet::before { left: 24%; top: 28%; } .trk.wet::after { left: 56%; top: 60%; }
+.trk.dust::before, .trk.dust::after { width: 16%; height: 16%; border-radius: 50%; background: #ffd36a; box-shadow: 0 0 6px #ff9a3c; animation: twinkle2 2s ease-in-out infinite; }
+.trk.dust::before { left: 24%; top: 40%; } .trk.dust::after { left: 60%; top: 24%; animation-delay: -1s; }
+@keyframes twinkle2 { 50% { opacity: .4; } }
+
+/* the "stuck" sign: never a word about what to do, just a bird circling at the spot */
+.sign { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+.t.signed { z-index: 4; }
+.sign.bird .orbit, .sign.bird .shadow { position: absolute; left: 50%; top: 50%; width: 0; height: 0; animation: orbit 3.2s linear infinite; }
+.sign.bird svg { position: absolute; left: calc(var(--tile) * .2); top: calc(var(--tile) * -1.1); width: calc(var(--tile) * .85); height: calc(var(--tile) * .85); overflow: visible; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
+.sign.bird .shadow i { position: absolute; left: calc(var(--tile) * .65); top: calc(var(--tile) * -.15); width: calc(var(--tile) * .55); height: calc(var(--tile) * .2); border-radius: 50%; background: rgba(0,0,0,.35); }
+.wing { transform-origin: 17px 18px; animation: flap .5s ease-in-out infinite alternate; }
+.wing.r { animation-delay: -.5s; }
+@keyframes flap { from { transform: scaleY(1); } to { transform: scaleY(-.35); } }
+@keyframes orbit { to { transform: rotate(360deg); } }
+
+/* squares that just changed */
+.t.pulse > .ring {
+  position: absolute; inset: 1px; border-radius: 4px; z-index: 3;
+  box-shadow: inset 0 0 0 3px var(--gold); animation: pulse .7s ease-in-out 4; pointer-events: none;
+}
+@keyframes bob { 50% { transform: translateY(-7%); } }
+@keyframes twinkle { 0%, 100% { opacity: .25; transform: translate(-50%,-50%) rotate(45deg) scale(.6); } 50% { opacity: 1; transform: translate(-50%,-50%) rotate(45deg) scale(1); } }
+@keyframes pulse { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+
+/* you */
+.me {
+  position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile);
+  pointer-events: none; transition: transform .11s linear; z-index: 5;
+}
+.me::after {
+  content: ""; position: absolute; inset: 24%; border-radius: 50%;
+  background: var(--gold); box-shadow: 0 0 0 3px var(--night), 0 0 0 5px var(--gold), 0 0 16px var(--gold);
+}
+.me.push::after { animation: shove .4s ease-out; }
+@keyframes shove { 40% { transform: scale(1.25, .8); } }
+
+/* your follower: on the square you just left; the cloud floats, and drifts off on its own */
+.fol { position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile); z-index: 4; pointer-events: none;
+  transition: transform .16s linear; }
+.fol[hidden] { display: none; }
+.fol svg { position: absolute; inset: 4%; width: 92%; height: 92%; overflow: visible; filter: drop-shadow(0 2px 0 rgba(0,0,0,.4)); }
+.fol.left svg { transform: scaleX(-1); }
+.fol.f-F svg { animation: trotf .3s ease-in-out infinite; }
+.fol.f-F::after { content: ""; position: absolute; right: -6%; bottom: 10%; width: 34%; height: 34%; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,200,90,.9), rgba(255,120,40,.0) 70%); animation: ember .4s ease-in-out infinite alternate; }
+.fol.f-F.left::after { right: auto; left: -6%; }
+@keyframes ember { from { opacity: .5; transform: scale(.8); } to { opacity: 1; transform: scale(1.2); } }
+@keyframes trotf { 50% { transform: translateY(-5%); } }
+.fol.left.f-F svg { animation-name: trotfL; }
+@keyframes trotfL { 0%, 100% { transform: scaleX(-1); } 50% { transform: scaleX(-1) translateY(-5%); } }
+.fol.f-G.gnaw svg { animation: gnaw .12s linear infinite; }
+@keyframes gnaw { 50% { transform: translateY(-8%) rotate(-6deg); } }
+.fol.f-D { z-index: 6; transition: transform .7s ease-in-out; }
+.fol.f-D svg { inset: -30% -10% 40% -10%; width: 120%; height: 90%; animation: floaty 2.4s ease-in-out infinite; filter: drop-shadow(0 6px 0 rgba(0,0,0,.25)); }
+.fol.f-D::after { content: ""; position: absolute; left: 14%; right: 14%; top: 48%; bottom: -4%;
+  background: repeating-linear-gradient(100deg, transparent 0 5px, rgba(170,210,255,.75) 5px 6px, transparent 6px 11px);
+  background-size: 100% 12px; animation: rain .35s linear infinite; opacity: .9; }
+@keyframes floaty { 50% { transform: translateY(-6%); } }
+@keyframes rain { from { background-position: 0 0; } to { background-position: -3px 12px; } }
+
+/* the wind: streaks moving across the whole view, the way it blows */
+.windfx { position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: 0; transition: opacity 1.4s; overflow: hidden; }
+.windfx.e, .windfx.w { opacity: 1; }
+.windfx i { position: absolute; left: 0; width: 70px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, transparent, rgba(236,232,218,.55), transparent); }
+.windfx.e i { animation: gustE 1.5s linear infinite; }
+.windfx.w i { animation: gustW 1.5s linear infinite; }
+.windfx i.leaf { width: 7px; height: 5px; border-radius: 60% 0; background: #8fbf5a; }
+@keyframes gustE { from { transform: translateX(-90px); } to { transform: translateX(620px); } }
+@keyframes gustW { from { transform: translateX(620px); } to { transform: translateX(-90px); } }
+
+/* hint line */
+.hint { min-height: 2.8em; display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; color: var(--muted); font-size: 14px; padding: 0 4px; }
+.hint.news { color: var(--ink); font-weight: 700; }
+.hint svg { width: 28px; height: 28px; flex: none; }
+
+/* creature book */
+.book { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+.book h2 { margin: 0 0 6px; font: 700 13px/1 var(--f-display); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); display: flex; justify-content: space-between; }
+.book h2 b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.slots { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px 2px; }
+.slot { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; background: none; border: 0; padding: 2px 0; color: inherit; font: inherit; cursor: pointer; }
+.slot .face {
+  position: relative; width: 28px; height: 28px; border-radius: 50%;
+  border: 2px dashed var(--line); display: grid; place-items: center;
+  color: var(--muted); font: 700 12px var(--f-display);
+}
+.slot.helper .face { border-color: #4a6a9a; }
+.slot.rare .face { border-color: var(--gold); border-style: solid; }
+.slot.rarest .face { border: 3px double var(--ember); }
+.slot.got .face { border: 0; background: #2a3350; }
+.slot.got.helper .face { box-shadow: 0 0 0 2px var(--helper); }
+.slot.got.helper.out .face { box-shadow: 0 0 0 2px var(--helper), 0 0 0 4px var(--gold); }
+.slot.got.rare .face { box-shadow: 0 0 0 2px var(--gold), 0 0 8px var(--gold); }
+.slot.got.rarest .face { box-shadow: 0 0 0 2px var(--ember), 0 0 12px var(--ember); }
+.slot .face svg { width: 24px; height: 24px; }
+.slot .face .trk { position: absolute; inset: 0; }
+.slot .nm { font-size: 9px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot.got .nm { color: var(--ink); }
+.slot.pop .face { animation: pop .5s ease-out; }
+@keyframes pop { 40% { transform: scale(1.35); } }
+
+/* found card; rare finds get a gold card, the rarest an ember one */
+.card { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(8,10,18,.6); padding: 16px; }
+.card[hidden] { display: none; }
+.cardin {
+  width: min(300px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  padding: 18px 16px 14px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  animation: cardin .3s ease-out;
+}
+.cardin.helper { border-color: var(--helper); }
+.cardin.rare { border: 2px solid var(--gold); box-shadow: 0 0 32px rgba(242,193,78,.45); }
+.cardin.rarest, .cardin.done { border: 2px solid var(--ember); box-shadow: 0 0 48px rgba(255,138,92,.6); animation: cardin .3s ease-out, glowcard 1.6s ease-in-out .3s infinite; }
+.cardin > svg { width: 104px; height: 104px; }
+.cardin.rare > svg, .cardin.rarest > svg { width: 124px; height: 124px; }
+.cardin b { font: 700 24px/1.1 var(--f-display); }
+.cardin .tag { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--gold); font-weight: 700; }
+.cardin.helper .tag { color: #9db8ea; }
+.cardin.rarest .tag, .cardin.done .tag { color: var(--ember); font-size: 13px; }
+.cardin p { margin: 0; font-size: 16px; }
+.cardin small { color: var(--muted); margin-top: 6px; }
+.cardin .crew { display: flex; gap: 10px; margin-top: 4px; }
+.cardin .crew svg { width: 52px; height: 52px; background: #2a3350; border-radius: 50%; box-shadow: 0 0 0 2px var(--helper); }
+@keyframes cardin { from { transform: scale(.85); opacity: 0; } }
+@keyframes glowcard { 50% { box-shadow: 0 0 70px rgba(255,138,92,.85); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cr, .glint, .slot.pop .face, .t.pulse > .ring, .cardin, .trk::before, .trk::after,
+  .sign.bird .orbit, .sign.bird .shadow, .wing, .g-water, .g-logw, .g-raised, .g-bridge,
+  .me::after, .fol svg, .fol::after, .t.fire::after, .t.spark::after, .t.chew, .windfx i { animation: none; }
+  .me, .map, .fol { transition: none; }
+  .t.pulse > .ring { opacity: 1; }
+}
+</style>
+
+<!-- creature drawings, each used on the map, in the book and on the card; each symbol id is "sp-" plus the creature's map letter -->
+<!-- (the check script fails if a creature has no drawing) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="sp-F" viewBox="0 0 32 32"><!-- Emberfox: a little fox with a glowing tail -->
+      <path d="M2 22 q2 -10 10 -8 q-6 4 -4 10z" fill="#ffb347"/>
+      <path d="M2 22 q1 -5 5 -6 q-3 3 -2 7z" fill="#fff2a8"/>
+      <path d="M8 26 q-1 -9 9 -10 h5 q4 1 4 6 q0 5 -6 5 h-9z" fill="#e8743a"/>
+      <path d="M11 27 v4 M15 27 v4 M20 27 v4 M24 26 v4" stroke="#3a2a22" stroke-width="2" stroke-linecap="round"/>
+      <path d="M20 12 l1 -6 l3 5 l3 -5 l1 6 q2 4 -1 7 h-6 q-3 -3 -1 -7z" fill="#e8743a"/>
+      <path d="M24 17 l6 1 l-3 3z" fill="#f6e2c8"/>
+      <circle cx="22.5" cy="14" r="1.2" fill="#1a1a1a"/><circle cx="26.5" cy="14" r="1.2" fill="#1a1a1a"/>
+      <circle cx="30" cy="18.6" r=".9" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="sp-G" viewBox="0 0 32 32"><!-- Gnawly: a beaver with big front teeth and a flat tail -->
+      <ellipse cx="6" cy="25" rx="6" ry="3" fill="#5a3a22" transform="rotate(-20 6 25)"/>
+      <path d="M5 24 l6 -2 M4 26 l6 -1" stroke="#3e2816" stroke-width=".8"/>
+      <ellipse cx="17" cy="21" rx="10" ry="8" fill="#9a6440"/>
+      <ellipse cx="17" cy="23" rx="6" ry="5" fill="#c49470"/>
+      <circle cx="21" cy="11" r="7" fill="#9a6440"/>
+      <circle cx="16" cy="6" r="2" fill="#7a4e30"/><circle cx="26" cy="6" r="2" fill="#7a4e30"/>
+      <ellipse cx="23" cy="14.5" rx="4" ry="3" fill="#c49470"/>
+      <rect x="21.4" y="15.6" width="3.2" height="4" rx=".6" fill="#fff8e0" stroke="#d8c890" stroke-width=".5"/>
+      <path d="M23 15.6 v4" stroke="#d8c890" stroke-width=".5"/>
+      <circle cx="23" cy="13" r="1.2" fill="#2a1a12"/>
+      <circle cx="19" cy="9.5" r="1.4" fill="#1a1a1a"/><circle cx="25" cy="9.5" r="1.4" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="sp-D" viewBox="0 0 32 32"><!-- Drizzle: a little rain cloud with a face -->
+      <path d="M6 22 q-5 0 -5 -5 q0 -5 6 -5 q1 -6 8 -6 q6 0 8 5 q7 -1 8 5 q0 6 -6 6z" fill="#e8ecf4" stroke="#a8b4c8" stroke-width="1"/>
+      <circle cx="13" cy="15" r="1.4" fill="#2a3350"/><circle cx="20" cy="15" r="1.4" fill="#2a3350"/>
+      <path d="M14.5 18 q2 1.5 4 0" stroke="#2a3350" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+      <path d="M9 25 l-1 3 M15 25 l-1 4 M21 25 l-1 3 M26 25 l-1 3" stroke="#8ec4f2" stroke-width="1.6" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sp-a" viewBox="0 0 32 32"><!-- Thornmouse: a grey mouse -->
+      <path d="M4 26 q-3 -2 -1 -6" stroke="#c09090" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      <ellipse cx="15" cy="21" rx="10" ry="7" fill="#9aa0ad"/>
+      <circle cx="22" cy="12" r="5" fill="#b4b9c4"/><circle cx="14" cy="11" r="4" fill="#b4b9c4"/>
+      <circle cx="22" cy="12" r="2.6" fill="#e8b0b8"/><circle cx="14" cy="11" r="2" fill="#e8b0b8"/>
+      <circle cx="21" cy="19" r="1.4" fill="#1a1a1a"/><circle cx="26" cy="21" r="1" fill="#e07a8a"/>
+    </symbol>
+    <symbol id="sp-c" viewBox="0 0 32 32"><!-- Reedkit: a little otter -->
+      <path d="M3 24 q4 -2 8 0" stroke="#7a5236" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <ellipse cx="17" cy="21" rx="10" ry="6" fill="#8a603e"/>
+      <circle cx="24" cy="13" r="6" fill="#8a603e"/>
+      <ellipse cx="25" cy="15" rx="4" ry="3" fill="#e6cfae"/>
+      <circle cx="22.5" cy="11.5" r="1.3" fill="#1a1a1a"/><circle cx="27" cy="11.5" r="1.3" fill="#1a1a1a"/>
+      <circle cx="25" cy="14" r="1" fill="#2a1a12"/>
+    </symbol>
+    <symbol id="sp-d" viewBox="0 0 32 32"><!-- Puffball: a round little bird -->
+      <circle cx="16" cy="18" r="10" fill="#f4a8c0"/>
+      <ellipse cx="16" cy="21" rx="6" ry="5" fill="#fbe0e8"/>
+      <path d="M6 16 q-4 2 -2 6 q3 -1 4 -3z" fill="#e08aa8"/>
+      <path d="M20 15 l5 1.5 l-5 1.5z" fill="#f2a83a"/>
+      <circle cx="17" cy="13.5" r="1.5" fill="#1a1a1a"/>
+      <path d="M12 28 v3 M18 28 v3" stroke="#f2a83a" stroke-width="1.4"/>
+    </symbol>
+    <symbol id="sp-e" viewBox="0 0 32 32"><!-- Dewbug: a green beetle with a dewdrop -->
+      <path d="M8 12 l-4 -4 M24 12 l4 -4 M7 20 l-5 1 M25 20 l5 1 M9 26 l-4 3 M23 26 l4 3" stroke="#2e4a26" stroke-width="1.6" stroke-linecap="round"/>
+      <ellipse cx="16" cy="20" rx="9" ry="9" fill="#5fae4a"/>
+      <path d="M16 11 v18" stroke="#3e7a34" stroke-width="1.2"/>
+      <circle cx="16" cy="10" r="4.5" fill="#3e7a34"/>
+      <circle cx="14.4" cy="9.5" r="1" fill="#e8f0e0"/><circle cx="17.6" cy="9.5" r="1" fill="#e8f0e0"/>
+      <path d="M21 16 q2 -3 2 0 q0 2 -2 2 q-2 0 0 -2z" fill="#bfe8ff"/>
+    </symbol>
+    <symbol id="sp-f" viewBox="0 0 32 32"><!-- Pebblet: rock -->
+      <path d="M4 26 l3 -12 l8 -8 l10 3 l4 11 l-4 7 z" fill="#9aa0ad"/>
+      <path d="M15 6 l3 9 l11 5" stroke="#7a808d" stroke-width="1.4" fill="none"/>
+      <circle cx="12" cy="18" r="1.8" fill="#1a1a1a"/><circle cx="19" cy="19" r="1.8" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="sp-g" viewBox="0 0 32 32"><!-- Mossling: moss blob with a sprout -->
+      <path d="M16 9 q-1 -5 -6 -6 q3 5 6 6z M16 9 q2 -6 8 -6 q-3 6 -8 6z" fill="#5fae4a"/>
+      <path d="M5 26 q-3 -9 4 -14 q7 -5 14 0 q7 5 4 14z" fill="#8fce7a"/>
+      <circle cx="12.5" cy="18" r="1.7" fill="#1a1a1a"/><circle cx="19.5" cy="18" r="1.7" fill="#1a1a1a"/>
+      <circle cx="9" cy="23" r="1.3" fill="#6fb35a"/><circle cx="23" cy="22" r="1.5" fill="#6fb35a"/>
+    </symbol>
+    <symbol id="sp-i" viewBox="0 0 32 32"><!-- Cliffhopper: a bunny -->
+      <path d="M11 13 q-3 -10 1 -11 q3 1 2 11z M18 13 q1 -10 5 -10 q3 3 -2 11z" fill="#d8ccba"/>
+      <path d="M12 11 q-1 -6 0 -7 M20 11 q1 -5 2 -6" stroke="#f0b0b8" stroke-width="1.6" stroke-linecap="round"/>
+      <ellipse cx="16" cy="22" rx="10" ry="8" fill="#e8dfd0"/>
+      <circle cx="16" cy="16" r="6" fill="#e8dfd0"/>
+      <circle cx="13.5" cy="15.5" r="1.3" fill="#1a1a1a"/><circle cx="18.5" cy="15.5" r="1.3" fill="#1a1a1a"/>
+      <path d="M15 18.5 h2 l-1 1.2z" fill="#e07a8a"/>
+    </symbol>
+    <symbol id="sp-k" viewBox="0 0 32 32"><!-- Ledgecat: a sleepy cat -->
+      <path d="M26 26 q6 -4 2 -10" stroke="#e0a050" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <ellipse cx="16" cy="23" rx="11" ry="6" fill="#f2b45e"/>
+      <path d="M7 14 l1 -7 l5 4z M25 14 l-1 -7 l-5 4z" fill="#f2b45e"/>
+      <circle cx="16" cy="15" r="8" fill="#f2b45e"/>
+      <path d="M11 15 q2 1.5 4 0 M17 15 q2 1.5 4 0" stroke="#1a1a1a" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+      <path d="M15 18 h2 l-1 1.2z" fill="#c4553a"/>
+      <path d="M10 10 l3 2 M22 10 l-3 2" stroke="#d08a3a" stroke-width="1"/>
+    </symbol>
+    <symbol id="sp-n" viewBox="0 0 32 32"><!-- Snailo: snail -->
+      <path d="M2 27 q4 -6 12 -5 h14 q2 0 2 3 v2z" fill="#c8d8a0"/>
+      <path d="M26 22 l1 -8 M29 22 l2 -7" stroke="#c8d8a0" stroke-width="1.8" stroke-linecap="round"/>
+      <circle cx="27" cy="13.5" r="1.5" fill="#1a1a1a"/><circle cx="31" cy="14.5" r="1.3" fill="#1a1a1a"/>
+      <circle cx="14" cy="15" r="10" fill="#9a6ac8"/>
+      <path d="M14 15 m0 -1.5 a1.5 1.5 0 1 1 -1.5 1.5 a4 4 0 1 1 4 4 a6.5 6.5 0 1 1 -6.5 -6.5" stroke="#6a3e98" stroke-width="1.8" fill="none"/>
+    </symbol>
+    <symbol id="sp-o" viewBox="0 0 32 32"><!-- Riverhare: a long-eared hare -->
+      <path d="M17 12 q-2 -11 2 -11 q3 1 1 11z M21 12 q3 -10 7 -9 q1 3 -4 10z" fill="#b08a64"/>
+      <ellipse cx="13" cy="22" rx="11" ry="7" fill="#b08a64"/>
+      <circle cx="22" cy="15" r="6" fill="#b08a64"/>
+      <circle cx="4" cy="20" r="3" fill="#f2ead8"/>
+      <circle cx="23" cy="13.5" r="1.4" fill="#1a1a1a"/>
+      <path d="M27 16 h1.5" stroke="#5a3a2a" stroke-width="1.2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sp-A" viewBox="0 0 32 32"><!-- Highhorn: a little mountain goat (rare) -->
+      <path d="M10 25 v5 M14 26 v5 M20 26 v5 M24 25 v5" stroke="#3a3a42" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M7 18 q-1 -7 7 -7 h8 q7 0 6 8 q0 7 -8 7 h-6 q-8 0 -7 -8z" fill="#f2efe6"/>
+      <path d="M22 9 q2 -6 6 -6 q-2 3 -3 7 M26 10 q3 -5 6 -4 q-3 2 -4 6" stroke="#8a7a60" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <ellipse cx="26" cy="13" rx="5" ry="4.5" fill="#f2efe6"/>
+      <path d="M27 17 q1 4 -1 5" stroke="#d8d2c4" stroke-width="2" fill="none"/>
+      <circle cx="27" cy="12" r="1.3" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="sp-B" viewBox="0 0 32 32"><!-- Cliffowl: a grey little owl (rare) -->
+      <path d="M8 6 l2 5 M24 6 l-2 5" stroke="#5a6070" stroke-width="2.4" stroke-linecap="round"/>
+      <ellipse cx="16" cy="18" rx="10" ry="12" fill="#9aa0b4"/>
+      <ellipse cx="16" cy="21" rx="6" ry="7.5" fill="#e4e6ee"/>
+      <circle cx="12" cy="13" r="4" fill="#f6f6fa"/><circle cx="20" cy="13" r="4" fill="#f6f6fa"/>
+      <circle cx="12" cy="13" r="2.2" fill="#7ac8f2"/><circle cx="20" cy="13" r="2.2" fill="#7ac8f2"/>
+      <circle cx="12" cy="13" r="1.1" fill="#1a1a1a"/><circle cx="20" cy="13" r="1.1" fill="#1a1a1a"/>
+      <path d="M15 16 h2 l-1 2.4z" fill="#6a4a2a"/>
+    </symbol>
+    <symbol id="sp-C" viewBox="0 0 32 32"><!-- Lilyfrog: a pink-spotted frog (rare) -->
+      <ellipse cx="16" cy="22" rx="12" ry="8" fill="#6cc46a"/>
+      <circle cx="10" cy="12" r="5" fill="#6cc46a"/><circle cx="22" cy="12" r="5" fill="#6cc46a"/>
+      <circle cx="10" cy="12" r="2.6" fill="#fff"/><circle cx="22" cy="12" r="2.6" fill="#fff"/>
+      <circle cx="10.4" cy="12.4" r="1.4" fill="#1a1a1a"/><circle cx="22.4" cy="12.4" r="1.4" fill="#1a1a1a"/>
+      <path d="M9 22 q7 5 14 0" stroke="#2e6a2c" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+      <circle cx="7" cy="25" r="1.6" fill="#f2a6c0"/><circle cx="25" cy="25" r="1.6" fill="#f2a6c0"/><circle cx="16" cy="28" r="1.4" fill="#f2a6c0"/>
+    </symbol>
+    <symbol id="sp-E" viewBox="0 0 32 32"><!-- Embermoth: a glowing orange moth (rare) -->
+      <path d="M16 14 q-12 -12 -14 0 q0 8 14 4z M16 14 q12 -12 14 0 q0 8 -14 4z" fill="#ff9a3c"/>
+      <path d="M16 18 q-10 2 -10 10 q8 0 10 -8z M16 18 q10 2 10 10 q-8 0 -10 -8z" fill="#ffc46a"/>
+      <circle cx="8" cy="11" r="2.4" fill="#fff2a8"/><circle cx="24" cy="11" r="2.4" fill="#fff2a8"/>
+      <ellipse cx="16" cy="18" rx="2.2" ry="7" fill="#6a3a1a"/>
+      <path d="M15 11 q-2 -5 -5 -6 M17 11 q2 -5 5 -6" stroke="#6a3a1a" stroke-width="1" fill="none"/>
+    </symbol>
+    <symbol id="sp-Q" viewBox="0 0 32 32"><!-- Moonstag: a silver deer with glowing antlers (the rarest) -->
+      <path d="M10 25 v6 M14 26 v5 M21 26 v5 M25 25 v6" stroke="#8a90a8" stroke-width="2" stroke-linecap="round"/>
+      <path d="M7 19 q0 -7 8 -7 h7 q6 0 6 7 q0 7 -7 7 h-7 q-7 0 -7 -7z" fill="#dfe4f2"/>
+      <path d="M22 8 q-1 -5 -4 -7 M22 6 l-3 -1 M26 8 q1 -5 4 -7 M26 6 l3 -1" stroke="#ffe27a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      <circle cx="24" cy="1" r="3" fill="#ffe27a" opacity=".25"/>
+      <ellipse cx="24" cy="12" rx="4.5" ry="4" fill="#dfe4f2"/>
+      <circle cx="22.5" cy="11.5" r="1.2" fill="#1a1a1a"/><circle cx="25.5" cy="11.5" r="1.2" fill="#1a1a1a"/>
+      <circle cx="12" cy="17" r="1" fill="#fff"/><circle cx="16" cy="15" r="1" fill="#fff"/><circle cx="19" cy="18" r="1" fill="#fff"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <div class="bar">
+    <div class="score"><small>Map 1 · found</small><b id="pct">0%</b><div class="meter"><i id="pctBar"></i></div></div>
+    <div class="spacer"></div>
+    <button class="who" id="who" type="button" hidden><svg viewBox="0 0 32 32"><use id="whoUse" href=""/></svg><span id="whoName"></span></button>
+    <button class="btn" id="zoom" type="button">Whole map</button>
+    <button class="btn" id="reset" type="button">Start over</button>
+  </div>
+  <div class="view" id="view"><div class="map" id="map"><div class="fol" id="fol" hidden></div><div class="me" id="me"></div></div><div class="windfx" id="wind"></div><div class="stick" id="stick" hidden><i id="knob"></i></div></div>
+  <div class="hint" id="hint">Drag anywhere on the map to walk. On a computer, use the arrow keys.</div>
+  <div class="book">
+    <h2><span>Creature book</span><b id="count">0 / 18</b></h2>
+    <div class="slots" id="slots"></div>
+  </div>
+</div>
+<div class="card" id="card" hidden>
+  <div class="cardin" id="cardIn">
+    <span class="tag" id="cardTag"></span>
+    <svg><use id="cardUse" href=""/></svg>
+    <b id="cardName"></b>
+    <p id="cardLine"></p>
+    <div class="crew" id="cardCrew" hidden></div>
+    <small id="cardSmall">Tap to keep exploring</small>
+  </div>
+</div>
+
+<script>
+// ==== CORE START: the rules of the world. No page code in here; check-evenings.js runs this block too. ====
+
+// ---- Map 1, placed by hand. 36 wide, 28 tall. ----
+// .  grass     t  trees (never)     x  solid rock (never)     h  high ground (you can't climb it)
+// ~  deep water     %  dry brambles     T  a lone tree     v  a sprout at the foot of a cliff     V  a sprout up on a cliff
+// s  a seed in bare earth     Y  a post with a rope     Z  a bridge, pulled up     j  a bridge or a ford     @  start
+// letters = creatures; a creature's "on" says what ground it sits on
+const MAP = [
+  "tttttttttttttttttttttttttttttttttttt",
+  "tt~~~~~~~~~~~~thhhhhthhhhhhhthhhhhht",
+  "tt~~~~~~~~~~~~thhkhhthhhBhhhthhhAhht",
+  "tt~~~~~~~~~~~~thhhhhthhhhhhhthhhhhht",
+  "tt~~~~~~~~..~~t..v..thhhhhhhthhhhhht",
+  "t.T~~~s~~~.C~~t.....thhhhhhhthhhhhht",
+  "t.~~~~~~~~..~~t..........T..thhhhhht",
+  "t.~~~~~~~~..~~t.....i...%%%.ttsttttt",
+  "t.~~~~~~~~~~~~t....................t",
+  "t.~~~~~~~~~~~~t................ttttt",
+  "t..e..................xx.......~...t",
+  "t........D...s.................~...t",
+  "ttttttttt.....................T~.c.t",
+  "t......~~.............G........~...t",
+  "t......~~.......tt..........d..~...t",
+  "t......~~.......tt.............ttttt",
+  "t......~~..........................t",
+  "t...E..~~.........g........f.......t",
+  "t......Y~...T......................t",
+  "t......ZZ..........................t",
+  "t......~~..........................t",
+  "t..%...~~...............F..........t",
+  "t..s...~~.....o....................t",
+  "t~~~~~~~~.........%%%.........@....t",
+  "t~~~~~~~~..........................t",
+  "t......~~...........n.....tt....%%%t",
+  "t.Q....~~.................tt....%a.t",
+  "tttttttttttttttttttttttttttttttttttt",
+];
+// END MAP
+// What can be switched off, so the check can prove an idea is needed.
+const RULES = { fireWind: true, drift: true, lean: true, seed: true, fuse: true };
+// The map version. A save from an older map 1 is thrown away, so the new map starts from zero.
+const MAP_VER = 2;
+
+const SEE = 10;        // squared distance you can see clearly
+const SEE_HIGH = 34;   // squared distance you can see from anywhere high
+const GLINT = 26;      // squared distance a creature glints through the fog (never a rare one)
+const MEET = 2;        // squared distance a rare one shows itself: right next to you
+const DRIFT = 2;       // how far the cloud gets blown from you
+const FALL = 3;        // how long a fallen tree is
+
+// kind: helper (a follower) / plain / rare / rarest.
+// after: what the hint line says once a follower's card closes.
+// Walls never say what to do, and the book never says where anything is.
+// A follower's card says only how it looks; what it does, you find out by watching it.
+const CREATURES = {
+  F: { name: "Emberfox", kind: "helper", gives: "fire",
+       line: "A fox with a smouldering tail.",
+       after: "Emberfox follows you now, a step behind." },
+  G: { name: "Gnawly",   kind: "helper", gives: "chew",
+       line: "A beaver with big strong teeth.",
+       after: "Gnawly follows you now. Tap the face up top to choose who follows you." },
+  D: { name: "Drizzle",  kind: "helper", gives: "rain",
+       line: "A little white cloud with a happy face.",
+       after: "Drizzle follows you now. Tap the face up top to choose who follows you." },
+  a: { name: "Thornmouse", kind: "plain", line: "It nests behind the brambles." },
+  c: { name: "Reedkit",    kind: "plain", line: "It lives in a nook past the stream." },
+  d: { name: "Puffball",   kind: "plain", line: "A round little bird. It never flies." },
+  e: { name: "Dewbug",     kind: "plain", line: "It sleeps in the long grass." },
+  f: { name: "Pebblet",    kind: "plain", line: "It sits by the stream and watches." },
+  g: { name: "Mossling",   kind: "plain", line: "Soft, and a bit damp." },
+  i: { name: "Hopsy",      kind: "plain", line: "It hops about between the cliffs." },
+  k: { name: "Ledgecat",   kind: "plain", on: "h", line: "It naps up on the cliff, out of reach." },
+  n: { name: "Snailo",     kind: "plain", line: "Slow, and happy in the mud." },
+  o: { name: "Riverhare",  kind: "plain", line: "It lives on the riverbank." },
+  A: { name: "Highhorn",   kind: "rare", on: "h", line: "A little mountain goat that lives up on the high cliff." },
+  B: { name: "Cliffowl",   kind: "rare", on: "h", line: "It nests up on the middle cliff." },
+  C: { name: "Lilyfrog",   kind: "rare", line: "It lives alone on the island in the pond." },
+  E: { name: "Embermoth",  kind: "rare", line: "It lives across the river, where the bridge is up." },
+  Q: { name: "Moonstag",   kind: "rarest", line: "The rarest one. It lives on the little island past the bridge." },
+};
+const ORDER = ["F", "G", "D", "a", "c", "d", "e", "f", "g", "i", "k", "n", "o", "A", "B", "C", "E", "Q"];
+const FOLLOW = ["F", "G", "D"];
+const GIVER = { fire: "F", chew: "G", rain: "D" };
+const TAG = { helper: "New follower", plain: "New creature", rare: "Rare find", rarest: "The rarest find" };
+
+// Each rare one leaves a trail, drawn on these squares, toward its den (last square nearest the den).
+const TRAILS = {
+  A: [[29, 10], [30, 9], [30, 8]],
+  B: [[23, 9], [23, 8], [22, 7]],
+  C: [[8, 11], [9, 10], [10, 10]],
+  E: [[11, 16], [10, 17], [9, 17]],
+  Q: [[5, 19], [5, 20], [5, 21]],
+};
+const TRAIL_LOOK = {
+  A: ["hoof", "Small hoofprints. They go right up to the foot of the cliff."],
+  B: ["feather", "Grey feathers on the grass, right under the high cliff."],
+  C: ["wet", "Wet little footprints, going down into the pond."],
+  E: ["dust", "Glittering orange dust on the grass, by the river."],
+  Q: ["silver", "Big silver hoofprints. They go to the water's edge."],
+};
+// What a wall says when you walk into it: never what to do about it.
+const BLOCKED_HINT = {
+  "t": "Thick trees. No way through.",
+  "x": "Solid rock.",
+  "~": "Deep water. Too deep to wade.",
+  "%": "Dry brambles, thick and thorny.",
+  "T": "A lone tree.",
+  "Z": "The bridge is pulled up on the far side.",
+  "Y": "A post with a rope round it.",
+};
+
+const W = MAP[0].length, H = MAP.length;
+const idx = (x, y) => y * W + x;
+const xy = (i) => [i % W, Math.floor(i / W)];
+const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+const creatureAt = (x, y) => (CREATURES[MAP[y][x]] ? MAP[y][x] : null);
+const mapGround = (x, y) => {
+  const ch = MAP[y][x];
+  if (CREATURES[ch]) return CREATURES[ch].on || ".";
+  if (ch === "@") return ".";
+  return ch;
+};
+const isRare = (k) => CREATURES[k].kind === "rare" || CREATURES[k].kind === "rarest";
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+let start = { x: 0, y: 0 };
+const ZS = [];
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+  const ch = MAP[y][x];
+  if (ch === "@") start = { x, y };
+  if (ch === "Z") ZS.push(idx(x, y));
+}
+const TRACK = new Map();
+for (const k in TRAILS) for (const [x, y] of TRAILS[k]) TRACK.set(idx(x, y), k);
+
+// ---- state ----
+// mod: squares that changed (burnt, grown, chewed down), as square -> what it is now.
+// prev: the square you last stepped off; your follower stands there.
+let S = null;
+function fresh() {
+  return { x: start.x, y: start.y, prev: idx(start.x, start.y), seen: new Array(W * H).fill(0), glints: [], found: [],
+    trails: [], met: [], mod: {}, face: [0, 1], out: null };
+}
+const has = (ability) => S.found.includes(GIVER[ability]);
+// squares on fire right now: nobody walks through them (the page fills this; the check never does)
+const HOT = new Set();
+
+function ground(x, y) {
+  const i = idx(x, y);
+  return S.mod[i] !== undefined ? S.mod[i] : mapGround(x, y);
+}
+// high ground is level 1; ramps, vines and a tree leaning on a cliff join both levels; everything else is level 0
+const level = (g) => (g === "h" || g === "V" ? 1 : g === "/" || g === "w" || g === "I" ? null : 0);
+const levelAt = (x, y) => level(ground(x, y));
+const high = (x, y) => levelAt(x, y) === 1;
+const same = (a, b) => a === null || b === null || a === b;
+// ash, logs, stumps, seeds and bridges are all ground you can walk on
+const PASS = ".,/wIhvV-lLSsj";
+const passable = (x, y) => PASS.includes(ground(x, y)) && !HOT.has(idx(x, y));
+const stepOK = (x, y, nx, ny) => same(levelAt(x, y), levelAt(nx, ny));
+// a creature you can find by walking onto it right now
+function findable(k, i) {
+  if (isRare(k)) return S.met.includes(k);
+  return true;
+}
+const trailShows = (k, x, y) => !S.found.includes(k) && S.seen[idx(x, y)];
+
+// Looks around where you stand. Returns what turned up, so the hint line can say it.
+function look() {
+  const see = high(S.x, S.y) ? SEE_HIGH : SEE;
+  const news = { trail: null, met: null };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const d = (x - S.x) ** 2 + (y - S.y) ** 2, i = idx(x, y);
+    if (d <= see) S.seen[i] = 1;
+    const k = creatureAt(x, y);
+    if (!k || S.found.includes(k)) continue;
+    if (isRare(k)) {
+      if (d <= MEET && S.seen[i] && !S.met.includes(k)) { S.met.push(k); news.met = k; }
+      continue;
+    }
+    if (d <= GLINT && !S.glints.includes(i)) S.glints.push(i);
+  }
+  for (const k in TRAILS) {
+    if (S.trails.includes(k) || S.found.includes(k)) continue;
+    if (TRAILS[k].some(([x, y]) => trailShows(k, x, y))) { S.trails.push(k); news.trail = k; }
+  }
+  return news;
+}
+
+// What one push in a straight direction does from (x, y): walk, or bump into something.
+function stepFrom(x, y, dx, dy) {
+  const nx = x + dx, ny = y + dy;
+  if (!inside(nx, ny)) return { kind: "bump", g: "t" };
+  const g = ground(nx, ny);
+  if (!S.seen[idx(nx, ny)] || !passable(nx, ny)) return { kind: "bump", g };
+  if (!stepOK(x, y, nx, ny)) return { kind: "bump", g, edge: true };
+  return { kind: "walk", to: idx(nx, ny) };
+}
+// every square you could get to in one step from (x, y)
+function moves(x, y) {
+  const out = [];
+  for (const [dx, dy] of DIRS) {
+    const a = stepFrom(x, y, dx, dy);
+    if (a.kind === "walk") out.push([a.to, "walk"]);
+  }
+  return out;
+}
+
+// ---- fire (Emberfox) ----
+// Brambles next to the fox catch fire. Fire runs on downwind through brambles in a row, and when the wind blows,
+// sparks fly over one square of anything low to the next dry thing. With no wind it only burns where it was lit.
+// It never burns across a height change, the same height rule as everyone.
+// Dry things burn: brambles, the rope post, and a fallen tree lying on land. A log in the water is wet and doesn't.
+const burns = (g) => g === "%" || g === "Y" || (g === "l" && RULES.fuse);
+function fireFrom(i, wind) {
+  const out = [i];
+  if (!wind || !RULES.fireWind) return out;
+  let [x, y] = xy(i);
+  for (;;) {
+    const L = level(ground(x, y));
+    const a = x + wind;
+    if (!inside(a, y)) break;
+    const ga = ground(a, y);
+    if (burns(ga) && level(ga) === L) { out.push(idx(a, y)); x = a; continue; }
+    const b = a + wind;
+    if (!inside(b, y) || "txhV".includes(ga)) break;
+    const gb = ground(b, y);
+    if (burns(gb) && level(gb) === L) { out.push(idx(b, y)); x = b; continue; }
+    break;
+  }
+  return out;
+}
+// What a burnt square leaves: brambles and logs go to ash; the rope post burns through and the bridge comes down.
+function burnt(i) {
+  const ch = {};
+  ch[i] = "-";
+  if (ground(...xy(i)) === "Y") for (const z of ZS) ch[z] = "j";
+  return ch;
+}
+// brambles the fox, standing on square f, would set alight
+function lightable(f) {
+  const [x, y] = xy(f), out = [];
+  const lf = level(ground(x, y));
+  for (const [dx, dy] of DIRS) {
+    const nx = x + dx, ny = y + dy;
+    if (!inside(nx, ny)) continue;
+    const g = ground(nx, ny);
+    if (burns(g) && same(lf, level(g))) out.push(idx(nx, ny));
+  }
+  return out;
+}
+
+// ---- rain (Drizzle) ----
+// The cloud floats over the square you just left. When the wind blows, it gets blown DRIFT squares from you, downwind,
+// over anything. Rain only grows things on land: sprouts into vines up the cliff, a seed or a stump into a tree.
+// Nothing grows on water.
+const GROWS = { v: "w", V: "w", s: "T", S: "T" };
+function cloudSpot(wind) {
+  if (wind && RULES.drift) return idx(Math.max(0, Math.min(W - 1, S.x + DRIFT * wind)), S.y);
+  return S.prev;
+}
+function rainOn(i) {
+  const g = ground(...xy(i));
+  if (!(g in GROWS)) return null;
+  if (g === "s" && !RULES.seed) return null;
+  if ((g === "S" || g === "s") && i === idx(S.x, S.y)) return null;   // never grows a tree up under you
+  return GROWS[g];
+}
+
+// ---- chewing (Gnawly) ----
+// Walk into a lone tree and it gets chewed down. It falls away from you, FALL squares long, over grass, brambles,
+// ash or water, and stops short at anything else. If the square it falls toward is higher (a cliff), it falls
+// against the cliff and leans there, and you can walk up it.
+const LOGGABLE = ".,~%-";
+function fall(tx, ty, dx, dy) {
+  const ch = {}, logs = [];
+  const ax = tx + dx, ay = ty + dy;
+  if (RULES.lean && inside(ax, ay) && level(ground(ax, ay)) === 1 && level(ground(tx, ty)) === 0) {
+    ch[idx(tx, ty)] = "I";
+    return { ch, lean: true, logs };
+  }
+  ch[idx(tx, ty)] = "S";
+  for (let k = 1; k <= FALL; k++) {
+    const lx = tx + k * dx, ly = ty + k * dy;
+    if (!inside(lx, ly)) break;
+    const g = ground(lx, ly);
+    if (!LOGGABLE.includes(g) || creatureAt(lx, ly) || level(g) !== 0 || HOT.has(idx(lx, ly))) break;
+    ch[idx(lx, ly)] = g === "~" ? "L" : "l";
+    logs.push(idx(lx, ly));
+  }
+  return { ch, lean: false, logs };
+}
+// the tree you'd chew down by walking into it from (x, y) going (dx, dy)
+function chewTarget(x, y, dx, dy) {
+  const tx = x + dx, ty = y + dy;
+  if (!inside(tx, ty) || ground(tx, ty) !== "T") return null;
+  if (!same(levelAt(x, y), 0)) return null;
+  return [tx, ty];
+}
+
+// When Tu has found nothing for a while, one unsolved spot shows a sign. It never says what to do:
+// the bird circles over where a rare one lives, never over the thing you'd use to get there.
+const SIGNS = [
+  { at: [31, 5], line: "A bird keeps circling high over the east cliff.",
+    want: () => has("chew") && has("rain") && !S.found.includes("A") },
+  { at: [24, 5], line: "A bird keeps circling over the middle cliff.",
+    want: () => has("chew") && has("fire") && !S.found.includes("B") },
+  { at: [10, 7], line: "A bird keeps circling over the island in the pond.",
+    want: () => has("chew") && has("rain") && !S.found.includes("C") },
+  { at: [6, 17], line: "A bird keeps circling over the far bank of the river.",
+    want: () => has("chew") && has("fire") && !S.found.includes("E") },
+  { at: [3, 25], line: "A bird keeps circling over the little island past the bridge.",
+    want: () => ground(7, 18) !== "Y" && !S.found.includes("Q") },
+];
+// ==== CORE END ====
+
+// ---- saving: one save for the whole sketch, one entry per map, and the followers you bring along ----
+const SAVE_KEY = "evenings-sketch";
+const MAP_NO = 1;
+S = fresh();
+let saving = true;
+function readSave() { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); } catch (e) { return null; } }
+function load() {
+  const d = readSave();
+  const m = d && d.maps && d.maps[MAP_NO];
+  if (m && m.ver === MAP_VER && Array.isArray(m.seen) && m.seen.length === W * H && m.mod && typeof m.mod === "object" && Array.isArray(m.found)) {
+    S = Object.assign(fresh(), m);
+  }
+}
+function save() {
+  if (!saving) return;
+  try {
+    const d = readSave() || {};
+    d.maps = d.maps || {};
+    d.maps[MAP_NO] = Object.assign({}, S, { ver: MAP_VER });
+    d.map = MAP_NO;
+    d.roster = FOLLOW.filter((k) => S.found.includes(k));
+    localStorage.setItem(SAVE_KEY, JSON.stringify(d));
+  } catch (e) { /* storage blocked */ }
+}
+
+// ---- drawing ----
+const viewEl = document.getElementById("view");
+const mapEl = document.getElementById("map");
+const meEl = document.getElementById("me");
+const folEl = document.getElementById("fol");
+mapEl.style.gridTemplateColumns = `repeat(${W}, var(--tile))`;
+const tiles = [];
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+  const d = document.createElement("div");
+  d.className = "t"; d.dataset.x = x; d.dataset.y = y;
+  mapEl.insertBefore(d, folEl); tiles.push(d);
+}
+const art = (k, cls = "") => `<svg class="${cls}" viewBox="0 0 32 32"><use href="#sp-${k}"/></svg>`;
+const trackArt = (k) => `<span class="trk ${TRAIL_LOOK[k][0]}"></span>`;
+const BIRD = `<svg viewBox="0 0 34 34" aria-hidden="true">
+  <path class="wing l" d="M17 18 Q9 6 1 10 Q8 13 13 20z" fill="#f4ead6" stroke="#1b2236" stroke-width="1.2"/>
+  <path class="wing r" d="M17 18 Q25 6 33 10 Q26 13 21 20z" fill="#f4ead6" stroke="#1b2236" stroke-width="1.2"/>
+  <ellipse cx="17" cy="20" rx="4.2" ry="6" fill="#f4ead6" stroke="#1b2236" stroke-width="1.2"/>
+  <circle cx="17" cy="14.5" r="3" fill="#f4ead6" stroke="#1b2236" stroke-width="1.2"/>
+  <path d="M17 11 l-1.4 -2.6 l2.8 0z" fill="#f0a35e"/>
+</svg>`;
+const signArt = () => `<span class="sign bird"><span class="shadow"><i></i></span><span class="orbit">${BIRD}</span></span>`;
+
+const slotsEl = document.getElementById("slots");
+const slotEls = {};
+function slotHint(k) {
+  const c = CREATURES[k], seenTrail = S.trails.includes(k);
+  if (c.kind === "helper") return "A follower you haven't met yet.";
+  if (c.kind === "plain") return "A creature you haven't found yet.";
+  if (c.kind === "rarest") return seenTrail ? "You've seen its silver hoofprints. Where do they go?" : "The rarest one. You haven't seen a trace of it.";
+  return seenTrail ? "You've seen its trail. Where does it lead?" : "A rare one. Rare ones leave a trail.";
+}
+ORDER.forEach((k, i) => {
+  const c = CREATURES[k];
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "slot " + c.kind;
+  b.innerHTML = `<span class="face">?</span><span class="nm">#${i + 1}</span>`;
+  b.addEventListener("click", () => {
+    if (!S.found.includes(k)) { say(slotHint(k), false); return; }
+    if (c.kind === "helper") { pickFollower(k); return; }
+    say(`<b>${c.name}.</b>&nbsp;${c.line}`, false, k);
+  });
+  slotsEl.appendChild(b); slotEls[k] = b;
+});
+
+let pulsing = new Set(), sign = null, chewing = -1;
+const SPARKS = new Set();
+const GROUND_CLASS = { ".": "grass", ",": "grass", t: "tree", x: "stone", h: "high", "/": "ramp", w: "vine", I: "leanlog",
+  "~": "water", "%": "bramble", T: "lone", S: "stump", l: "log", L: "logw", v: "sprout", V: "sproutup", s: "seed",
+  "-": "ash", Y: "post", Z: "raised", j: "bridge" };
+// a fallen tree lies one way: along the row if the log goes on left or right of here, else up and down
+function logLook(x, y) {
+  const lg = (ax, ay) => inside(ax, ay) && "lLS".includes(ground(ax, ay));
+  return `<span class="log ${lg(x - 1, y) || lg(x + 1, y) ? "h" : "v"}"></span>`;
+}
+function draw() {
+  const up = high(S.x, S.y);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = idx(x, y), el = tiles[i];
+    const alt = (x * 13 + y * 7 + x * y) % 7 === 0 ? " alt" : "";
+    const k = creatureAt(x, y), waiting = k && !S.found.includes(k);
+    let html = "", cls;
+    if (S.seen[i]) {
+      const g = ground(x, y);
+      cls = "t g-" + GROUND_CLASS[g] + alt;
+      const lv = level(g);
+      if (lv === 1) {
+        const lowAt = (ax, ay) => inside(ax, ay) && levelAt(ax, ay) === 0;
+        if (lowAt(x, y + 1)) cls += " edgeS";
+        if (lowAt(x + 1, y)) cls += " edgeE";
+      } else if (lv === 0) {
+        cls += " low";
+        const n = y > 0 && levelAt(x, y - 1) === 1, w = x > 0 && levelAt(x - 1, y) === 1;
+        if (n) cls += " wallN";
+        if (w) cls += " shadeW";
+        if (n || w) html += `<span class="wall"></span>`;
+      }
+      if (g === "l" || g === "L") html += logLook(x, y);
+      const tk = TRACK.get(i);
+      if (tk && trailShows(tk, x, y)) html += trackArt(tk);
+      if (waiting && findable(k, i)) html += art(k, "cr " + CREATURES[k].kind);
+      if (sign && idx(...sign.at) === i) { html += signArt(); cls += " signed"; }
+      if (HOT.has(i)) cls += " fire";
+      if (SPARKS.has(i)) cls += " spark";
+      if (chewing === i) cls += " chew";
+    } else {
+      cls = "t fog" + alt;
+      if (waiting && !isRare(k) && S.glints.includes(i)) html = `<span class="glint"></span>`;
+      if (HOT.has(i)) cls += " fire";
+    }
+    if (pulsing.has(i)) { cls += " pulse"; html += `<span class="ring"></span>`; }
+    if (el.className !== cls) el.className = cls;
+    if (el.innerHTML !== html) el.innerHTML = html;
+  }
+  meEl.style.transform = `translate(calc(${S.x} * var(--tile)), calc(${S.y} * var(--tile)))`;
+  mapEl.classList.toggle("up", up);
+  placeFollower();
+  camera();
+  const pct = Math.floor((S.found.length / ORDER.length) * 100);
+  document.getElementById("pct").textContent = pct + "%";
+  document.getElementById("pctBar").style.width = pct + "%";
+  document.getElementById("count").textContent = S.found.length + " / " + ORDER.length;
+  ORDER.forEach((k, i) => {
+    const got = S.found.includes(k), el = slotEls[k];
+    el.classList.toggle("got", got);
+    el.classList.toggle("out", S.out === k);
+    const face = got ? art(k) : (TRAILS[k] && S.trails.includes(k) ? trackArt(k) : "?");
+    const faceEl = el.querySelector(".face");
+    if (faceEl.innerHTML !== face) faceEl.innerHTML = face;
+    el.querySelector(".nm").textContent = got ? CREATURES[k].name : "#" + (i + 1);
+  });
+  drawWho();
+}
+function flash(squares) {
+  pulsing = new Set(squares);
+  draw();
+  setTimeout(() => { pulsing = new Set(); draw(); }, 2900);
+}
+
+const hintEl = document.getElementById("hint");
+function say(text, news, k) {
+  hintEl.innerHTML = (k ? art(k) : "") + `<span>${text}</span>`;
+  hintEl.classList.toggle("news", !!news);
+}
+function tell(news) {
+  if (news.met) say("There it is, at the end of the trail.", true);
+  else if (news.trail) say(TRAIL_LOOK[news.trail][1], true);
+}
+
+// ---- camera: keep you near the middle; "Whole map" shrinks it to fit ----
+let whole = false, tile = 30;
+function fit() {
+  const vw = viewEl.clientWidth, vh = viewEl.clientHeight;
+  tile = whole ? Math.max(8, Math.floor(Math.min(vw / W, vh / H)))
+               : Math.max(26, Math.min(44, Math.floor(vw / 11)));
+  document.documentElement.style.setProperty("--tile", tile + "px");
+  camera();
+}
+function camera() {
+  const vw = viewEl.clientWidth, vh = viewEl.clientHeight, mw = W * tile, mh = H * tile;
+  const place = (p, v, m) => (m <= v ? (m - v) / 2 : Math.min(Math.max(p * tile + tile / 2 - v / 2, 0), m - v));
+  mapEl.style.transform = `translate(${-place(S.x, vw, mw)}px, ${-place(S.y, vh, mh)}px)`;
+}
+addEventListener("resize", fit);
+const zoomBtn = document.getElementById("zoom");
+zoomBtn.addEventListener("click", () => {
+  whole = !whole;
+  zoomBtn.classList.toggle("on", whole);
+  zoomBtn.textContent = whole ? "Close up" : "Whole map";
+  fit();
+});
+
+// ---- the wind: east for a while, still, west for a while, still ----
+const WIND = [[1, 15000], [0, 7000], [-1, 15000], [0, 7000]];
+let windFrozen = null, windT0 = Date.now() - 16000;   // start still, so the first thing you see is a calm night
+function windNow() {
+  if (windFrozen !== null) return windFrozen;
+  const cyc = WIND.reduce((a, b) => a + b[1], 0);
+  let t = (Date.now() - windT0) % cyc;
+  for (const [w, ms] of WIND) { if (t < ms) return w; t -= ms; }
+  return 0;
+}
+const windEl = document.getElementById("wind");
+{
+  let html = "";
+  for (let k = 0; k < 18; k++) {
+    const top = (k * 37 + 11) % 100, delay = -((k * 0.53) % 1.5), dur = 1.1 + (k % 5) * 0.18;
+    html += `<i class="${k % 4 === 0 ? "leaf" : ""}" style="top:${top}%;animation-delay:${delay}s;animation-duration:${dur}s"></i>`;
+  }
+  windEl.innerHTML = html;
+}
+let windShown = 0;
+function drawWind() {
+  const w = windNow();
+  if (w === windShown) return;
+  windShown = w;
+  windEl.classList.toggle("e", w === 1);
+  windEl.classList.toggle("w", w === -1);
+}
+
+// ---- your follower ----
+const whoEl = document.getElementById("who");
+function drawWho() {
+  const k = S.out;
+  whoEl.hidden = !k;
+  if (!k) return;
+  document.getElementById("whoUse").setAttribute("href", "#sp-" + k);
+  document.getElementById("whoName").textContent = CREATURES[k].name;
+}
+function pickFollower(k) {
+  if (!S.found.includes(k) || !FOLLOW.includes(k)) return;
+  if (S.out !== k) { S.out = k; S.prev = idx(S.x, S.y); }
+  say(`${CREATURES[k].name} follows you now.`, false, k);
+  draw(); save();
+}
+whoEl.addEventListener("click", () => {
+  const mine = FOLLOW.filter((k) => S.found.includes(k));
+  if (!mine.length || busy) return;
+  pickFollower(mine[(mine.indexOf(S.out) + 1) % mine.length]);
+});
+let folKind = null, folAt = -1;
+function placeFollower() {
+  const k = S.out;
+  folEl.hidden = !k;
+  if (!k) return;
+  if (folKind !== k) {
+    folKind = k;
+    folEl.className = "fol f-" + k;
+    folEl.innerHTML = `<svg viewBox="0 0 32 32" aria-hidden="true"><use href="#sp-${k}"/></svg>`;
+  }
+  const at = k === "D" ? cloudSpot(windNow()) : S.prev;
+  if (at !== folAt) {
+    const [fx] = xy(at), [px] = xy(folAt < 0 ? at : folAt);
+    if (fx !== px) folEl.classList.toggle("left", fx < px);
+    folAt = at;
+  }
+  const [x, y] = xy(at);
+  folEl.style.transform = `translate(calc(${x} * var(--tile)), calc(${y} * var(--tile)))`;
+}
+
+// ---- finding a creature ----
+const cardEl = document.getElementById("card");
+let afterCard = null;
+function showCard(k) {
+  const c = CREATURES[k];
+  document.getElementById("cardIn").className = "cardin " + c.kind;
+  document.getElementById("cardTag").textContent = TAG[c.kind];
+  document.getElementById("cardUse").parentNode.style.display = "";
+  document.getElementById("cardUse").setAttribute("href", "#sp-" + k);
+  document.getElementById("cardName").textContent = c.name;
+  document.getElementById("cardLine").textContent = c.line;
+  document.getElementById("cardCrew").hidden = true;
+  document.getElementById("cardSmall").textContent = "Tap to keep exploring";
+  cardEl.hidden = false;
+}
+// the end of the map: what comes next, and who comes with you
+function showDone() {
+  document.getElementById("cardIn").className = "cardin done";
+  document.getElementById("cardTag").textContent = "Map 1 done";
+  document.getElementById("cardUse").parentNode.style.display = "none";
+  document.getElementById("cardName").textContent = "See you tomorrow";
+  document.getElementById("cardLine").textContent = "Map 2 arrives tomorrow. These followers come with you:";
+  const crew = document.getElementById("cardCrew");
+  crew.innerHTML = FOLLOW.filter((k) => S.found.includes(k)).map((k) => art(k)).join("");
+  crew.hidden = false;
+  document.getElementById("cardSmall").textContent = "Tap to close";
+  cardEl.hidden = false;
+}
+function closeCard() {
+  cardEl.hidden = true;
+  if (afterCard) { const f = afterCard; afterCard = null; f(); }
+  draw();
+  pump();
+}
+cardEl.addEventListener("click", closeCard);
+function find(k) {
+  S.found.push(k);
+  quietSince = Date.now();
+  if (CREATURES[k].kind === "helper") { S.out = k; S.prev = idx(S.x, S.y); }
+  look();
+  const el = slotEls[k];
+  el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+  draw(); save();
+  showCard(k);
+  afterCard = () => {
+    const c = CREATURES[k];
+    if (S.found.length === ORDER.length) { say("Every creature on map 1 found.", true); setTimeout(showDone, 50); }
+    else if (c.kind === "helper") say(c.after, true, k);
+    else if (c.kind === "rarest") say(`The rarest one: ${c.name}!`, true, k);
+    else if (c.kind === "rare") say(`A rare find: ${c.name}!`, true, k);
+    else say(`You found ${c.name}!`, true, k);
+  };
+}
+
+// ---- moving ----
+const SLOW = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const T = SLOW ? { step: 50, fireStep: 120, burn: 500, chew: 400 }
+               : { step: 115, fireStep: 260, burn: 1300, chew: 1100 };
+let walk = null, busy = false, moving = false;
+const later = (f, ms) => { walk = setTimeout(f, ms); };
+// plays out a list of steps; done(stopped) runs at the end; stopped means a find or a rare one cut it short
+function go(steps, done = () => {}) {
+  if (walk) clearTimeout(walk);
+  const arrive = () => {
+    const i = idx(S.x, S.y);
+    const news = look();
+    const k = creatureAt(S.x, S.y);
+    if (k && !S.found.includes(k) && findable(k, i)) { walk = null; find(k); done(true); return true; }
+    draw();
+    tell(news);
+    if (!news.met && !news.trail && ground(S.x, S.y) === "s") say("A seed, in a patch of soft dark earth.", false);
+    save();
+    if (news.met) { walk = null; done(true); return true; }  // stop so you see a rare one before you walk off
+    return false;
+  };
+  const tick = () => {
+    if (!steps.length) { walk = null; save(); done(false); return; }
+    const { i } = steps.shift();
+    const [nx, ny] = xy(i);
+    S.prev = idx(S.x, S.y);
+    S.x = nx; S.y = ny;
+    if (arrive()) return;
+    later(tick, T.step);
+  };
+  tick();
+}
+
+// ---- fire: the fox sets brambles next to it alight; the wind carries it on ----
+const lit = new Set();
+function ignite(n) {
+  const path = fireFrom(n, windNow()).filter((i) => !lit.has(i));
+  path.forEach((i, k) => {
+    lit.add(i);
+    setTimeout(() => {
+      const [x, y] = xy(i);
+      if (!burns(ground(x, y))) { lit.delete(i); return; }
+      const prev = k > 0 ? path[k - 1] : -1;
+      if (prev >= 0 && Math.abs(xy(prev)[0] - x) === 2) {   // a spark flies over the square between
+        const gap = idx((xy(prev)[0] + x) / 2, y);
+        SPARKS.add(gap); setTimeout(() => { SPARKS.delete(gap); draw(); }, 320);
+      }
+      HOT.add(i); S.seen[i] = 1; draw();
+      setTimeout(() => {
+        HOT.delete(i); lit.delete(i);
+        const wasPost = ground(x, y) === "Y";
+        Object.assign(S.mod, burnt(i));
+        if (wasPost) { for (const z of ZS) S.seen[z] = 1; flash(ZS.concat([i])); say("The rope burns through, and the bridge drops across the river.", true); }
+        look(); draw(); save();
+      }, T.burn);
+    }, k * T.fireStep);
+  });
+}
+setInterval(() => {
+  if (S.out !== "F" || !cardEl.hidden) return;
+  for (const n of lightable(S.prev)) if (!lit.has(n)) ignite(n);
+}, 150);
+
+// ---- rain: the cloud waters whatever is under it ----
+const GROW_SAY = { w: "The sprout drinks the rain and climbs the cliff.", s: "The seed drinks the rain and shoots up into a tree.",
+  S: "The stump sprouts back into a tree." };
+setInterval(() => {
+  drawWind();
+  if (S.out === "D") placeFollower();
+  if (S.out !== "D" || !cardEl.hidden) return;
+  const c = cloudSpot(windNow()), was = ground(...xy(c)), g = rainOn(c);
+  if (!g) return;
+  S.mod[c] = g; S.seen[c] = 1;
+  if (g === "T" && mapGround(...xy(c)) === "T") delete S.mod[c];
+  look(); flash([c]); save();
+  say(g === "w" ? GROW_SAY.w : GROW_SAY[was], true);
+}, 200);
+
+// ---- chewing: walk into a lone tree with Gnawly following ----
+function chew(tx, ty, dx, dy) {
+  busy = true;
+  const ti = idx(tx, ty);
+  chewing = ti; folEl.classList.add("gnaw");
+  say("Gnawly gets to work on the tree.", false);
+  draw();
+  setTimeout(() => {
+    chewing = -1; folEl.classList.remove("gnaw");
+    if (ground(tx, ty) !== "T") { busy = false; draw(); return; }
+    const res = fall(tx, ty, dx, dy);
+    Object.assign(S.mod, res.ch);
+    for (const i of res.logs) S.seen[i] = 1;
+    flash([ti, ...res.logs]);
+    say(res.lean ? "Timber! The tree falls against the cliff." : "Timber! The tree comes down.", true);
+    look(); draw(); save();
+    busy = false; needRelease = !!inputVec();   // still holding on: stop until you let go; already let go: free to walk
+  }, T.chew);
+}
+
+// ---- the controls: a thumb stick on the map (phone or mouse), or arrow keys / WASD ----
+// One step at a time while you hold it. After a find or a rare one, you stop until you let go.
+const stickEl = document.getElementById("stick"), knobEl = document.getElementById("knob");
+const STICK_R = 40, DEAD = 12;
+let stick = null, needRelease = false, acc = { x: 0, y: 0 }, lastBump = "";
+const keys = new Set();
+const KEY_DIR = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+                  KeyW: [0, -1], KeyS: [0, 1], KeyA: [-1, 0], KeyD: [1, 0] };
+function inputVec() {
+  if (stick) return Math.hypot(stick.vx, stick.vy) > DEAD ? { x: stick.vx, y: stick.vy } : null;
+  let x = 0, y = 0;
+  for (const c of keys) { x += KEY_DIR[c][0]; y += KEY_DIR[c][1]; }
+  return x || y ? { x, y } : null;
+}
+function inputChanged() {
+  if (!inputVec()) { needRelease = false; acc = { x: 0, y: 0 }; lastBump = ""; }
+  pump();
+}
+function finish(stop) {
+  moving = false;
+  if (stop) needRelease = true;
+  draw();
+  pump();
+}
+function bump(a) {
+  meEl.classList.remove("push"); void meEl.offsetWidth; meEl.classList.add("push");
+  if (a.g === "T" && S.out === "G" && !a.edge) {
+    const t = chewTarget(S.x, S.y, a.dx, a.dy);
+    if (t) { lastBump = ""; chew(t[0], t[1], a.dx, a.dy); return; }
+  }
+  const tx = S.x + a.dx, ty = S.y + a.dy, tk = inside(tx, ty) && TRACK.get(idx(tx, ty));
+  const onTrail = tk && trailShows(tk, tx, ty);
+  const hot = inside(tx, ty) && HOT.has(idx(tx, ty));
+  const text = hot ? "Too hot. It's burning." : a.edge ? "A steep cliff." : (BLOCKED_HINT[a.g] || "You can't go there.") + (onTrail ? " The trail goes on in there." : "");
+  if (text !== lastBump) { say(text, false); lastBump = text; }
+  moving = true;
+  draw();
+  setTimeout(() => finish(false), 220);
+}
+function pump() {
+  if (moving || busy || !cardEl.hidden || needRelease) return;
+  const v = inputVec();
+  if (!v) return;
+  const ax = Math.abs(v.x), ay = Math.abs(v.y), sx = Math.sign(v.x), sy = Math.sign(v.y);
+  // nearly straight: one axis only. At a slant: a staircase that keeps close to the line you're holding.
+  const slant = Math.min(ax, ay) / Math.max(ax, ay) > 0.414;
+  let tries;
+  if (!slant) tries = ax >= ay ? [[sx, 0]] : [[0, sy]];
+  else {
+    acc.x = Math.min(2, acc.x + ax / (ax + ay)); acc.y = Math.min(2, acc.y + ay / (ax + ay));
+    tries = acc.x >= acc.y ? [[sx, 0], [0, sy]] : [[0, sy], [sx, 0]];
+  }
+  let first = null;
+  for (const [dx, dy] of tries) {
+    const a = stepFrom(S.x, S.y, dx, dy);
+    if (a.kind !== "bump") {
+      if (dx) acc.x -= 1; else acc.y -= 1;
+      S.face = [dx, dy];
+      lastBump = ""; moving = true;
+      go([{ i: a.to }], finish);
+      return;
+    }
+    if (!first) first = { ...a, dx, dy };
+  }
+  S.face = [first.dx, first.dy];
+  bump(first);
+}
+setInterval(pump, 40);
+
+viewEl.addEventListener("pointerdown", (e) => {
+  if (stick || (e.pointerType === "mouse" && e.button !== 0)) return;
+  const r = viewEl.getBoundingClientRect();
+  stick = { id: e.pointerId, ox: e.clientX - r.left, oy: e.clientY - r.top, vx: 0, vy: 0 };
+  try { viewEl.setPointerCapture(e.pointerId); } catch (err) { /* fine without it */ }
+  stickEl.style.left = stick.ox + "px"; stickEl.style.top = stick.oy + "px";
+  knobEl.style.transform = "";
+  stickEl.hidden = false;
+  e.preventDefault();
+});
+viewEl.addEventListener("pointermove", (e) => {
+  if (!stick || e.pointerId !== stick.id) return;
+  const r = viewEl.getBoundingClientRect();
+  let dx = e.clientX - r.left - stick.ox, dy = e.clientY - r.top - stick.oy;
+  const len = Math.hypot(dx, dy);
+  if (len > STICK_R) { dx *= STICK_R / len; dy *= STICK_R / len; }
+  knobEl.style.transform = `translate(${dx}px, ${dy}px)`;
+  stick.vx = dx; stick.vy = dy;
+  inputChanged();
+});
+const letGo = (e) => {
+  if (!stick || e.pointerId !== stick.id) return;
+  stick = null; stickEl.hidden = true;
+  inputChanged();
+};
+viewEl.addEventListener("pointerup", letGo);
+viewEl.addEventListener("pointercancel", letGo);
+addEventListener("keydown", (e) => {
+  if (!cardEl.hidden && ["Enter", "Space", "Escape"].includes(e.code)) { e.preventDefault(); closeCard(); return; }
+  if (e.code === "KeyF" || e.code === "Tab") { e.preventDefault(); whoEl.click(); return; }
+  if (!KEY_DIR[e.code] || e.ctrlKey || e.metaKey || e.altKey) return;
+  e.preventDefault();
+  if (!keys.has(e.code)) { keys.add(e.code); inputChanged(); }
+});
+addEventListener("keyup", (e) => { if (keys.delete(e.code)) inputChanged(); });
+addEventListener("blur", () => { keys.clear(); stick = null; stickEl.hidden = true; inputChanged(); });
+
+// ---- stuck: after a long while with no new find, one unsolved spot shows a sign ----
+let STUCK_MS = 150000, quietSince = Date.now();
+setInterval(() => {
+  if (sign && !sign.want()) { sign = null; draw(); }
+  if (sign || !cardEl.hidden || Date.now() - quietSince < STUCK_MS) return;
+  const s = SIGNS.find((s) => s.want() && S.seen[idx(...s.at)]);
+  if (!s) return;
+  sign = s; quietSince = Date.now();
+  draw(); say(s.line, true);
+}, 3000);
+
+// ---- start over (tap twice) ----
+const resetBtn = document.getElementById("reset");
+let armed = null;
+resetBtn.addEventListener("click", () => {
+  if (!armed) {
+    resetBtn.classList.add("armed"); resetBtn.textContent = "Tap again to wipe";
+    armed = setTimeout(() => { armed = null; resetBtn.classList.remove("armed"); resetBtn.textContent = "Start over"; }, 3000);
+    return;
+  }
+  clearTimeout(armed); armed = null;
+  resetBtn.classList.remove("armed"); resetBtn.textContent = "Start over";
+  if (busy || HOT.size) return;
+  if (walk) clearTimeout(walk);
+  walk = null; pulsing = new Set(); sign = null;
+  moving = false; needRelease = false;
+  S = fresh(); quietSince = Date.now(); look(); draw(); save();
+  say("Drag anywhere on the map to walk. On a computer, use the arrow keys.", false);
+});
+
+// ---- go ----
+// For checking only, never saved:
+//   #peek        the whole map, all three followers, Emberfox out; the stuck sign comes after 6 seconds; the wind runs as normal
+//   #peek-calm   the same, with the wind held still     #peek-east / #peek-west  the same, with the wind held blowing that way
+//   add @x,y to stand somewhere else, and ~K to pick who follows (F, G or D), e.g. #peek-east@23,11~D
+if (location.hash.startsWith("#peek")) {
+  saving = false; STUCK_MS = 6000;
+  S.seen.fill(1); S.found = ["F", "G", "D"]; S.out = "F";
+  if (location.hash.startsWith("#peek-calm")) windFrozen = 0;
+  if (location.hash.startsWith("#peek-east")) windFrozen = 1;
+  if (location.hash.startsWith("#peek-west")) windFrozen = -1;
+  const at = location.hash.match(/@(\d+),(\d+)/);
+  if (at) { S.x = +at[1]; S.y = +at[2]; }
+  const who = location.hash.match(/~([FGD])/);
+  if (who) S.out = who[1];
+  S.prev = idx(S.x, Math.min(H - 1, S.y + 1));
+} else {
+  load();
+}
+look();
+draw();
+fit();
+</script>
